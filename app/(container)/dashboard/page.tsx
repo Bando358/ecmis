@@ -1,3 +1,4 @@
+"use server";
 import DashboardServer from "@/components/DashboardServer";
 
 interface DashboardPageProps {

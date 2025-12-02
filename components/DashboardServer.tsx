@@ -1,4 +1,5 @@
 // components/DashboardServer.tsx
+"use server";
 import { getAllUserIncludedIdClinique } from "@/lib/actions/authActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { fetchDashboardData } from "@/lib/actions/dashboardActions";
