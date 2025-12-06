@@ -7,7 +7,8 @@ import * as bcrypt from "bcrypt";
 import { User } from "@/lib/generated/prisma";
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma) as Adapter,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
