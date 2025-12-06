@@ -31,7 +31,7 @@ import {
 interface ActiviteDialogProps {
   cliniques: Clinique[];
   users: User[];
-  userId: string;
+  userId?: string;
   activites: Activite[];
   selectedCliniqueId: string;
   onActiviteCreated: (activite: Activite) => void;
@@ -312,7 +312,7 @@ export function ActiviteDialog({
                   {...register("idUser", {
                     required: "Utilisateur est requis",
                   })}
-                  value={userId || ""}
+                  value={userId || ""} // ← Valeur par défaut
                 />
               </div>
 
