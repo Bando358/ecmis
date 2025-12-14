@@ -1,0 +1,1506 @@
+
+// generator client {
+//   provider = "prisma-client-js"
+//   output   = "../lib/generated/prisma"
+// }
+
+// generator client {
+//   provider      = "prisma-client-js"
+//   binaryTargets = ["native", "rhel-openssl-3.0.x"]
+// }
+// prisma/schema.prisma
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TableName {
+  PERMISSION
+  USER
+  POST
+  REGION
+  CLINIQUE
+  CLIENT
+  CLIENT_VIH
+  IMPORT_CLIENT_VIH
+  ACTIVITE
+  LIEU
+  VISITE
+  CONSTANTE
+  PLANNING
+  GYNECOLOGIE
+  IST
+  INFERTILITE
+  VBG
+  MEDECINE
+  GROSSESSE
+  OBSTETRIQUE
+  ACCOUCHEMENT
+  CPON
+  TEST_GROSSESSE
+  SAA
+  DEPISTAGE_VIH
+  PEC_VIH
+  REFERENCE
+  CONTRE_REFERENCE
+  ORDONNANCE
+  PRESTATION
+  TARIF_PRESTATION
+  FACTURE_PRESTATION
+  EXAMEN
+  TARIF_EXAMEN
+  DEMANDE_EXAMEN
+  RESULTAT_EXAMEN
+  FACTURE_EXAMEN
+  ECHOGRAPHIE
+  TARIF_ECHOGRAPHIE
+  DEMANDE_ECHOGRAPHIE
+  RESULTAT_ECHOGRAPHIE
+  FACTURE_ECHOGRAPHIE
+  PRODUIT
+  TARIF_PRODUIT
+  ANOMALIE_INVENTAIRE
+  FACTURE_PRODUIT
+  COMMANDE_FOURNISSEUR
+  DETAIL_COMMANDE
+  BILAN
+  STOCK_PRODUIT
+  INVENTAIRE
+  DETAIL_INVENTAIRE
+  AJUSTEMENT_STOCK
+  ADMINISTRATION
+}
+
+model Permission {
+  id          String       @id @default(uuid())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // La table (ou module) concernée
+  table       TableName
+
+  // Les droits d'accès
+  canCreate   Boolean      @default(false)
+  canRead     Boolean      @default(false)
+  canUpdate   Boolean      @default(false)
+  canDelete   Boolean      @default(false)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("permissions")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+enum PostStatus {
+AMD
+INFIRMIER
+SAGE_FEMME
+CONSEILLER
+MEDECIN
+LABORANTIN
+CAISSIERE
+COMPTABLE
+SUIVI_EVALLUATION
+ADMIN
+}
+// INFIRMIER,SAGE_FEMME,MEDECIN auront les mêmes droits
+model Post {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title PostStatus
+  content String
+
+   userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@map("posts")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  createdAt     DateTime
+  updatedAt     DateTime
+
+  name          String
+  email         String @unique
+  username      String @unique
+  password      String @unique
+  prescripteur  Boolean @default(false)
+  emailVerified Boolean
+  image         String?
+  role  UserRole @default(USER)
+  banned        Boolean?
+  banReason     String?
+  banExpires    DateTime?
+  idCliniques   String[]
+
+  clinique      UserClinique[]
+  post          Post[]
+  sessions      Session[]
+  accounts      Account[]
+  cliniques     Clinique[]        @relation("UserCliniques") // Relation Many-to-Many
+  Visite        Visite[]          @relation("UserVisites")
+  activite       Activite[]          @relation("UserActivites")
+  clients       Client[] 
+  constante       Constante[] 
+  FacturePrestation FacturePrestation[]
+  prestation     Prestation[]
+  tarifPrestation TarifPrestation[]
+  TarifProduit    TarifProduit[]
+  planning          Planning[]
+  produit         Produit[]
+  DetailCommande   DetailCommande[]
+  FactureProduit   FactureProduit[]
+  Examen          Examen[]
+  TarifExamen     TarifExamen[]
+  ResultatExamen ResultatExamen[]
+  DemandeExamen   DemandeExamen[]
+  FactureExamen   FactureExamen[]
+  Gynecologie     Gynecologie[]     @relation("UserGynecologies")
+  Ist            Ist[]         @relation("UserIst")
+  Infertilite    Infertilite[]
+  Vbg            Vbg[]
+  Medecine            Medecine[]
+  Saa            Saa[]
+  Grossesse            Grossesse[]
+  Accouchement       Accouchement[]
+  Cpon               Cpon[]
+  TestGrossesse      TestGrossesse[]
+  Obstetrique        Obstetrique[]
+  DepistageVih      DepistageVih[]
+  PecVih            PecVih[]
+  Echographie       Echographie[]
+  factureEchographie  FactureEchographie[]
+  demandeEchographie  DemandeEchographie[]
+  tarifEchographie    TarifEchographie[]
+  resultatEchographie  ResultatEchographie[]
+  Reference  Reference[]
+  ContreReference  ContreReference[]
+  Ordonnance  Ordonnance[]
+  ExamenPvVih   ExamenPvVih[]
+  permissions Permission[]
+  Inventaire              Inventaire[]
+  AnomalieInventaire      AnomalieInventaire[]
+  DetailInventaire        DetailInventaire[]
+
+  @@map("user")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  expires      DateTime
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+   // 1 User peut créer plusieurs Clients
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  identifier String
+  value      String
+  expiresAt  DateTime
+
+  @@map("verification")
+}
+
+model Region {
+  id          String     @id @default(uuid())
+  nomRegion   String
+  codeRegion  String
+  Cliniques   Clinique[]
+}
+
+model Clinique {
+  id                   String                 @id @default(uuid())
+  nomClinique          String
+  codeClinique         String
+  numClinique          String
+  idRegion             String
+  Region               Region                 @relation(fields: [idRegion], references: [id])
+  users                User[]     @relation("UserCliniques") // Relation Many-to-Many
+  clients              Client[]   // 1 Clinique → plusieurs Clients
+  incrementCounter     IncrementCounter[]
+  UserCliniques        UserClinique[]
+  activite             Activite[] 
+  FacturePrestation   FacturePrestation[]
+  tarifPrestation      TarifPrestation[]
+  TarifProduit         TarifProduit[]
+  factureProduit       FactureProduit[]
+  CommandeFournisseur  CommandeFournisseur[]
+  TarifExamen     TarifExamen[]
+  ResultatExamen ResultatExamen[]
+  DemandeExamen   DemandeExamen[]
+  FactureExamen   FactureExamen[]
+  TarifEchographie  TarifEchographie[]
+  DemandeEchographie  DemandeEchographie[]
+  FactureEchographie  FactureEchographie[]
+  resultatEchographie  ResultatEchographie[]
+  planning             Planning[]
+  Visite               Visite[]
+  Gynecologie          Gynecologie[]
+  Ist                 Ist[]     
+  Infertilite         Infertilite[]
+  Vbg                 Vbg[]
+  Medecine            Medecine[]
+  Saa                 Saa[]
+  Grossesse           Grossesse[]
+  Accouchement        Accouchement[]
+  Cpon                Cpon[]
+  TestGrossesse       TestGrossesse[]
+  Obstetrique         Obstetrique[]
+  DepistageVih       DepistageVih[]
+  PecVih             PecVih[]
+  Ordonnance          Ordonnance[]
+  ContreReference     ContreReference[]
+  Reference           Reference[]
+  ExamenPvVih        ExamenPvVih[]
+  Inventaire         Inventaire[]
+}
+
+model UserClinique {
+  id           String      @id @default(uuid())
+  UserId String
+  cliniqueId   String
+
+  user  User @relation(fields: [UserId], references: [id])
+  Clinique     Clinique    @relation(fields: [cliniqueId], references: [id])
+
+  @@unique([UserId, cliniqueId])
+}
+
+model Client {
+  id                String     @id @default(uuid())
+  dateEnregistrement DateTime
+  nom               String
+  prenom            String
+  dateNaissance     DateTime
+  sexe              String
+  lieuNaissance     String?
+  niveauScolaire    String?
+  ethnie            String?
+  profession        String?
+  serologie         String?
+  sourceInfo        String
+  quartier          String?
+  statusClient      String
+  etatMatrimonial   String?
+  code              String
+  codeVih           String?
+  tel_1             String
+  tel_2             String
+  createdAt         DateTime   @default(now())
+  idUser            String?
+  idClinique        String
+
+  // Relation vers la clinique
+  cliniqueId         String
+  clinique           Clinique   @relation(fields: [cliniqueId], references: [id], onDelete: Restrict)
+
+  // Relation vers l'utilisateur créateur
+  createdBy          User?       @relation(fields: [idUser], references: [id], onDelete: SetNull)
+  Visite            Visite[] @relation("ClientVisite")
+  RecapVisite       RecapVisite[]
+  FacturePrestation FacturePrestation[]
+  FactureProduit    FactureProduit[]
+  Planning          Planning[]
+  Constante         Constante[]
+  ResultatExamen ResultatExamen[]
+  DemandeExamen   DemandeExamen[]
+  FactureExamen   FactureExamen[]
+  Gynecologie       Gynecologie[] @relation("ClientGynecologies")
+  Ist              Ist[]         @relation("ClientIst")
+  Infertilite      Infertilite[]
+  Vbg              Vbg[]
+  Medecine            Medecine[]
+  Saa            Saa[]
+  Grossesse            Grossesse[]
+  Accouchement       Accouchement[]
+  Cpon               Cpon[]
+  TestGrossesse      TestGrossesse[]
+  Obstetrique        Obstetrique[]
+  DepistageVih      DepistageVih[]
+  PecVih            PecVih[]
+  Bilan               Bilan[]
+  Couverture          Couverture[]
+  resultatEchographie  ResultatEchographie[]
+  DemandeEchographie  DemandeEchographie[]
+  FactureEchographie  FactureEchographie[]
+  Reference  Reference[]
+  ContreReference  ContreReference[]
+  Ordonnance  Ordonnance[]
+  ExamenPvVih   ExamenPvVih[]
+
+}
+
+model IncrementCounter {
+  id          String   @id @default(uuid())
+  cliniqueId  String
+  year        Int
+  counter     Int      @default(0)
+  Clinique    Clinique @relation(fields: [cliniqueId], references: [id])
+  @@unique([cliniqueId, year])
+}
+
+model RecapVisite {
+  id          String   @id @default(uuid())
+  idVisite    String   @unique
+  idClient    String
+  prescripteurs String[] // Tableau contenant les noms des formulaires saisis
+  formulaires String[] // Tableau contenant les noms des formulaires saisis
+  updatedAt   DateTime @updatedAt
+
+  Visite      Visite   @relation(fields: [idVisite], references: [id])
+  Client      Client   @relation(fields: [idClient], references: [id])
+}
+
+model Activite {
+  id              String     @id @default(uuid())
+  createdAt       DateTime   @default(now())
+  idClinique      String
+  libelle         String
+  dateDebut       DateTime
+  dateFin         DateTime
+  objectifClt     Int?
+  objectifSrv     Int?
+  commentaire     String?
+  idUser   String
+
+  Lieu            Lieu[]
+  User     User @relation("UserActivites", fields: [idUser], references: [id])
+  Clinique        Clinique    @relation(fields: [idClinique], references: [id])
+  Visites         Visite[]    // Relation inverse pour les visites
+
+  @@index([idUser])
+  @@index([idClinique])
+}
+
+model Lieu {
+  id              String     @id @default(uuid())
+  idActivite      String     // Référence vers l'activité
+  lieu            String
+  localite        String
+  createdAt       DateTime   @default(now())
+  dateDebut       DateTime
+  dateFin         DateTime
+  
+  Activite        Activite   @relation(fields: [idActivite], references: [id])
+  Visites         Visite[]   // Relation inverse vers les visites
+
+  @@index([idActivite]) // Index pour les requêtes par activité
+}
+
+// Schema fiche client
+
+model Visite {
+  id              String     @id @default(uuid())
+  dateVisite      DateTime    @default(now())
+  motifVisite     String
+  idUser          String
+  idClinique      String
+  idClient        String
+  createdAt         DateTime   @default(now())
+  idActivite      String?    // Champ optionnel pour la relation avec Activite
+  idLieu          String?    // Champ optionnel pour la relation avec Activite
+
+  Clinique       Clinique  @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  Client          Client?  @relation("ClientVisite",fields: [idClient], references: [id], onDelete: Cascade)
+  Activite        Activite?  @relation(fields: [idActivite], references: [id], onDelete: Cascade)
+  Lieu            Lieu?      @relation(fields: [idLieu], references: [id], onDelete: Cascade)
+  Constante       Constante[]
+  Planning        Planning[]
+  Gynecologie     Gynecologie[]
+  Ist             Ist[]
+  Infertilite     Infertilite[]
+  Vbg             Vbg[]
+  Medecine        Medecine[]
+  Saa             Saa[]
+  // FactureProduit  FactureProduit[]
+  Grossesse       Grossesse[]
+  Accouchement    Accouchement[]
+  TestGrossesse   TestGrossesse[]
+  Cpon            Cpon[]
+  Obstetrique      Obstetrique[]
+
+  FacturePrestation   FacturePrestation[]
+  RecapVisite            RecapVisite[]
+  FactureProduit        FactureProduit[]
+  ResultatExamen       ResultatExamen[]
+  DemandeExamen        DemandeExamen[]
+  FactureExamen       FactureExamen[]
+  DepistageVih        DepistageVih[]
+  PecVih              PecVih[]
+  Bilan               Bilan[]
+  Couverture          Couverture[]
+  resultatEchographie  ResultatEchographie[]
+  DemandeEchographie  DemandeEchographie[]
+  FactureEchographie  FactureEchographie[]
+  Reference  Reference[]
+  ContreReference  ContreReference[]
+  Ordonnance  Ordonnance[]
+  ExamenPvVih   ExamenPvVih[]
+
+  User     User @relation("UserVisites", fields: [idUser], references: [id])
+  updatedAt       DateTime    @updatedAt
+
+    // Nouvelle relation
+  gestionVisites  GestionVisite[]
+}
+
+model GestionVisite {
+  id              String       @id @default(uuid())
+  idVisite        String
+  typeVisite      TypeVisite   // CONTRACEPTION ou OBSTETRIQUE
+  action          TypeActionGestionVisite
+  dateAction      DateTime     @default(now())
+  commentaire     String?
+  prochaineDate   DateTime?    // Si on reprogramme un rendez-vous
+  createdAt       DateTime     @default(now())
+
+  // Relation vers la visite
+  Visite          Visite       @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+}
+
+enum TypeVisite {
+  CONTRACEPTION
+  OBSTETRIQUE
+  PEC_VIH
+}
+
+enum TypeActionGestionVisite {
+  CONFIRMATION
+  REPROGRAMMATION
+  ACCOUCHEMENT
+  ARRET_CONTRACEPTION
+  INJOIGNABLE
+}
+
+model Constante {
+  id                   String     @id @default(uuid())
+  idVisite             String   
+  poids                 Float
+  taille                Float?
+  psSystolique          Int?
+  psDiastolique         Int?
+  temperature           Float?
+  lieuTemprature        String?
+  pouls                 Int?
+  frequenceRespiratoire Int?
+  saturationOxygene     Int?
+  imc                   Float?
+  etatImc               String?
+  idUser                String?
+  idClient              String
+  createdAt             DateTime   @default(now())
+  User           User? @relation(fields: [idUser], references: [id], onDelete: Cascade)
+  Client         Client @relation(fields: [idClient], references: [id], onDelete: Cascade)
+  Visite                Visite      @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+}
+
+model Planning {
+  id                      String        @id @default(uuid())
+  idVisite                String
+  statut                  String
+  typeContraception       String
+  motifVisite             String
+  consultation            Boolean @default(false)
+  counsellingPf           Boolean @default(false)
+  courtDuree              String?
+  methodePrise            Boolean @default(false)
+  implanon                String?
+  jadelle                 String?
+  sterilet                String?
+  retraitImplanon         Boolean @default(false)
+  retraitJadelle          Boolean @default(false)
+  retraitSterilet         Boolean @default(false)
+  raisonRetrait           String?      
+  raisonEffetSecondaire   String?      
+  // raisonRetraitSterilet   String?      
+  rdvPf                   DateTime?
+  idUser                  String
+  idClient                String
+  idClinique              String
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  Clinique                Clinique      @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  Visite                Visite      @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+  Client                  Client        @relation( fields: [idClient], references: [id], onDelete: Cascade)
+  User             User   @relation(fields: [idUser], references: [id], onDelete: Cascade)
+}
+// Fin Planning
+
+// Fin Fiche Gynécologique
+model Gynecologie {
+  id                        String   @id @default(uuid())
+  createdAt                 DateTime @default(now())
+  consultation              Boolean
+  motifConsultation         String
+  counsellingAvantDepitage  Boolean?
+  counsellingApresDepitage  Boolean?
+  resultatIva               String?
+  eligibleTraitementIva     Boolean?
+  typeTraitement            String?
+  counselingCancerSein      Boolean?
+  resultatCancerSein        String?
+  counselingAutreProbleme   Boolean?
+  examenPhysique            Boolean?
+  examenPalpation           Boolean?
+  toucheeVaginale           Boolean?
+  reglesIrreguliere         Boolean?
+  regularisationMenstruelle Boolean?
+  autreProblemeGyneco       Boolean?
+  idUser                    String
+  idClient                  String
+  idVisite                  String
+  idClinique                String
+
+  Clinique                  Clinique    @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  User                      User       @relation("UserGynecologies", fields: [idUser], references: [id], onDelete: Cascade)
+  Client                    Client      @relation("ClientGynecologies", fields: [idClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+
+  @@index([idUser])
+  @@index([idClient])
+  @@index([idVisite])
+}
+// Fin Fiche Gynécologique
+
+// Model Ist
+model Ist {
+  id                        String   @id @default(uuid())
+  istCreatedAt              DateTime @default(now())
+  istTypeClient             String
+  istType                   String
+  istCounsellingAvantDepitage  Boolean
+  istExamenPhysique            Boolean
+  istCounsellingApresDepitage  Boolean
+  istCounselingReductionRisque Boolean
+  istTypePec                   String
+  istPecEtiologique            String
+  istIdUser                    String
+  istIdClient                  String
+  istIdVisite                  String
+  istIdClinique                String
+
+  Clinique                  Clinique    @relation(fields: [istIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation("UserIst",fields: [istIdUser], references: [id], onDelete: Cascade)
+  Client                    Client      @relation("ClientIst",fields: [istIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [istIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([istIdUser])
+  @@index([istIdClient])
+  @@index([istIdVisite])
+  @@index([istIdClinique])
+}
+
+// Fin Fiche IST
+// Model Infertilité
+model Infertilite {
+  id                        String   @id @default(uuid())
+  infertCreatedAt                 DateTime @default(now())
+  infertConsultation              Boolean
+  infertCounselling               Boolean
+  infertExamenPhysique            Boolean
+  infertTraitement                String?
+  infertIdUser                    String
+  infertIdClient                  String
+  infertIdVisite                  String
+  infertIdClinique                String
+
+  User               User @relation(fields: [infertIdUser], references: [id])
+  Client                    Client      @relation(fields: [infertIdClient], references: [id])
+  Visite                    Visite      @relation(fields: [infertIdVisite], references: [id], onDelete: Cascade)
+  Clinique                 Clinique   @relation(fields: [infertIdClinique], references: [id], onDelete: Cascade)
+
+  @@index([infertIdUser])
+  @@index([infertIdClient])
+  @@index([infertIdVisite])
+}
+// Fin Fiche Infertilité
+// Model Vbg
+model Vbg {
+  id                        String   @id @default(uuid())
+  vbgCreatedAt                 DateTime @default(now())
+  vbgType                       String
+  vbgDuree                      Int
+  vbgConsultation              String
+  vbgCounsellingRelation       Boolean
+  vbgCounsellingViolenceSexuel Boolean
+  vbgCounsellingViolencePhysique               Boolean
+  vbgCounsellingSexuelite            Boolean
+  vbgPreventionViolenceSexuelle Boolean
+  vbgPreventionViolencePhysique Boolean
+  vbgIdUser                    String
+  vbgIdClient                  String
+  vbgIdVisite                  String
+  vbgIdClinique                String
+
+  Clinique                  Clinique    @relation(fields: [vbgIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [vbgIdUser], references: [id])
+  Client                    Client      @relation(fields: [vbgIdClient], references: [id])
+  Visite                    Visite      @relation(fields: [vbgIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([vbgIdUser])
+  @@index([vbgIdClient])
+  @@index([vbgIdVisite])
+}
+
+// Fin Fiche Vbg
+// Model Medecine
+model Medecine {
+  id                        String   @id @default(uuid())
+  mdgCreatedAt                 DateTime @default(now())
+  mdgConsultation              Boolean @default(true)
+  mdgCounselling               Boolean @default(true)
+  mdgTestRapidePalu            Boolean @default(false)
+  mdgEtatFemme                 String //il s'agit de savoir si elle est enceinte ou pas
+  mdgMotifConsultation         String
+  mdgTypeVisite                String // consultant controle soins
+  mdgExamenPhysique            Boolean @default(false)
+  mdgSuspicionPalu             String? // palu simple ou palu grave
+  mdgDiagnostic                String[] //tabAffection=[{value:"diarrhee",label:"Diarrhée"},{value:"pneumonie",label:"Pneumonie"},{value:"coqueluche",label:"Coqueluche"},{value:"tetanos",label:"Tétanos"}]
+  mdgAutreDiagnostic           String?
+  mdgSoins                     String?
+  mdgPecAffection              String?
+
+  mdgTypeAffection             String? // tabAffection=[{value:"hta",label:"HTA"},{value:"anemie",label:"Anémie"},{value:"dermatose",label:"Dermatose"},{value:"affection_digestive",label:"Affections Digestives"}]
+  mdgTraitement                String[]
+
+  mdgMiseEnObservation         Boolean?
+  mdgDureeObservation          Float?
+
+
+  mdgIdUser             String
+  mdgIdClient                  String
+  mdgIdVisite                  String
+  mdgIdClinique                String
+
+  Clinique                  Clinique    @relation(fields: [mdgIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [mdgIdUser], references: [id])
+  Client                    Client      @relation(fields: [mdgIdClient], references: [id])
+  Visite                    Visite      @relation(fields: [mdgIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([mdgIdUser])
+  @@index([mdgIdClient])
+  @@index([mdgIdVisite])
+}
+// Fin model Medecine
+
+// model Grossesse
+model Grossesse {
+  id                      String        @id @default(uuid())
+  grossesseConsultation     Boolean @default(true)
+  grossesseIdVisite                String
+
+  grossesseHta                     String 
+  grossesseDiabete                 String
+
+  grossesseGestite                  Int @default(1)
+  grossesseParite                  Int @default(0)
+
+  grossesseAge                      Float? 
+  grossesseDdr                               DateTime?
+  termePrevu                        DateTime? 
+
+  grossesseInterruption                      Boolean @default(false)
+  grossesseMotifInterruption                 String? // Accouchement ou Avortement
+  grossesseIdUser                             String
+  grossesseIdClient                          String
+  grossesseCreatedAt                         DateTime      @default(now())
+  grossesseUpdatedAt                         DateTime      @updatedAt
+  grossesseIdClinique                        String
+
+  Clinique                Clinique      @relation(fields: [grossesseIdClinique], references: [id], onDelete: Cascade)
+  Obstetrique             Obstetrique[]
+  Accouchement             Accouchement[]
+  Saa                     Saa[]
+  Cpon                     Cpon[]
+  Visite                  Visite      @relation(fields: [grossesseIdVisite], references: [id], onDelete: Cascade)
+  Client                  Client        @relation(fields: [grossesseIdClient], references: [id])
+  User             User   @relation(fields: [grossesseIdUser], references: [id])
+}
+// Fin model Grossesse
+
+// model Obstetrique
+model Obstetrique {
+  id                      String        @id @default(uuid())
+  obstIdVisite                String
+  obstConsultation            Boolean @default(true)
+  obstCounselling             Boolean @default(true)
+  obstTypeVisite              String
+  obstVat                     String?
+  obstSp                      String?
+  //prescription
+  obstFer                     Boolean @default(false)
+  obstFolate                  Boolean @default(false)
+  obstDeparasitant            Boolean @default(false)
+  obstMilda                   Boolean @default(false)
+
+  obstInvestigations          Boolean
+  obstEtatNutritionnel        String
+  obstEtatGrossesse           String
+  obstPfppi                   Boolean @default(true)
+
+  // dépistage
+  obstAlbuminieSucre          Boolean @default(false)
+  obstAnemie                  Boolean @default(false)
+  obstSyphilis                Boolean @default(false)
+  obstAghbs                   Boolean @default(false)
+
+  obstRdv          DateTime?
+  obstIdGrossesse             String?
+  obstIdUser                  String
+  obstIdClient                String
+  obstCreatedAt               DateTime      @default(now())
+  obstUpdatedAt               DateTime      @updatedAt
+  obstIdClinique              String
+
+  Clinique                Clinique      @relation(fields: [obstIdClinique], references: [id], onDelete: Cascade)
+  Grossesse               Grossesse?      @relation(fields: [obstIdGrossesse], references: [id], onDelete: Cascade)
+  Visite                  Visite      @relation(fields: [obstIdVisite], references: [id], onDelete: Cascade)
+  Client                  Client        @relation(fields: [obstIdClient], references: [id], onDelete: Cascade)
+  User             User   @relation(fields: [obstIdUser], references: [id], onDelete: Cascade)
+}
+// Fin model Obstetrique
+
+// model Accouchement
+model Accouchement {
+  id                       String   @id @default(uuid())
+  accouchementConsultation          Boolean @default(true) // à domicile ou dans l'etablissement
+  accouchementLieu                  String // à domicile ou dans l'etablissement
+  accouchementStatutVat                 String // non vaccinée, incompletement vaccinée, Correctement vaccinée
+
+  accouchementComplications             String
+  accouchementEvacuationMere            String?
+  accouchementTypeEvacuation            String?
+  accouchementEvacuationEnfant          String
+  accouchementMultiple      String // Oui ou non
+
+  accouchementEtatNaissance             String // A terme, Prématuré , post Terme
+  accouchementEnfantVivant              Int
+  accouchementEnfantMortNeFrais         Int
+  accouchementEnfantMortNeMacere        Int
+  accouchementNbPoidsEfantVivant        Int // nb enfant vivant ayant un poids < 2500g
+
+  accouchementCreatedAt             DateTime      @default(now())
+  accouchementUpdatedAt             DateTime      @updatedAt
+  accouchementIdUser             String
+  accouchementIdClient                  String
+  accouchementIdVisite                  String
+  accouchementIdGrossesse               String?
+  accouchementIdClinique                String
+
+  Clinique                Clinique    @relation(fields: [accouchementIdClinique], references: [id], onDelete: Cascade)
+  Grossesse                 Grossesse?  @relation(fields: [accouchementIdGrossesse], references: [id], onDelete: Cascade)
+  User User @relation(fields: [accouchementIdUser], references: [id], onDelete: Cascade)
+
+  Client                    Client      @relation(fields: [accouchementIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [accouchementIdVisite], references: [id], onDelete: Cascade)
+}
+// Fin model Accouchement
+
+//model Cpon
+model Cpon {
+  id                        String   @id @default(uuid())
+  cponConsultation             Boolean @default(true)
+  cponCounselling               Boolean @default(true)
+  cponInvestigationPhysique     Boolean @default(true)
+  cponDuree                 String
+  cponIdUser             String
+  cponIdClient                  String
+  cponIdVisite                  String
+  cponIdGrossesse               String?
+
+  cponCreatedAt             DateTime      @default(now())
+  cponUpdatedAt             DateTime      @updatedAt
+  cponIdClinique                String
+
+  Clinique                Clinique    @relation(fields: [cponIdClinique], references: [id], onDelete: Cascade)
+  Grossesse                 Grossesse?  @relation(fields: [cponIdGrossesse], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [cponIdUser], references: [id])
+  Client                    Client      @relation(fields: [cponIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [cponIdVisite], references: [id], onDelete: Cascade)
+}
+// Fin model Cpon
+
+//model TestGrossesse
+model TestGrossesse {
+  id                        String   @id @default(uuid())
+  testCreatedAt                 DateTime @default(now())
+  testUpdatedAt                 DateTime @updatedAt
+  testConsultation              Boolean @default(true)
+  testResultat              String
+  testIdUser             String
+  testIdClient                  String
+  testIdVisite                  String
+  testIdGrossesse               String?
+  testIdClinique                String
+
+  Clinique                Clinique    @relation(fields: [testIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [testIdUser], references: [id], onDelete: Cascade)
+  Client                    Client      @relation(fields: [testIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [testIdVisite], references: [id], onDelete: Cascade)
+}
+// Fin model TestGrossesse
+
+// model Saa
+model Saa {
+  id                           String   @id @default(uuid())
+  saaTypeAvortement            String // Spontanée, Provoquée, thérapeutique
+  saaMethodeAvortement         String? // Médicamenteux ou chirurgical
+  saaConsultation              Boolean @default(true)
+  saaSuiviPostAvortement       Boolean @default(false)
+  saaSuiviAutoRefere           Boolean @default(false)
+  saaCounsellingPre            Boolean
+  saaMotifDemande              String? //Viol,Inceste,Elève/Ecolière,Père Inconnu,Autre
+  saaConsultationPost          Boolean
+  saaCounsellingPost           Boolean
+  saaTypePec                   String? // AMIU,Misoprostol,
+  saaTraitementComplication    String? // Intervention médicamenteuse , Intervention chirurgicale , Complication liée à la TAI ,
+  saaIdUser                    String
+  saaIdClient                  String
+  saaIdVisite                  String
+  saaIdGrossesse               String?
+
+  saaCreatedAt                 DateTime @default(now())
+  saaUpdatedAt                 DateTime @updatedAt
+  saaIdClinique                String
+
+  Clinique                Clinique    @relation(fields: [saaIdClinique], references: [id], onDelete: Cascade)
+  Grossesse                 Grossesse?  @relation(fields: [saaIdGrossesse], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [saaIdUser], references: [id], onDelete: Cascade)
+  Client                    Client      @relation(fields: [saaIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [saaIdVisite], references: [id], onDelete: Cascade)
+}
+// Fin model Saa
+//  model DepistageVih
+model DepistageVih {
+  id                        String   @id @default(uuid())
+  depistageVihCreatedAt                 DateTime @default(now())
+  depistageVihTypeClient              String //(CDIP,IST,PTME, EnfantMerePos, conjointPos, autre)
+  depistageVihUpdatedAt                 DateTime @updatedAt
+  depistageVihConsultation              Boolean @default(true) //hidden
+  depistageVihCounsellingPreTest        Boolean @default(true) //hidden
+  depistageVihInvestigationTestRapide        Boolean @default(false) 
+  depistageVihResultat                   String // positif ou negatif
+  depistageVihCounsellingPostTest       Boolean @default(false) 
+  depistageVihCounsellingReductionRisque       Boolean @default(false) //hidden par defaut et visible si test positif et depistageVihCounsellingPostTest est true
+  depistageVihCounsellingSoutienPsychoSocial       Boolean @default(false) //hidden par defaut et visible si test positif et depistageVihCounsellingPostTest est true
+  depistageVihResultatPositifMisSousArv       Boolean @default(false) //hidden par defaut et visible si test positif et depistageVihCounsellingPostTest est true
+  depistageVihIdUser             String
+  depistageVihIdClient                  String
+  depistageVihIdVisite                  String
+  depistageVihIdClinique                String
+
+  Clinique                  Clinique    @relation(fields: [depistageVihIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [depistageVihIdUser], references: [id], onDelete: Cascade)
+  Client                    Client      @relation(fields: [depistageVihIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [depistageVihIdVisite], references: [id], onDelete: Cascade)
+}
+// Fin model DépistageVih
+// model Pec VIH
+model PecVih {
+  id                        String   @id @default(uuid())
+  pecVihCreatedAt                 DateTime @default(now())
+  pecVihUpdatedAt                 DateTime @updatedAt
+  pecVihCounselling      Boolean @default(true)
+  pecVihTypeclient                   String //consultation Initiale, Suivi, Autre
+  pecVihMoleculeArv            String    
+  pecVihAesArv             Boolean @default(false)
+  pecVihCotrimo             Boolean @default(false)
+  pecVihSpdp             Boolean @default(true)
+  pecVihIoPaludisme             Boolean @default(false)
+  pecVihIoTuberculose             Boolean @default(false)
+  pecVihIoAutre             Boolean @default(false)
+  pecVihSoutienPsychoSocial             Boolean @default(false)
+  pecDateRdvSuivi             DateTime
+  pecVihIdUser             String
+  pecVihIdClient                  String
+  pecVihIdVisite                  String
+  pecVihIdClinique                String
+  Clinique                  Clinique    @relation(fields: [pecVihIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [pecVihIdUser], references: [id])
+  Client                    Client      @relation(fields: [pecVihIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [pecVihIdVisite], references: [id], onDelete: Cascade)
+}
+
+// Fin model Pec VIH
+
+// model Examen PVVIH
+model ExamenPvVih {
+  id                        String   @id @default(uuid())
+  examenPvVihCreatedAt                  DateTime @default(now())
+  examenPvVihUpdatedAt                  DateTime @updatedAt
+  examenPvVihConsultation               Boolean @default(true)
+  examenPvVihDatePrelevement            DateTime
+  examenPvVihDateTraitement             DateTime
+  examenPvVihFemmeEnceinte              String? // Oui, Non
+  examenPvVihAllaitement                String? // Oui, Non
+  // Immuno-virologique
+  examenPvVihTypage                     String? // VIH1, VIH2, VIH1&2,
+  examenPvVihChargeVirale               Int? // Charge virale
+  examenPvVihChargeViraleLog            Int? // Charge virale log
+  examenPvVihCd4                        Int? // CD4
+
+  // Biochimie
+  examenPvVihGlycemie                   Int?
+  examenPvVihCreatinemie                Int?
+  examenPvVihTransaminases              Int?
+  examenPvVihUree                       Int?
+  examenPvVihCholesterolHdl             Int?
+  examenPvVihCholesterolTotal           Int?
+
+  // Hématologie
+  examenPvVihHemoglobineNfs             Int?
+
+  //  
+  examenPvVihIdUser                 String
+  examenPvVihIdClient                  String
+  examenPvVihIdVisite                  String
+  examenPvVihIdClinique                String
+  Clinique                  Clinique    @relation(fields: [examenPvVihIdClinique], references: [id], onDelete: Cascade)
+  User               User @relation(fields: [examenPvVihIdUser], references: [id])
+  Client                    Client      @relation(fields: [examenPvVihIdClient], references: [id], onDelete: Cascade)
+  Visite                    Visite      @relation(fields: [examenPvVihIdVisite], references: [id], onDelete: Cascade)
+
+}
+
+
+// Fin model Examen PVVIH
+// Model Référence
+model Reference {
+  id                      String    @id @default(uuid())
+  consultation            Boolean @default(true)
+  motifReference          String // TB, Palu grave, Accouchement,Suspicion cancer col, Suspicion cancer sein, Autre
+  autreMotif             String?
+  structureReference      String // HG,CHR,CHU,Maternité,Centre social
+  service               String?
+
+  examenClinique         String?
+  antecedentMedicaux     String?
+  allergies              String?
+  diagnosticPropose      String?
+
+  soinsRecu               String?
+  depuisQuand              DateTime? 
+  
+  ivaGestite              Int?
+  ivaParite               Int?
+  ivaLesionLargeDuCol     Boolean @default(false)
+  ivaAutre                Boolean @default(false)
+  ivaLesionSuspectDuCol   Boolean @default(false)
+  ivaRealisee       Boolean @default(false)
+  ivaResultat       Boolean @default(false)
+
+  observations            String?
+  nomPrenomReferant     String // Champ cache et rempli avec le nom de l'utilisateur connecté
+  telReferant             String
+  dateReference          DateTime @default(now())
+  qualification           String //Infirmier(e), Médecin, Sage-femme, Autre
+
+  refIdVisite                String
+  idClient                String
+  // idClinique              String
+  idUser                  String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  idClinique                String
+
+  Clinique                  Clinique    @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  Visite                  Visite   @relation(fields: [refIdVisite], references: [id])
+  Client                  Client   @relation(fields: [idClient], references: [id])
+  User              User   @relation(fields: [idUser], references: [id])
+  ContreReference        ContreReference[]
+}
+model ContreReference {
+  id                      String    @id @default(uuid())
+  consultation            Boolean @default(true)
+  dateReception           DateTime @default(now())
+  numeroDossier           String?
+  diagnosticPose          String?
+  patientHospitalise      Boolean @default(false)
+  traitementRecu          String?
+  traitementASuivre       String?
+
+  ivaBilan     String? //LEEP, Biopsie, Autre
+
+  nomPrenomPrestataire     String // Champ cache et rempli avec le nom de l'utilisateur connecté
+  telPrestataire             String
+  dateSortie          DateTime @default(now())
+  qualification           String //Infirmier(e), Médecin, Sage-femme, Autre
+
+  refIdVisite                String
+  idClient                String
+  idReference              String
+  idUser                  String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  idClinique                String
+
+  Clinique                  Clinique    @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  Reference                  Reference   @relation(fields: [idReference], references: [id])
+  Visite                     Visite      @relation(fields: [refIdVisite], references: [id])
+  Client                     Client      @relation(fields: [idClient], references: [id])
+  User                       User        @relation(fields: [idUser], references: [id])
+}
+
+model Ordonnance {
+  id                      String    @id @default(uuid())
+  ordonnanceCreatedAt     DateTime  @default(now())
+  ordonnanceUpdatedAt     DateTime  @updatedAt
+  ordonnanceIdVisite      String
+  ordonnanceIdClient      String
+  ordonnanceIdUser        String
+  ordonnanceMedicaments   String[] // Tableau contenant les noms des formulaires saisis
+  ordonnanceIdClinique    String
+
+  Visite                  Visite   @relation(fields: [ordonnanceIdVisite], references: [id])
+  Client                  Client   @relation(fields: [ordonnanceIdClient], references: [id])
+  User              User   @relation(fields: [ordonnanceIdUser], references: [id])
+  Clinique               Clinique   @relation(fields: [ordonnanceIdClinique], references: [id])
+}
+
+
+// Model Prestation et TarifPrestation
+
+model Prestation {
+  id                      String    @id @default(uuid())
+  nomPrestation           String
+  idUser                  String
+
+  User             User   @relation(fields: [idUser], references: [id])
+  FacturePrestation       FacturePrestation[]
+  TarifPrestation         TarifPrestation[]
+}
+model TarifPrestation {
+  id                      String    @id @default(uuid())
+  montantPrestation       Int
+  nomPrestation           String
+  
+  idPrestation            String
+  idClinique              String
+  idUser           String
+
+  Prestation              Prestation   @relation(fields: [idPrestation], references: [id])
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+  User             User   @relation(fields: [idUser], references: [id])
+}
+
+model FacturePrestation {
+  id                        String   @id @default(uuid())
+  libellePrestation         String
+  prixPrestation            Int
+  dateFacture               DateTime @default(now())
+  idVisite                  String
+  idClient                  String
+  idClinique                String
+  idPrestation              String
+  idUser                    String
+
+  Visite                   Visite   @relation(fields: [idVisite], references: [id])
+  Client                   Client   @relation(fields: [idClient], references: [id])
+  Clinique                 Clinique   @relation(fields: [idClinique], references: [id])
+  Prestation               Prestation   @relation(fields: [idPrestation], references: [id])
+  User              User   @relation(fields: [idUser], references: [id])
+}
+// Model Laboratoire
+model Examen {
+  id                      String    @id @default(uuid())
+  typeExamen              TypeExamen
+  nomExamen               String
+  uniteMesureExamen       String?
+  valeurUsuelleMinH        Float?
+  valeurUsuelleMaxH        Float?
+  valeurUsuelleMinF        Float?
+  valeurUsuelleMaxF        Float?
+  abreviation             String
+  idUser                  String
+
+  TarifExamen            TarifExamen[]
+  User               User   @relation(fields: [idUser], references: [id])
+
+}
+
+enum TypeExamen {
+  MEDECIN
+  GYNECOLOGIE
+  OBSTETRIQUE
+  VIH
+  IST
+}
+
+model TarifExamen {
+  id                      String    @id @default(uuid())
+  prixExamen              Int
+  nomExamen               String
+  
+  idExamen                String
+  idClinique              String
+  idUser                  String
+
+  Examen                  Examen   @relation(fields: [idExamen], references: [id])
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+  User                    User   @relation(fields: [idUser], references: [id])
+}
+
+model DemandeExamen {
+  id                      String    @id @default(uuid())
+  idVisite                String
+  idClient                String
+  idClinique              String
+  idTarifExamen           String // Tableau contenant les noms des formulaires saisis
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+  idUser                  String
+  FactureExamen            FactureExamen[]
+
+  User              User   @relation(fields: [idUser], references: [id])
+  Visite                  Visite   @relation(fields: [idVisite], references: [id])
+  Client                  Client   @relation(fields: [idClient], references: [id])
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+}
+
+model ResultatExamen {
+  id                      String    @id @default(uuid())
+  resultatExamen          String // positif ou négatif
+  observations            String? 
+  valeurResultat          Int
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+
+  idFactureExamen         String
+  idClinique              String
+  idUser                  String
+  idVisite                String
+  idClient                String
+
+  Client                  Client   @relation(fields: [idClient], references: [id])
+  FactureExamen           FactureExamen   @relation(fields: [idFactureExamen], references: [id])
+  Visite                  Visite   @relation(fields: [idVisite], references: [id])
+  Clinique                 Clinique   @relation(fields: [idClinique], references: [id])
+  User              User   @relation(fields: [idUser], references: [id])
+
+}
+
+model FactureExamen {
+  id                        String   @id @default(uuid())
+  libelleExamen             String
+  prixExamen                Int
+
+  idVisite                  String
+  idClient                  String
+  idClinique                String
+  remiseExamen              Int @default(0)
+  soustraitanceExamen         Boolean @default(false)
+  idDemandeExamen           String
+  idUser                  String
+
+  Visite                   Visite   @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+  Client                   Client   @relation(fields: [idClient], references: [id], onDelete: Cascade)
+  Clinique                 Clinique   @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  DemandeExamen            DemandeExamen   @relation(fields: [idDemandeExamen], references: [id], onDelete: Cascade)
+  User                      User   @relation(fields: [idUser], references: [id], onDelete: Cascade)
+  ResultatExamen           ResultatExamen[]
+
+}
+// Model Echographie
+model Echographie {
+  id                      String    @id @default(uuid())
+  regionExaminee         RegionExaminee 
+  nomEchographie          String
+  idUser                  String
+  organeExaminee         String?
+
+  TarifEchographie       TarifEchographie[]
+  User               User   @relation(fields: [idUser], references: [id])
+}
+
+enum RegionExaminee {
+  ABDOMEN
+  PELVIS_BASSIN
+  GYNECOLOGIE_OBSTETRIQUE
+  SEINS
+  COU
+  MUSCLES_ET_ARTICULATIONS
+  TESTICULES
+  PROSTATE
+  COEUR
+}
+
+model TarifEchographie {
+  id                      String    @id @default(uuid())
+  prixEchographie         Int
+  nomEchographie          String
+
+  idEchographie           String
+  idClinique              String
+  idUser                  String
+
+  Echographie             Echographie   @relation(fields: [idEchographie], references: [id])
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+  User                    User   @relation(fields: [idUser], references: [id])
+}
+
+model DemandeEchographie {
+  id                      String    @id @default(uuid())
+  idVisite                String
+  idClient                String
+  idClinique              String
+  idTarifEchographie      String // Tableau contenant les noms des formulaires saisis
+  serviceEchographie      ServiceEchographie
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+  idUser                  String
+  FactureEchographie      FactureEchographie[]
+
+  User              User   @relation(fields: [idUser], references: [id])
+  Visite                  Visite   @relation(fields: [idVisite], references: [id])
+  Client                  Client   @relation(fields: [idClient], references: [id])
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+}
+
+enum ServiceEchographie {
+  OBSTETRIQUE
+  GYNECOLOGIE
+  INFERTILITE
+  MEDECINE_GENERALE
+}
+
+model ResultatEchographie {
+  id                      String    @id @default(uuid())
+  resultatEchographie     String // positif ou négatif
+  observations            String? 
+  valeurResultat          Int
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+
+  idFactureEchographie    String
+  idClinique              String
+  idUser                  String
+  idVisite                String
+  idClient                String
+
+  Client                  Client   @relation(fields: [idClient], references: [id])
+  FactureEchographie      FactureEchographie   @relation(fields: [idFactureEchographie], references: [id])
+  Visite                  Visite   @relation(fields: [idVisite], references: [id])
+  Clinique                 Clinique   @relation(fields: [idClinique], references: [id])
+  User              User   @relation(fields: [idUser], references: [id])
+
+}
+
+model FactureEchographie {
+  id                        String   @id @default(uuid())
+  libelleEchographie        String
+  prixEchographie           Int
+  serviceEchographieFacture String
+  idVisite                  String
+  idClient                  String
+  idClinique                String
+  remiseEchographie         Int @default(0)
+  idDemandeEchographie      String
+  idUser                  String
+
+  Visite                   Visite   @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+  Client                   Client   @relation(fields: [idClient], references: [id], onDelete: Cascade)
+  Clinique                 Clinique   @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  DemandeEchographie       DemandeEchographie   @relation(fields: [idDemandeEchographie], references: [id], onDelete: Cascade)
+  User                      User   @relation(fields: [idUser], references: [id], onDelete: Cascade)
+  ResultatEchographie      ResultatEchographie[]
+
+}
+
+// Modèle de produit
+model Produit {
+  id              String    @id @default(uuid())
+  nomProduit      String
+  description     String?
+  typeProduit     TypeProduit
+  tarifProduit    TarifProduit[]
+
+  idUser          String
+  User             User   @relation(fields: [idUser], references: [id])
+}
+enum TypeProduit {
+  CONTRACEPTIF
+  MEDICAMENTS
+  CONSOMMABLES
+}
+
+model TarifProduit {
+  id                      String    @id @default(uuid())
+  prixUnitaire    Int
+  quantiteStock   Int
+  
+  idProduit            String
+  idClinique              String
+  createdAt               DateTime      @default(now())
+  idUser           String
+
+  Produit              Produit   @relation(fields: [idProduit], references: [id])
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+  User             User   @relation(fields: [idUser], references: [id])
+  // fournisseur     Fournisseur? @relation(fields: [idFournisseur], references: [id])
+  // idFournisseur   String?
+  AnomalieInventaire     AnomalieInventaire[]
+  FactureProduit  FactureProduit[]
+  DetailCommande  DetailCommande[]
+  DetailInventaire  DetailInventaire[]
+
+}
+
+model Inventaire{
+  id                      String    @id @default(uuid())
+  dateInventaire          DateTime  @default(now())
+  idClinique              String
+  idUser                  String
+  Clinique                Clinique   @relation(fields: [idClinique], references: [id])
+  User                    User       @relation(fields: [idUser], references: [id])
+  detailInventaire        DetailInventaire[]
+}
+model DetailInventaire{
+  id                      String    @id @default(uuid())
+  idInventaire            String
+  idUser                  String
+  idTarifProduit          String
+  quantiteTheorique       Int
+  quantiteReelle          Int
+  ecart                   Int
+  createdAt               DateTime      @default(now())
+
+  User                    User       @relation(fields: [idUser], references: [id])
+  inventaire              Inventaire   @relation(fields: [idInventaire], references: [id])
+  tarifProduit            TarifProduit   @relation(fields: [idTarifProduit], references: [id]) 
+  AnomalieInventaire        AnomalieInventaire[] 
+}
+
+
+model AnomalieInventaire {
+  id                  String    @id @default(uuid())
+  idTarifProduit      String
+  idUser              String
+  idDetailInventaire  String
+  quantiteManquante   Int
+  dateAnomalie       DateTime  @default(now())
+  description        String?
+
+  tarifProduit       TarifProduit   @relation(fields: [idTarifProduit], references: [id])
+  User                    User       @relation(fields: [idUser], references: [id])
+  detailInventaire       DetailInventaire   @relation(fields: [idDetailInventaire], references: [id])
+
+}
+
+model FactureProduit {
+  id              String    @id @default(uuid())
+  idTarifProduit       String
+  nomProduit      String
+  idClient        String
+  idClinique      String
+  quantite        Int
+  // prixUnitaire    Int
+  montantProduit    Int
+  methode         Boolean @default(false)
+  dateFacture     DateTime  @default(now())
+  idUser          String
+  idVisite        String
+
+  Visite                    Visite   @relation(fields: [idVisite], references: [id])
+  User                     User   @relation(fields: [idUser], references: [id])
+  tarifProduit    TarifProduit   @relation(fields: [idTarifProduit], references: [id])
+  Client          Client    @relation(fields: [idClient], references: [id])
+  Clinique        Clinique  @relation(fields: [idClinique], references: [id])
+}
+model CommandeFournisseur{
+  id                        String   @id @default(uuid())
+  dateCommande              DateTime @default(now())
+  idClinique                String
+  Clinique                  Clinique   @relation(fields: [idClinique], references: [id])
+  detailCommande            DetailCommande[]
+}
+model DetailCommande{
+  id                        String   @id @default(uuid())
+  idTarifProduit            String
+  quantiteCommandee         Int
+  idCommande                String
+  createdAt               DateTime      @default(now())
+  idUser                  String
+  User                     User   @relation(fields: [idUser], references: [id])
+
+  commande                  CommandeFournisseur   @relation(fields: [idCommande],references: [id])
+  tarifProduit              TarifProduit   @relation(fields: [idTarifProduit], references: [id])
+}
+
+model Couverture {
+  id              String    @id @default(uuid())
+  couvertType     TypeCouverture
+
+  couvertIdClient     String
+  couvertIdVisite     String
+  Visite             Visite   @relation(fields: [couvertIdVisite], references: [id], onDelete: Cascade)
+  Client            Client   @relation(fields: [couvertIdClient], references: [id], onDelete: Cascade)
+}
+
+enum TypeCouverture {
+  NON_ASSURE
+  CAS_SOCIAL
+  ASSURE
+}
+model Bilan {
+  id              String    @id @default(uuid())
+  bilanTypeBilan  TypeBilan
+  nomDemandeur   String
+
+  bilanIdClient     String
+  bilanIdVisite     String
+  Visite             Visite   @relation(fields: [bilanIdVisite], references: [id], onDelete: Cascade)
+  Client            Client   @relation(fields: [bilanIdClient], references: [id], onDelete: Cascade)
+}
+
+enum TypeBilan {
+  PRE_NATAL
+  POST_NATAL
+  SANGUIN
+  BUCCO_DENTAIRE
+  PRENUPTIAL
+  AUTRES
+}
+
+
+

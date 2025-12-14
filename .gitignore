@@ -1,0 +1,4 @@
+.next/
+node_modules/
+# Ajoutez cette ligne à votre .gitignore
+lib/generated/
