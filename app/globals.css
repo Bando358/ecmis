@@ -207,7 +207,8 @@ body {
       transparent 97%,
       transparent 100%
     ),
-    linear-gradient(90deg, rgb(62, 110, 80), rgb(62, 146, 80));
+    linear-gradient(90deg, rgb(235, 235, 235), rgb(245, 245, 245));
+  /* linear-gradient(90deg, rgb(62, 110, 80), rgb(62, 146, 80)); */
   /* linear-gradient(90deg, rgb(143, 249, 177), rgb(62, 146, 80)); */
 }
 

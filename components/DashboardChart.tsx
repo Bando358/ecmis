@@ -430,7 +430,7 @@ export default function DashboardChart({
   return (
     <div id="chart" className="w-full flex flex-col gap-6">
       {/* 🧩 Section des cartes récapitulatives */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
         {chartData.map((data, idx) => (
           <Card
             key={idx}
@@ -496,17 +496,141 @@ export default function DashboardChart({
             </CardHeader>
           </Card>
         ))}
+      </div> */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+        {chartData.map((data, idx) => (
+          <Card
+            key={idx}
+            className="
+        group relative overflow-hidden
+        rounded-2xl
+        border border-green-200
+        bg-linear-to-br from-white via-gray-50 to-green-50
+        shadow-sm
+        hover:shadow-lg hover:shadow-green-200/40
+        transition-all duration-500
+      "
+          >
+            {/* Effet glow au hover */}
+            <div
+              className="
+          absolute inset-0
+          opacity-0 group-hover:opacity-100
+          transition-opacity duration-700
+          bg-linear-to-tr from-green-400/10 via-transparent to-green-600/10
+          pointer-events-none
+        "
+            />
+
+            <CardHeader className="relative z-10 space-y-3">
+              <CardDescription
+                className="
+            text-green-700
+            text-xs uppercase tracking-wider font-semibold
+          "
+              >
+                {data.name}
+              </CardDescription>
+
+              <CardTitle
+                className="
+            flex items-center justify-center
+            font-extrabold tabular-nums
+            text-green-700
+            group-hover:text-green-800
+            transition-colors duration-300
+            w-full text-balance
+          "
+                style={{
+                  fontSize: "clamp(1.5rem, 2.5vw, 3rem)",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                }}
+              >
+                {loading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-green-500" />
+                ) : (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={data.total}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: [1, 1.1, 1], opacity: 1 }}
+                      exit={{ scale: 0.95, opacity: 0 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="flex flex-wrap items-baseline justify-center gap-1 text-center w-full"
+                    >
+                      <AnimatedNumber value={data.total} />
+                      <span className="text-sm sm:text-base md:text-lg text-green-600">
+                        CFA
+                      </span>
+                    </motion.div>
+                  </AnimatePresence>
+                )}
+              </CardTitle>
+
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="
+              flex items-center gap-1
+              border-green-300
+              text-green-700
+              bg-green-100/60
+              hover:bg-green-200/70
+              transition-colors
+            "
+                >
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                  +12.5%
+                </Badge>
+              </div>
+            </CardHeader>
+          </Card>
+        ))}
       </div>
 
       {/* 📈 Graphique Statut des Clients */}
-      <Card className="group relative overflow-hidden border border-green-700 bg-linear-to-br from-black via-zinc-900 to-green-950 text-white shadow-md hover:shadow-green-500/30 transition-all duration-500 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-green-300">Statut des Clients</CardTitle>
-          <CardDescription className="text-green-700">
+      <Card
+        className="
+    group relative overflow-hidden
+    rounded-2xl
+    border border-green-200
+    bg-linear-to-br from-white via-gray-50 to-green-50
+    shadow-sm
+    hover:shadow-lg hover:shadow-green-200/40
+    transition-all duration-500
+  "
+      >
+        {/* Effet glow au hover */}
+        <div
+          className="
+      absolute inset-0
+      opacity-0 group-hover:opacity-100
+      transition-opacity duration-700
+      bg-linear-to-tr from-green-400/10 via-transparent to-green-600/10
+      pointer-events-none
+    "
+        />
+
+        <CardHeader className="relative z-10">
+          <CardTitle
+            className="
+        text-green-700
+        group-hover:text-green-800
+        transition-colors duration-300
+      "
+          >
+            Statut des Clients
+          </CardTitle>
+          <CardDescription
+            className="
+        text-green-600
+      "
+          >
             Évolution des nouveaux et anciens clients dans le temps
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
           <div className="space-y-4">
             <ChartContainer
               config={chartConfig}
@@ -518,14 +642,14 @@ export default function DashboardChart({
                 <EmptyState />
               ) : (
                 <AreaChart data={statusChartData}>
-                  <CartesianGrid vertical={false} stroke="#374151" />
+                  <CartesianGrid vertical={false} stroke="#d1fae5" />
                   <XAxis
                     dataKey="date"
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
                     minTickGap={32}
-                    tick={{ fill: "#9CA3AF" }}
+                    tick={{ fill: "#059669" }}
                     tickFormatter={(value) => {
                       const date = new Date(value);
                       return date.toLocaleDateString("fr-FR", {
@@ -537,7 +661,7 @@ export default function DashboardChart({
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "#9CA3AF" }}
+                    tick={{ fill: "#059669" }}
                   />
                   <ChartTooltip
                     cursor={false}
@@ -558,7 +682,7 @@ export default function DashboardChart({
                     verticalAlign="top"
                     height={36}
                     formatter={(value) => (
-                      <span style={{ color: "#D1D5DB", fontSize: "14px" }}>
+                      <span style={{ color: "#059669", fontSize: "14px" }}>
                         {value}
                       </span>
                     )}
@@ -606,27 +730,59 @@ export default function DashboardChart({
             </ChartContainer>
           </div>
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex gap-2 leading-none font-medium text-green-300">
+        <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+          <div className="flex gap-2 leading-none font-medium text-green-700">
             Analyse des statuts clients <TrendingUp className="h-4 w-4" />
           </div>
-          <div className="text-green-700 leading-none">
+          <div className="text-green-600 leading-none">
             {totalClients} clients analysés sur la période sélectionnée :{" "}
             {totalNouveaux} nouveaux utilisateurs et {totalAnciens} anciens
             utilisateurs.
           </div>
         </CardFooter>
       </Card>
-
       {/* 📊 Graphique des Motifs de Visite */}
-      <Card className="group relative overflow-hidden border border-green-700 bg-linear-to-br from-black via-zinc-900 to-green-950 text-white shadow-md hover:shadow-green-500/30 transition-all duration-500 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-green-300">Motifs de Visite</CardTitle>
-          <CardDescription className="text-green-700">
+      <Card
+        className="
+    group relative overflow-hidden
+    rounded-2xl
+    border border-green-200
+    bg-linear-to-br from-white via-gray-50 to-green-50
+    shadow-sm
+    hover:shadow-lg hover:shadow-green-200/40
+    transition-all duration-500
+  "
+      >
+        {/* Effet glow au hover */}
+        <div
+          className="
+      absolute inset-0
+      opacity-0 group-hover:opacity-100
+      transition-opacity duration-700
+      bg-linear-to-tr from-green-400/10 via-transparent to-green-600/10
+      pointer-events-none
+    "
+        />
+
+        <CardHeader className="relative z-10">
+          <CardTitle
+            className="
+        text-green-700
+        group-hover:text-green-800
+        transition-colors duration-300
+      "
+          >
+            Motifs de Visite
+          </CardTitle>
+          <CardDescription
+            className="
+        text-green-600
+      "
+          >
             Répartition des motifs de visite des clients
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-2 h-45 sm:px-6">
+        <CardContent className="relative z-10 px-2 h-45 sm:px-6">
           {loading ? (
             <LoadingState message="Chargement des motifs de visite..." />
           ) : visites.length === 0 ? (
@@ -649,7 +805,7 @@ export default function DashboardChart({
                 <CartesianGrid
                   vertical={false}
                   strokeDasharray="3 3"
-                  stroke="#374151"
+                  stroke="#d1fae5"
                 />
                 <XAxis
                   dataKey="motif"
@@ -658,7 +814,7 @@ export default function DashboardChart({
                   angle={-45}
                   textAnchor="end"
                   height={10}
-                  tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                  tick={{ fill: "#059669", fontSize: 12 }}
                   interval={0}
                   tickFormatter={(value) =>
                     value.length > 20 ? `${value.substring(0, 20)}...` : value
@@ -667,15 +823,15 @@ export default function DashboardChart({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                  tick={{ fill: "#059669", fontSize: 12 }}
                 />
                 <ChartTooltip
                   cursor={{ fill: "rgba(34, 197, 94, 0.1)" }}
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="bg-black/90 border border-green-700 rounded-lg p-3 shadow-lg">
-                          <p className="text-green-300 font-medium mb-2">
+                        <div className="bg-white/90 border border-green-200 rounded-lg p-3 shadow-lg">
+                          <p className="text-green-700 font-medium mb-2">
                             {label}
                           </p>
                           <div className="flex items-center gap-2 text-sm">
@@ -683,10 +839,10 @@ export default function DashboardChart({
                               className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: payload[0].color }}
                             />
-                            <span className="text-white">
+                            <span className="text-gray-700">
                               Nombre de visites :{" "}
                             </span>
-                            <span className="text-green-300 font-bold">
+                            <span className="text-green-700 font-bold">
                               {payload[0].value}
                             </span>
                           </div>
@@ -704,7 +860,7 @@ export default function DashboardChart({
                     dataKey="count"
                     position="top"
                     offset={12}
-                    fill="#ffffff"
+                    fill="#059669"
                     fontSize={12}
                     fontWeight="bold"
                   />
@@ -713,25 +869,57 @@ export default function DashboardChart({
             </ChartContainer>
           )}
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex gap-2 leading-none font-medium text-green-300">
+        <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+          <div className="flex gap-2 leading-none font-medium text-green-700">
             Analyse des motifs de visite <TrendingUp className="h-4 w-4" />
           </div>
-          <div className="text-green-700 leading-none">
+          <div className="text-green-600 leading-none">
             {visites.length} visites analysées sur la période sélectionnée
           </div>
         </CardFooter>
       </Card>
-
       {/* 📈 Graphique Utilisateurs PF */}
-      <Card className="group relative overflow-hidden border border-green-700 bg-linear-to-br from-black via-zinc-900 to-green-950 text-white shadow-md hover:shadow-green-500/30 transition-all duration-500 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-green-300">Utilisateurs PF</CardTitle>
-          <CardDescription className="text-green-700">
+      <Card
+        className="
+    group relative overflow-hidden
+    rounded-2xl
+    border border-green-200
+    bg-linear-to-br from-white via-gray-50 to-green-50
+    shadow-sm
+    hover:shadow-lg hover:shadow-green-200/40
+    transition-all duration-500
+  "
+      >
+        {/* Effet glow au hover */}
+        <div
+          className="
+      absolute inset-0
+      opacity-0 group-hover:opacity-100
+      transition-opacity duration-700
+      bg-linear-to-tr from-green-400/10 via-transparent to-green-600/10
+      pointer-events-none
+    "
+        />
+
+        <CardHeader className="relative z-10">
+          <CardTitle
+            className="
+        text-green-700
+        group-hover:text-green-800
+        transition-colors duration-300
+      "
+          >
+            Utilisateurs PF
+          </CardTitle>
+          <CardDescription
+            className="
+        text-green-600
+      "
+          >
             Évolution des nouveaux et anciens utilisateurs PF
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
           <div className="space-y-4">
             <ChartContainer
               config={chartPFConfig}
@@ -743,13 +931,13 @@ export default function DashboardChart({
                 <EmptyState message="Aucune donnée utilisateur PF disponible pour cette période." />
               ) : (
                 <LineChart data={transformedDataStatusPF}>
-                  <CartesianGrid vertical={false} stroke="#374151" />
+                  <CartesianGrid vertical={false} stroke="#d1fae5" />
                   <XAxis
                     dataKey="date"
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tick={{ fill: "#9CA3AF" }}
+                    tick={{ fill: "#059669" }}
                     tickFormatter={(value) => {
                       const date = new Date(value);
                       return date.toLocaleDateString("fr-FR", {
@@ -761,7 +949,7 @@ export default function DashboardChart({
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "#9CA3AF" }}
+                    tick={{ fill: "#059669" }}
                   />
                   <ChartTooltip
                     cursor={false}
@@ -782,7 +970,7 @@ export default function DashboardChart({
                     verticalAlign="top"
                     height={36}
                     formatter={(value) => (
-                      <span style={{ color: "#D1D5DB", fontSize: "14px" }}>
+                      <span style={{ color: "#059669", fontSize: "14px" }}>
                         {value}
                       </span>
                     )}
@@ -830,11 +1018,11 @@ export default function DashboardChart({
             </ChartContainer>
           </div>
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex gap-2 leading-none font-medium text-green-300">
+        <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+          <div className="flex gap-2 leading-none font-medium text-green-700">
             Analyse des utilisateurs PF <TrendingUp className="h-4 w-4" />
           </div>
-          <div className="text-green-700 leading-none">
+          <div className="text-green-600 leading-none">
             {planning.length} consultations de PF analysées :{" "}
             {planning.filter((item) => item.statut === "nu").length} nouveaux
             utilisateurs et{" "}
@@ -843,16 +1031,48 @@ export default function DashboardChart({
           </div>
         </CardFooter>
       </Card>
-
       {/* 📊 Graphique des types de prestations */}
-      <Card className="group relative overflow-hidden border border-green-700 bg-linear-to-br from-black via-zinc-900 to-green-950 text-white shadow-md hover:shadow-green-500/30 transition-all duration-500 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-green-300">Types de Prestations</CardTitle>
-          <CardDescription className="text-green-700">
+      <Card
+        className="
+    group relative overflow-hidden
+    rounded-2xl
+    border border-green-200
+    bg-linear-to-br from-white via-gray-50 to-green-50
+    shadow-sm
+    hover:shadow-lg hover:shadow-green-200/40
+    transition-all duration-500
+  "
+      >
+        {/* Effet glow au hover */}
+        <div
+          className="
+      absolute inset-0
+      opacity-0 group-hover:opacity-100
+      transition-opacity duration-700
+      bg-linear-to-tr from-green-400/10 via-transparent to-green-600/10
+      pointer-events-none
+    "
+        />
+
+        <CardHeader className="relative z-10">
+          <CardTitle
+            className="
+        text-green-700
+        group-hover:text-green-800
+        transition-colors duration-300
+      "
+          >
+            Types de Prestations
+          </CardTitle>
+          <CardDescription
+            className="
+        text-green-600
+      "
+          >
             Répartition des consultations par type de prestation
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-2 h-45 sm:px-6">
+        <CardContent className="relative z-10 px-2 h-45 sm:px-6">
           {loading ? (
             <LoadingState message="Chargement des prestations..." />
           ) : prestationDataChart.length === 0 ? (
@@ -875,7 +1095,7 @@ export default function DashboardChart({
                 <CartesianGrid
                   vertical={false}
                   strokeDasharray="3 3"
-                  stroke="#374151"
+                  stroke="#d1fae5"
                 />
                 <XAxis
                   dataKey="name"
@@ -884,7 +1104,7 @@ export default function DashboardChart({
                   angle={-45}
                   textAnchor="end"
                   height={10}
-                  tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                  tick={{ fill: "#059669", fontSize: 12 }}
                   interval={0}
                   tickFormatter={(value) =>
                     value.length > 20 ? `${value.substring(0, 20)}...` : value
@@ -893,7 +1113,7 @@ export default function DashboardChart({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                  tick={{ fill: "#059669", fontSize: 12 }}
                   tickFormatter={(value) => `${value}`}
                 />
                 <ChartTooltip
@@ -901,8 +1121,8 @@ export default function DashboardChart({
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="bg-black/90 border border-green-700 rounded-lg p-3 shadow-lg">
-                          <p className="text-green-300 font-medium mb-2">
+                        <div className="bg-white/90 border border-green-200 rounded-lg p-3 shadow-lg">
+                          <p className="text-green-700 font-medium mb-2">
                             {label}
                           </p>
                           <div className="flex items-center gap-2 text-sm">
@@ -910,8 +1130,10 @@ export default function DashboardChart({
                               className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: payload[0].color }}
                             />
-                            <span className="text-white">Nombre total : </span>
-                            <span className="text-green-300 font-bold">
+                            <span className="text-gray-700">
+                              Nombre total :{" "}
+                            </span>
+                            <span className="text-green-700 font-bold">
                               {payload[0].value?.toLocaleString()}
                             </span>
                           </div>
@@ -931,7 +1153,7 @@ export default function DashboardChart({
                   <LabelList
                     dataKey="total"
                     position="top"
-                    fill="#ffffff"
+                    fill="#059669"
                     fontSize={12}
                     fontWeight="bold"
                     formatter={(value: number) => value?.toLocaleString()}
@@ -941,11 +1163,11 @@ export default function DashboardChart({
             </ChartContainer>
           )}
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex gap-2 leading-none font-medium text-green-300">
+        <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+          <div className="flex gap-2 leading-none font-medium text-green-700">
             Analyse des types de prestations <TrendingUp className="h-4 w-4" />
           </div>
-          <div className="text-green-700 leading-none">
+          <div className="text-green-600 leading-none">
             {prestationDataChart.length} types de prestations analysés sur la
             période sélectionnée
           </div>
