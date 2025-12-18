@@ -8,7 +8,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Spinner } from "@/components/ui/spinner";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { Client, Permission, TableName } from "@prisma/client";
 
 import {
@@ -23,6 +23,7 @@ import {
 import { getAllRegion } from "@/lib/actions/regionActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
+import { SpinnerBar } from "@/components/ui/spinner-bar";
 
 interface RegionData {
   id: string;
@@ -137,7 +138,9 @@ export default function FormulaireClient() {
       } else {
         setClinique(
           adminClinique.filter((clin: CliniqueData) =>
-            user.idCliniques.some((userClin: string | string[]) => userClin.includes(clin.id))
+            user.idCliniques.some((userClin: string | string[]) =>
+              userClin.includes(clin.id)
+            )
           )
         );
       }
@@ -155,7 +158,9 @@ export default function FormulaireClient() {
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find((p: Permission) => p.table === TableName.CLIENT);
+        const perm = permissions.find(
+          (p: Permission) => p.table === TableName.CLIENT
+        );
         setPermission(perm || null);
 
         if (perm?.canRead || session.user.role === "ADMIN") {
@@ -718,9 +723,16 @@ export default function FormulaireClient() {
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full mt-4">
+            <Button
+              type="submit"
+              className="w-full mt-4"
+              disabled={isSubmitting}
+            >
               <span className="flex flex-row items-center">
-                {isSubmitting && <Spinner />}Créer le client
+                {isSubmitting && (
+                  <SpinnerCustom className="mr-2 text-gray-300" />
+                )}
+                Créer le client
               </span>
             </Button>
           </form>
