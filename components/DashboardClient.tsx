@@ -190,9 +190,9 @@ export default function DashboardClient({
 
   return (
     <div className="min-h-screen ">
-      <div className="flex flex-wrap items-center justify-start gap-2 px-4">
+      <div className="flex flex-wrap items-center justify-start gap-2 px-4 mx-4 py-3 bg-white shadow-md rounded-2xl opacity-90">
         <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">Date de début</label>
+          <label className=" font-semibold mb-1">Date de début</label>
           <input
             type="date"
             value={startDate}
@@ -202,7 +202,7 @@ export default function DashboardClient({
         </div>
 
         <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">Date de fin</label>
+          <label className="font-semibold mb-1">Date de fin</label>
           <input
             type="date"
             value={endDate}
@@ -212,7 +212,7 @@ export default function DashboardClient({
         </div>
 
         <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">Période</label>
+          <label className=" font-semibold mb-1">Période</label>
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-45">
               <SelectValue placeholder="Sélectionner une période" />
@@ -228,7 +228,7 @@ export default function DashboardClient({
         </div>
 
         <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">Clinique</label>
+          <label className="font-semibold mb-1">Clinique</label>
           <Select
             value={selectedClinique.id}
             onValueChange={handleCliniqueChange}
@@ -250,7 +250,7 @@ export default function DashboardClient({
         </div>
 
         <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">Prescripteur</label>
+          <label className="font-semibold mb-1">Prescripteur</label>
           <Select
             value={selectedPrescripteur.id}
             onValueChange={handlePrescripteurChange}

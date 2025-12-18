@@ -437,9 +437,9 @@ export default function DashboardChart({
             key={idx}
             className="
         group relative overflow-hidden
-        rounded-2xl
+        rounded-2xl 
         border border-blue-100/80
-        bg-white/70 backdrop-blur-sm
+        bg-white backdrop-blur-sm
         shadow-lg shadow-blue-100/50
         hover:shadow-2xl hover:shadow-blue-200/70
         hover:border-blue-200
@@ -462,7 +462,7 @@ export default function DashboardChart({
               <CardDescription
                 className="
             text-blue-600/80
-            text-xs uppercase tracking-wider font-semibold
+            text-xs uppercase tracking-wider font-bold
           "
               >
                 {data.name}
@@ -532,7 +532,7 @@ export default function DashboardChart({
     group relative overflow-hidden
     rounded-2xl
     border border-blue-100/80
-    bg-white/70 backdrop-blur-sm
+    bg-white backdrop-blur-sm
     shadow-lg shadow-blue-100/50
     hover:shadow-2xl hover:shadow-blue-200/70
     hover:border-blue-200
@@ -727,7 +727,7 @@ export default function DashboardChart({
     group relative overflow-hidden
     rounded-2xl
     border border-blue-100/80
-    bg-white/70 backdrop-blur-sm
+    bg-white backdrop-blur-sm
     shadow-lg shadow-blue-100/50
     hover:shadow-2xl hover:shadow-blue-200/70
     hover:border-blue-200
@@ -871,7 +871,7 @@ export default function DashboardChart({
     group relative overflow-hidden
     rounded-2xl
     border border-blue-100/80
-    bg-white/70 backdrop-blur-sm
+    bg-white backdrop-blur-sm
     shadow-lg shadow-blue-100/50
     hover:shadow-2xl hover:shadow-blue-200/70
     hover:border-blue-200
@@ -1057,7 +1057,7 @@ export default function DashboardChart({
     group relative overflow-hidden
     rounded-2xl
     border border-blue-100/80
-    bg-white/70 backdrop-blur-sm
+    bg-white backdrop-blur-sm
     shadow-lg shadow-blue-100/50
     hover:shadow-2xl hover:shadow-blue-200/70
     hover:border-blue-200
