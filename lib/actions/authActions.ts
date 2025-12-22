@@ -178,3 +178,27 @@ export const getAllUserTabIdClinique = async (idCliniques: string[]) => {
 
   return allUser;
 };
+
+// ************* Creer une fonction pour mettre banned à true s'il est false ou null ou false s'il est true **************
+export async function toggleBanUser(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+  });
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return await prisma.user.update({
+    where: { id },
+    data: {
+      banned: !user.banned,
+    },
+  });
+}
+// *************  Récupérer un user à partir de son username **************
+export const getUserByUsername = async (username: string) => {
+  const user = await prisma.user.findUnique({
+    where: { username },
+  });
+
+  return user;
+};

@@ -42,27 +42,26 @@ import {
   getAllUser,
   getOneUser,
   registerUser,
+  toggleBanUser,
   updateUser,
 } from "@/lib/actions/authActions";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Clinique, TableName, User } from "@prisma/client";
+import { Clinique, Permission, TableName, User } from "@prisma/client";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import {
   ArrowBigLeftDash,
   Eye,
   EyeClosed,
   Pencil,
-  UserRoundMinus,
+  UserLock,
+  UserRoundCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { Checkbox } from "@/components/ui/checkbox";
-
-interface Props {
-  className?: string;
-}
+import { SpinnerCustom } from "@/components/ui/spinner";
 
 const signUpSchema = z.object({
   name: z.string().min(5, {
@@ -97,9 +96,11 @@ type FormData = z.infer<typeof signUpSchema>;
 export default function RegisterForm() {
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [allUser, setAllUser] = useState<User[]>([]);
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [permission, setPermission] = useState<Permission | null>(null);
   const [idUserUpdate, setIdUserUpdate] = useState<string>("");
   const [positions, setPositions] = useState<number>(-1);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
@@ -111,19 +112,25 @@ export default function RegisterForm() {
   const idUser = session?.user.id as string;
   console.log("idUser : ", idUser);
   const userRole = session?.user.role as string;
-
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.USER
         );
-
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        setPermission(perm || null);
+        if (perm?.canRead || oneUser.role === "ADMIN") {
           setHasAccess(true);
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
@@ -140,13 +147,21 @@ export default function RegisterForm() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser, router]);
 
   useEffect(() => {
     const fetchData = async () => {
       const result = await getAllUser();
       if (userRole === "ADMIN") {
-        setAllUser(result as User[]);
+        if (oneUser?.email === "bando358@gmail.com") {
+          setAllUser(result as User[]);
+        } else {
+          // retirer cet utilisateur de la liste
+          const filteredUsers = result.filter(
+            (user: { email: string }) => user.email !== "bando358@gmail.com"
+          );
+          setAllUser(filteredUsers as User[]);
+        }
       } else {
         const alluser = result.filter(
           (user: { role: string }) => user.role === "USER"
@@ -189,7 +204,7 @@ export default function RegisterForm() {
           const oneUser = await getOneUser(idUser);
 
           if (oneUser) {
-            const filteredCliniques = clinique.filter((c: { id: any }) =>
+            const filteredCliniques = clinique.filter((c: { id: string }) =>
               oneUser.idCliniques.includes(c.id)
             );
             console.log("filteredCliniques : ", filteredCliniques);
@@ -210,7 +225,7 @@ export default function RegisterForm() {
     return (
       <div className="flex justify-center gap-2 items-center h-64">
         <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerBar />
+        <SpinnerCustom />
       </div>
     );
   }
@@ -309,6 +324,27 @@ export default function RegisterForm() {
     value: clinique.id,
     label: clinique.nomClinique,
   }));
+
+  const toggleCompteUser = async (id: string) => {
+    if (permission?.canDelete) {
+      alert("Vous n'avez pas la permission de bannir ce compte.");
+      return;
+    }
+    // Logique pour activer/désactiver le compte utilisateur
+    if (confirm("Êtes-vous sûr de vouloir changer le statut du compte ?")) {
+      // Votre logique ici
+      await toggleBanUser(id);
+      toast.success("Le statut du compte a été modifié avec succès !");
+      // Mettre à jour la liste des utilisateurs après la modification
+      const updatedUsers = allUser.map((user) => {
+        if (user.id === id) {
+          return { ...user, banned: !user.banned };
+        }
+        return user;
+      });
+      setAllUser(updatedUsers);
+    }
+  };
 
   return (
     <div className={cn("flex flex-col gap-6 relative")}>
@@ -491,7 +527,7 @@ export default function RegisterForm() {
             ) : (
               <>
                 <h3 className="text-center font-semibold">Liste Prestataire</h3>
-                <Table className="border max-w-xl ">
+                <Table className="border max-w-xl bg-white p-4 rounded-md overflow-hidden">
                   <TableHeader>
                     <TableRow className="bg-stone-50 opacity-90">
                       <TableCell>Nom & Prénom</TableCell>
@@ -522,7 +558,7 @@ export default function RegisterForm() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Pencil
-                                    className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-slate-800 cursor-pointer"
+                                    className="text-xl text-blue-600 m-1 duration-300 hover:scale-150 active:scale-125  cursor-pointer"
                                     size={16}
                                     onClick={() =>
                                       handleUpdateUser(user.id, index)
@@ -537,13 +573,19 @@ export default function RegisterForm() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <UserRoundMinus
-                                    className="text-xl duration-300 hover:scale-150 active:scale-125 text-slate-800 cursor-pointer"
-                                    size={16}
-                                    onClick={() => {
-                                      router.push("/administrator");
-                                    }}
-                                  />
+                                  {user.banned ? (
+                                    <UserLock
+                                      className="text-xl text-red-600 duration-300 hover:scale-150 active:scale-125 cursor-pointer"
+                                      size={16}
+                                      onClick={() => toggleCompteUser(user.id)}
+                                    />
+                                  ) : (
+                                    <UserRoundCheck
+                                      className="text-xl text-green-600 duration-300 hover:scale-150 active:scale-125  cursor-pointer"
+                                      size={16}
+                                      onClick={() => toggleCompteUser(user.id)}
+                                    />
+                                  )}
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <p>Déactiver le compte</p>

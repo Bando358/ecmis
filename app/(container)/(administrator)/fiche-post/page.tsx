@@ -1,8 +1,7 @@
 "use client";
-import React from "react";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   createPost,
   deletePost,
@@ -31,14 +30,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Eye, EyeClosed, Pencil, ArrowBigLeftDash, Scale } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
 import {
   createPermissionBeforeChecked,
   getUserPermissionsById,
 } from "@/lib/actions/permissionActions";
-import { createPermission } from "@/lib/actions/permissionActions";
 import { dataPermission } from "@/lib/permissionData";
 import { Textarea } from "@/components/ui/textarea";
+import { SpinnerCustom } from "@/components/ui/spinner";
 
 export default function CreatePostForm() {
   const [users, setUsers] = useState<User[]>([]);
@@ -72,7 +70,9 @@ export default function CreatePostForm() {
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.POST);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.POST
+        );
 
         if (perm?.canRead || session.user.role === "ADMIN") {
           setHasAccess(true);
@@ -99,7 +99,12 @@ export default function CreatePostForm() {
         getAllUser(),
         getAllPost(),
       ]);
-      setUsers(usersResult as User[]);
+
+      // retirer tous les ADMIN de allUsers
+      const filteredUsers = (usersResult as User[]).filter(
+        (user) => user.role !== "ADMIN"
+      );
+      setUsers(filteredUsers);
       setPosts(postsResult as Post[]);
     };
     fetchData();
@@ -117,7 +122,7 @@ export default function CreatePostForm() {
     return (
       <div className="flex justify-center gap-2 items-center h-64">
         <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerBar />
+        <SpinnerCustom />
       </div>
     );
   }
@@ -248,7 +253,7 @@ export default function CreatePostForm() {
   };
 
   return (
-    <div className="space-y-4 relative max-w-2xl mx-auto p-4">
+    <div className="space-y-4 relative max-w-4xl mx-auto p-4">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>

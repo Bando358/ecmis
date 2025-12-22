@@ -280,7 +280,7 @@ export default function FormulaireClient() {
           </h2>
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="space-y-4 max-w-225 mx-auto p-4 border rounded-md bg-stone-50 opacity-90"
+            className="space-y-4 max-w-225 mx-auto p-4 border rounded-md bg-white"
           >
             <div className="grid grid-cols-2 gap-4 w-full">
               <div className="w-full flex gap-4 justify-between items-center">

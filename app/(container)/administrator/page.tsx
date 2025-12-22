@@ -3,28 +3,39 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { TableName } from "@prisma/client";
+import { TableName, User } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { getOneUser } from "@/lib/actions/authActions";
 
 export default function Administrator() {
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
   const router = useRouter();
 
   useEffect(() => {
-    if (!session?.user) return;
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
+
+  useEffect(() => {
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.ADMINISTRATION
         );
 
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        if (perm?.canRead || oneUser.role === "ADMIN") {
           setHasAccess(true);
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
@@ -41,13 +52,13 @@ export default function Administrator() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser]);
 
   if (isCheckingPermissions) {
     return (
       <div className="flex gap-2 justify-center items-center h-64">
         <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom className="text-2xl text-gray-300" />
+        <SpinnerCustom />
       </div>
     );
   }

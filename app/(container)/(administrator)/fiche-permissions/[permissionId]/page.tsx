@@ -4,7 +4,7 @@ import {
   getUserPermissionsById,
   updatePermission,
 } from "@/lib/actions/permissionActions";
-import { Permission, User } from "@/lib/generated/prisma";
+import { Permission, User } from "@prisma/client";
 import { use, useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";

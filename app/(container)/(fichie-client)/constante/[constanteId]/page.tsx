@@ -242,139 +242,140 @@ export default function ConstantePage({
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="poids"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Poids en kg</FormLabel>
-                <FormControl>
-                  <Input required type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="taille"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Taille en (cm)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="psSystolique"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>psSystolique</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    type="number"
-                    placeholder="7"
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="psDiastolique"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>psDiastolique</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    type="number"
-                    placeholder="7"
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="temperature"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Température(°cl)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} value={field.value ?? ""} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="lieuTemprature"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>lieuTemprature(°cl)</FormLabel>
-                <FormControl>
-                  <Input {...field} value={field.value ?? ""} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="pouls"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Pouls</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} value={field.value ?? ""} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="frequenceRespiratoire"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fréquence Respiratoire</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} value={field.value ?? ""} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="saturationOxygene"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Saturation Oxygène</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} value={field.value ?? ""} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="imc"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>IMC</FormLabel>
-                <FormControl>
-                  <Input disabled type="number" {...field} value={resulImc} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="poids"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Poids en kg</FormLabel>
+                  <FormControl>
+                    <Input required type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="taille"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taille en (cm)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="psSystolique"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>psSystolique</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="number"
+                      placeholder="7"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="psDiastolique"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>psDiastolique</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="number"
+                      placeholder="7"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="temperature"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Température(°cl)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lieuTemprature"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>lieuTemprature(°cl)</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="pouls"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pouls</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="frequenceRespiratoire"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fréquence Respiratoire</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="saturationOxygene"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Saturation Oxygène</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="imc"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>IMC</FormLabel>
+                  <FormControl>
+                    <Input disabled type="number" {...field} value={resulImc} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
           <div className={`${styleImc}`}>
             <FormField
               control={form.control}
@@ -412,7 +413,7 @@ export default function ConstantePage({
               </FormItem>
             )}
           />
-          <Button type="submit" className="mt-4">
+          <Button type="submit" className="mt-4 mx-auto block">
             {form.formState.isSubmitting ? "En cours..." : "Créer la constante"}
           </Button>
         </form>

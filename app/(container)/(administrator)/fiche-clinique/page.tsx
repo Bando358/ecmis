@@ -29,8 +29,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Eye, EyeClosed, Pencil, ArrowBigLeftDash } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { SpinnerCustom } from "@/components/ui/spinner";
 
 interface RegionData {
   id: string;
@@ -103,7 +103,7 @@ export default function CreateCliniqueForm() {
     return (
       <div className="flex justify-center gap-2 items-center h-64">
         <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerBar />
+        <SpinnerCustom />
       </div>
     );
   }
@@ -182,7 +182,7 @@ export default function CreateCliniqueForm() {
   };
 
   return (
-    <div className="space-y-4 relative max-w-[900px] mx-auto p-4">
+    <div className="space-y-4 relative max-w-225 mx-auto p-4">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -333,7 +333,7 @@ export default function CreateCliniqueForm() {
         <h2 className="text-center text-xl font-bold uppercase">
           Liste des Cliniques
         </h2>
-        <Table className="border">
+        <Table className="border  bg-white rounded-md overflow-hidden">
           <TableHeader>
             <TableRow>
               <TableCell>Nom Clinique</TableCell>

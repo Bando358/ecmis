@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import {
   getUserPermissionsById,
@@ -77,8 +77,12 @@ export default function PermissionInitialPage() {
     const fetchUsers = async () => {
       try {
         const allUsers = await getAllUser();
+        // retirer tous les ADMIN de allUsers
+        const users = allUsers.filter(
+          (user: { role: string }) => user.role !== "ADMIN"
+        );
         if (userAdmin && userAdmin?.role === "ADMIN") {
-          setUsers(allUsers);
+          setUsers(users);
         } else {
           const filteredIclinicUsers = userAdmin?.idCliniques;
           // On va vérifier si filteredIclinicUsers est inclue dans allUsers.idCliniques

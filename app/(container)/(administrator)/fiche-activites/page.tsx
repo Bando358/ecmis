@@ -1,6 +1,6 @@
 // app/activite/page.tsx
 "use client";
-import React from "react";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -440,7 +440,7 @@ export default function ActivitePage() {
   };
 
   return (
-    <div className="space-y-4 relative max-w-[1100px] mx-auto p-4">
+    <div className="space-y-4 relative max-w-7xl mx-auto p-4">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -503,7 +503,7 @@ export default function ActivitePage() {
           </h2>
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="p-4 border rounded-md max-w-[600px] mx-auto bg-stone-50 grid grid-cols-1 md:grid-cols-2 gap-4"
+            className="p-4 border rounded-md max-w-150 mx-auto bg-stone-50 grid grid-cols-1 md:grid-cols-2 gap-4"
           >
             <div>
               <label className="block text-sm font-medium">Nom du lieu</label>
@@ -624,7 +624,7 @@ export default function ActivitePage() {
           Liste des Lieux
         </h2>
         <div className="border rounded-md mt-3">
-          <Table>
+          <Table className="bg-white p-4 rounded-md overflow-hidden">
             <TableHeader>
               <TableRow>
                 <TableHead>Lieu</TableHead>

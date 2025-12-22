@@ -28,7 +28,7 @@ import {
 import { Eye, EyeClosed, Pencil, ArrowBigLeftDash } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
+import { SpinnerCustom } from "@/components/ui/spinner";
 
 export default function CreateRegionForm() {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -90,7 +90,7 @@ export default function CreateRegionForm() {
     return (
       <div className="flex justify-center gap-2 items-center h-64">
         <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerBar />
+        <SpinnerCustom />
       </div>
     );
   }
@@ -256,7 +256,7 @@ export default function CreateRegionForm() {
         <h2 className="text-center text-xl font-bold uppercase">
           Liste des Régions
         </h2>
-        <Table className="border">
+        <Table className="border bg-white rounded-md overflow-hidden">
           <TableHeader>
             <TableRow>
               <TableCell>Nom Région</TableCell>
