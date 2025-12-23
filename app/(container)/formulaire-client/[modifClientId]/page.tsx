@@ -6,7 +6,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Spinner } from "@/components/ui/spinner";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { Client, Permission, TableName } from "@prisma/client";
 import { getOneClient, updateClient } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
@@ -131,8 +131,10 @@ export default function ModifFormulaireClient({
         } else {
           // Récupérer les cliniques associées à l'utilisateur en vérifiant user.idCliniques[] dans adminClinique
           setClinique(
-            adminClinique.filter((clin:{ id: string }) =>
-              user.idCliniques.some((userClin: string | string[]) => userClin.includes(clin.id))
+            adminClinique.filter((clin: { id: string }) =>
+              user.idCliniques.some((userClin: string | string[]) =>
+                userClin.includes(clin.id)
+              )
             )
           );
         }
@@ -155,9 +157,11 @@ export default function ModifFormulaireClient({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find((p: { table: string }) => p.table === TableName.CLIENT);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.CLIENT
+        );
         setPermission(perm || null);
-        if (!perm || (!perm.canRead && session.user.role !== "ADMIN")) {
+        if (!perm?.canUpdate && session.user.role !== "ADMIN") {
           alert(
             "Vous n'avez pas la permission de modifier un client. Contactez un administrateur."
           );
@@ -434,10 +438,10 @@ export default function ModifFormulaireClient({
                   Lieu de naissance
                 </label>
                 <Input
-                  // {...register("lieuNaissance")}
+                  {...register("lieuNaissance")}
                   placeholder="Lieu de naissance"
                   className="mt-1 capitalize"
-                  {...register("lieuNaissance")}
+                  defaultValue={""}
                 />
               </div>
 
@@ -552,10 +556,10 @@ export default function ModifFormulaireClient({
               <div>
                 <label className="block text-sm font-medium">Quartier</label>
                 <Input
-                  // {...register("quartier")}
+                  {...register("quartier")}
                   placeholder="Quartier"
                   className="mt-1 capitalize"
-                  {...register("quartier")}
+                  defaultValue={""}
                 />
                 {/* {errors.quartier && (
                             <span className="text-red-500 text-sm">
@@ -738,7 +742,9 @@ export default function ModifFormulaireClient({
               disabled={isSubmitting}
             >
               <span className="flex flex-row items-center gap-2">
-                {isSubmitting && <Spinner />}
+                {isSubmitting && (
+                  <SpinnerCustom className="mr-2 text-gray-300" />
+                )}
                 Modifier le client
               </span>
             </Button>

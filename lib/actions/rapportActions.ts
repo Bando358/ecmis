@@ -670,40 +670,303 @@ const visiteDataCpnUpdate = async (clients: ClientData[]) => {
   return clients;
 };
 
+// export const fetchClientsStatusProtege = async (
+//   clinicIds: string[],
+//   activiteIds: string[],
+//   dateVisite1: Date,
+//   dateVisite2: Date
+// ): Promise<ClientStatusInfo[]> => {
+//   if (!clinicIds) {
+//     alert("Veuillez choisir au moins une clinique");
+//     return [];
+//   }
+
+//   const clients = await prisma.client.findMany({
+//     where: {
+//       idClinique: {
+//         in: clinicIds,
+//       },
+//       Planning: {
+//         some: {
+//           rdvPf: {
+//             gte: dateVisite1,
+//             // lte: dateVisite2,
+//           },
+//         },
+//       },
+//     },
+//     include: {
+//       Planning: true,
+//       Visite: true,
+//     },
+//   });
+//   let activiteClient: ClientAvecMethodePrise[] = [];
+//   let activiteClientLieu: ClientAvecMethodePrise[] = [];
+
+//   // parsing robuste de activiteIds -> tabIdactivite et tabIdLieu
+//   const [tabIdactivite, tabIdLieu] = (
+//     Array.isArray(activiteIds) ? activiteIds : []
+//   ).reduce<[string[], string[]]>(
+//     ([left, right], str) => {
+//       if (typeof str !== "string") return [left, right];
+
+//       const parts = str.split(">");
+//       const l = parts[0]?.trim() ?? "";
+//       const r = parts[1]?.trim() ?? "";
+
+//       if (l) left.push(l);
+//       if (r) right.push(r);
+
+//       return [left, right];
+//     },
+//     [[], []]
+//   );
+
+//   // Si on a des filtres d'activités
+//   if (Array.isArray(activiteIds) && activiteIds.length > 0) {
+//     // Cas normal : on veut les clients ayant des visites avec idActivite présent dans tabIdactivite
+//     // Si tabIdactivite est vide mais tabIdLieu contient des valeurs (ex: activiteIds = [">lieuA"]), on filtre seulement par lieu.
+//     if (tabIdactivite.length > 0) {
+//       activiteClient = clients.filter(
+//         (client) =>
+//           Array.isArray(client.Visite) &&
+//           client.Visite.some((visite) => {
+//             const idAct = visite.idActivite ?? "";
+//             return idAct !== "" && tabIdactivite.includes(idAct);
+//           })
+//       );
+//     } else {
+//       // pas d'activité fournie, garde tous les clients ayant au moins une visite (on appliquera le filtre lieu ensuite)
+//       activiteClient = clients.filter(
+//         (client) => Array.isArray(client.Visite) && client.Visite.length > 0
+//       );
+//     }
+
+//     // Si on a des lieux fournis, on affine par lieu
+//     if (tabIdLieu.length > 0) {
+//       activiteClientLieu = activiteClient.filter(
+//         (client) =>
+//           Array.isArray(client.Visite) &&
+//           client.Visite.some((visite) => {
+//             const idLieu = visite.idLieu ?? "";
+//             return idLieu !== "" && tabIdLieu.includes(idLieu);
+//           })
+//       );
+//     } else {
+//       activiteClientLieu = activiteClient;
+//     }
+//   } else {
+//     // Sans filtre d'activite fourni : on garde tous les clients qui ont au moins une visite
+//     activiteClient = clients.filter(
+//       (client) => Array.isArray(client.Visite) && client.Visite.length > 0
+//     );
+//     activiteClientLieu = activiteClient;
+//   }
+
+//   const clientsStatus: ClientStatusInfo[] = [];
+//   // Convert rdvPf from string|null to Date|null for type compatibility
+//   const clientsAvecMethodePrise: ClientAvecMethodePrise[] = activiteClientLieu
+//     .filter((client) =>
+//       client.Planning?.some((plan) => plan.methodePrise === true)
+//     )
+//     .map((client) => ({
+//       ...client,
+//       Planning: client.Planning.map((plan) => ({
+//         ...plan,
+//         rdvPf: plan.rdvPf ? new Date(plan.rdvPf) : null,
+//       })),
+//     }));
+//   for (const client of clientsAvecMethodePrise) {
+//     for (const plan of client.Planning || []) {
+//       if (plan.rdvPf) {
+//         const rendezVous = new Date(plan.rdvPf);
+//         const diffJours = Math.floor(
+//           (dateVisite2.getTime() - rendezVous.getTime()) / (1000 * 60 * 60 * 24)
+//         );
+
+//         // Exclusion si plus de 90 jours
+//         if (diffJours > 90) continue;
+
+//         const isLongueDuree = !!(
+//           plan.implanon ||
+//           plan.jadelle ||
+//           plan.sterilet
+//         );
+//         const dateDebutMethod = plan.implanon
+//           ? new Date(plan.implanon)
+//           : plan.jadelle
+//           ? new Date(plan.jadelle)
+//           : plan.sterilet
+//           ? new Date(plan.sterilet)
+//           : null;
+
+//         const retrait =
+//           plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
+
+//         const visitesTriees = client.Visite.sort(
+//           (a, b) =>
+//             new Date(b.dateVisite).getTime() - new Date(a.dateVisite).getTime()
+//         );
+
+//         const visiteLaPlusRecente = visitesTriees[0]?.dateVisite
+//           ? new Date(visitesTriees[0].dateVisite)
+//           : null;
+
+//         // Récupérer la date de visite
+//         let dateVisiste = "";
+//         if (client.Visite?.[0]?.dateVisite) {
+//           const rawDate = await getDateVisite(plan.idVisite);
+//           if (rawDate instanceof Date) {
+//             dateVisiste = rawDate.toLocaleDateString("fr-FR"); // ou rawDate.toISOString(), selon ton besoin
+//           }
+//         }
+
+//         const status: ClientStatusInfo = {
+//           nom: client.nom,
+//           prenom: client.prenom,
+//           age: calculerAge(client.dateNaissance),
+//           sexe: client.sexe,
+//           code: client.code,
+//           dateVisiste: dateVisiste,
+//           rdvPf: plan.rdvPf ? plan.rdvPf : null,
+//           statut: plan.statut || "",
+//           courtDuree: plan.courtDuree,
+//           implanon: plan.implanon,
+//           jadelle: plan.jadelle,
+//           sterilet: plan.sterilet,
+//           methodePrise: plan.methodePrise,
+//           protege: false,
+//           perdueDeVue: false,
+//           abandon: false,
+//           arret: false,
+//         };
+
+//         // Conditions pour déterminer le statut
+//         if (rendezVous >= dateVisite2) {
+//           status.protege = true;
+//         } else if (diffJours <= 30) {
+//           status.perdueDeVue = true;
+//         } else if (diffJours <= 60) {
+//           status.abandon = true;
+//         } else if (diffJours <= 90) {
+//           status.arret = true;
+//         }
+
+//         // Condition spécifique pour les méthodes de longue durée
+//         if (
+//           isLongueDuree &&
+//           retrait &&
+//           dateDebutMethod &&
+//           visiteLaPlusRecente &&
+//           visiteLaPlusRecente > dateDebutMethod
+//         ) {
+//           status.arret = true;
+//           status.protege = false;
+//           status.perdueDeVue = false;
+//           status.abandon = false;
+//         }
+//         clientsStatus.push(status);
+
+//         // tu vas me créer un fonction checkClientStatus qui va me retourner un élément de type ClientStatusInfo
+//         // cette fonction checkClientStatus va prendre en paramètre status.dateVisiste et va parcourir clientsAvecMethodePrise pour les verifications
+//         // cette fonction checkClientStatus va vérifier si un client a une visite de planning entre status.dateVisiste et dateVisite2 et que :
+//         // planning.retraitImplanon === true || planning.retraitJadelle === true || planning.retraitSterilet === true alors tu vas mettre status.protege à false et status.arret à true
+//         // Vérification spécifique via checkClientStatus
+//         const checkResult = checkClientStatus(
+//           typeof status.dateVisiste === "string"
+//             ? status.dateVisiste
+//             : status.dateVisiste instanceof Date
+//             ? status.dateVisiste.toLocaleDateString("fr-FR")
+//             : "",
+//           dateVisite2,
+//           clientsAvecMethodePrise
+//         );
+
+//         if (checkResult) {
+//           // remplace le status initial par celui retourné par la vérification
+//           clientsStatus.push(checkResult);
+//         } else {
+//           // garde le status normal
+//           clientsStatus.push(status);
+//         }
+//       }
+//     }
+//   }
+
+//   // Fonction pour convertir une date au format "JJ/MM/AAAA" en objet Date
+//   const parseDate = (dateStr: string): Date => {
+//     const [day, month, year] = dateStr.split("/").map(Number);
+//     // Le mois est 0-indexé en JavaScript (0 pour Janvier, 11 pour Décembre)
+//     return new Date(year, month - 1, day);
+//   };
+
+//   // Convertit la date cible en objet Date pour la comparaison
+//   const targetDate = dateVisite2;
+
+//   // Utilise un objet pour stocker le client le plus proche pour chaque code
+//   const closestClients = clientsStatus.reduce((acc, currentClient) => {
+//     const existingClient = acc[currentClient.code];
+//     const currentDate = parseDate(currentClient.dateVisiste as string);
+
+//     // Si aucun client avec ce code n'a été enregistré, ou si le client actuel a une date plus proche
+//     if (
+//       !existingClient ||
+//       Math.abs(currentDate.getTime() - targetDate.getTime()) <
+//         Math.abs(
+//           parseDate(existingClient.dateVisiste as string).getTime() -
+//             targetDate.getTime()
+//         )
+//     ) {
+//       acc[currentClient.code] = currentClient;
+//     }
+
+//     return acc;
+//   }, {} as Record<string, ClientStatusInfo>);
+
+//   // Convertit l'objet des résultats en un tableau
+//   const clientsProtege = Object.values(closestClients);
+
+//   return clientsProtege;
+// };
+
 export const fetchClientsStatusProtege = async (
   clinicIds: string[],
   activiteIds: string[],
   dateVisite1: Date,
   dateVisite2: Date
 ): Promise<ClientStatusInfo[]> => {
-  if (!clinicIds) {
+  if (!clinicIds || clinicIds.length === 0) {
     alert("Veuillez choisir au moins une clinique");
     return [];
   }
 
+  // Récupérer tous les clients avec leurs planifications et visites
   const clients = await prisma.client.findMany({
     where: {
       idClinique: {
         in: clinicIds,
       },
-      Visite: {
+      Planning: {
         some: {
-          dateVisite: {
-            // gte: dateVisite1,
-            lte: dateVisite2,
+          rdvPf: {
+            gte: dateVisite1,
           },
         },
       },
     },
     include: {
-      Planning: true,
+      Planning: {
+        where: {
+          rdvPf: {
+            gte: dateVisite1,
+          },
+        },
+      },
       Visite: true,
     },
   });
-  let activiteClient: ClientAvecMethodePrise[] = [];
-  let activiteClientLieu: ClientAvecMethodePrise[] = [];
 
-  // parsing robuste de activiteIds -> tabIdactivite et tabIdLieu
+  // Parsing des activités et lieux
   const [tabIdactivite, tabIdLieu] = (
     Array.isArray(activiteIds) ? activiteIds : []
   ).reduce<[string[], string[]]>(
@@ -722,12 +985,12 @@ export const fetchClientsStatusProtege = async (
     [[], []]
   );
 
-  // Si on a des filtres d'activités
+  // Filtrer les clients par activité et lieu
+  let filteredClients = clients;
+
   if (Array.isArray(activiteIds) && activiteIds.length > 0) {
-    // Cas normal : on veut les clients ayant des visites avec idActivite présent dans tabIdactivite
-    // Si tabIdactivite est vide mais tabIdLieu contient des valeurs (ex: activiteIds = [">lieuA"]), on filtre seulement par lieu.
     if (tabIdactivite.length > 0) {
-      activiteClient = clients.filter(
+      filteredClients = filteredClients.filter(
         (client) =>
           Array.isArray(client.Visite) &&
           client.Visite.some((visite) => {
@@ -735,16 +998,10 @@ export const fetchClientsStatusProtege = async (
             return idAct !== "" && tabIdactivite.includes(idAct);
           })
       );
-    } else {
-      // pas d'activité fournie, garde tous les clients ayant au moins une visite (on appliquera le filtre lieu ensuite)
-      activiteClient = clients.filter(
-        (client) => Array.isArray(client.Visite) && client.Visite.length > 0
-      );
     }
 
-    // Si on a des lieux fournis, on affine par lieu
     if (tabIdLieu.length > 0) {
-      activiteClientLieu = activiteClient.filter(
+      filteredClients = filteredClients.filter(
         (client) =>
           Array.isArray(client.Visite) &&
           client.Visite.some((visite) => {
@@ -752,46 +1009,92 @@ export const fetchClientsStatusProtege = async (
             return idLieu !== "" && tabIdLieu.includes(idLieu);
           })
       );
-    } else {
-      activiteClientLieu = activiteClient;
     }
-  } else {
-    // Sans filtre d'activite fourni : on garde tous les clients qui ont au moins une visite
-    activiteClient = clients.filter(
-      (client) => Array.isArray(client.Visite) && client.Visite.length > 0
-    );
-    activiteClientLieu = activiteClient;
   }
 
+  // Fonction pour vérifier le statut d'un client
+  const checkClientStatus = (
+    dateVisiteStr: string,
+    dateLimite: Date,
+    clientData: ClientAvecMethodePrise
+  ): Partial<ClientStatusInfo> | null => {
+    if (!clientData || !clientData.Planning) return null;
+
+    const dateVisite = parseDate(dateVisiteStr);
+
+    // Trouver une visite de planning entre dateVisite et dateLimite
+    const planningEntreDates = clientData.Planning.find((plan) => {
+      if (!plan.rdvPf) return false;
+      const datePlan = new Date(plan.rdvPf);
+      return datePlan >= dateVisite && datePlan <= dateLimite;
+    });
+
+    if (planningEntreDates) {
+      const aRetrait =
+        planningEntreDates.retraitImplanon ||
+        planningEntreDates.retraitJadelle ||
+        planningEntreDates.retraitSterilet;
+
+      if (aRetrait) {
+        return {
+          protege: false,
+          arret: true,
+          perdueDeVue: false,
+          abandon: false,
+        };
+      }
+    }
+
+    return null;
+  };
+
+  // Convertir une chaîne de date en objet Date
+  const parseDate = (dateStr: string): Date => {
+    // Supposons que la date est au format "JJ/MM/AAAA"
+    const [day, month, year] = dateStr.split("/").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const clientsStatus: ClientStatusInfo[] = [];
-  // Convert rdvPf from string|null to Date|null for type compatibility
-  const clientsAvecMethodePrise: ClientAvecMethodePrise[] = activiteClientLieu
-    .filter((client) =>
-      client.Planning?.some((plan) => plan.methodePrise === true)
-    )
-    .map((client) => ({
-      ...client,
-      Planning: client.Planning.map((plan) => ({
-        ...plan,
-        rdvPf: plan.rdvPf ? new Date(plan.rdvPf) : null,
-      })),
-    }));
+
+  // Filtrer les clients qui ont methodePrise === true
+  const clientsAvecMethodePrise = filteredClients.filter((client) =>
+    client.Planning?.some((plan) => plan.methodePrise === true)
+  ) as ClientAvecMethodePrise[];
+
   for (const client of clientsAvecMethodePrise) {
+    // Trier les visites par date (la plus récente en premier)
+    const visitesTriees = [...client.Visite].sort(
+      (a, b) =>
+        new Date(b.dateVisite).getTime() - new Date(a.dateVisite).getTime()
+    );
+
+    // Pour chaque planification du client
     for (const plan of client.Planning || []) {
       if (plan.rdvPf) {
         const rendezVous = new Date(plan.rdvPf);
+
+        // Calculer la différence en jours
         const diffJours = Math.floor(
           (dateVisite2.getTime() - rendezVous.getTime()) / (1000 * 60 * 60 * 24)
         );
 
         // Exclusion si plus de 90 jours
-        if (diffJours > 90) continue;
+        // if (diffJours > 90) continue;
 
+        // Trouver la visite la plus récente
+        const visiteLaPlusRecente = visitesTriees[0]?.dateVisite
+          ? new Date(visitesTriees[0].dateVisite)
+          : null;
+
+        // Déterminer si c'est une méthode longue durée
         const isLongueDuree = !!(
           plan.implanon ||
           plan.jadelle ||
           plan.sterilet
         );
+
+        // Date de début de la méthode
         const dateDebutMethod = plan.implanon
           ? new Date(plan.implanon)
           : plan.jadelle
@@ -803,37 +1106,29 @@ export const fetchClientsStatusProtege = async (
         const retrait =
           plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
 
-        const visitesTriees = client.Visite.sort(
-          (a, b) =>
-            new Date(b.dateVisite).getTime() - new Date(a.dateVisite).getTime()
-        );
-
-        const visiteLaPlusRecente = visitesTriees[0]?.dateVisite
-          ? new Date(visitesTriees[0].dateVisite)
-          : null;
-
-        // Récupérer la date de visite
-        let dateVisiste = "";
-        if (client.Visite?.[0]?.dateVisite) {
+        // Récupérer la date de visite pour ce planning
+        let dateVisisteStr = "";
+        if (plan.idVisite) {
           const rawDate = await getDateVisite(plan.idVisite);
           if (rawDate instanceof Date) {
-            dateVisiste = rawDate.toLocaleDateString("fr-FR"); // ou rawDate.toISOString(), selon ton besoin
+            dateVisisteStr = rawDate.toLocaleDateString("fr-FR");
           }
         }
 
+        // Créer le statut initial
         const status: ClientStatusInfo = {
           nom: client.nom,
           prenom: client.prenom,
           age: calculerAge(client.dateNaissance),
           sexe: client.sexe,
           code: client.code,
-          dateVisiste: dateVisiste,
-          rdvPf: plan.rdvPf ? plan.rdvPf : null,
+          dateVisiste: dateVisisteStr,
+          rdvPf: plan.rdvPf,
           statut: plan.statut || "",
-          courtDuree: plan.courtDuree,
-          implanon: plan.implanon,
-          jadelle: plan.jadelle,
-          sterilet: plan.sterilet,
+          courtDuree: plan.courtDuree || "",
+          implanon: plan.implanon || "",
+          jadelle: plan.jadelle || "",
+          sterilet: plan.sterilet || "",
           methodePrise: plan.methodePrise,
           protege: false,
           perdueDeVue: false,
@@ -841,8 +1136,18 @@ export const fetchClientsStatusProtege = async (
           arret: false,
         };
 
-        // Conditions pour déterminer le statut
-        if (rendezVous >= dateVisite2) {
+        // Vérification spécifique pour les retraits
+        const checkResult = checkClientStatus(
+          dateVisisteStr,
+          dateVisite2,
+          client
+        );
+
+        // Appliquer les statuts
+        if (checkResult) {
+          // Appliquer les modifications du check
+          Object.assign(status, checkResult);
+        } else if (rendezVous >= dateVisite2) {
           status.protege = true;
         } else if (diffJours <= 30) {
           status.perdueDeVue = true;
@@ -852,7 +1157,7 @@ export const fetchClientsStatusProtege = async (
           status.arret = true;
         }
 
-        // Condition spécifique pour les méthodes de longue durée
+        // Condition spécifique pour les méthodes de longue durée avec retrait
         if (
           isLongueDuree &&
           retrait &&
@@ -865,68 +1170,38 @@ export const fetchClientsStatusProtege = async (
           status.perdueDeVue = false;
           status.abandon = false;
         }
+
         clientsStatus.push(status);
-
-        // tu vas me créer un fonction checkClientStatus qui va me retourner un élément de type ClientStatusInfo
-        // cette fonction checkClientStatus va prendre en paramètre status.dateVisiste et va parcourir clientsAvecMethodePrise pour les verifications
-        // cette fonction checkClientStatus va vérifier si un client a une visite de planning entre status.dateVisiste et dateVisite2 et que :
-        // planning.retraitImplanon === true || planning.retraitJadelle === true || planning.retraitSterilet === true alors tu vas mettre status.protege à false et status.arret à true
-        // Vérification spécifique via checkClientStatus
-        const checkResult = checkClientStatus(
-          typeof status.dateVisiste === "string"
-            ? status.dateVisiste
-            : status.dateVisiste instanceof Date
-            ? status.dateVisiste.toLocaleDateString("fr-FR")
-            : "",
-          dateVisite2,
-          clientsAvecMethodePrise
-        );
-
-        if (checkResult) {
-          // remplace le status initial par celui retourné par la vérification
-          clientsStatus.push(checkResult);
-        } else {
-          // garde le status normal
-          clientsStatus.push(status);
-        }
       }
     }
   }
 
-  // Fonction pour convertir une date au format "JJ/MM/AAAA" en objet Date
-  const parseDate = (dateStr: string): Date => {
-    const [day, month, year] = dateStr.split("/").map(Number);
-    // Le mois est 0-indexé en JavaScript (0 pour Janvier, 11 pour Décembre)
-    return new Date(year, month - 1, day);
-  };
+  // Utiliser un Map pour garder le statut le plus récent par code de client
+  const clientsMap = new Map<string, ClientStatusInfo>();
 
-  // Convertit la date cible en objet Date pour la comparaison
-  const targetDate = dateVisite2;
+  for (const clientStatus of clientsStatus) {
+    const existing = clientsMap.get(clientStatus.code);
 
-  // Utilise un objet pour stocker le client le plus proche pour chaque code
-  const closestClients = clientsStatus.reduce((acc, currentClient) => {
-    const existingClient = acc[currentClient.code];
-    const currentDate = parseDate(currentClient.dateVisiste as string);
-
-    // Si aucun client avec ce code n'a été enregistré, ou si le client actuel a une date plus proche
     if (
-      !existingClient ||
-      Math.abs(currentDate.getTime() - targetDate.getTime()) <
-        Math.abs(
-          parseDate(existingClient.dateVisiste as string).getTime() -
-            targetDate.getTime()
-        )
+      !existing ||
+      (clientStatus.dateVisiste &&
+        existing.dateVisiste &&
+        parseDate(
+          typeof clientStatus.dateVisiste === "string"
+            ? clientStatus.dateVisiste
+            : clientStatus.dateVisiste.toLocaleDateString("fr-FR")
+        ) >
+          parseDate(
+            typeof existing.dateVisiste === "string"
+              ? existing.dateVisiste
+              : existing.dateVisiste.toLocaleDateString("fr-FR")
+          ))
     ) {
-      acc[currentClient.code] = currentClient;
+      clientsMap.set(clientStatus.code, clientStatus);
     }
+  }
 
-    return acc;
-  }, {} as Record<string, ClientStatusInfo>);
-
-  // Convertit l'objet des résultats en un tableau
-  const clientsProtege = Object.values(closestClients);
-
-  return clientsProtege;
+  return Array.from(clientsMap.values());
 };
 
 type ClientDataLaboratoire = {

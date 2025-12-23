@@ -145,7 +145,7 @@ export default function BackupPage() {
             <Progress value={progress} />
             <div className="text-sm text-gray-600 mt-1">
               {task === "backup" && "Création du backup..."}
-              {task === "restore" && "Restauration en cours..."} — {progress}%
+              {task === "restore" && "Importation en cours..."} — {progress}%
             </div>
           </div>
         )}
@@ -164,7 +164,7 @@ export default function BackupPage() {
             disabled={!file || isLoading}
             className="bg-green-600 hover:bg-green-700"
           >
-            {isLoading && task === "restore" ? "Restauration..." : "Restaurer"}
+            {isLoading && task === "restore" ? "Importation..." : "Importer"}
           </Button>
         </div>
       </div>

@@ -44,9 +44,17 @@
 //   }
 // }
 
-import { NextResponse } from "next/server";
-import { backupDatabase } from "@/lib/actions/sauvegardActions";
+// app/api/backup/route.ts
+// import { backupDatabase } from "@/lib/actions/sauvegardActions";
+
+// export async function GET() {
+//   return await backupDatabase();
+// }
+// app/api/backup/route.ts
+import { neonBackup } from "@/lib/actions/neonBackup";
+
+export const maxDuration = 300; // 5 minutes max (Vercel limite)
 
 export async function GET() {
-  return await backupDatabase();
+  return await neonBackup();
 }

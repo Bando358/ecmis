@@ -416,11 +416,11 @@ export default function FormulaireClient() {
                   Lieu de naissance
                 </label>
                 <Input
-                  // {...register("lieuNaissance")}
+                  {...register("lieuNaissance")}
                   placeholder="Lieu de naissance"
                   className="mt-1 capitalize"
                   name="lieuNaissance"
-                  // defaultValue={""}
+                  defaultValue={""}
                 />
                 {/* {errors.lieuNaissance && (
                   <span className="text-red-500 text-sm">
@@ -539,11 +539,13 @@ export default function FormulaireClient() {
               </div>
               <div>
                 <label className="block text-sm font-medium">Quartier</label>
+                {/* quartier n'est pas obligatoire */}
                 <Input
-                  // {...register("quartier")}
+                  {...register("quartier")}
                   placeholder="Quartier"
                   className="mt-1 capitalize"
                   name="quartier"
+                  defaultValue={""}
                 />
                 {/* {errors.quartier && (
                   <span className="text-red-500 text-sm">
@@ -569,7 +571,7 @@ export default function FormulaireClient() {
                         className="text-slate-800   font-bold text-3xl  cursor-pointer transition-all duration-300 scale-110 active:text-blue-900"
                       />
                     ) : (
-                      <BadgePlus className="text-slate-800   font-bold text-3xl" />
+                      <BadgePlus className="text-blue-800   font-bold text-3xl" />
                     )}
                   </span>
                 </div>

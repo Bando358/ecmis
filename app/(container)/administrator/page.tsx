@@ -100,14 +100,61 @@ export default function Administrator() {
       <div className="max-w-225 mx-auto relative flex flex-col justify-center p-4 rounded-md">
         <Card>
           <CardContent>
-            <ul className="space-y-4 grid grid-cols-3 gap-4">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {TabAdmin.map((row, index) => (
-                <li key={index}>
+                <li key={index} className="relative">
                   <Link
                     href={row.href}
-                    className="group hover:font-semibold hover:bg-slate-50"
+                    className="group relative block p-2 bg-white rounded-2xl
+          overflow-hidden
+          transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
+          hover:-translate-y-1.5
+          hover:shadow-xl hover:shadow-blue-100/60
+          hover:bg-gradient-to-br hover:from-white hover:to-blue-50"
                   >
-                    {row.label}
+                    {/* Halo lumineux */}
+                    <div
+                      className="pointer-events-none absolute inset-0 opacity-0
+            bg-gradient-to-r from-blue-100/40 via-transparent to-blue-100/40
+            group-hover:opacity-100
+            transition-opacity duration-500"
+                    />
+
+                    {/* Bordure animée */}
+                    <div
+                      className="absolute bottom-0 left-6 right-6 h-[2px]
+            bg-gradient-to-r from-transparent via-blue-500 to-transparent
+            scale-x-0 group-hover:scale-x-100
+            transition-transform duration-500 origin-center"
+                    />
+
+                    {/* Point animé */}
+                    <div
+                      className="absolute top-2 left-5 w-2.5 h-2.5 rounded-full bg-blue-500
+            scale-0 group-hover:scale-100
+            group-hover:animate-pulse
+            transition-transform duration-300 delay-150"
+                    />
+
+                    {/* Contenu */}
+                    <span
+                      className="relative flex flex-col pl-6 text-gray-700
+            transition-all duration-300
+            group-hover:text-blue-700
+            group-hover:translate-x-1"
+                    >
+                      <span className="font-medium group-hover:font-semibold">
+                        {row.label}
+                      </span>
+
+                      <span
+                        className="text-sm text-gray-400 mt-1
+              transition-colors duration-300
+              group-hover:text-blue-400"
+                      >
+                        {/* optionnel : description */}
+                      </span>
+                    </span>
                   </Link>
                 </li>
               ))}
