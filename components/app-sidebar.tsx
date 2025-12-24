@@ -3,12 +3,9 @@
 import * as React from "react";
 import {
   Gauge,
-  // AudioWaveform,
   ListMinus,
   Pill,
-  // Command,
   Frame,
-  // GalleryVerticalEnd,
   Map,
   PieChart,
   Settings2,
@@ -19,9 +16,7 @@ import {
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
-// import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
-// import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +28,8 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-// This is sample data.
+import { TeamSwitcher } from "./team-switcher";
+
 const data = {
   user: {
     name: "shadcn",
@@ -43,9 +39,14 @@ const data = {
   dashboard: {
     name: "Dashboard",
     logo: "Gauge",
-    url: "/openemr/dashboard",
+    url: "/dashboard",
   },
-  // teams: [],
+  // Un seul objet team avec favicon et logo
+  team: {
+    name: "Logo aibef",
+    favicon: "/favicon.ico",
+    logo: "/logo.png", // Ici c'est une chaîne (URL), pas un élément JSX
+  },
   navMain: [
     {
       title: "Clients",
@@ -196,15 +197,13 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>{/* <TeamSwitcher teams={data.teams} /> */}</SidebarHeader>
+      <SidebarHeader>
+        <TeamSwitcher team={data.team} />
+      </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              disabled
-              className="mx-2"
-              tooltip={data.dashboard.name}
-            >
+            <SidebarMenuButton className="mx-2" tooltip={data.dashboard.name}>
               <Link
                 href={data.dashboard.url}
                 className="flex gap-2 items-center"
@@ -216,7 +215,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
         <NavMain items={data.navMain} />
-        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
