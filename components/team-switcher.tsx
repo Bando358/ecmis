@@ -32,7 +32,7 @@ export function TeamSwitcher({
     return (month === 12 && day >= 10) || (month === 1 && day <= 10);
   };
 
-  const logoPath = isChristmasPeriod() ? "/logo_noel.png" : "/logo.png";
+  const logoPath = isChristmasPeriod() ? "/logo-noel.png" : "/logo.png";
   const logoAlt = isChristmasPeriod()
     ? `${team.name} logo de Noël`
     : `${team.name} logo`;
@@ -46,7 +46,7 @@ export function TeamSwitcher({
             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground px-3 w-full hover:bg-accent/50 transition-colors cursor-pointer"
           >
             {/* Favicon */}
-            <div className="bg-blue-300 text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg mr-3">
+            <div className="bg-blue-300  text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg mr-3">
               <Image
                 src={team.favicon}
                 alt={`${team.name} favicon`}
@@ -63,9 +63,9 @@ export function TeamSwitcher({
                   <Image
                     src={logoPath}
                     alt={logoAlt}
-                    width={150}
+                    width={logoPath === "/logo-noel.png" ? 130 : 150}
                     height={24}
-                    className="object-contain mt-2.5"
+                    className="object-contain mt-2.5 py-2"
                   />
                 </div>
               </div>
