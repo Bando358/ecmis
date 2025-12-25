@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,17 +16,30 @@ export function TeamSwitcher({
   team: {
     name: string;
     favicon: string;
-    logo: string; // Ce doit être une chaîne (URL)
+    logo: string;
   };
 }) {
   if (!team) {
     return null;
   }
 
+  // Vérifier si on est dans la période de Noël (10 décembre - 10 janvier)
+  const isChristmasPeriod = () => {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1-12
+    const day = now.getDate();
+
+    return (month === 12 && day >= 10) || (month === 1 && day <= 10);
+  };
+
+  const logoPath = isChristmasPeriod() ? "/logo_noel.png" : "/logo.png";
+  const logoAlt = isChristmasPeriod()
+    ? `${team.name} logo de Noël`
+    : `${team.name} logo`;
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        {/* Wrapper Link pour que tout soit cliquable */}
         <Link href="/client" className="block">
           <SidebarMenuButton
             size="lg"
@@ -44,17 +56,16 @@ export function TeamSwitcher({
               />
             </div>
 
-            {/* Logo et nom */}
+            {/* Logo avec condition */}
             <div className="grid flex-1 text-left text-sm leading-tight">
               <div className="flex items-center gap-2">
-                <div className="relative  flex-shrink-0 -left-3 ">
+                <div className="relative shrink-0 -left-3">
                   <Image
-                    src={"/logo.png"}
-                    alt={`${team.name} logo`}
-                    // fill
+                    src={logoPath}
+                    alt={logoAlt}
                     width={150}
                     height={24}
-                    className="object-contain mt-2.5 "
+                    className="object-contain mt-2.5"
                   />
                 </div>
               </div>

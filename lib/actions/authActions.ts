@@ -11,6 +11,16 @@ type RegisterInput = {
   password: string;
 };
 
+// ************* Create User **************
+export async function createUser(user: User) {
+  // Hacher le mot de passe avant de le stocker
+  const hashedPassword = await bcrypt.hash(user.password, 10);
+  user.password = hashedPassword;
+  return await prisma.user.create({
+    data: user,
+  });
+}
+
 export async function registerUser(user: RegisterInput) {
   const { password, email, ...rest } = user;
 

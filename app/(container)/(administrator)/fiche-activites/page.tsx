@@ -87,6 +87,7 @@ export default function ActivitePage() {
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [idLieu, setIdLieu] = useState<string>("");
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [positions, setPositions] = useState<number>(-1);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
@@ -97,19 +98,28 @@ export default function ActivitePage() {
 
   const router = useRouter();
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
 
-  // Vérification des permissions - une seule fois
+  // === Charger l'utilisateur admin connecté ===
   useEffect(() => {
-    if (!session?.user) return;
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
+
+  useEffect(() => {
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.LIEU
         );
 
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        if (perm?.canRead || oneUser.role === "ADMIN") {
           setHasAccess(true);
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
@@ -126,7 +136,7 @@ export default function ActivitePage() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser]);
 
   // Grouper les lieux par activité
   useEffect(() => {

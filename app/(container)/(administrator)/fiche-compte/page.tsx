@@ -39,6 +39,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
+  createUser,
   getAllUser,
   getOneUser,
   registerUser,
@@ -47,7 +48,13 @@ import {
 } from "@/lib/actions/authActions";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Clinique, Permission, TableName, User } from "@prisma/client";
+import {
+  Clinique,
+  Permission,
+  TableName,
+  User,
+  UserRole,
+} from "@prisma/client";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import {
   ArrowBigLeftDash,
@@ -58,10 +65,10 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const signUpSchema = z.object({
   name: z.string().min(5, {
@@ -79,6 +86,9 @@ const signUpSchema = z.object({
     }),
   idCliniques: z.array(z.string()),
   prescripteur: z.boolean().optional(), // false par défaut
+  role: z.string().min(3, {
+    message: "role must be at least 3 characters.",
+  }),
 });
 
 type RegisterInput = {
@@ -87,6 +97,7 @@ type RegisterInput = {
   username: string;
   password: string;
   prescripteur?: boolean; // Make prescripteur optional to match form type
+  role: string;
   idCliniques: string[];
   // idClinique?: string[]; // Rendre idClinique facultatif si nécessaire
 };
@@ -106,6 +117,11 @@ export default function RegisterForm() {
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
+  const userRoleOptions = [
+    { id: 1, value: UserRole.USER, label: "USER" },
+    { id: 2, value: UserRole.ADMIN, label: "ADMIN" },
+  ];
+
   const router = useRouter();
 
   const { data: session } = useSession();
@@ -119,6 +135,7 @@ export default function RegisterForm() {
     };
     fetUser();
   }, [idUser]);
+
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
     if (!oneUser) return;
@@ -150,36 +167,51 @@ export default function RegisterForm() {
   }, [oneUser, router]);
 
   useEffect(() => {
+    // Attendre que oneUser soit chargé
+    if (!oneUser) return;
+
     const fetchData = async () => {
-      const result = await getAllUser();
+      const resultUser = await getAllUser();
+      const result = resultUser.filter((user) => user.id !== idUser); // Exclude current user
+      console.log("result allUser fetchData : ", result);
+
       if (userRole === "ADMIN") {
         if (oneUser?.email === "bando358@gmail.com") {
           setAllUser(result as User[]);
         } else {
-          // retirer cet utilisateur de la liste
+          // retirer cet utilisateur de la liste ainsi que oneUser
           const filteredUsers = result.filter(
             (user: { email: string }) => user.email !== "bando358@gmail.com"
           );
-          setAllUser(filteredUsers as User[]);
+          const filteredUser = filteredUsers.filter(
+            (user: { email: string }) => user.email !== oneUser?.email
+          );
+          console.log("filteredUser1 : ", filteredUser);
+          setAllUser(filteredUser as User[]);
         }
       } else {
         const alluser = result.filter(
           (user: { role: string }) => user.role === "USER"
         );
-        const userTableId = result.find(
+        // Utiliser resultUser au lieu de result car result a déjà exclu l'utilisateur actuel
+        const userTableId = resultUser.find(
           (user: { id: string }) => user.id === idUser
-        ); // Utilisez result au lieu de allUser
+        );
         const allUserFilter = alluser.filter(
           (user: { idCliniques: string[] }) =>
             user.idCliniques?.some((id) =>
               userTableId?.idCliniques.includes(id)
-            ) // Correction ici aussi
+            )
         );
-        setAllUser(allUserFilter as User[]);
+        const filteredUser = allUserFilter.filter(
+          (user: { email: string }) => user.email !== oneUser?.email
+        );
+        console.log("filteredUser2 : ", filteredUser);
+        setAllUser(filteredUser as User[]);
       }
     };
     fetchData();
-  }, [userRole, idUser]); // ← Retirez allUser des dépendances
+  }, [userRole, idUser, oneUser]); // Ajouter oneUser aux dépendances
 
   const form = useForm<FormData>({
     resolver: zodResolver(signUpSchema),
@@ -189,6 +221,7 @@ export default function RegisterForm() {
       username: "",
       password: "",
       idCliniques: [""],
+      role: UserRole.USER,
     },
   });
 
@@ -262,6 +295,7 @@ export default function RegisterForm() {
       form.setValue("username", userToUpdate.username);
       form.setValue("password", userToUpdate.password);
       form.setValue("idCliniques", userToUpdate.idCliniques);
+      form.setValue("role", userToUpdate.role);
 
       setIsVisible(true);
     }
@@ -286,30 +320,56 @@ export default function RegisterForm() {
               : userToUpdate?.prescripteur ?? false, // Always boolean
           emailVerified: false,
           image: null,
-          role: userToUpdate?.role || "USER", // Provide fallback role if needed
+          role: (data.role as UserRole) || UserRole.USER, // Cast to UserRole
           banned: null,
           banReason: null,
           banExpires: null,
         };
 
         await updateUser(idUserUpdate, userUpdate);
-        toast.info("Clinique modifié avec succès 🎉 !");
+        toast.info("User modifié avec succès 🎉 !");
         setIsUpdating(false);
 
-        const oneUser = await getOneUser(idUserUpdate);
-        if (oneUser) {
-          const updatedUser = [...allUser]; // Copie du tableau pour éviter la mutation
-          updatedUser.splice(positions, 1, oneUser); // Remplace l'élément
-          setAllUser(updatedUser); // Met à jour l'état
+        // Mettre à jour l'état allUser avec les nouvelles données
+        const updatedUsers = [...allUser];
+        if (positions !== -1) {
+          updatedUsers[positions] = { ...userUpdate };
+          console.log("updatedUsers filtered 2 : ", updatedUsers);
+          setAllUser(updatedUsers);
         }
+
         form.reset();
       } else {
-        await registerUser(data);
+        // crée l'id via uuid
+
+        const newUser = {
+          id: crypto.randomUUID(), // Will be generated by Prisma
+          name: data.name,
+          email: data.email,
+          username: data.username,
+          password: data.password,
+          idCliniques: data.idCliniques,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prescripteur: data.prescripteur ?? false,
+          emailVerified: false,
+          image: null,
+          role: (data.role as UserRole) || UserRole.USER,
+          banned: null,
+          banReason: null,
+          banExpires: null,
+        };
+        console.log("newUser : ", newUser);
+        await createUser(newUser);
+        // await registerUser(data);
         toast.success("Clinique créée avec succès! 🎉 ");
-        const allUser = await getAllUser(); // Récupérer les nouvelles données
-        setAllUser(allUser); // Mettre à jour l'état
+        const result = [...allUser, newUser];
+        console.log("result filtered-4 : ", result);
+        setAllUser(result); // Mettre à jour l'état
         handleHiddenForm();
-        router.push("/fiche-post");
+        if (data?.role !== "ADMIN") {
+          router.push("/fiche-post");
+        }
       }
 
       form.reset(); // Réinitialisation du formulaire après soumission
@@ -496,6 +556,43 @@ export default function RegisterForm() {
                       </FormItem>
                     )}
                   />
+                  {oneUser?.role === "ADMIN" && (
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem className="">
+                          <div className="text-xl font-bold flex justify-between items-center">
+                            <FormLabel>Type Role</FormLabel>
+                            <div></div>
+                          </div>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value ?? ""}
+                              className="flex gap-x-5 items-center"
+                            >
+                              {userRoleOptions.map((option) => (
+                                <FormItem
+                                  key={option.id}
+                                  className="flex items-center space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <RadioGroupItem value={option.value} />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">
+                                    {option.label}
+                                  </FormLabel>
+                                </FormItem>
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
                   <Button
                     type="submit"
                     className="w-full"

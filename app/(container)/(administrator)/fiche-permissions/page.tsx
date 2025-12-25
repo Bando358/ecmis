@@ -45,18 +45,27 @@ export default function PermissionInitialPage() {
   const [modifiedPermissions, setModifiedPermissions] = useState<Set<string>>(
     new Set()
   );
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPending, setIsPending] = useState(false);
   const [usersLoading, setUsersLoading] = useState(true);
   const [userPost, setUserPost] = useState<Post | null>(null);
 
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
 
   // === Charger l'utilisateur admin connecté ===
   useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
+  useEffect(() => {
     const fetchUserAdmin = async () => {
-      if (session?.user?.id) {
-        const userData = await getOneUser(session.user.id);
+      if (oneUser?.id) {
+        const userData = await getOneUser(oneUser.id);
         setUserAdmin(userData);
 
         // Récupérer le poste de l'utilisateur
@@ -65,12 +74,12 @@ export default function PermissionInitialPage() {
         setUserPost(postData);
 
         // Récupérer ses permissions
-        const permsAdmin = await getUserPermissionsById(session.user.id);
+        const permsAdmin = await getUserPermissionsById(oneUser.id);
         setPermissionsUserAdmin(permsAdmin);
       }
     };
     fetchUserAdmin();
-  }, [session?.user?.id]);
+  }, [oneUser?.id]);
 
   // === Charger tous les utilisateurs ===
   useEffect(() => {
@@ -92,7 +101,10 @@ export default function PermissionInitialPage() {
                 filteredIclinicUsers?.includes(id)
               )
           );
-          setUsers(filteredUsers);
+          const finalUsers = filteredUsers.filter(
+            (user) => user.role !== "ADMIN"
+          );
+          setUsers(finalUsers.filter((user) => user.id !== oneUser?.id));
         }
       } catch (error) {
         console.error("Erreur lors du chargement des utilisateurs:", error);
@@ -104,7 +116,7 @@ export default function PermissionInitialPage() {
     if (userAdmin) {
       fetchUsers();
     }
-  }, [userAdmin]);
+  }, [userAdmin, oneUser]);
 
   // === Charger les permissions quand un utilisateur est sélectionné ===
   useEffect(() => {

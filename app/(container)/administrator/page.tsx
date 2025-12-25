@@ -86,7 +86,7 @@ export default function Administrator() {
       href: `/fiche-activites/`,
     },
     {
-      label: "Page Sauvegarde",
+      label: "Sauvegarde de la base",
       href: `/sauvegarde`,
     },
   ];
@@ -110,20 +110,20 @@ export default function Administrator() {
           transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
           hover:-translate-y-1.5
           hover:shadow-xl hover:shadow-blue-100/60
-          hover:bg-gradient-to-br hover:from-white hover:to-blue-50"
+          hover:bg-linear-to-br hover:from-white hover:to-blue-50"
                   >
                     {/* Halo lumineux */}
                     <div
                       className="pointer-events-none absolute inset-0 opacity-0
-            bg-gradient-to-r from-blue-100/40 via-transparent to-blue-100/40
+            bg-linear-to-r from-blue-100/40 via-transparent to-blue-100/40
             group-hover:opacity-100
             transition-opacity duration-500"
                     />
 
                     {/* Bordure animée */}
                     <div
-                      className="absolute bottom-0 left-6 right-6 h-[2px]
-            bg-gradient-to-r from-transparent via-blue-500 to-transparent
+                      className="absolute bottom-0 left-6 right-6 h-0.5
+            bg-linear-to-r from-transparent via-blue-500 to-transparent
             scale-x-0 group-hover:scale-x-100
             transition-transform duration-500 origin-center"
                     />

@@ -10,7 +10,7 @@ import {
   getOnePost,
   updatePost,
 } from "@/lib/actions/postActions";
-import { getAllUser } from "@/lib/actions/authActions";
+import { getAllUser, getOneUser } from "@/lib/actions/authActions";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Post, PostStatus, TableName, User } from "@prisma/client";
@@ -37,6 +37,7 @@ import {
 import { dataPermission } from "@/lib/permissionData";
 import { Textarea } from "@/components/ui/textarea";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { on } from "events";
 
 export default function CreatePostForm() {
   const [users, setUsers] = useState<User[]>([]);
@@ -44,12 +45,14 @@ export default function CreatePostForm() {
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [idPost, setIdPost] = useState<string>("");
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [positions, setPositions] = useState<number>(-1);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
   const router = useRouter();
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
 
   const postStatusOptions = [
     { value: PostStatus.AMD, label: "AMD" },
@@ -62,19 +65,26 @@ export default function CreatePostForm() {
     { value: PostStatus.SUIVI_EVALLUATION, label: "Suivi Évaluation" },
     { value: PostStatus.ADMIN, label: "Administrateur" },
   ];
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.POST
         );
 
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        if (perm?.canRead || oneUser.role === "ADMIN") {
           setHasAccess(true);
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
@@ -91,9 +101,12 @@ export default function CreatePostForm() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser]);
 
   useEffect(() => {
+    // Attendre que idUser soit disponible
+    if (!idUser) return;
+
     const fetchData = async () => {
       const [usersResult, postsResult] = await Promise.all([
         getAllUser(),
@@ -104,11 +117,12 @@ export default function CreatePostForm() {
       const filteredUsers = (usersResult as User[]).filter(
         (user) => user.role !== "ADMIN"
       );
-      setUsers(filteredUsers);
-      setPosts(postsResult as Post[]);
+
+      setUsers(filteredUsers.filter((user) => user.id !== idUser) as User[]);
+      setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
     };
     fetchData();
-  }, []);
+  }, [idUser]);
 
   const {
     register,

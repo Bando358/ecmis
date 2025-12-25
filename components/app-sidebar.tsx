@@ -138,14 +138,14 @@ const data = {
           title: "Tarif Echographie",
           url: "/fiche-prix-echographie",
         },
-        {
-          title: "new echographie",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
+        // {
+        //   title: "new echographie",
+        //   url: "#",
+        // },
+        // {
+        //   title: "Get Started",
+        //   url: "#",
+        // },
       ],
     },
     {

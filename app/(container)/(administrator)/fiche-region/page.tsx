@@ -11,7 +11,7 @@ import {
   getOneRegion,
   updateRegion,
 } from "@/lib/actions/regionActions";
-import { Region, TableName } from "@prisma/client";
+import { Region, TableName, User } from "@prisma/client";
 import {
   Table,
   TableHeader,
@@ -29,6 +29,7 @@ import { Eye, EyeClosed, Pencil, ArrowBigLeftDash } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { getOneUser } from "@/lib/actions/authActions";
 
 export default function CreateRegionForm() {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -36,10 +37,22 @@ export default function CreateRegionForm() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [idRegion, setIdRegion] = useState<string>("");
   const [positions, setPositions] = useState<number>(-1);
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const route = useRouter();
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
+
+  // === Charger l'utilisateur admin connecté ===
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
+
   const {
     register,
     handleSubmit,
@@ -50,16 +63,16 @@ export default function CreateRegionForm() {
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.REGION
         );
 
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        if (perm?.canRead || oneUser.role === "ADMIN") {
           setHasAccess(true);
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
@@ -76,7 +89,7 @@ export default function CreateRegionForm() {
     };
 
     fetchPermissions();
-  }, [session?.user, route]);
+  }, [oneUser]);
 
   useEffect(() => {
     const fetchData = async () => {

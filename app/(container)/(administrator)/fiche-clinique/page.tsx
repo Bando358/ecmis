@@ -12,7 +12,7 @@ import {
 import { getAllRegion } from "@/lib/actions/regionActions";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clinique, TableName } from "@prisma/client";
+import { Clinique, TableName, User } from "@prisma/client";
 import { toast } from "sonner";
 import {
   Table,
@@ -31,6 +31,7 @@ import { Eye, EyeClosed, Pencil, ArrowBigLeftDash } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { getOneUser } from "@/lib/actions/authActions";
 
 interface RegionData {
   id: string;
@@ -43,6 +44,7 @@ export default function CreateCliniqueForm() {
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [idClinique, setIdClinique] = useState<string>("");
   const [positions, setPositions] = useState<number>(-1);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
@@ -50,19 +52,29 @@ export default function CreateCliniqueForm() {
 
   const router = useRouter();
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
+
+  // === Charger l'utilisateur admin connecté ===
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.CLINIQUE
         );
 
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        if (perm?.canRead || oneUser.role === "ADMIN") {
           setHasAccess(true);
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
@@ -79,7 +91,7 @@ export default function CreateCliniqueForm() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser]);
 
   useEffect(() => {
     const fetchData = async () => {
