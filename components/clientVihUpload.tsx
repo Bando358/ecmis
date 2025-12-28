@@ -305,7 +305,9 @@ export default function ClientVihUploadPage() {
       ) {
         const tabId = userObject.idCliniques;
         for (let index = 0; index < tabId.length; index++) {
-          const element = allClinique.filter((c: Clinique) => c.id === tabId[index]);
+          const element = allClinique.filter(
+            (c: Clinique) => c.id === tabId[index]
+          );
           setClinic(element);
         }
       } else {
@@ -313,7 +315,7 @@ export default function ClientVihUploadPage() {
       }
     };
     fetchData();
-  }, [session, idUser]);
+  }, [idUser]);
   useEffect(() => {
     console.log("jsonData", jsonData);
     if (!jsonData) return;

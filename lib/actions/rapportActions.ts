@@ -940,6 +940,10 @@ export const fetchClientsStatusProtege = async (
     return [];
   }
 
+  // crée une constant qui stoque dateVisite1 - 90 jours
+  const dateLimite = new Date(dateVisite1);
+  dateLimite.setDate(dateLimite.getDate() - 90);
+
   // Récupérer tous les clients avec leurs planifications et visites
   const clients = await prisma.client.findMany({
     where: {
@@ -949,7 +953,7 @@ export const fetchClientsStatusProtege = async (
       Planning: {
         some: {
           rdvPf: {
-            gte: dateVisite1,
+            gte: dateLimite,
           },
         },
       },
@@ -960,11 +964,14 @@ export const fetchClientsStatusProtege = async (
           rdvPf: {
             gte: dateVisite1,
           },
+          methodePrise: true,
         },
       },
       Visite: true,
     },
   });
+
+  // on va filtrer et garder de façon unique le client qui a la visite la plus proche de dateVisite2
 
   // Parsing des activités et lieux
   const [tabIdactivite, tabIdLieu] = (
@@ -1202,6 +1209,172 @@ export const fetchClientsStatusProtege = async (
   }
 
   return Array.from(clientsMap.values());
+};
+
+export const fetchClientsStatusProteges = async (
+  clinicIds: string[],
+  activiteIds: string[],
+  dateVisite1: Date,
+  dateVisite2: Date
+): Promise<ClientStatusInfo[]> => {
+  if (!clinicIds?.length) {
+    alert("Veuillez choisir au moins une clinique");
+    return [];
+  }
+
+  // -----------------------------
+  // Récupération des clients
+  // -----------------------------
+  const clients = await prisma.client.findMany({
+    where: {
+      idClinique: { in: clinicIds },
+      Planning: {
+        some: {
+          methodePrise: true,
+        },
+      },
+    },
+    include: {
+      Planning: true,
+      Visite: true,
+    },
+  });
+
+  // -----------------------------
+  // Parsing activite > lieu
+  // -----------------------------
+  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
+    ([a, l], v) => {
+      const [act, lieu] = v.split(">").map((s) => s?.trim());
+      if (act) a.push(act);
+      if (lieu) l.push(lieu);
+      return [a, l];
+    },
+    [[], []]
+  );
+
+  // -----------------------------
+  // Filtrage activité / lieu
+  // -----------------------------
+  const filteredClients = clients.filter((client) =>
+    client.Visite.some((v) => {
+      const okActivite =
+        !tabIdActivite.length || tabIdActivite.includes(v.idActivite ?? "");
+      const okLieu = !tabIdLieu.length || tabIdLieu.includes(v.idLieu ?? "");
+      return okActivite && okLieu;
+    })
+  );
+
+  const resultMap = new Map<string, ClientStatusInfo>();
+
+  // -----------------------------
+  // Traitement par client
+  // -----------------------------
+  for (const client of filteredClients) {
+    for (const plan of client.Planning) {
+      if (!plan.rdvPf) continue;
+
+      const rdvPf = new Date(plan.rdvPf);
+
+      const diffJours = Math.floor(
+        (dateVisite1.getTime() - rdvPf.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Date visite liée au planning
+      let dateVisisteStr = "";
+      if (plan.idVisite) {
+        const d = await getDateVisite(plan.idVisite);
+        if (d instanceof Date) {
+          dateVisisteStr = d.toLocaleDateString("fr-FR");
+        }
+      }
+
+      const status: ClientStatusInfo = {
+        nom: client.nom,
+        prenom: client.prenom,
+        age: calculerAge(client.dateNaissance),
+        sexe: client.sexe,
+        code: client.code,
+        dateVisiste: dateVisisteStr,
+        rdvPf: plan.rdvPf,
+        statut: plan.statut || "",
+        courtDuree: plan.courtDuree || "",
+        implanon: plan.implanon || "",
+        jadelle: plan.jadelle || "",
+        sterilet: plan.sterilet || "",
+        methodePrise: plan.methodePrise,
+        protege: false,
+        perdueDeVue: false,
+        abandon: false,
+        arret: false,
+      };
+
+      // -----------------------------
+      // PRIORITÉ 1 : ARRÊT (retrait)
+      // -----------------------------
+      const dateRetrait =
+        plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
+
+      if (dateRetrait) {
+        const visiteRetrait = client.Visite.find(
+          (v): boolean => v.id === plan.idVisite
+        );
+        if (visiteRetrait?.dateVisite) {
+          const dRetrait = new Date(visiteRetrait.dateVisite);
+          if (dRetrait >= dateVisite1 && dRetrait <= dateVisite2) {
+            status.arret = true;
+            resultMap.set(client.code, status);
+            continue;
+          }
+        }
+      }
+
+      // -----------------------------
+      // PRIORITÉ 2 : PROTÉGÉ
+      // -----------------------------
+      if (rdvPf >= dateVisite1) {
+        status.protege = true;
+      }
+      // -----------------------------
+      // PRIORITÉ 3 : PERDUE DE VUE
+      // -----------------------------
+      else if (diffJours >= 1 && diffJours <= 30) {
+        status.perdueDeVue = true;
+      }
+      // -----------------------------
+      // PRIORITÉ 4 : ABANDON
+      // -----------------------------
+      else if (diffJours >= 60 && diffJours <= 90) {
+        status.abandon = true;
+      }
+
+      // -----------------------------
+      // Client unique (date visite la plus récente)
+      // -----------------------------
+      const existing = resultMap.get(client.code);
+
+      if (!existing) {
+        resultMap.set(client.code, status);
+      } else {
+        const dNew = new Date(
+          typeof status.dateVisiste === "string"
+            ? status.dateVisiste.split("/").reverse().join("-")
+            : status.dateVisiste
+        );
+        const dOld = new Date(
+          typeof existing.dateVisiste === "string"
+            ? existing.dateVisiste.split("/").reverse().join("-")
+            : existing.dateVisiste
+        );
+
+        if (dNew > dOld) {
+          resultMap.set(client.code, status);
+        }
+      }
+    }
+  }
+
+  return Array.from(resultMap.values());
 };
 
 type ClientDataLaboratoire = {

@@ -21,7 +21,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { Examen, Permission, TableName, TypeExamen } from "@prisma/client";
+import {
+  Examen,
+  Permission,
+  TableName,
+  TypeExamen,
+  User,
+} from "@prisma/client";
 import { Eye, EyeClosed, Pencil, Trash2 } from "lucide-react";
 import {
   createExamen,
@@ -42,6 +48,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { getOneUser } from "@/lib/actions/authActions";
 
 const tabUnite = [
   { value: "neg/pos", label: "Négatif/Positif" },
@@ -65,10 +72,19 @@ export default function ExamenPage() {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [oneUser, setOneUser] = useState<User | null>(null);
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
   const form = useForm<Examen>({
     defaultValues: {
       id: "",
@@ -101,11 +117,11 @@ export default function ExamenPage() {
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.EXAMEN
         );
@@ -125,7 +141,7 @@ export default function ExamenPage() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser, router]);
 
   const onSubmit = async (data: Examen) => {
     const formattedData = {

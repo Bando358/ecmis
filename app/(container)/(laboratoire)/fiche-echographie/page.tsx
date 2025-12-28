@@ -25,6 +25,7 @@ import {
   Permission,
   RegionExaminee,
   TableName,
+  User,
 } from "@prisma/client";
 import { Eye, EyeClosed, Pencil, Trash2 } from "lucide-react";
 
@@ -47,6 +48,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { getOneUser } from "@/lib/actions/authActions";
 
 export default function EchographiePage() {
   const [listeEchographies, setListeEchographies] = useState<Echographie[]>([]);
@@ -54,10 +56,18 @@ export default function EchographiePage() {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [oneUser, setOneUser] = useState<User | null>(null);
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
   const form = useForm<Echographie>({
     defaultValues: {
       id: "",
@@ -69,11 +79,11 @@ export default function EchographiePage() {
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.ECHOGRAPHIE
         );
@@ -93,7 +103,7 @@ export default function EchographiePage() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser, router]);
 
   useEffect(() => {
     const fetchData = async () => {

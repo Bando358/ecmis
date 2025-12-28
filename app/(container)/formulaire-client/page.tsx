@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
-import { Client, Permission, TableName } from "@prisma/client";
+import { Client, Permission, TableName, User } from "@prisma/client";
 
 import {
   createClient,
@@ -109,6 +109,7 @@ const statusClientOptions = [
 export default function FormulaireClient() {
   const { data: session, status } = useSession();
   const [clinique, setClinique] = useState<CliniqueData[]>([]);
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [region, setRegion] = useState<RegionData[]>([]);
   const [newCode, setNewCode] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
@@ -127,13 +128,13 @@ export default function FormulaireClient() {
   useEffect(() => {
     const fetchData = async () => {
       const user = await getOneUser(idPrestataire);
-
+      setOneUser(user);
       if (!user) {
         throw new Error("Utilisateur non trouvé");
       }
       const adminClinique = await getAllClinique();
 
-      if (session && session.user.role === "ADMIN") {
+      if (user.role === "ADMIN") {
         setClinique(adminClinique);
       } else {
         setClinique(
@@ -149,21 +150,21 @@ export default function FormulaireClient() {
       setRegion(allRegion);
     };
     fetchData();
-  }, [idPrestataire, session]);
+  }, [idPrestataire]);
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: Permission) => p.table === TableName.CLIENT
         );
         setPermission(perm || null);
 
-        if (perm?.canRead || session.user.role === "ADMIN") {
+        if (perm?.canRead || oneUser.role === "ADMIN") {
         } else {
           alert("Vous n'avez pas la permission d'accéder à cette page.");
           router.back();
@@ -177,7 +178,7 @@ export default function FormulaireClient() {
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser]);
 
   const {
     watch,

@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ClientStatusInfo,
   fetchClientsData,
-  fetchClientsStatusProtege,
+  fetchClientsStatusProteges,
   fetchClientsDataLaboratoire,
 } from "@/lib/actions/rapportActions";
 import { ClientData } from "@/components/rapportPfActions";
@@ -304,13 +304,14 @@ const AnalyseReportPlanning = () => {
 
       setClientLaboData(clientDataLabo);
       console.log("clientDataLabo : ", clientDataLabo);
-      const data = await fetchClientsStatusProtege(
+      const data = await fetchClientsStatusProteges(
         selectedIds,
         selectedActivites,
         new Date(dateDebut),
         new Date(dateFin)
       );
       setClientDataProtege(data);
+      console.log("ClientDataProtege : ", data);
       const clients = await fetchClientsData(
         selectedIds,
         selectedActivites,
@@ -530,7 +531,7 @@ const AnalyseReportPlanning = () => {
         </div>
       </form>
 
-      {clients.length > 0 && (
+      {(clients.length > 0 || clientDataProtege.length > 0) && (
         <div className="mt-6 mx-auto max-w-240 w-full">
           {(() => {
             switch (rapportClinique) {

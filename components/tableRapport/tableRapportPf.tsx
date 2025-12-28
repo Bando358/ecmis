@@ -13,7 +13,7 @@ import {
 } from "../rapport/pf/pf";
 import { ClientStatusInfo } from "@/lib/actions/rapportActions";
 import { ClientData } from "../rapportPfActions";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import ExcelJS from "exceljs";
 import { Worksheet } from "exceljs";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,6 +26,40 @@ import { getAllFactureProduitByIdVisiteByData } from "@/lib/actions/factureProdu
 import { FactureProduit, Produit, TarifProduit } from "@prisma/client";
 
 // types.ts ou en haut du fichier
+type ConvertedTypeProtege = Omit<
+  ClientStatusInfo,
+  "implanon" | "jadelle" | "sterilet"
+> & {
+  pilule: boolean;
+  noristera: boolean;
+  injectable: boolean;
+  implanon: boolean;
+  jadelle: boolean;
+  sterilet: boolean;
+};
+type ConvertedTypePDV = Omit<
+  ClientStatusInfo,
+  "implanon" | "jadelle" | "sterilet"
+> & {
+  pilule: boolean;
+  noristera: boolean;
+  injectable: boolean;
+  implanon: boolean;
+  jadelle: boolean;
+  sterilet: boolean;
+};
+type ConvertedTypeAbandon = Omit<
+  ClientStatusInfo,
+  "implanon" | "jadelle" | "sterilet"
+> & {
+  pilule: boolean;
+  noristera: boolean;
+  injectable: boolean;
+  implanon: boolean;
+  jadelle: boolean;
+  sterilet: boolean;
+};
+
 type AgeRange = {
   min: number;
   max: number;
@@ -42,18 +76,25 @@ interface TableRapportPfProps {
   clinicIds: string[];
 }
 
+const ageRanges = [
+  { min: 10, max: 14 },
+  { min: 15, max: 19 },
+  { min: 20, max: 24 },
+  { min: 25, max: 120 },
+];
+
 const pfColumns = [
   { header: "Indicateurs", key: "indicateurs", width: 40 },
-  { header: "-10", key: "moins10", width: 7 },
-  { header: "10-14", key: "10a14", width: 7 },
-  { header: "15-19", key: "15a19", width: 7 },
-  { header: "20-24", key: "20a24", width: 7 },
-  { header: "25+", key: "25plus", width: 7 },
-  { header: "-10", key: "moins10_au", width: 7 },
-  { header: "10-14", key: "10a14_au", width: 7 },
-  { header: "15-19", key: "15a19_au", width: 7 },
-  { header: "20-24", key: "20a24_au", width: 7 },
-  { header: "25+", key: "25plus_au", width: 7 },
+  { header: "<10 ans", key: "moins10", width: 7 },
+  { header: "10-14 ans", key: "10a14", width: 7 },
+  { header: "15-19 ans", key: "15a19", width: 7 },
+  { header: "20-24 ans", key: "20a24", width: 7 },
+  { header: "25+ ans", key: "25plus", width: 7 },
+  { header: "<10 ans", key: "moins10_au", width: 7 },
+  { header: "10-14 ans", key: "10a14_au", width: 7 },
+  { header: "15-19 ans", key: "15a19_au", width: 7 },
+  { header: "20-24 ans", key: "20a24_au", width: 7 },
+  { header: "25+ ans", key: "25plus_au", width: 7 },
   { header: "Total", key: "total", width: 10 },
 ];
 
@@ -72,6 +113,55 @@ export default function TableRapportPf({
     FactureProduit[]
   >([]);
   const [allTarifProduits, setAllTarifProduits] = useState<TarifProduit[]>([]);
+  const [convertedProtege, setConvertedProtege] = useState<
+    ConvertedTypeProtege[]
+  >([]);
+  const [convertedPDV, setConvertedPDV] = useState<ConvertedTypePDV[]>([]);
+  const [convertedAbandon, setConvertedAbandon] = useState<
+    ConvertedTypeAbandon[]
+  >([]);
+
+  // Mémoriser les IDs des cliniques pour éviter les re-rendus
+  const clinicIdsString = useMemo(() => clinicIds.join(","), [clinicIds]);
+
+  // Mémoriser les IDs des visites pour détecter les vrais changements
+  const clientDataKey = useMemo(
+    () => clientData.map((c) => c.idVisite).join(","),
+    [clientData]
+  );
+
+  useEffect(() => {
+    const newConvertProtege = clientDataProtege.map((client) => ({
+      ...client,
+      pilule: client.courtDuree === "pilule" && client.protege,
+      noristera: client.courtDuree === "noristera" && client.protege,
+      injectable: client.courtDuree === "injectable" && client.protege,
+      implanon: client.implanon === "insertion" && client.protege,
+      jadelle: client.jadelle === "insertion" && client.protege,
+      sterilet: client.sterilet === "insertion" && client.protege,
+    }));
+    const newConvertPDV = clientDataProtege.map((client) => ({
+      ...client,
+      pilule: client.courtDuree === "pilule" && client.perdueDeVue,
+      noristera: client.courtDuree === "noristera" && client.perdueDeVue,
+      injectable: client.courtDuree === "injectable" && client.perdueDeVue,
+      implanon: client.implanon === "insertion" && client.perdueDeVue,
+      jadelle: client.jadelle === "insertion" && client.perdueDeVue,
+      sterilet: client.sterilet === "insertion" && client.perdueDeVue,
+    }));
+    const newConvertAbandon = clientDataProtege.map((client) => ({
+      ...client,
+      pilule: client.courtDuree === "pilule" && client.abandon,
+      noristera: client.courtDuree === "noristera" && client.abandon,
+      injectable: client.courtDuree === "injectable" && client.abandon,
+      implanon: client.implanon === "insertion" && client.abandon,
+      jadelle: client.jadelle === "insertion" && client.abandon,
+      sterilet: client.sterilet === "insertion" && client.abandon,
+    }));
+    setConvertedProtege(newConvertProtege);
+    setConvertedPDV(newConvertPDV);
+    setConvertedAbandon(newConvertAbandon);
+  }, [clientDataProtege]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,13 +178,18 @@ export default function TableRapportPf({
       setAllFactureProduits(facture);
     };
     fetchData();
-  }, [clientData, clinicIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clinicIdsString, clientDataKey]);
+
   // Créer une fonction helper pour récupérer les factures par visite
-  const getFacturesByVisiteId = (idVisite: string) => {
-    return allFactureProduits.filter(
-      (facture) => facture.idVisite === idVisite
-    );
-  };
+  const getFacturesByVisiteId = useCallback(
+    (idVisite: string) => {
+      return allFactureProduits.filter(
+        (facture) => facture.idVisite === idVisite
+      );
+    },
+    [allFactureProduits]
+  );
 
   const exportToExcel = async () => {
     setSpinner(true);
@@ -3127,10 +3222,7 @@ export default function TableRapportPf({
 
     setSpinner(false);
   };
-  console.log("clientData PF : ", clientData);
-  console.log("allTarifProduits PF : ", allTarifProduits);
-  console.log("allFactureProduits PF : ", allFactureProduits);
-  console.log("allProduits PF : ", allProduits);
+
   return (
     <div>
       <div className="flex flex-col justify-center gap-3">
@@ -4928,6 +5020,124 @@ export default function TableRapportPf({
             ))}
           </TableBody>
         </Table>
+
+        <Separator className="bg-green-300"></Separator>
+        <h2 className="font-bold text-shadow-lg ">Statuts des Clients PF</h2>
+        {/* Tableau des statuts contraceptifs */}
+        <Table className="table-auto w-full">
+          <TableHeader className="bg-gray-200 border border-gray-400">
+            {/* Ligne 1 */}
+            <TableRow>
+              <TableCell
+                rowSpan={2}
+                className="font-bold text-center align-middle border border-gray-400"
+                style={{ width: 400 }}
+              >
+                Méthode contraceptive
+              </TableCell>
+
+              <TableCell
+                colSpan={5}
+                className="font-bold text-center border bg-blue-50"
+              >
+                Protégés
+              </TableCell>
+              <TableCell
+                colSpan={5}
+                className="font-bold text-center border bg-yellow-50"
+              >
+                Perdus de vue
+              </TableCell>
+              <TableCell
+                colSpan={5}
+                className="font-bold text-center border bg-red-50"
+              >
+                Abandons
+              </TableCell>
+            </TableRow>
+
+            {/* Ligne 2 */}
+            <TableRow className="bg-gray-300 text-center">
+              {["10-14", "15-19", "20-24", "25+", "Total"].map((label, i) => (
+                <TableCell key={`p-${i}`} className="font-semibold border">
+                  {label}
+                </TableCell>
+              ))}
+              {["10-14", "15-19", "20-24", "25+", "Total"].map((label, i) => (
+                <TableCell key={`pdv-${i}`} className="font-semibold border">
+                  {label}
+                </TableCell>
+              ))}
+              {["10-14", "15-19", "20-24", "25+", "Total"].map((label, i) => (
+                <TableCell key={`a-${i}`} className="font-semibold border">
+                  {label}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {[
+              { label: "Pilule", key: "pilule" as const },
+              { label: "Noristéra", key: "noristera" as const },
+              { label: "Injectable", key: "injectable" as const },
+              { label: "Implanon", key: "implanon" as const },
+              { label: "Jadelle", key: "jadelle" as const },
+              { label: "Stérilet", key: "sterilet" as const },
+            ].map((method) => (
+              <TableRow key={method.key}>
+                <TableCell className="border font-semibold p-2">
+                  {method.label}
+                </TableCell>
+
+                {/* Protégés */}
+                {[10, 15, 20, 25].map((age, i) => (
+                  <TableCell key={`p-${i}`} className="text-center border">
+                    {countByAgeAndMethod(
+                      convertedProtege,
+                      age,
+                      age === 25 ? 120 : age + 4,
+                      method.key
+                    )}
+                  </TableCell>
+                ))}
+                <TableCell className="text-center border font-bold bg-blue-50">
+                  {convertedProtege.filter((i) => i[method.key]).length}
+                </TableCell>
+
+                {/* Perdus de vue */}
+                {[10, 15, 20, 25].map((age, i) => (
+                  <TableCell key={`pdv-${i}`} className="text-center border">
+                    {countByAgeAndMethod(
+                      convertedPDV,
+                      age,
+                      age === 25 ? 120 : age + 4,
+                      method.key
+                    )}
+                  </TableCell>
+                ))}
+                <TableCell className="text-center border font-bold bg-yellow-50">
+                  {convertedPDV.filter((i) => i[method.key]).length}
+                </TableCell>
+
+                {/* Abandons */}
+                {[10, 15, 20, 25].map((age, i) => (
+                  <TableCell key={`a-${i}`} className="text-center border">
+                    {countByAgeAndMethod(
+                      convertedAbandon,
+                      age,
+                      age === 25 ? 120 : age + 4,
+                      method.key
+                    )}
+                  </TableCell>
+                ))}
+                <TableCell className="text-center border font-bold bg-red-50">
+                  {convertedAbandon.filter((i) => i[method.key]).length}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Listing Clients du mois */}
@@ -4987,6 +5197,8 @@ export default function TableRapportPf({
               <TableCell>implanon</TableCell>
               <TableCell>Jadelle</TableCell>
               <TableCell>Stériler</TableCell>
+              <TableCell>RDV</TableCell>
+
               <TableCell>Protégés</TableCell>
               <TableCell>PDV</TableCell>
               <TableCell>Abandon </TableCell>
@@ -5006,6 +5218,7 @@ export default function TableRapportPf({
                 <TableCell>{client.implanon}</TableCell>
                 <TableCell>{client.jadelle}</TableCell>
                 <TableCell>{client.sterilet}</TableCell>
+                <TableCell>{client.rdvPf?.toLocaleDateString()}</TableCell>
                 <TableCell>{client.protege ? "Oui" : "Non"}</TableCell>
                 <TableCell>{client.perdueDeVue ? "Oui" : "Non"}</TableCell>
                 <TableCell>{client.abandon ? "Oui" : "Non"}</TableCell>
@@ -5018,3 +5231,20 @@ export default function TableRapportPf({
     </div>
   );
 }
+
+// Fonction utilitaire pour compter par âge et méthode
+const countByAgeAndMethod = (
+  data: ConvertedTypeProtege[] | ConvertedTypePDV[] | ConvertedTypeAbandon[],
+  minAge: number,
+  maxAge: number,
+  method: keyof Pick<
+    ConvertedTypeProtege,
+    "pilule" | "noristera" | "injectable" | "implanon" | "jadelle" | "sterilet"
+  >
+): number => {
+  return data.filter((item) => {
+    // Remplacez 'age' par le nom réel de votre propriété d'âge
+    const age = item.age; // À adapter selon votre structure
+    return item[method] === true && age >= minAge && age <= maxAge;
+  }).length;
+};

@@ -319,13 +319,6 @@ export const dataPermission = [
     canDelete: false,
   },
   {
-    table: TableName.ORDONNANCE,
-    canCreate: false,
-    canRead: false,
-    canUpdate: false,
-    canDelete: false,
-  },
-  {
     table: TableName.REGION,
     canCreate: false,
     canRead: false,

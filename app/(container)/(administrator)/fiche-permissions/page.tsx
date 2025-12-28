@@ -13,6 +13,13 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ArrowBigLeftDash } from "lucide-react";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, Search, User as UserIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function PermissionInitialPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -51,6 +59,7 @@ export default function PermissionInitialPage() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [userPost, setUserPost] = useState<Post | null>(null);
 
+  const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
 
@@ -189,12 +198,12 @@ export default function PermissionInitialPage() {
     setModifiedPermissions(newModified);
   };
 
-  // Switch global "Tout"
+  // Switch global "Tout" - tout sauf Delete
   const handleAllSwitchChange = (permissionId: string, value: boolean) => {
     const targetPerm = permissions.find((p) => p.id === permissionId);
     if (!targetPerm) return;
 
-    // Appliquer seulement les actions que l'admin peut accorder
+    // Appliquer seulement les actions que l'admin peut accorder, SAUF canDelete
     const updatedPermissions = permissions.map((perm) =>
       perm.id === permissionId
         ? {
@@ -206,9 +215,8 @@ export default function PermissionInitialPage() {
             canUpdate: canGrant(perm.table, "canUpdate")
               ? value
               : perm.canUpdate,
-            canDelete: canGrant(perm.table, "canDelete")
-              ? value
-              : perm.canDelete,
+            // NE PAS modifier canDelete - laisser sa valeur actuelle
+            canDelete: perm.canDelete,
           }
         : perm
     );
@@ -274,7 +282,6 @@ export default function PermissionInitialPage() {
     }
     setIsPending(false);
   };
-  // === RÉINITIALISER TOUTES LES PERMISSIONS ===
 
   if (usersLoading) {
     return (
@@ -286,8 +293,23 @@ export default function PermissionInitialPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
+    <div className="container mx-auto p-6 relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ArrowBigLeftDash
+              className="absolute top-2 text-blue-600"
+              onClick={() => {
+                router.back();
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour sur la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div className="mb-6  flex flex-col justify-center items-center">
         <h1 className="text-2xl font-bold mb-2">Gestion des Permissions</h1>
         <p className="text-gray-600">
           Sélectionnez un utilisateur pour gérer ses permissions
@@ -393,11 +415,12 @@ export default function PermissionInitialPage() {
                     </TableRow>
                   ) : (
                     filteredPermissions.map((permission) => {
+                      // CORRECTION: N'inclure que Create, Read et Update pour le switch "Tout"
                       const allActive =
                         permission.canCreate &&
                         permission.canRead &&
-                        permission.canUpdate &&
-                        permission.canDelete;
+                        permission.canUpdate;
+                      // canDelete est exclu du calcul
 
                       const disableCreate = !canGrant(
                         permission.table,
@@ -415,11 +438,9 @@ export default function PermissionInitialPage() {
                         permission.table,
                         "canDelete"
                       );
+                      // CORRECTION: Ne pas inclure disableDelete dans disableAll
                       const disableAll =
-                        disableCreate &&
-                        disableRead &&
-                        disableUpdate &&
-                        disableDelete;
+                        disableCreate && disableRead && disableUpdate;
 
                       return (
                         <TableRow key={permission.id}>

@@ -1,6 +1,6 @@
 "use server";
 // lib/actions/permissionActions.ts
-import { PrismaClient, PostStatus, TableName } from "@prisma/client";
+import { PrismaClient, TableName } from "@prisma/client";
 
 const prisma = new PrismaClient();
 

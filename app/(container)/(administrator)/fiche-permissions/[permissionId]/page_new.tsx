@@ -10,13 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ArrowBigLeftDash } from "lucide-react";
-import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +20,6 @@ import {
 import { Loader2, Search } from "lucide-react";
 import { getOneUser } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 export default function PermissionPage({
   params,
@@ -40,7 +32,7 @@ export default function PermissionPage({
   const [permissionsUserAdmin, setPermissionsUserAdmin] = useState<
     Permission[]
   >([]);
-  const [user, setUser] = useState<User | null>(null);
+  const [targetUser, setTargetUser] = useState<User | null>(null);
   const [filteredPermissions, setFilteredPermissions] = useState<Permission[]>(
     []
   );
@@ -51,39 +43,43 @@ export default function PermissionPage({
   const [loading, setLoading] = useState(true);
   const [isPending, setIsPending] = useState(false);
 
-  const router = useRouter();
   const { data: session } = useSession();
 
-  // === Charger l'utilisateur admin connecté ===
+  // === Charger toutes les données en une seule fois ===
   useEffect(() => {
-    const fetchUserAdmin = async () => {
-      if (session?.user?.id) {
-        const userData = await getOneUser(session.user.id);
-        setUserAdmin(userData);
+    const fetchAllData = async () => {
+      if (!session?.user?.id) return;
 
-        // Récupérer ses permissions
-        const permsAdmin = await getUserPermissionsById(session.user.id);
-        setPermissionsUserAdmin(permsAdmin);
+      try {
+        setLoading(true);
+
+        // Charger l'admin connecté et ses permissions
+        const adminData = await getOneUser(session.user.id);
+        setUserAdmin(adminData);
+
+        const adminPerms = await getUserPermissionsById(session.user.id);
+        setPermissionsUserAdmin(adminPerms);
+
+        // Charger le user cible et ses permissions
+        const targetUserData = await getOneUser(permissionId);
+        setTargetUser(targetUserData);
+
+        const targetPerms = await getUserPermissionsById(permissionId);
+        const sorted = targetPerms.sort((a, b) =>
+          a.table.localeCompare(b.table)
+        );
+
+        setPermissions(sorted);
+        setFilteredPermissions(sorted);
+      } catch (error) {
+        console.error("Erreur lors du chargement des données:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchUserAdmin();
-  }, [session?.user?.id]);
 
-  // === Charger les permissions du user cible ===
-  useEffect(() => {
-    const fetchPermissions = async () => {
-      const userData = await getOneUser(permissionId);
-      const perms = await getUserPermissionsById(permissionId);
-      const sorted = perms.sort((a, b) => a.table.localeCompare(b.table));
-
-      setPermissions(sorted);
-      setFilteredPermissions(sorted);
-      setUser(userData);
-      setLoading(false);
-    };
-
-    if (userAdmin) fetchPermissions();
-  }, [permissionId, userAdmin]);
+    fetchAllData();
+  }, [permissionId, session?.user?.id]);
 
   // === Filtrage ===
   useEffect(() => {
@@ -121,12 +117,12 @@ export default function PermissionPage({
     setModifiedPermissions(newModified);
   };
 
-  // Switch global “Tout” - tout sauf Delete
+  // Switch global "Tout" (exclut Delete)
   const handleAllSwitchChange = (permissionId: string, value: boolean) => {
     const targetPerm = permissions.find((p) => p.id === permissionId);
     if (!targetPerm) return;
 
-    // Appliquer seulement les actions que l'admin peut accorder, SAUF canDelete
+    // Appliquer seulement Create, Read et Update (pas Delete)
     const updatedPermissions = permissions.map((perm) =>
       perm.id === permissionId
         ? {
@@ -138,8 +134,7 @@ export default function PermissionPage({
             canUpdate: canGrant(perm.table, "canUpdate")
               ? value
               : perm.canUpdate,
-            // NE PAS modifier canDelete - laisser sa valeur actuelle
-            canDelete: perm.canDelete,
+            // canDelete reste inchangé
           }
         : perm
     );
@@ -213,26 +208,11 @@ export default function PermissionPage({
   }
 
   return (
-    <div className="container mx-auto p-6 relative">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ArrowBigLeftDash
-              className="absolute top-2 text-blue-600"
-              onClick={() => {
-                router.back();
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Retour sur la page précédente</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <div className="mb-6 flex flex-col justify-center items-center">
+    <div className="container mx-auto p-6">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold mb-2">Gestion des Permissions</h1>
         <p className="text-gray-600">
-          Utilisateur : <span className="font-medium">{user?.name}</span>
+          Utilisateur : <span className="font-medium">{targetUser?.name}</span>
         </p>
       </div>
 
@@ -283,18 +263,17 @@ export default function PermissionPage({
               </TableRow>
             ) : (
               filteredPermissions.map((permission) => {
-                // CORRECTION: N'inclure que Create, Read et Update pour le switch "Tout"
+                // allActive vérifie seulement Create, Read et Update (pas Delete)
                 const allActive =
                   permission.canCreate &&
                   permission.canRead &&
                   permission.canUpdate;
-                // canDelete est exclu du calcul
 
                 const disableCreate = !canGrant(permission.table, "canCreate");
                 const disableRead = !canGrant(permission.table, "canRead");
                 const disableUpdate = !canGrant(permission.table, "canUpdate");
                 const disableDelete = !canGrant(permission.table, "canDelete");
-                // CORRECTION: Ne pas inclure disableDelete dans disableAll
+                // disableAll vérifie seulement Create, Read et Update
                 const disableAll =
                   disableCreate && disableRead && disableUpdate;
 
