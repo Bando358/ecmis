@@ -46,7 +46,7 @@ import {
   toggleBanUser,
   updateUser,
 } from "@/lib/actions/authActions";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import {
   Clinique,
@@ -63,6 +63,11 @@ import {
   Pencil,
   UserLock,
   UserRoundCheck,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
@@ -107,6 +112,7 @@ type FormData = z.infer<typeof signUpSchema>;
 export default function RegisterForm() {
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [allUser, setAllUser] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [oneUser, setOneUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
@@ -117,9 +123,21 @@ export default function RegisterForm() {
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
+  // États pour la pagination et la recherche
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const userRoleOptions = [
     { id: 1, value: UserRole.USER, label: "USER" },
     { id: 2, value: UserRole.ADMIN, label: "ADMIN" },
+  ];
+
+  const itemsPerPageOptions = [
+    { value: 8, label: "8 par page" },
+    { value: 10, label: "10 par page" },
+    { value: 20, label: "20 par page" },
+    { value: 50, label: "50 par page" },
   ];
 
   const router = useRouter();
@@ -128,6 +146,7 @@ export default function RegisterForm() {
   const idUser = session?.user.id as string;
   console.log("idUser : ", idUser);
   const userRole = session?.user.role as string;
+
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -178,6 +197,7 @@ export default function RegisterForm() {
       if (userRole === "ADMIN") {
         if (oneUser?.email === "bando358@gmail.com") {
           setAllUser(result as User[]);
+          setFilteredUsers(result as User[]);
         } else {
           // retirer cet utilisateur de la liste ainsi que oneUser
           const filteredUsers = result.filter(
@@ -188,6 +208,7 @@ export default function RegisterForm() {
           );
           console.log("filteredUser1 : ", filteredUser);
           setAllUser(filteredUser as User[]);
+          setFilteredUsers(filteredUser as User[]);
         }
       } else {
         const alluser = result.filter(
@@ -208,6 +229,7 @@ export default function RegisterForm() {
         );
         console.log("filteredUser2 : ", filteredUser);
         setAllUser(filteredUser as User[]);
+        setFilteredUsers(filteredUser as User[]);
       }
     };
     fetchData();
@@ -254,9 +276,54 @@ export default function RegisterForm() {
     fetchData();
   }, [userRole, idUser]); // ← JSON.stringify stabilise le tableau
 
+  // Filtrer les utilisateurs en fonction du terme de recherche
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredUsers(allUser);
+      setCurrentPage(1);
+    } else {
+      const filtered = allUser.filter((user) => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          user.name.toLowerCase().includes(searchLower) ||
+          user.email.toLowerCase().includes(searchLower) ||
+          user.username.toLowerCase().includes(searchLower) ||
+          user.role.toLowerCase().includes(searchLower)
+        );
+      });
+      setFilteredUsers(filtered);
+      setCurrentPage(1);
+    }
+  }, [searchTerm, allUser]);
+
+  // Calcul des données pour la pagination
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  // Gestionnaires pour la pagination
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+  const goToPreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  // Gestionnaire pour changer le nombre d'éléments par page
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1); // Retour à la première page lors du changement
+  };
+
   if (isCheckingPermissions) {
     return (
-      <div className="flex justify-center gap-2 items-center h-64">
+      <div className="flex justify-center gap-2 h-64">
         <p className="text-gray-500">Vérification des permissions</p>
         <SpinnerCustom />
       </div>
@@ -407,213 +474,226 @@ export default function RegisterForm() {
   };
 
   return (
-    <div className={cn("flex flex-col gap-6 relative")}>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ArrowBigLeftDash
-              className="absolute top-2 text-blue-600"
-              onClick={() => {
-                router.push("/administrator");
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Retour sur page administration</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={"ghost"}
-              onClick={handleHiddenForm}
-              className="absolute right-2 -top-1"
-            >
-              {isVisible ? (
-                <Eye className="text-blue-600" />
-              ) : (
-                <EyeClosed className="text-red-600" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Ouvrir le formulaire</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+    <div className={cn("flex flex-col")}>
+      {/* Header avec boutons de navigation */}
+      <div className="flex items-center justify-between px-6 pt-3">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/administrator")}
+                className="h-8 w-8"
+              >
+                <ArrowBigLeftDash className="h-5 w-5 text-blue-600" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Retour sur page administration</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleHiddenForm}
+                className="h-8 w-8"
+              >
+                {isVisible ? (
+                  <Eye className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <EyeClosed className="h-5 w-5 text-red-600" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ouvrir le formulaire</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      {/* Contenu principal */}
+      <div className="px-6 pb-6">
         {isVisible ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {!isUpdating ? "Création de compte" : "Mettre ajour le compte"}
-              </CardTitle>
-              <CardDescription>Entrer vos paramètre de compte</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-2 w-sm"
-                >
-                  <div>
-                    <label className="block text-sm font-medium">
-                      Cliniques
-                    </label>
-                    {isLoading ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Chargement des cliniques...
-                      </div>
-                    ) : (
-                      <Select
-                        isMulti
-                        options={cliniqueOptions}
-                        className="basic-multi-select"
-                        classNamePrefix="select"
-                        placeholder="Sélectionner une ou plusieurs cliniques"
-                        onChange={(selectedOptions) => {
-                          const selectedValues = selectedOptions.map(
-                            (option) => option.value
-                          );
-                          form.setValue("idCliniques", selectedValues);
-                        }}
-                      />
-                    )}
-                    {/* /> */}
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nom et Prénom</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="exemple@gmail.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Johndoe33" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="*****"
-                            type="password"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {/* faire un checkBox */}
-                  <FormField
-                    control={form.control}
-                    name="prescripteur"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 mb-4">
-                        <FormLabel>Is Prescripteur ? : </FormLabel>
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {oneUser?.role === "ADMIN" && (
+          <div className="flex justify-center">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>
+                  {!isUpdating
+                    ? "Création de compte"
+                    : "Mettre ajour le compte"}
+                </CardTitle>
+                <CardDescription>
+                  Entrer vos paramètre de compte
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Cliniques
+                      </label>
+                      {isLoading ? (
+                        <div className="p-2 text-sm text-gray-500">
+                          Chargement des cliniques...
+                        </div>
+                      ) : (
+                        <Select
+                          isMulti
+                          options={cliniqueOptions}
+                          className="basic-multi-select"
+                          classNamePrefix="select"
+                          placeholder="Sélectionner une ou plusieurs cliniques"
+                          onChange={(selectedOptions) => {
+                            const selectedValues = selectedOptions.map(
+                              (option) => option.value
+                            );
+                            form.setValue("idCliniques", selectedValues);
+                          }}
+                        />
+                      )}
+                    </div>
                     <FormField
                       control={form.control}
-                      name="role"
+                      name="name"
                       render={({ field }) => (
-                        <FormItem className="">
-                          <div className="text-xl font-bold flex justify-between items-center">
-                            <FormLabel>Type Role</FormLabel>
-                            <div></div>
-                          </div>
+                        <FormItem>
+                          <FormLabel>Nom et Prénom</FormLabel>
                           <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              value={field.value ?? ""}
-                              className="flex gap-x-5 items-center"
-                            >
-                              {userRoleOptions.map((option) => (
-                                <FormItem
-                                  key={option.id}
-                                  className="flex items-center space-x-3 space-y-0"
-                                >
-                                  <FormControl>
-                                    <RadioGroupItem value={option.value} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {option.label}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
+                            <Input placeholder="John doe" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  )}
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="exemple@gmail.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Johndoe33" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="*****"
+                              type="password"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {/* faire un checkBox */}
+                    <FormField
+                      control={form.control}
+                      name="prescripteur"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-3 space-y-0 mb-4">
+                          <FormLabel>Is Prescripteur ? : </FormLabel>
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {oneUser?.role === "ADMIN" && (
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-lg font-semibold">
+                              Type Role
+                            </FormLabel>
+                            <FormControl>
+                              <RadioGroup
+                                onValueChange={field.onChange}
+                                value={field.value ?? ""}
+                                className="flex gap-5 items-center"
+                              >
+                                {userRoleOptions.map((option) => (
+                                  <FormItem
+                                    key={option.id}
+                                    className="flex items-center space-x-2 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <RadioGroupItem value={option.value} />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer">
+                                      {option.label}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={form.formState.isSubmitting}
-                  >
-                    {!form.formState.isSubmitting
-                      ? isUpdating
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {!form.formState.isSubmitting
+                        ? isUpdating
+                          ? "Mettre à jour"
+                          : "Créer"
+                        : isUpdating
                         ? "Mettre à jour"
-                        : "Créer"
-                      : isUpdating
-                      ? "Mettre à jour"
-                      : "En cours..."}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                        : "En cours..."}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
-          <div className="flex justify-center flex-col -mt-30 ">
+          <div className="w-full">
             {allUser.length < 1 ? (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4 justify-center py-12">
                 <Skeleton className="h-12 w-12 rounded-full" />
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-62.5" />
@@ -623,78 +703,246 @@ export default function RegisterForm() {
               </div>
             ) : (
               <>
-                <h3 className="text-center font-semibold">Liste Prestataire</h3>
-                <Table className="border max-w-xl bg-white p-4 rounded-md overflow-hidden">
-                  <TableHeader>
-                    <TableRow className="bg-stone-50 opacity-90">
-                      <TableCell>Nom & Prénom</TableCell>
-                      <TableCell>Nom utilisateur</TableCell>
-                      <TableCell>Email</TableCell>
-                      <TableCell>Rôle</TableCell>
-                      <TableCell>Active</TableCell>
-                      <TableCell>Cliniques</TableCell>
-                      <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allUser.map((user, index) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.name.toLocaleUpperCase()}</TableCell>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.role}</TableCell>
-                        <TableCell className="flex justify-center">
-                          {user.banned !== true ? "Oui" : "Non"}
-                        </TableCell>
-                        <TableCell>
-                          <ul>{nomCliniques(user.idCliniques)}</ul>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2 justify-center items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Pencil
-                                    className="text-xl text-blue-600 m-1 duration-300 hover:scale-150 active:scale-125  cursor-pointer"
-                                    size={16}
-                                    onClick={() =>
-                                      handleUpdateUser(user.id, index)
-                                    }
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Mettre à jour le compte</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  {user.banned ? (
-                                    <UserLock
-                                      className="text-xl text-red-600 duration-300 hover:scale-150 active:scale-125 cursor-pointer"
-                                      size={16}
-                                      onClick={() => toggleCompteUser(user.id)}
-                                    />
-                                  ) : (
-                                    <UserRoundCheck
-                                      className="text-xl text-green-600 duration-300 hover:scale-150 active:scale-125  cursor-pointer"
-                                      size={16}
-                                      onClick={() => toggleCompteUser(user.id)}
-                                    />
-                                  )}
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Déactiver le compte</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {/* En-tête avec titre, recherche et filtre */}
+                <div className="mb-6">
+                  <h3 className="text-2xl font-semibold text-center mb-4">
+                    Liste Prestataire
+                  </h3>
+
+                  <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                    {/* Barre de recherche */}
+                    <div className="relative w-full md:w-64">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Rechercher par nom, email, username..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+
+                    {/* Sélecteur d'éléments par page */}
+                    <div className="w-full md:w-48">
+                      <Select
+                        options={itemsPerPageOptions}
+                        value={itemsPerPageOptions.find(
+                          (opt) => opt.value === itemsPerPage
+                        )}
+                        onChange={(option) =>
+                          handleItemsPerPageChange(option?.value || 10)
+                        }
+                        className="basic-single"
+                        classNamePrefix="select"
+                        placeholder="Éléments par page"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tableau des utilisateurs */}
+                <div className="border rounded-lg bg-white overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-stone-50">
+                          <TableCell className="font-semibold">
+                            Nom & Prénom
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            Nom utilisateur
+                          </TableCell>
+                          <TableCell className="font-semibold">Email</TableCell>
+                          <TableCell className="font-semibold">Rôle</TableCell>
+                          <TableCell className="font-semibold text-center">
+                            Active
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            Cliniques
+                          </TableCell>
+                          <TableCell className="font-semibold text-center">
+                            Actions
+                          </TableCell>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedUsers.map((user, index) => (
+                          <TableRow key={user.id} className="hover:bg-gray-50">
+                            <TableCell className="font-medium">
+                              {user.name.toLocaleUpperCase()}
+                            </TableCell>
+                            <TableCell>{user.username}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-medium ${
+                                  user.role === "ADMIN"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {user.role}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-medium ${
+                                  user.banned !== true
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {user.banned !== true ? "Oui" : "Non"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <ul className="max-w-xs">
+                                {nomCliniques(user.idCliniques)}
+                              </ul>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-center space-x-2">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          handleUpdateUser(user.id, index)
+                                        }
+                                        className="h-8 w-8"
+                                      >
+                                        <Pencil className="h-4 w-4 text-blue-600" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Mettre à jour le compte</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          toggleCompteUser(user.id)
+                                        }
+                                        className="h-8 w-8"
+                                      >
+                                        {user.banned ? (
+                                          <UserLock className="h-4 w-4 text-red-600" />
+                                        ) : (
+                                          <UserRoundCheck className="h-4 w-4 text-green-600" />
+                                        )}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Déactiver le compte</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+                    <div className="text-sm text-gray-600">
+                      Affichage de {(currentPage - 1) * itemsPerPage + 1} à{" "}
+                      {Math.min(
+                        currentPage * itemsPerPage,
+                        filteredUsers.length
+                      )}{" "}
+                      sur {filteredUsers.length} utilisateurs
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToFirstPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from(
+                          { length: Math.min(5, totalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={
+                                  currentPage === pageNum
+                                    ? "default"
+                                    : "outline"
+                                }
+                                size="sm"
+                                onClick={() => setCurrentPage(pageNum)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          }
+                        )}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToLastPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="text-sm text-gray-600">
+                      Page {currentPage} sur {totalPages}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
