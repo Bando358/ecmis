@@ -323,7 +323,7 @@ export default function RegisterForm() {
 
   if (isCheckingPermissions) {
     return (
-      <div className="flex justify-center gap-2 h-64">
+      <div className="flex flex-row justify-center  gap-2 h-64">
         <p className="text-gray-500">Vérification des permissions</p>
         <SpinnerCustom />
       </div>
@@ -729,7 +729,7 @@ export default function RegisterForm() {
                           (opt) => opt.value === itemsPerPage
                         )}
                         onChange={(option) =>
-                          handleItemsPerPageChange(option?.value || 10)
+                          handleItemsPerPageChange(option?.value || 8)
                         }
                         className="basic-single"
                         classNamePrefix="select"
