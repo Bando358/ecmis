@@ -65,6 +65,21 @@ const TabResultatIva = [
   { value: "negatif", label: "Négatif" },
   { value: "positif", label: "Positif" },
 ];
+const tabResultatSeins = [
+  { value: "Seins Normaux", label: "Seins Normaux" },
+  { value: "Douleur", label: "Douleur" },
+  { value: "Picotement", label: "Picotement" },
+  { value: "Présence de Nodule", label: "Présence de Nodule" },
+  { value: "Présence de masse", label: "Présence de masse" },
+  { value: "Epaississement de la peau", label: "Epaississement de la peau" },
+  {
+    value: "Fossette ou retraction",
+    label: "Fossette ou retraction (capitons)",
+  },
+  { value: "Inversion de mamelon", label: "Inversion de mamelon" },
+  { value: "Eczéma mammaire persistant", label: "Eczéma mammaire persistant" },
+  { value: "Suspiçion de Cancer", label: "Suspiçion de Cancer" },
+];
 
 export default function GynecoPage({
   params,
@@ -104,7 +119,9 @@ export default function GynecoPage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.GYNECOLOGIE);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.GYNECOLOGIE
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -125,7 +142,9 @@ export default function GynecoPage({
       setSelectedGyneco(oneGyneco as Gynecologie);
       if (oneGyneco) {
         const result = await getAllVisiteByIdClient(oneGyneco.idClient);
-        const visiteDate = result.find((r: { id: string; }) => r.id === oneGyneco.idVisite);
+        const visiteDate = result.find(
+          (r: { id: string }) => r.id === oneGyneco.idVisite
+        );
 
         const cliniqueClient = await getOneClient(oneGyneco.idClient);
         let allPrestataire: User[] = [];
@@ -136,7 +155,9 @@ export default function GynecoPage({
         }
         setAllPrescripteur(allPrestataire as User[]);
 
-        setVisites(result.filter((r: { id: string; }) => r.id === oneGyneco.idVisite)); // Use oneGyneco instead of selectedGyneco
+        setVisites(
+          result.filter((r: { id: string }) => r.id === oneGyneco.idVisite)
+        ); // Use oneGyneco instead of selectedGyneco
         setDateVisite(visiteDate?.dateVisite);
         setSelectedClientId(oneGyneco.idClient); // Use oneGyneco instead of selectedGyneco
       }
@@ -483,39 +504,39 @@ export default function GynecoPage({
                       control={form.control}
                       name="resultatCancerSein"
                       render={({ field }) => (
-                        <FormItem className=" px-4 pb-4">
+                        <FormItem>
                           <div className="text-xl font-bold flex justify-between items-center">
-                            <FormLabel className="ml-4">
-                              Résultat dépistage cancer de sein :
+                            <FormLabel className="font-medium">
+                              Résultat du dépistage
                             </FormLabel>
                             <RefreshCw
                               onClick={() => {
-                                form.setValue("resultatIva", "");
+                                form.setValue("resultatCancerSein", "");
                               }}
                               className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
                             />
                           </div>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              value={field.value ?? ""}
-                              className="flex gap-x-5 items-center"
-                            >
-                              {TabResultatIva.map((option) => (
-                                <FormItem
-                                  key={option.value}
-                                  className="flex items-center space-x-3 space-y-0"
+                          <Select
+                            required
+                            value={field.value ?? ""}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full mb-2">
+                                <SelectValue placeholder="Select Résultat ....." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {tabResultatSeins.map((resultat) => (
+                                <SelectItem
+                                  key={resultat.value}
+                                  value={resultat.value}
                                 >
-                                  <FormControl>
-                                    <RadioGroupItem value={option.value} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {option.label}
-                                  </FormLabel>
-                                </FormItem>
+                                  <span>{resultat.label}</span>
+                                </SelectItem>
                               ))}
-                            </RadioGroup>
-                          </FormControl>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

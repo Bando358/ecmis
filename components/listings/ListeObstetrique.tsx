@@ -7,13 +7,19 @@ interface ObstetriqueProps {
 }
 
 export default function Obstetrique({ clients }: ObstetriqueProps) {
+  const clientObstetrique = clients.filter(
+    (client) => client.obstConsultation === true
+  );
   const handleExportExcel = async () => {
-    const data = clients.map((client) => ({
+    const data = clientObstetrique.map((client) => ({
       Code: client.code,
       Nom: client.nom,
       Prénom: client.prenom,
       Âge: client.age,
       "Date visite": client.dateVisite,
+      "Motif visite": client.motifVisite,
+      Activité: client.activite,
+      Lieu: client.lieuActivite,
       "Consultation obstétricale": client.obstConsultation ? "Oui" : "Non",
       "Counseling obstétrical": client.obstCounselling ? "Oui" : "Non",
       "Type visite": client.obstTypeVisite,
@@ -56,7 +62,7 @@ export default function Obstetrique({ clients }: ObstetriqueProps) {
           onClick={handleExportExcel}
           className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-900"
         >
-          Télécharger Excel
+          Télécharger la liste Obstétrique
         </button>
       </div>
 

@@ -2,7 +2,7 @@
 // components/DashboardClient.tsx
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Select,
   SelectContent,
@@ -69,78 +69,91 @@ export default function DashboardClient({
     return prescripteur || { id: "all", name: "Tous les prescripteurs" };
   });
 
-  // 🔹 Mise à jour des URL search params
+  // 🔹 Mise à jour des URL search params (avec debounce)
   useEffect(() => {
-    const params = new URLSearchParams();
+    const timeoutId = setTimeout(() => {
+      const params = new URLSearchParams();
 
-    if (startDate !== defaultStartDate) {
-      params.set("startDate", startDate);
-    }
+      if (startDate !== defaultStartDate) {
+        params.set("startDate", startDate);
+      }
 
-    if (endDate !== defaultEndDate) {
-      params.set("endDate", endDate);
-    }
+      if (endDate !== defaultEndDate) {
+        params.set("endDate", endDate);
+      }
 
-    if (period !== "mensuel") {
-      params.set("period", period);
-    }
+      if (period !== "mensuel") {
+        params.set("period", period);
+      }
 
-    if (selectedClinique.id !== "all") {
-      params.set("clinique", selectedClinique.id);
-    }
+      if (selectedClinique.id !== "all") {
+        params.set("clinique", selectedClinique.id);
+      }
 
-    if (selectedPrescripteur.id !== "all") {
-      params.set("prescripteur", selectedPrescripteur.id);
-    }
+      if (selectedPrescripteur.id !== "all") {
+        params.set("prescripteur", selectedPrescripteur.id);
+      }
 
-    // Mettre à jour l'URL sans recharger la page
-    const newUrl = `${pathname}${
-      params.toString() ? `?${params.toString()}` : ""
-    }`;
-    router.push(newUrl, { scroll: false });
+      // Mettre à jour l'URL sans recharger la page
+      const newUrl = `${pathname}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      router.replace(newUrl, { scroll: false });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [
     startDate,
     endDate,
     period,
-    selectedClinique,
-    selectedPrescripteur,
+    selectedClinique.id,
+    selectedPrescripteur.id,
     pathname,
     router,
     defaultStartDate,
     defaultEndDate,
   ]);
 
-  // 🔹 Gestionnaire pour la sélection de clinique
-  const handleCliniqueChange = (value: string) => {
-    if (value === "all") {
-      setSelectedClinique({ id: "all", name: "Toutes les cliniques" });
-    } else {
-      const clinique = tabClinique.find((c) => c.id === value);
-      if (clinique) {
-        setSelectedClinique(clinique);
+  // 🔹 Gestionnaire pour la sélection de clinique (mémorisé)
+  const handleCliniqueChange = useCallback(
+    (value: string) => {
+      if (value === "all") {
+        setSelectedClinique({ id: "all", name: "Toutes les cliniques" });
+      } else {
+        const clinique = tabClinique.find((c) => c.id === value);
+        if (clinique) {
+          setSelectedClinique(clinique);
+        }
       }
-    }
-    // Réinitialiser le prescripteur quand on change de clinique
-    setSelectedPrescripteur({ id: "all", name: "Tous les prescripteurs" });
-  };
-
-  // 🔹 Gestionnaire pour la sélection de prescripteur
-  const handlePrescripteurChange = (value: string) => {
-    if (value === "all") {
+      // Réinitialiser le prescripteur quand on change de clinique
       setSelectedPrescripteur({ id: "all", name: "Tous les prescripteurs" });
-    } else {
-      const prescripteur = tabPrescripteur.find((p) => p.id === value);
-      if (prescripteur) {
-        setSelectedPrescripteur(prescripteur);
-      }
-    }
-  };
+    },
+    [tabClinique]
+  );
 
-  // 🔹 Filtrer les prescripteurs selon la clinique sélectionnée
-  const filteredPrescripteurs =
-    selectedClinique.id === "all"
-      ? tabPrescripteur
-      : tabPrescripteur.filter((p) => p.cliniqueId === selectedClinique.id);
+  // 🔹 Gestionnaire pour la sélection de prescripteur (mémorisé)
+  const handlePrescripteurChange = useCallback(
+    (value: string) => {
+      if (value === "all") {
+        setSelectedPrescripteur({ id: "all", name: "Tous les prescripteurs" });
+      } else {
+        const prescripteur = tabPrescripteur.find((p) => p.id === value);
+        if (prescripteur) {
+          setSelectedPrescripteur(prescripteur);
+        }
+      }
+    },
+    [tabPrescripteur]
+  );
+
+  // 🔹 Filtrer les prescripteurs selon la clinique sélectionnée (mémorisé)
+  const filteredPrescripteurs = useMemo(
+    () =>
+      selectedClinique.id === "all"
+        ? tabPrescripteur
+        : tabPrescripteur.filter((p) => p.cliniqueId === selectedClinique.id),
+    [selectedClinique.id, tabPrescripteur]
+  );
 
   // 🔹 Mise à jour automatique des dates quand la période change
   useEffect(() => {

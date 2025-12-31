@@ -752,7 +752,7 @@ export default function ModifFormulaireClient({
           {/* </Form> */}
         </>
       ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
+        <div className="flex flex-col gap-4 max-w-150 mx-auto p-6 bg-white/40 shadow-md rounded-lg">
           {!selectedClient ? (
             <div className="flex items-center space-x-4">
               <Skeleton className="h-12 w-12 rounded-full" />

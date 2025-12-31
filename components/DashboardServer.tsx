@@ -34,24 +34,22 @@ export default async function DashboardServer({
       allIds.map((id: string) => getAllUserIncludedIdClinique(id))
     );
 
-    const prescripteurs = prescripteurCliniqueList
-      .flat()
-      .map(
-        (
-          p: {
-            id: string;
-            name: string;
-            username: string;
-            email: string;
-            idCliniques: string[];
-          },
-          idx: number
-        ) => ({
-          id: p.id,
-          name: p.name ?? p.username ?? p.email ?? `Prescripteur ${idx + 1}`,
-          cliniqueId: p.idCliniques?.[0] ?? allIds[idx] ?? "",
-        })
-      );
+    const prescripteurs = prescripteurCliniqueList.flat().map(
+      (
+        p: {
+          id: string;
+          name: string;
+          username: string;
+          email: string;
+          idCliniques: string[];
+        },
+        idx: number
+      ) => ({
+        id: p.id,
+        name: p.name ?? p.username ?? p.email ?? `Prescripteur ${idx + 1}`,
+        cliniqueId: p.idCliniques?.[0] ?? allIds[idx] ?? "",
+      })
+    );
 
     // 🔹 Calcul des dates par défaut
     const period = searchParams?.period || "mensuel";

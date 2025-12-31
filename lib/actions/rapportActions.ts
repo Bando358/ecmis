@@ -192,6 +192,33 @@ export const fetchClientsData = async (
     },
   });
 
+  // Récupération de tous les idLieux des visites des clients
+  const allLieuIds = Array.from(
+    new Set(
+      clients.flatMap((client) => client.Visite.map((visite) => visite.idLieu))
+    )
+  ).filter((id): id is string => id !== null);
+  const allLieux = await prisma.lieu.findMany({
+    where: {
+      id: { in: allLieuIds },
+    },
+  });
+
+  // Récupération de tous les idActivites de allLieux
+  const allActiviteIds = Array.from(
+    new Set(
+      clients.flatMap((client) =>
+        client.Visite.map((visite) => visite.idActivite)
+      )
+    )
+  ).filter((id): id is string => id !== null);
+
+  const allActivites = await prisma.activite.findMany({
+    where: {
+      id: { in: allActiviteIds },
+    },
+  });
+
   //    {
   //     MEDECIN: "MEDECIN";
   //     GYNECOLOGIE: "GYNECOLOGIE";
@@ -285,7 +312,11 @@ export const fetchClientsData = async (
           dateVisite: visite.dateVisite.toLocaleDateString(),
           idActiviteVisite: visite.idActivite || "",
           idLieu: visite.idLieu || "",
-          // idLieu: visite.idActivite?.split(">")[1] || "",
+          activite:
+            allActivites.find((act) => act.id === visite.idActivite)?.libelle ||
+            "",
+          lieuActivite:
+            allLieux.find((lieu) => lieu.id === visite.idLieu)?.lieu || "",
           motifVisite: visite.motifVisite,
           nom: client.nom,
           prenom: client.prenom,
@@ -303,6 +334,8 @@ export const fetchClientsData = async (
           statut: planning?.statut || "",
           consultationPf: planning?.consultation || false,
           counsellingPf: planning?.counsellingPf || false,
+          motifVisitePf: planning?.motifVisite || "",
+          typeContraception: planning?.typeContraception || "",
           courtDuree: planning?.courtDuree || null,
           implanon: planning?.implanon || null,
           retraitImplanon: planning?.retraitImplanon || false,

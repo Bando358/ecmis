@@ -539,7 +539,14 @@ export default function ConstantePage({
                 )}
               </div>
 
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdateVisite}>Modifier</Button>
               </div>
             </div>

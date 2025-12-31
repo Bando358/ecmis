@@ -79,6 +79,7 @@ export default function FormVisite({
       idUser: "",
       idClient: visiteId ?? "",
     },
+    mode: "onChange",
   });
 
   // Remplit dynamiquement idUser dès que la session est disponible
@@ -211,6 +212,15 @@ export default function FormVisite({
         return;
       }
 
+      if (!data.motifVisite) {
+        toast.error("Le motif de la visite est obligatoire");
+        return;
+      }
+      if (data.idActivite && !data.idLieu) {
+        alert("Le lieu est obligatoire lorsque une activité est sélectionnée");
+        return;
+      }
+
       const visiteData = {
         id: uuid(),
         dateVisite: parse(data.dateVisite, "yyyy-MM-dd", new Date()),
@@ -281,13 +291,18 @@ export default function FormVisite({
             )}
           />
           {/* <div className="grid grid-cols-2"></div> */}
+          {/* motifVisite est obligatoire */}
+
           <FormField
             control={form.control}
             name="motifVisite"
+            rules={{
+              required: "Le motif de la visite est obligatoire",
+            }}
             render={({ field }) => (
               <FormItem className="space-y-3">
                 <FormLabel className="font-medium">
-                  Motif de la visite
+                  Motif de la visite <span className="text-red-500">*</span>
                 </FormLabel>
                 <FormControl>
                   <RadioGroup
@@ -380,7 +395,11 @@ export default function FormVisite({
           <input type="hidden" {...form.register("idUser")} />
           <input type="hidden" {...form.register("idClient")} />
 
-          <Button type="submit" className="mt-4" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="mt-4"
+            disabled={isSubmitting || !form.watch("motifVisite")}
+          >
             {isSubmitting ? "En cours..." : "Créer la visite"}
           </Button>
         </form>

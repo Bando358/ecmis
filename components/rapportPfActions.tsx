@@ -138,6 +138,9 @@ export type ClientData = {
   dateVisite: string;
   idActiviteVisite: string;
   idLieu: string;
+  activite: string;
+  lieuActivite: string;
+  typeContraception: string;
   motifVisite: string;
   nom: string;
   prenom: string;
@@ -156,6 +159,7 @@ export type ClientData = {
   methodePrise: boolean;
   consultationPf: boolean;
   counsellingPf: boolean;
+  motifVisitePf: string;
   courtDuree: string | null;
   implanon: string | null;
   retraitImplanon: boolean;
@@ -420,6 +424,33 @@ export const fetchClientsData = async (
     },
   });
 
+  // Récupération de tous les idLieux des visites des clients
+  const allLieuIds = Array.from(
+    new Set(
+      clients.flatMap((client) => client.Visite.map((visite) => visite.idLieu))
+    )
+  ).filter((id): id is string => id !== null);
+  const allLieux = await prisma.lieu.findMany({
+    where: {
+      id: { in: allLieuIds },
+    },
+  });
+
+  // Récupération de tous les idActivites de allLieux
+  const allActiviteIds = Array.from(
+    new Set(
+      clients.flatMap((client) =>
+        client.Visite.map((visite) => visite.idActivite)
+      )
+    )
+  ).filter((id): id is string => id !== null);
+
+  const allActivites = await prisma.activite.findMany({
+    where: {
+      id: { in: allActiviteIds },
+    },
+  });
+
   //    {
   //     MEDECIN: "MEDECIN";
   //     GYNECOLOGIE: "GYNECOLOGIE";
@@ -449,6 +480,8 @@ export const fetchClientsData = async (
     dateVisite: Date;
     idActivite: string | null;
     idLieu: string | null;
+    activite: string;
+    lieuActivite: string;
     motifVisite: string;
   }
 
@@ -459,6 +492,8 @@ export const fetchClientsData = async (
     consultation: boolean;
     counsellingPf: boolean;
     courtDuree: string | null;
+    typeContraception: string | null;
+    motifVisite: string | null;
     implanon: string | null;
     retraitImplanon: boolean;
     jadelle: string | null;
@@ -473,22 +508,22 @@ export const fetchClientsData = async (
 
   interface GynecologieRecord {
     idVisite: string;
-    consultation: boolean;
-    motifConsultation: string;
-    counsellingAvantDepitage: boolean;
-    counsellingApresDepitage: boolean;
-    resultatIva: string;
-    eligibleTraitementIva: boolean;
-    typeTraitement: string;
-    counselingCancerSein: boolean;
-    resultatCancerSein: string;
-    counselingAutreProbleme: boolean;
-    examenPhysique: boolean;
-    examenPalpation: boolean;
-    toucheeVaginale: boolean;
-    reglesIrreguliere: boolean;
-    regularisationMenstruelle: boolean;
-    autreProblemeGyneco: boolean;
+    consultation: boolean | null;
+    motifConsultation: string | null;
+    counsellingAvantDepitage: boolean | null;
+    counsellingApresDepitage: boolean | null;
+    resultatIva: string | null;
+    eligibleTraitementIva: boolean | null;
+    typeTraitement: string | null;
+    counselingCancerSein: boolean | null;
+    resultatCancerSein: string | null;
+    counselingAutreProbleme: boolean | null;
+    examenPhysique: boolean | null;
+    examenPalpation: boolean | null;
+    toucheeVaginale: boolean | null;
+    reglesIrreguliere: boolean | null;
+    regularisationMenstruelle: boolean | null;
+    autreProblemeGyneco: boolean | null;
   }
 
   interface IstRecord {
@@ -839,6 +874,11 @@ export const fetchClientsData = async (
           dateVisite: visite.dateVisite.toLocaleDateString(),
           idActiviteVisite: visite.idActivite || "",
           idLieu: visite.idLieu || "",
+          activite:
+            allActivites.find((act) => act.id === visite.idActivite)?.libelle ||
+            "",
+          lieuActivite:
+            allLieux.find((lieu) => lieu.id === visite.idLieu)?.lieu || "",
           motifVisite: visite.motifVisite,
           nom: client.nom,
           prenom: client.prenom,
@@ -853,7 +893,9 @@ export const fetchClientsData = async (
 
           // Planning
           methodePrise: planning?.methodePrise || false,
+          typeContraception: planning?.typeContraception || "",
           statut: planning?.statut || "",
+          motifVisitePf: planning?.motifVisite || "",
           consultationPf: planning?.consultation || false,
           counsellingPf: planning?.counsellingPf || false,
           courtDuree: planning?.courtDuree || null,

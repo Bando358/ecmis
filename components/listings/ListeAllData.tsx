@@ -329,6 +329,8 @@ export default function ListeAllData({ clients }: ListeAllDataProps) {
       dataValue: [
         { colTitle: "Date visite", propriete: "dateVisite" },
         { colTitle: "Motif visite", propriete: "motifVisite" },
+        { colTitle: "Activité", propriete: "activite" },
+        { colTitle: "Lieu", propriete: "lieuActivite" },
       ],
     },
     {
@@ -339,7 +341,10 @@ export default function ListeAllData({ clients }: ListeAllDataProps) {
         // nouvel ajout est consultation
         { colTitle: "Consultation", propriete: "consultationPf" },
         { colTitle: "Méthode Prise", propriete: "methodePrise" },
+        { colTitle: "Type Contraception", propriete: "typeContraception" },
+        { colTitle: "Motif visite PF", propriete: "motifVisitePf" },
         { colTitle: "Statut", propriete: "statut" },
+        { colTitle: "Counseling", propriete: "counsellingPf" },
         { colTitle: "Courte Durée", propriete: "courtDuree" },
         { colTitle: "Implanon", propriete: "implanon" },
         { colTitle: "Retrait Implanon", propriete: "retraitImplanon" },
@@ -706,7 +711,7 @@ export default function ListeAllData({ clients }: ListeAllDataProps) {
           onClick={handleExportExcel}
           className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-900"
         >
-          Télécharger Excel complet
+          Télécharger toutes les données
         </button>
       </div>
 

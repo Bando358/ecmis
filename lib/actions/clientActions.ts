@@ -37,19 +37,30 @@ export const getAllClientIncludedInDate = async ({
   dateDebut,
   dateFin,
 }: {
-  dateDebut: Date;
-  dateFin: Date;
+  dateDebut?: Date | null;
+  dateFin?: Date | null;
 }) => {
+  const where: any = {};
+
+  if (dateDebut || dateFin) {
+    where.dateEnregistrement = {};
+
+    if (dateDebut) {
+      where.dateEnregistrement.gte = dateDebut;
+    }
+
+    if (dateFin) {
+      where.dateEnregistrement.lte = dateFin;
+    }
+  }
+
   const allClient = await prisma.client.findMany({
-    where: {
-      dateEnregistrement: {
-        gte: dateDebut,
-        lte: dateFin,
-      },
-    },
+    where,
   });
+
   return allClient;
 };
+
 export const getAllClient = async () => {
   try {
     const allClient = await prisma.client.findMany({

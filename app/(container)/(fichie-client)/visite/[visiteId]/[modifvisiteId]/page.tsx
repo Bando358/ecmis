@@ -6,7 +6,6 @@ import {
   updateVisite,
   getOneVisite,
   getAllVisiteByIdClient,
-  getAllLieuInVisite,
 } from "@/lib/actions/visiteActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,11 +59,16 @@ export default function FormVisiteModification({
   const [permission, setPermission] = useState<Permission | null>(null);
   const [loadingLieu, setLoadingLieu] = useState(false);
   const [loadingActivite, setLoadingActivite] = useState(false);
-  const [formInitialized, setFormInitialized] = useState(false);
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
+  const [
+    hasLoadedLieusForCurrentActivite,
+    setHasLoadedLieusForCurrentActivite,
+  ] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const { setSelectedClientId } = useClientContext();
 
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const idPrestataire = session?.user.id as string;
   const router = useRouter();
 
@@ -77,12 +81,26 @@ export default function FormVisiteModification({
       idActivite: null,
       idLieu: null,
     },
+    mode: "onChange",
   });
+
+  const idActivite = form.watch("idActivite");
+  const idLieu = form.watch("idLieu");
+
+  // Validation personnalisée pour le champ lieu
+  const validateLieu = (value: string | null) => {
+    // Si une activité est sélectionnée, le lieu est obligatoire
+    if (idActivite && !value) {
+      return "Le lieu est obligatoire lorsque une activité est sélectionnée";
+    }
+    return true;
+  };
 
   // Chargement des données initiales
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoadingInitialData(true);
         const oneVisiteData = await getOneVisite(modifvisiteId);
         setOneVisite(oneVisiteData as Visite);
 
@@ -99,18 +117,14 @@ export default function FormVisiteModification({
           );
           setActivite(allActivite as Activite[]);
           setLoadingActivite(false);
-
-          const idActiviteArray = allActivite.map((a: { id: string }) => a.id);
-          setLoadingLieu(true);
-          const lieux = await getAllLieuByTabIdActivite(idActiviteArray);
-          setLieus(lieux);
-          setLoadingLieu(false);
         }
       } catch (err) {
         console.error("Erreur chargement données:", err);
         toast.error("Erreur lors du chargement des données");
         setLoadingActivite(false);
         setLoadingLieu(false);
+      } finally {
+        setIsLoadingInitialData(false);
       }
     };
 
@@ -119,7 +133,7 @@ export default function FormVisiteModification({
 
   // Réinitialiser le formulaire quand oneVisite est chargé
   useEffect(() => {
-    if (oneVisite && !formInitialized) {
+    if (oneVisite && !isLoadingInitialData) {
       form.reset({
         idPrestataire,
         idClient: oneVisite.idClient,
@@ -130,13 +144,15 @@ export default function FormVisiteModification({
         idActivite: oneVisite.idActivite || null,
         idLieu: oneVisite.idLieu || null,
       });
-      setFormInitialized(true);
+      // Réinitialiser le flag pour permettre le rechargement des lieux
+      setHasLoadedLieusForCurrentActivite(false);
     }
-  }, [oneVisite, form, idPrestataire, formInitialized]);
+  }, [oneVisite, form, idPrestataire, isLoadingInitialData]);
 
+  // Vérification des permissions avec gestion d'erreur NextAuth
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    // Attendre que la session soit complètement chargée
+    if (status === "loading" || !session?.user) return;
 
     const fetchPermissions = async () => {
       try {
@@ -145,44 +161,126 @@ export default function FormVisiteModification({
           (p: { table: string }) => p.table === TableName.VISITE
         );
         setPermission(perm || null);
-      } catch (error) {
+      } catch (error: any) {
         console.error(
           "Erreur lors de la vérification des permissions :",
           error
         );
+
+        // Vérifier si c'est une erreur d'authentification
+        if (
+          error.message?.includes("JSON") ||
+          error.message?.includes("DOCTYPE")
+        ) {
+          setAuthError("Erreur d'authentification. Veuillez vous reconnecter.");
+          toast.error("Session expirée. Veuillez vous reconnecter.");
+
+          // Rediriger vers la page de connexion après un délai
+          setTimeout(() => {
+            router.push("/api/auth/signin");
+          }, 2000);
+        }
       }
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [session?.user, status, router]);
 
-  const idActivite = form.watch("idActivite");
-
-  // Chargement des lieux quand l'activité change
+  // Charger les lieux quand l'activité change
   useEffect(() => {
     const fetchLieus = async () => {
-      if (idActivite) {
-        try {
-          setLoadingLieu(true);
-          const allLieuByid = await getAllLieuInVisite(idActivite);
-          setLieus(allLieuByid);
-          setLoadingLieu(false);
-        } catch (err) {
-          console.error("Erreur chargement lieux:", err);
-          setLoadingLieu(false);
-        }
-      } else {
+      if (!idActivite) {
         setLieus([]);
-        // Réinitialiser idLieu si aucune activité n'est sélectionnée
+        setHasLoadedLieusForCurrentActivite(true);
+        // Réinitialiser le champ lieu quand l'activité est désélectionnée
         form.setValue("idLieu", null);
+        form.clearErrors("idLieu");
+        return;
+      }
+
+      // Éviter de recharger si on a déjà chargé les lieux pour cette activité
+      if (hasLoadedLieusForCurrentActivite && lieus.length > 0) {
+        return;
+      }
+
+      try {
+        setLoadingLieu(true);
+        const lieux = await getAllLieuByTabIdActivite([idActivite]);
+        setLieus(lieux);
+        setHasLoadedLieusForCurrentActivite(true);
+
+        // Si un lieu était déjà sélectionné mais n'est plus dans la liste, le réinitialiser
+        if (idLieu && !lieux.some((l) => l.id === idLieu)) {
+          form.setValue("idLieu", null);
+          // Déclencher la validation après avoir changé la valeur
+          setTimeout(() => {
+            form.trigger("idLieu");
+          }, 0);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des lieux:", error);
+        toast.error("Erreur de chargement des lieux");
+        setLieus([]);
+      } finally {
         setLoadingLieu(false);
       }
     };
+
     fetchLieus();
+  }, [idActivite, hasLoadedLieusForCurrentActivite, form, idLieu]);
+
+  // Effet spécifique pour charger les lieux lors de l'initialisation si une activité est déjà sélectionnée
+  useEffect(() => {
+    const loadInitialLieus = async () => {
+      if (
+        oneVisite?.idActivite &&
+        !hasLoadedLieusForCurrentActivite &&
+        !isLoadingInitialData
+      ) {
+        try {
+          setLoadingLieu(true);
+          const lieux = await getAllLieuByTabIdActivite([oneVisite.idActivite]);
+          setLieus(lieux);
+          setHasLoadedLieusForCurrentActivite(true);
+        } catch (error) {
+          console.error("Erreur lors du chargement initial des lieux:", error);
+          setLieus([]);
+        } finally {
+          setLoadingLieu(false);
+        }
+      }
+    };
+
+    loadInitialLieus();
+  }, [oneVisite, hasLoadedLieusForCurrentActivite, isLoadingInitialData]);
+
+  // Effet pour déclencher la validation du lieu quand l'activité change
+  useEffect(() => {
+    if (idActivite) {
+      // Déclencher la validation du lieu après un court délai
+      const timer = setTimeout(() => {
+        form.trigger("idLieu");
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      // Si pas d'activité, effacer les erreurs sur le lieu
+      form.clearErrors("idLieu");
+    }
   }, [idActivite, form]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     try {
+      // Validation supplémentaire avant soumission
+      if (data.idActivite && !data.idLieu) {
+        form.setError("idLieu", {
+          type: "manual",
+          message:
+            "Le lieu est obligatoire lorsque une activité est sélectionnée",
+        });
+        toast.error("Veuillez sélectionner un lieu");
+        return;
+      }
+
       // Vérification de la date existante
       const isDateExist = allVisite.some(
         (v) =>
@@ -207,12 +305,15 @@ export default function FormVisiteModification({
         createdAt: oneVisite?.createdAt ?? new Date(),
         updatedAt: new Date(),
       };
+
       if (oneVisite) {
         console.log("modifvisiteId:", modifvisiteId);
         console.log("formattedData:", formattedData);
         const updatedVisite = await updateVisite(modifvisiteId, formattedData);
         setOneVisite(updatedVisite);
         setIsVisible(false);
+        // Réinitialiser le flag pour permettre le rechargement des lieux si nécessaire
+        setHasLoadedLieusForCurrentActivite(false);
         toast.success("Visite modifiée avec succès! 🎉");
       }
     } catch (err) {
@@ -236,12 +337,19 @@ export default function FormVisiteModification({
   ];
 
   const handleUpdateVisite = () => {
+    if (authError) {
+      toast.error("Erreur d'authentification. Veuillez vous reconnecter.");
+      router.push("/api/auth/signin");
+      return;
+    }
+
     if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
       alert(
         "Vous n'avez pas la permission de modifier une visite. Contactez un administrateur."
       );
       return router.back();
     }
+
     if (oneVisite) {
       form.setValue(
         "dateVisite",
@@ -259,6 +367,9 @@ export default function FormVisiteModification({
       form.setValue("motifVisite", "");
       form.setValue("idActivite", null);
       form.setValue("idLieu", null);
+      form.clearErrors("idLieu");
+      // Réinitialiser le flag pour permettre le rechargement des lieux
+      setHasLoadedLieusForCurrentActivite(false);
     }
   };
 
@@ -294,17 +405,67 @@ export default function FormVisiteModification({
     );
   };
 
+  // Gérer le changement d'activité manuellement pour réinitialiser le flag
+  const handleActiviteChange = (value: string | null) => {
+    form.setValue("idActivite", value);
+    form.setValue("idLieu", null); // Réinitialiser le lieu
+    setHasLoadedLieusForCurrentActivite(false); // Autoriser le rechargement
+
+    // Déclencher la validation après un court délai
+    setTimeout(() => {
+      form.trigger("idLieu");
+    }, 100);
+  };
+
+  // Vérifier si le formulaire est valide pour l'affichage du bouton
+  const isFormValid = () => {
+    if (idActivite && !idLieu) {
+      return false;
+    }
+    return form.formState.isValid;
+  };
+
+  // Si la session est en cours de chargement
+  if (status === "loading") {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Si erreur d'authentification
+  if (authError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <h2 className="text-xl font-bold text-red-700 mb-2">
+            Erreur d'authentification
+          </h2>
+          <p className="text-red-600 mb-4">{authError}</p>
+          <Button onClick={() => router.push("/api/auth/signin")}>
+            Se reconnecter
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col w-full justify-center max-w-225 mx-auto px-4 py-2 rounded-md">
-      {isVisible ? (
+    <div className="flex flex-col justify-center max-w-120 mx-auto px-4 py-2 rounded-md">
+      {isLoadingInitialData ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : isVisible ? (
         <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
+          <h2 className="text-2xl text-gray-600 font-black text-center mb-6">
             Formulaire de modification de visite
           </h2>
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+              className="space-y-4 w-full rounded-sm mx-auto px-4 py-6 bg-white shadow-md"
             >
               <FormField
                 control={form.control}
@@ -368,22 +529,24 @@ export default function FormVisiteModification({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="font-medium">Activité</FormLabel>
-                    <select
-                      {...field}
-                      className="w-full p-2 border rounded-md"
-                      onChange={(e) => {
-                        const value = e.target.value || null;
-                        field.onChange(value);
-                      }}
-                      value={field.value || ""}
-                    >
-                      <option value="">Sélectionnez une activité</option>
-                      {activite.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.libelle}
-                        </option>
-                      ))}
-                    </select>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="w-full p-2 border rounded-md"
+                        onChange={(e) => {
+                          const value = e.target.value || null;
+                          handleActiviteChange(value);
+                        }}
+                        value={field.value || ""}
+                      >
+                        <option value="">Sélectionnez une activité</option>
+                        {activite.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.libelle}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -395,32 +558,56 @@ export default function FormVisiteModification({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="font-medium">
-                      Lieu (optionnel)
+                      Lieu{" "}
+                      {idActivite && <span className="text-red-500">*</span>}
+                      {!idActivite && (
+                        <span className="text-gray-500 text-sm">
+                          {" "}
+                          (optionnel)
+                        </span>
+                      )}
                     </FormLabel>
                     <FormControl>
                       <select
                         {...field}
-                        className="w-full p-2 border rounded-md"
+                        className={`w-full p-2 border rounded-md ${
+                          form.formState.errors.idLieu ? "border-red-500" : ""
+                        }`}
                         disabled={!idActivite || loadingLieu}
                         onChange={(e) => {
                           const value = e.target.value || null;
                           field.onChange(value);
+                          // Déclencher la validation immédiatement
+                          setTimeout(() => {
+                            form.trigger("idLieu");
+                          }, 0);
                         }}
                         value={field.value || ""}
                       >
                         <option value="">
-                          {loadingLieu ? "Chargement..." : "Non spécifié"}
+                          {loadingLieu
+                            ? "Chargement des lieux..."
+                            : idActivite
+                            ? "Sélectionnez un lieu"
+                            : "Non spécifié"}
                         </option>
-                        {lieus.map((lieu) => (
-                          <option key={lieu.id} value={lieu.id}>
-                            {lieu.lieu}
-                          </option>
-                        ))}
+                        {!loadingLieu &&
+                          lieus.map((lieu) => (
+                            <option key={lieu.id} value={lieu.id}>
+                              {lieu.lieu}
+                            </option>
+                          ))}
                       </select>
                     </FormControl>
                     <FormMessage />
+                    {idActivite && lieus.length === 0 && !loadingLieu && (
+                      <p className="text-sm text-amber-600">
+                        Aucun lieu disponible pour cette activité
+                      </p>
+                    )}
                   </FormItem>
                 )}
+                rules={{ validate: validateLieu }}
               />
 
               <FormField
@@ -447,42 +634,79 @@ export default function FormVisiteModification({
                 )}
               />
 
-              <div className="flex justify-center">
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
                 <Button
                   type="submit"
-                  className="mt-4"
-                  disabled={form.formState.isSubmitting}
+                  disabled={form.formState.isSubmitting || !isFormValid()}
                 >
                   {form.formState.isSubmitting
                     ? "Modification..."
                     : "Modifier la visite"}
                 </Button>
               </div>
+
+              {idActivite && !idLieu && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <p className="text-sm text-amber-800">
+                    ⚠️ <strong>Note :</strong> Le champ "Lieu" est obligatoire
+                    lorsque vous sélectionnez une activité.
+                  </p>
+                </div>
+              )}
             </form>
           </Form>
         </>
       ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          <div className="grid grid-cols-2 gap-2">
-            <div>Date de visite :</div>
-            <div>
+        <div className="flex flex-col gap-4 max-w-md mx-auto p-6 bg-white shadow-md rounded-lg">
+          <h2 className="text-xl font-bold text-gray-700 text-center mb-4">
+            Détails de la visite
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="font-medium text-gray-600">Date de visite :</div>
+            <div className="text-gray-800">
               {oneVisite &&
                 new Date(oneVisite.dateVisite).toLocaleDateString("fr-FR")}
             </div>
 
-            <div>Motif de la visite :</div>
-            <div>{oneVisite?.motifVisite}</div>
-
-            <div>{oneVisite?.idActivite && "Activité :"}</div>
-            <div>
-              {oneVisite?.idActivite &&
-                handleReturnActivite(oneVisite.idActivite)}
+            <div className="font-medium text-gray-600">
+              Motif de la visite :
             </div>
+            <div className="text-gray-800">{oneVisite?.motifVisite}</div>
 
-            <div>{oneVisite?.idLieu && "Lieu :"}</div>
-            <div>{oneVisite?.idLieu && handleReturnLieu(oneVisite.idLieu)}</div>
+            {oneVisite?.idActivite && (
+              <>
+                <div className="font-medium text-gray-600">Activité :</div>
+                <div className="text-gray-800">
+                  {handleReturnActivite(oneVisite.idActivite)}
+                </div>
+              </>
+            )}
 
-            <div className="col-span-2 flex flex-row justify-center mt-4">
+            {oneVisite?.idLieu && (
+              <>
+                <div className="font-medium text-gray-600">Lieu :</div>
+                <div className="text-gray-800">
+                  {handleReturnLieu(oneVisite.idLieu)}
+                </div>
+              </>
+            )}
+
+            <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Retour
+              </Button>
               <Button onClick={handleUpdateVisite}>Modifier</Button>
             </div>
           </div>

@@ -66,6 +66,21 @@ const TabResultatIva = [
   { value: "negatif", label: "Négatif" },
   { value: "positif", label: "Positif" },
 ];
+const tabResultatSeins = [
+  { value: "Seins Normaux", label: "Seins Normaux" },
+  { value: "Douleur", label: "Douleur" },
+  { value: "Picotement", label: "Picotement" },
+  { value: "Présence de Nodule", label: "Présence de Nodule" },
+  { value: "Présence de masse", label: "Présence de masse" },
+  { value: "Epaississement de la peau", label: "Epaississement de la peau" },
+  {
+    value: "Fossette ou retraction",
+    label: "Fossette ou retraction (capitons)",
+  },
+  { value: "Inversion de mamelon", label: "Inversion de mamelon" },
+  { value: "Eczéma mammaire persistant", label: "Eczéma mammaire persistant" },
+  { value: "Suspiçion de Cancer", label: "Suspiçion de Cancer" },
+];
 
 export default function GynecoPage({
   params,
@@ -107,7 +122,9 @@ export default function GynecoPage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.GYNECOLOGIE);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.GYNECOLOGIE
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -433,7 +450,7 @@ export default function GynecoPage({
             />
             {form.watch("counselingCancerSein") === true && (
               <div className="font-normal px-4">
-                <FormField
+                {/* <FormField
                   control={form.control}
                   name="resultatCancerSein"
                   render={({ field }) => (
@@ -470,6 +487,47 @@ export default function GynecoPage({
                           ))}
                         </RadioGroup>
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                /> */}
+                <FormField
+                  control={form.control}
+                  name="resultatCancerSein"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="text-xl font-bold flex justify-between items-center">
+                        <FormLabel className="font-medium">
+                          Résultat du dépistage
+                        </FormLabel>
+                        <RefreshCw
+                          onClick={() => {
+                            form.setValue("resultatCancerSein", "");
+                          }}
+                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                        />
+                      </div>
+                      <Select
+                        required
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full mb-2">
+                            <SelectValue placeholder="Select Résultat ....." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tabResultatSeins.map((resultat) => (
+                            <SelectItem
+                              key={resultat.value}
+                              value={resultat.value}
+                            >
+                              <span>{resultat.label}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

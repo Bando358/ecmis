@@ -121,19 +121,35 @@ export const fetchDashboardData = async (
     dateFin: dateTo,
   });
   // récupérer les activités qui ont leur id dans visite
+  // Construire dynamiquement le filtre dateVisite
+  const whereVisite: any = {};
+
+  if (dateFrom || dateTo) {
+    whereVisite.dateVisite = {};
+
+    if (dateFrom) {
+      whereVisite.dateVisite.gte = dateFrom;
+    }
+
+    if (dateTo) {
+      whereVisite.dateVisite.lte = dateTo;
+    }
+  }
+
+  // 1️⃣ Récupérer les visites selon les dates valides
   const allVisiteByDateFromAndDateTo = await prisma.visite.findMany({
-    where: {
-      dateVisite: {
-        gte: dateFrom,
-        lte: dateTo,
-      },
-    },
+    where: whereVisite,
   });
-  // Récupérer un tableau de idVisite depuis allVisiteByDateFromAndDateTo
+
+  // 2️⃣ Extraire les IDs des visites
   const allVisiteIds = allVisiteByDateFromAndDateTo.map((visite) => visite.id);
+
+  // 3️⃣ Récupérer les récapitulatifs liés aux visites
   const allDataRecap = await prisma.recapVisite.findMany({
     where: {
-      idVisite: { in: allVisiteIds },
+      idVisite: {
+        in: allVisiteIds.length > 0 ? allVisiteIds : undefined,
+      },
     },
   });
 
@@ -146,6 +162,15 @@ export const fetchDashboardData = async (
       },
     },
   });
+
+  // Construire le filtre de date dynamiquement
+  const dateFilter: any = {};
+  if (dateFrom) dateFilter.gte = dateFrom;
+  if (dateTo) dateFilter.lte = dateTo;
+
+  const visiteWhere: any = {
+    ...(Object.keys(dateFilter).length > 0 && { dateVisite: dateFilter }),
+  };
 
   // Requête parallèle pour chaque type de facture
   const [
@@ -170,12 +195,7 @@ export const fetchDashboardData = async (
     prisma.factureExamen.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -189,12 +209,7 @@ export const fetchDashboardData = async (
     prisma.factureProduit.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -208,12 +223,7 @@ export const fetchDashboardData = async (
     prisma.facturePrestation.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -226,12 +236,7 @@ export const fetchDashboardData = async (
     prisma.factureEchographie.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -245,12 +250,7 @@ export const fetchDashboardData = async (
     prisma.planning.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -264,12 +264,7 @@ export const fetchDashboardData = async (
     prisma.gynecologie.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -282,12 +277,7 @@ export const fetchDashboardData = async (
     prisma.infertilite.findMany({
       where: {
         infertIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -301,12 +291,7 @@ export const fetchDashboardData = async (
     prisma.obstetrique.findMany({
       where: {
         obstIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -319,12 +304,7 @@ export const fetchDashboardData = async (
     prisma.accouchement.findMany({
       where: {
         accouchementIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -337,12 +317,7 @@ export const fetchDashboardData = async (
     prisma.cpon.findMany({
       where: {
         cponIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -355,12 +330,7 @@ export const fetchDashboardData = async (
     prisma.saa.findMany({
       where: {
         saaIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -373,12 +343,7 @@ export const fetchDashboardData = async (
     prisma.ist.findMany({
       where: {
         istIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -391,12 +356,7 @@ export const fetchDashboardData = async (
     prisma.depistageVih.findMany({
       where: {
         depistageVihIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -409,12 +369,7 @@ export const fetchDashboardData = async (
     prisma.pecVih.findMany({
       where: {
         pecVihIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -427,12 +382,7 @@ export const fetchDashboardData = async (
     prisma.medecine.findMany({
       where: {
         mdgIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -445,12 +395,7 @@ export const fetchDashboardData = async (
     prisma.vbg.findMany({
       where: {
         vbgIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,
@@ -463,12 +408,7 @@ export const fetchDashboardData = async (
     prisma.testGrossesse.findMany({
       where: {
         testIdClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
-        },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
       include: {
         Visite: true,

@@ -16,9 +16,13 @@ export default function PlanningFamilial({ clients }: PlanningFamilialProps) {
       Sexe: client.sexe,
       "Date visite": client.dateVisite,
       "Motif visite": client.motifVisite,
+      Activité: client.activite,
+      Lieu: client.lieuActivite,
       "Statut PF": client.statut,
       "Méthode prise": client.methodePrise ? "Oui" : "Non",
       "Consultation PF": client.consultationPf ? "Oui" : "Non",
+      "Type contraception": client.typeContraception || "N/A",
+      "Motif visite PF": client.motifVisitePf || "N/A",
       "Counseling PF": client.counsellingPf ? "Oui" : "Non",
       "Méthode courte durée": client.courtDuree || "N/A",
       "Date Implanon": client.implanon || "N/A",
@@ -44,7 +48,7 @@ export default function PlanningFamilial({ clients }: PlanningFamilialProps) {
           onClick={handleExportExcel}
           className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-900"
         >
-          Télécharger Excel
+          Télécharger la liste PF
         </button>
       </div>
 

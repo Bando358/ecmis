@@ -627,7 +627,7 @@ export default function DashboardChart({
                     formatter={(value) => (
                       <span
                         style={{
-                          color: "#1d4ed8",
+                          color: "#000",
                           fontSize: "14px",
                           fontWeight: "500",
                         }}
@@ -965,7 +965,7 @@ export default function DashboardChart({
                     formatter={(value) => (
                       <span
                         style={{
-                          color: "#1d4ed8",
+                          color: "#000",
                           fontSize: "14px",
                           fontWeight: "500",
                         }}

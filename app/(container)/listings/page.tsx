@@ -423,7 +423,7 @@ export default function Page() {
           </div>
 
           {/* Activités - Nouveau champ ajouté */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <label className="text-sm font-medium">Activités :</label>
             <Select
               instanceId="activite-select"
@@ -462,7 +462,7 @@ export default function Page() {
                 Veuillez {"d'abord"} sélectionner une clinique
               </span>
             )}
-          </div>
+          </div> */}
 
           <button
             type="submit"

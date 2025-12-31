@@ -6,20 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Activite, Clinique, User } from "@prisma/client";
 import { toast } from "sonner";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Pencil, Plus, X } from "lucide-react";
+
+import { Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +40,6 @@ export function ActiviteDialog({
   children,
 }: ActiviteDialogProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
-  const [idActivite, setIdActivite] = React.useState<string>("");
   const [open, setOpen] = React.useState(false);
 
   const {
@@ -83,25 +70,6 @@ export function ActiviteDialog({
     }
   };
 
-  const handleUpdateActivite = async (id: string) => {
-    const activiteToUpdate = activites.find((activite) => activite.id === id);
-    setIdActivite(id);
-
-    if (activiteToUpdate) {
-      setIsUpdating(true);
-      setValue("id", activiteToUpdate.id);
-      setValue("libelle", activiteToUpdate.libelle);
-      setValue("dateDebut", activiteToUpdate.dateDebut);
-      setValue("dateFin", activiteToUpdate.dateFin);
-      setValue("objectifClt", activiteToUpdate.objectifClt);
-      setValue("objectifSrv", activiteToUpdate.objectifSrv);
-      setValue("commentaire", activiteToUpdate.commentaire || "");
-      setValue("idClinique", activiteToUpdate.idClinique);
-      setValue("idUser", activiteToUpdate.idUser);
-      setOpen(true);
-    }
-  };
-
   const handleCancel = () => {
     setOpen(false);
     setIsUpdating(false);
@@ -116,38 +84,13 @@ export function ActiviteDialog({
     }
   };
 
-  const nameClinique = (idClinique: string) => {
-    if (cliniques.length > 0) {
-      const clinique = cliniques.find((p) => p.id === idClinique);
-      return clinique ? clinique.nomClinique : "Clinique introuvable";
-    }
-    return "Chargement...";
-  };
-
-  const nameUser = (idUser: string) => {
-    if (users.length > 0) {
-      const user = users.find((p) => p.id === idUser);
-      return user ? user.name : "Utilisateur introuvable";
-    }
-    return "Chargement...";
-  };
-
-  const formatDate = (dateString: string | Date) => {
-    try {
-      return new Date(dateString).toLocaleDateString("fr-FR");
-    } catch (error) {
-      console.error(error);
-      return "Date invalide";
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children || (
           <Button className="flex items-center gap-2">
             <Plus size={16} />
-            Gérer les Activités
+            Créer une Activité
           </Button>
         )}
       </DialogTrigger>
@@ -340,72 +283,6 @@ export function ActiviteDialog({
                 </Button>
               </div>
             </form>
-          </div>
-
-          {/* Liste des Activités */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Liste des Activités</h3>
-            {activites.length === 0 ? (
-              <div className="text-center p-8 border rounded-md">
-                <p className="text-gray-500">Aucune activité trouvée</p>
-              </div>
-            ) : (
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableCell className="font-bold">Libellé</TableCell>
-                      <TableCell className="font-bold">Date Début</TableCell>
-                      <TableCell className="font-bold">Date Fin</TableCell>
-                      <TableCell className="font-bold">
-                        Objectif Clients
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        Objectif Services
-                      </TableCell>
-                      <TableCell className="font-bold">Clinique</TableCell>
-                      <TableCell className="font-bold">Utilisateur</TableCell>
-                      <TableCell className="font-bold">Actions</TableCell>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activites.map((activite) => (
-                      <TableRow key={activite.id} className="hover:bg-gray-50">
-                        <TableCell>{activite.libelle}</TableCell>
-                        <TableCell>{formatDate(activite.dateDebut)}</TableCell>
-                        <TableCell>{formatDate(activite.dateFin)}</TableCell>
-                        <TableCell>{activite.objectifClt || "-"}</TableCell>
-                        <TableCell>{activite.objectifSrv || "-"}</TableCell>
-                        <TableCell>
-                          {nameClinique(activite.idClinique)}
-                        </TableCell>
-                        <TableCell>{nameUser(activite.idUser)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Pencil
-                                    className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-blue-600 cursor-pointer"
-                                    size={16}
-                                    onClick={() =>
-                                      handleUpdateActivite(activite.id)
-                                    }
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Modifier {"l'activité"}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
           </div>
         </div>
       </DialogContent>

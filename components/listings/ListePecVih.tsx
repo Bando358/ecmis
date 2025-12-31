@@ -7,14 +7,21 @@ interface PecVihProps {
 }
 
 export default function PecVih({ clients }: PecVihProps) {
+  const clientPecVih = clients.filter(
+    (client) => client.pecVihCounselling === true
+  );
+
   const handleExportExcel = async () => {
-    const data = clients.map((client) => ({
+    const data = clientPecVih.map((client) => ({
       Code: client.code,
       Nom: client.nom,
       Prénom: client.prenom,
       Âge: client.age,
       Sexe: client.sexe,
       "Date visite": client.dateVisite,
+      "Motif visite": client.motifVisite,
+      Activité: client.activite,
+      Lieu: client.lieuActivite,
       "Type client PEC VIH": client.pecVihTypeclient,
       "Molécule ARV": client.pecVihMoleculeArv,
       "Counseling PEC": client.pecVihCounselling ? "Oui" : "Non",
@@ -74,11 +81,11 @@ export default function PecVih({ clients }: PecVihProps) {
           onClick={handleExportExcel}
           className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-900"
         >
-          Télécharger Excel
+          Télécharger la liste PEC VIH
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto hidden">
         <table className="min-w-full border-collapse border border-gray-300">
           <thead>
             <tr className="bg-gray-100">
