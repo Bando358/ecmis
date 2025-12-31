@@ -354,7 +354,7 @@ export default function ListeAllData({ clients }: ListeAllDataProps) {
         { colTitle: "Retrait stérilet", propriete: "retraitSterilet" },
         { colTitle: "Raison Retrait", propriete: "raisonRetrait" },
         {
-          colTitle: "Raison Effet Secondaire",
+          colTitle: "Type Effet Secondaire",
           propriete: "raisonEffetSecondaire",
         },
         {
