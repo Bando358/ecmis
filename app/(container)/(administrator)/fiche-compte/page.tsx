@@ -126,7 +126,7 @@ export default function RegisterForm() {
   // États pour la pagination et la recherche
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(8);
 
   const userRoleOptions = [
     { id: 1, value: UserRole.USER, label: "USER" },
@@ -323,7 +323,7 @@ export default function RegisterForm() {
 
   if (isCheckingPermissions) {
     return (
-      <div className="flex flex-row justify-center  gap-2 h-64">
+      <div className="flex gap-2 justify-center items-center h-64">
         <p className="text-gray-500">Vérification des permissions</p>
         <SpinnerCustom />
       </div>
@@ -854,7 +854,7 @@ export default function RegisterForm() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4 mx-3">
                     <div className="text-sm text-gray-600">
                       Affichage de {(currentPage - 1) * itemsPerPage + 1} à{" "}
                       {Math.min(
