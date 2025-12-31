@@ -839,7 +839,11 @@ export default function RegisterForm() {
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>Déactiver le compte</p>
+                                      <p>
+                                        {user.banned
+                                          ? "Réactiver le compte"
+                                          : "Désactiver le compte"}
+                                      </p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
