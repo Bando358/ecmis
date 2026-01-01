@@ -74,6 +74,7 @@ import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { on } from "events";
 
 const signUpSchema = z.object({
   name: z.string().min(5, {
@@ -209,6 +210,10 @@ export default function RegisterForm() {
           console.log("filteredUser1 : ", filteredUser);
           setAllUser(filteredUser as User[]);
           setFilteredUsers(filteredUser as User[]);
+        }
+        if (oneUser) {
+          setAllUser((prev) => [oneUser, ...prev]);
+          setFilteredUsers((prev) => [oneUser, ...prev]);
         }
       } else {
         const alluser = result.filter(

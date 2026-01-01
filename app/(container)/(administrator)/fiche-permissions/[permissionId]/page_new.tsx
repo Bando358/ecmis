@@ -69,8 +69,11 @@ export default function PermissionPage({
           a.table.localeCompare(b.table)
         );
 
-        setPermissions(sorted);
-        setFilteredPermissions(sorted);
+        // retirer bilan de sorted
+        const filteredSorted = sorted.filter((perm) => perm.table !== "BILAN");
+
+        setPermissions(filteredSorted);
+        setFilteredPermissions(filteredSorted);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
       } finally {

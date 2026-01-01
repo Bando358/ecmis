@@ -4,14 +4,12 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
   createPost,
-  deletePost,
   getAllPost,
-  getAllPosts,
   getOnePost,
   updatePost,
 } from "@/lib/actions/postActions";
 import { getAllUser, getOneUser } from "@/lib/actions/authActions";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Post, PostStatus, TableName, User } from "@prisma/client";
 import { toast } from "sonner";
@@ -28,7 +26,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Eye, EyeClosed, Pencil, ArrowBigLeftDash, Scale } from "lucide-react";
+import {
+  Eye,
+  EyeClosed,
+  Pencil,
+  ArrowBigLeftDash,
+  Scale,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Trash2,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
   createPermissionBeforeChecked,
@@ -37,11 +47,13 @@ import {
 import { dataPermission } from "@/lib/permissionData";
 import { Textarea } from "@/components/ui/textarea";
 import { SpinnerCustom } from "@/components/ui/spinner";
-import { on } from "events";
+import { Input } from "@/components/ui/input";
+import Select from "react-select";
 
 export default function CreatePostForm() {
   const [users, setUsers] = useState<User[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [idPost, setIdPost] = useState<string>("");
@@ -49,6 +61,13 @@ export default function CreatePostForm() {
   const [positions, setPositions] = useState<number>(-1);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+
+  // États pour la pagination et la recherche
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedUser, setSelectedUser] = useState<string>("");
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -65,6 +84,14 @@ export default function CreatePostForm() {
     { value: PostStatus.SUIVI_EVALLUATION, label: "Suivi Évaluation" },
     { value: PostStatus.ADMIN, label: "Administrateur" },
   ];
+
+  const itemsPerPageOptions = [
+    { value: 5, label: "5 par page" },
+    { value: 10, label: "10 par page" },
+    { value: 20, label: "20 par page" },
+    { value: 50, label: "50 par page" },
+  ];
+
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -104,8 +131,8 @@ export default function CreatePostForm() {
   }, [oneUser]);
 
   useEffect(() => {
-    // Attendre que idUser soit disponible
-    if (!idUser) return;
+    // Attendre que idUser et oneUser soient disponibles
+    if (!idUser || !oneUser) return;
 
     const fetchData = async () => {
       const [usersResult, postsResult] = await Promise.all([
@@ -118,11 +145,81 @@ export default function CreatePostForm() {
         (user) => user.role !== "ADMIN"
       );
 
-      setUsers(filteredUsers.filter((user) => user.id !== idUser) as User[]);
+      const allUserFilter = filteredUsers.filter(
+        (user: { idCliniques: string[] }) =>
+          user.idCliniques?.some((id) => oneUser?.idCliniques.includes(id))
+      );
+
+      console.log(" allUserFilter ", allUserFilter);
+      console.log(" filteredUsers ", filteredUsers);
+
+      setUsers(allUserFilter.filter((user) => user.id !== idUser) as User[]);
       setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
+      setFilteredPosts(
+        postsResult.filter((post) => post.userId !== idUser) as Post[]
+      );
     };
     fetchData();
-  }, [idUser]);
+  }, [idUser, oneUser]);
+
+  // Filtrer les posts en fonction des critères de recherche
+  useEffect(() => {
+    let filtered = posts;
+
+    // Filtre par recherche texte
+    if (searchTerm.trim() !== "") {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((post) => {
+        const userName = getUserName(post.userId).toLowerCase();
+        const postContent = post.content?.toLowerCase() || "";
+        const postTitle = getStatusLabel(post.title).toLowerCase();
+
+        return (
+          userName.includes(searchLower) ||
+          postContent.includes(searchLower) ||
+          postTitle.includes(searchLower)
+        );
+      });
+    }
+
+    // Filtre par statut
+    if (selectedStatus) {
+      filtered = filtered.filter((post) => post.title === selectedStatus);
+    }
+
+    // Filtre par utilisateur
+    if (selectedUser) {
+      filtered = filtered.filter((post) => post.userId === selectedUser);
+    }
+
+    setFilteredPosts(filtered);
+    setCurrentPage(1); // Retour à la première page lors du changement de filtre
+  }, [searchTerm, selectedStatus, selectedUser, posts]);
+
+  // Calcul des données pour la pagination
+  const paginatedPosts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredPosts.slice(startIndex, endIndex);
+  }, [filteredPosts, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
+
+  // Gestionnaires pour la pagination
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+  const goToPreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  // Gestionnaire pour changer le nombre d'éléments par page
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const {
     register,
@@ -196,6 +293,7 @@ export default function CreatePostForm() {
           toast.success("Poste créé avec succès et permissions générées! 🎉 ");
           const allPosts = await getAllPost();
           setPosts(allPosts as Post[]);
+          setFilteredPosts(allPosts as Post[]);
           handleHiddenForm();
         }
       }
@@ -247,62 +345,81 @@ export default function CreatePostForm() {
     });
   };
 
-  const handleDeletePost = async (postId: string) => {
-    // if (!permissions?.canDelete && session?.user.role !== "ADMIN") {
-    //   toast.error("Vous n'avez pas la permission de supprimer ce post.");
-    //   return;
-    // }
+  // const handleDeletePost = async (postId: string) => {
+  //   if (confirm("Êtes-vous sûr de vouloir supprimer ce post ?")) {
+  //     try {
+  //       await deletePost(postId);
+  //       const allPosts = await getAllPosts();
+  //       setPosts(allPosts as Post[]);
+  //       setFilteredPosts(allPosts as Post[]);
+  //       toast.success("Post supprimé avec succès 🎉");
+  //     } catch (error) {
+  //       toast.error("Erreur lors de la suppression du post");
+  //       console.error(error);
+  //     }
+  //   }
+  // };
 
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce post ?")) {
-      try {
-        await deletePost(postId);
-        const allPosts = await getAllPosts();
-        setPosts(allPosts as Post[]);
-        toast.success("Post supprimé avec succès 🎉");
-      } catch (error) {
-        toast.error("Erreur lors de la suppression du post");
-        console.error(error);
-      }
-    }
-  };
+  // Options pour les filtres
+  const userOptions = [
+    { value: "", label: "Tous les utilisateurs" },
+    ...users.map((user) => ({
+      value: user.id,
+      label: `${user.name} (${user.email})`,
+    })),
+  ];
+
+  const statusOptions = [
+    { value: "", label: "Tous les statuts" },
+    ...postStatusOptions.map((option) => ({
+      value: option.value,
+      label: option.label,
+    })),
+  ];
 
   return (
-    <div className="space-y-4 relative max-w-4xl mx-auto p-4">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ArrowBigLeftDash
-              className="absolute top-2 text-blue-600 cursor-pointer"
-              onClick={() => {
-                router.push("/administrator");
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Retour sur page administration</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={"ghost"}
-              onClick={handleHiddenForm}
-              className="absolute right-2 -top-1"
-            >
-              {isVisible ? (
-                <Eye className="text-blue-600" />
-              ) : (
-                <EyeClosed className="text-red-600" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Ouvrir le formulaire</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+    <div className="space-y-4 relative max-w-6xl mx-auto p-4">
+      <div className="flex items-center justify-between mb-4">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/administrator")}
+                className="h-8 w-8"
+              >
+                <ArrowBigLeftDash className="h-5 w-5 text-blue-600" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Retour sur page administration</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleHiddenForm}
+                className="h-8 w-8"
+              >
+                {isVisible ? (
+                  <Eye className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <EyeClosed className="h-5 w-5 text-red-600" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ouvrir le formulaire</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
 
       {isVisible && (
         <>
@@ -404,54 +521,266 @@ export default function CreatePostForm() {
       )}
 
       <div className="flex-1">
-        <h2 className="text-center text-xl font-bold uppercase">
+        <h2 className="text-center text-xl font-bold uppercase mb-4">
           Liste des Postes
         </h2>
-        <Table className="border rounded-md shadow-md bg-white overflow-hidden">
-          <TableHeader>
-            <TableRow>
-              <TableCell>Statut</TableCell>
-              <TableCell>Contenu</TableCell>
-              <TableCell>Utilisateur</TableCell>
-              <TableCell>Créé le</TableCell>
-              <TableCell>Modifié le</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {posts.map((post, index) => (
-              <TableRow key={post.id}>
-                <TableCell>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {getStatusLabel(post.title)}
-                  </span>
-                </TableCell>
-                <TableCell className="max-w-xs">
-                  <div className="line-clamp-2 text-sm">{post.content}</div>
-                </TableCell>
-                <TableCell>{getUserName(post.userId)}</TableCell>
-                <TableCell>{formatDate(post.createdAt)}</TableCell>
-                <TableCell>{formatDate(post.updatedAt)}</TableCell>
-                <TableCell className="flex flex-row items-center justify-center">
-                  <div className="flex gap-2">
-                    <Pencil
-                      className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-blue-600 cursor-pointer"
-                      size={16}
-                      onClick={() => handleUpdatePost(post.id, index)}
-                    />
-                    <Scale
-                      className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-green-600 cursor-pointer"
-                      size={16}
-                      onClick={() =>
-                        router.push(`/fiche-permissions/${post.userId}/`)
-                      }
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+
+        {/* Barres de recherche et filtres */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Barre de recherche principale */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Rechercher par utilisateur, contenu, titre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Filtre par statut */}
+            <div className="w-full md:w-48">
+              <Select
+                options={statusOptions}
+                value={statusOptions.find(
+                  (opt) => opt.value === selectedStatus
+                )}
+                onChange={(option) => setSelectedStatus(option?.value || "")}
+                className="basic-single"
+                classNamePrefix="select"
+                placeholder="Filtrer par statut"
+              />
+            </div>
+
+            {/* Filtre par utilisateur */}
+            {/* <div className="w-full md:w-48">
+              <Select
+                options={userOptions}
+                value={userOptions.find((opt) => opt.value === selectedUser)}
+                onChange={(option) => setSelectedUser(option?.value || "")}
+                className="basic-single"
+                classNamePrefix="select"
+                placeholder="Filtrer par utilisateur"
+              />
+            </div> */}
+
+            {/* Sélecteur d'éléments par page */}
+            <div className="w-full md:w-48">
+              <Select
+                options={itemsPerPageOptions}
+                value={itemsPerPageOptions.find(
+                  (opt) => opt.value === itemsPerPage
+                )}
+                onChange={(option) =>
+                  handleItemsPerPageChange(option?.value || 5)
+                }
+                className="basic-single"
+                classNamePrefix="select"
+                placeholder="Éléments par page"
+              />
+            </div>
+          </div>
+
+          {/* Affichage du nombre de résultats */}
+          {/* <div className="text-sm text-gray-600">
+            {filteredPosts.length} poste(s) trouvé(s)
+            {searchTerm && <span> pour "{searchTerm}"</span>}
+          </div> */}
+        </div>
+
+        {/* Tableau des posts */}
+        <div className="border rounded-md shadow-md bg-white overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-stone-50">
+                  <TableCell className="font-semibold">Statut</TableCell>
+                  <TableCell className="font-semibold">Contenu</TableCell>
+                  <TableCell className="font-semibold">Utilisateur</TableCell>
+                  <TableCell className="font-semibold">Crée le</TableCell>
+                  <TableCell className="font-semibold">Modifié le</TableCell>
+                  <TableCell className="font-semibold text-center">
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedPosts.length > 0 ? (
+                  paginatedPosts.map((post, index) => (
+                    <TableRow key={post.id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {getStatusLabel(post.title)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="line-clamp-2 text-sm">
+                          {post.content}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getUserName(post.userId)}</TableCell>
+                      <TableCell>{formatDate(post.createdAt)}</TableCell>
+                      <TableCell>{formatDate(post.updatedAt)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-center gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    handleUpdatePost(post.id, index)
+                                  }
+                                  className="h-8 w-8"
+                                >
+                                  <Pencil className="h-4 w-4 text-blue-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Modifier le poste</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    router.push(
+                                      `/fiche-permissions/${post.userId}/`
+                                    )
+                                  }
+                                  className="h-8 w-8"
+                                >
+                                  <Scale className="h-4 w-4 text-green-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Ajouter les droits d'accès</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          {/* <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeletePost(post.id)}
+                                  className="h-8 w-8"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Supprimer le poste</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider> */}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-gray-500"
+                    >
+                      Aucun post trouvé
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+            <div className="text-sm text-gray-600">
+              Affichage de {(currentPage - 1) * itemsPerPage + 1} à{" "}
+              {Math.min(currentPage * itemsPerPage, filteredPosts.length)} sur{" "}
+              {filteredPosts.length} postes
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="text-sm text-gray-600">
+              Page {currentPage} sur {totalPages}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

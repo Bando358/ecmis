@@ -76,8 +76,10 @@ export default function PermissionPage({
       const perms = await getUserPermissionsById(permissionId);
       const sorted = perms.sort((a, b) => a.table.localeCompare(b.table));
 
-      setPermissions(sorted);
-      setFilteredPermissions(sorted);
+      // retirer bilan de sorted
+      const filteredSorted = sorted.filter((perm) => perm.table !== "BILAN");
+      setPermissions(filteredSorted);
+      setFilteredPermissions(filteredSorted);
       setUser(userData);
       setLoading(false);
     };
