@@ -103,6 +103,7 @@ import {
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { AnimatePresence, motion } from "framer-motion";
 import { createCouverture } from "@/lib/actions/couvertureActions";
+import Retour from "@/components/retour";
 
 type DemandeExamenFormValues = {
   prixExamen: number;
@@ -476,7 +477,7 @@ export default function FichePharmacyClient({
       try {
         const permissions = await getUserPermissionsById(session.user.id);
         const perm = permissions.find(
-          (p: { table: string; }) => p.table === TableName.FACTURE_PRODUIT
+          (p: { table: string }) => p.table === TableName.FACTURE_PRODUIT
         );
         setPermission(perm || null);
       } catch (error) {
@@ -750,137 +751,185 @@ export default function FichePharmacyClient({
   const reactToPrintFn = useReactToPrint({ contentRef });
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold flex-1">Liste des Produits</h2>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setOpen(true)}
-            disabled={!form.watch("idVisite")}
-          >
-            <Plus className="mr-2" size={16} /> Facturer le Produit
-          </Button>
-          <Button
-            onClick={() => setOpenPrestation(true)}
-            disabled={!form.watch("idVisite")}
-          >
-            <Plus className="mr-2" size={16} /> Facturer la Prestation
-          </Button>
-          <Button
-            onClick={() => setOpenExamens(true)}
-            disabled={!form.watch("idVisite")}
-          >
-            <Plus className="mr-2" size={16} /> {"Facturer l'Examen"}
-          </Button>
-          <Button
-            onClick={() => setOpenEchographies(true)}
-            disabled={!form.watch("idVisite")}
-          >
-            <Plus className="mr-2" size={16} /> {"Facturer l'Echographie"}
-          </Button>
+    <div className="w-full relative">
+      <Retour />
+      <div className="px-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold flex-1">Liste des Produits</h2>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setOpen(true)}
+              disabled={!form.watch("idVisite")}
+            >
+              <Plus className="mr-2" size={16} /> Facturer le Produit
+            </Button>
+            <Button
+              onClick={() => setOpenPrestation(true)}
+              disabled={!form.watch("idVisite")}
+            >
+              <Plus className="mr-2" size={16} /> Facturer la Prestation
+            </Button>
+            <Button
+              onClick={() => setOpenExamens(true)}
+              disabled={!form.watch("idVisite")}
+            >
+              <Plus className="mr-2" size={16} /> {"Facturer l'Examen"}
+            </Button>
+            <Button
+              onClick={() => setOpenEchographies(true)}
+              disabled={!form.watch("idVisite")}
+            >
+              <Plus className="mr-2" size={16} /> {"Facturer l'Echographie"}
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div>
-        <Form {...form}>
-          <form className="flex flex-wrap gap-5">
-            <FormField
-              control={form.control}
-              name="idVisite"
-              render={({ field }) => (
-                <FormItem className="w-40">
-                  <FormLabel>Visite</FormLabel>
-                  <Select
-                    required
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Visite" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {visites.map((visite, index) => (
-                        <SelectItem key={index} value={visite.id}>
-                          {new Date(visite.dateVisite).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+        <div>
+          <Form {...form}>
+            <form className="flex flex-wrap gap-5">
+              <FormField
+                control={form.control}
+                name="idVisite"
+                render={({ field }) => (
+                  <FormItem className="w-40">
+                    <FormLabel>Visite</FormLabel>
+                    <Select
+                      required
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Visite" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {visites.map((visite, index) => (
+                          <SelectItem key={index} value={visite.id}>
+                            {new Date(visite.dateVisite).toLocaleDateString(
+                              "fr-FR"
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="couverture"
+                render={({ field }) => (
+                  <FormItem className="w-40">
+                    <FormLabel>Type Couverture</FormLabel>
+                    <Select
+                      required
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Type Couverture" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.entries(TypeCouverture).map(([key, value]) => (
+                          <SelectItem key={key} value={value ?? ""}>
+                            {value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {demandeExamens.length > 0 && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="typeExamen"
+                    render={({ field }) => (
+                      <FormItem className="w-40">
+                        <FormLabel>Type Bilan</FormLabel>
+                        <Select
+                          required
+                          value={field.value ?? ""}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Type Bilan" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(TypeBilan).map(([key, value]) => (
+                              <SelectItem key={key} value={value ?? ""}>
+                                {value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="remiseExamen"
+                    render={({ field }) => (
+                      <FormItem className="w-40">
+                        <FormLabel>Commission labo</FormLabel>
+                        <Input
+                          placeholder="Commission"
+                          {...field}
+                          value={field.value ?? 0}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="soustractionExamen"
+                    render={({ field }) => (
+                      <FormItem className="w-40">
+                        <FormLabel> Sous-traité</FormLabel>
+                        <Select
+                          required
+                          value={String(field.value ?? false)}
+                          onValueChange={(val: string) =>
+                            field.onChange(val === "true")
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sous traité" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={"false"}>Non</SelectItem>
+                            <SelectItem value={"true"}>Oui</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
               )}
-            />
 
-            <FormField
-              control={form.control}
-              name="couverture"
-              render={({ field }) => (
-                <FormItem className="w-40">
-                  <FormLabel>Type Couverture</FormLabel>
-                  <Select
-                    required
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Type Couverture" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.entries(TypeCouverture).map(([key, value]) => (
-                        <SelectItem key={key} value={value ?? ""}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {demandeExamens.length > 0 && (
-              <>
+              {demandeEchographies.length > 0 && (
                 <FormField
                   control={form.control}
-                  name="typeExamen"
+                  name="remiseEchographie"
                   render={({ field }) => (
                     <FormItem className="w-40">
-                      <FormLabel>Type Bilan</FormLabel>
-                      <Select
-                        required
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Type Bilan" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(TypeBilan).map(([key, value]) => (
-                            <SelectItem key={key} value={value ?? ""}>
-                              {value}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="remiseExamen"
-                  render={({ field }) => (
-                    <FormItem className="w-40">
-                      <FormLabel>Commission labo</FormLabel>
+                      <FormLabel>Commission Echo</FormLabel>
                       <Input
                         placeholder="Commission"
                         {...field}
@@ -890,685 +939,659 @@ export default function FichePharmacyClient({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="soustractionExamen"
-                  render={({ field }) => (
-                    <FormItem className="w-40">
-                      <FormLabel> Sous-traité</FormLabel>
-                      <Select
-                        required
-                        value={String(field.value ?? false)}
-                        onValueChange={(val: string) =>
-                          field.onChange(val === "true")
+              )}
+            </form>
+          </Form>
+
+          <Separator className="my-3" />
+
+          {/* Tableau des facturations */}
+          <div className="w-full  px-10 ">
+            {(factureProduit.length > 0 ||
+              facturePrestation.length > 0 ||
+              demandeEchographies.length > 0 ||
+              demandeExamens.length > 0) && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableCell>Nom</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Prix Unitaire</TableCell>
+                    <TableCell>Quantité</TableCell>
+                    <TableCell>Montant</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {factureProduit.map((produit) => (
+                    <TableRow
+                      key={produit.id || `produit-${produit.idTarifProduit}`}
+                    >
+                      <TableCell
+                        className={
+                          selectedProduits.includes(produit.id)
+                            ? "text-red-500 underline"
+                            : ""
                         }
                       >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sous traité" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={"false"}>Non</SelectItem>
-                          <SelectItem value={"true"}>Oui</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
+                        {renameValue(produit.idTarifProduit)}
+                      </TableCell>
+                      <TableCell>{"Produit"}</TableCell>
+                      <TableCell>{produit.montantProduit} CFA</TableCell>
+                      <TableCell>{produit.quantite}</TableCell>
+                      <TableCell>{produit.montantProduit} CFA</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(produit.id)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
 
-            {demandeEchographies.length > 0 && (
-              <FormField
-                control={form.control}
-                name="remiseEchographie"
-                render={({ field }) => (
-                  <FormItem className="w-40">
-                    <FormLabel>Commission Echo</FormLabel>
-                    <Input
-                      placeholder="Commission"
-                      {...field}
-                      value={field.value ?? 0}
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-          </form>
-        </Form>
-
-        <Separator className="my-3" />
-
-        {/* Tableau des facturations */}
-        <div className="w-full  px-10 ">
-          {(factureProduit.length > 0 ||
-            facturePrestation.length > 0 ||
-            demandeEchographies.length > 0 ||
-            demandeExamens.length > 0) && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableCell>Nom</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Prix Unitaire</TableCell>
-                  <TableCell>Quantité</TableCell>
-                  <TableCell>Montant</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {factureProduit.map((produit) => (
-                  <TableRow
-                    key={produit.id || `produit-${produit.idTarifProduit}`}
-                  >
-                    <TableCell
-                      className={
-                        selectedProduits.includes(produit.id)
-                          ? "text-red-500 underline"
-                          : ""
+                  {facturePrestation.map((prestation, index) => (
+                    <TableRow
+                      key={
+                        prestation.id && prestation.id !== ""
+                          ? prestation.id
+                          : `prestation-${index}`
                       }
                     >
-                      {renameValue(produit.idTarifProduit)}
-                    </TableCell>
-                    <TableCell>{"Produit"}</TableCell>
-                    <TableCell>{produit.montantProduit} CFA</TableCell>
-                    <TableCell>{produit.quantite}</TableCell>
-                    <TableCell>{produit.montantProduit} CFA</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(produit.id)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        {nomPrestation(prestation.idPrestation)}
+                      </TableCell>
+                      <TableCell>Prestation</TableCell>
+                      <TableCell>{prestation.prixPrestation} CFA</TableCell>
+                      <TableCell>1</TableCell>
+                      <TableCell>{prestation.prixPrestation} CFA</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            handleDeleteFacturePrestation(
+                              prestation.idPrestation
+                            )
+                          }
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {demandeExamens.map((examen, index) => (
+                    <TableRow
+                      key={
+                        examen.id && examen.id !== ""
+                          ? examen.id
+                          : `examen-${index}`
+                      }
+                    >
+                      <TableCell>{renameExamen(examen.id)}</TableCell>
+                      <TableCell>Examen</TableCell>
+                      <TableCell>{getExamenPrix(examen.id)} CFA</TableCell>
+                      <TableCell>1</TableCell>
+                      <TableCell>
+                        {Number(form.watch("remiseExamen"))
+                          ? Math.round(
+                              examen.prixExamen *
+                                (1 - Number(form.watch("remiseExamen")) / 100)
+                            )
+                          : examen.prixExamen}{" "}
+                        CFA
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteDemandeExamen(examen.id)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {demandeEchographies.map((echographie, index) => (
+                    <TableRow
+                      key={
+                        echographie.id && echographie.id !== ""
+                          ? echographie.id
+                          : `echographie-${index}`
+                      }
+                    >
+                      <TableCell>{renameEchographie(echographie.id)}</TableCell>
+                      <TableCell>Echographie</TableCell>
+                      <TableCell>
+                        {getEchographiePrix(echographie.id)} CFA
+                      </TableCell>
+                      <TableCell>1</TableCell>
+                      <TableCell>
+                        {Number(form.watch("remiseEchographie"))
+                          ? (
+                              echographie.prixEchographie *
+                              (1 -
+                                Number(form.watch("remiseEchographie")) / 100)
+                            ).toFixed(0)
+                          : echographie.prixEchographie}{" "}
+                        CFA
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            handleDeleteDemandeEchographie(echographie.id)
+                          }
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
 
-                {facturePrestation.map((prestation, index) => (
-                  <TableRow
-                    key={
-                      prestation.id && prestation.id !== ""
-                        ? prestation.id
-                        : `prestation-${index}`
-                    }
-                  >
-                    <TableCell>
-                      {nomPrestation(prestation.idPrestation)}
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-right font-semibold">
+                      Total:
                     </TableCell>
-                    <TableCell>Prestation</TableCell>
-                    <TableCell>{prestation.prixPrestation} CFA</TableCell>
-                    <TableCell>1</TableCell>
-                    <TableCell>{prestation.prixPrestation} CFA</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          handleDeleteFacturePrestation(prestation.idPrestation)
-                        }
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {demandeExamens.map((examen, index) => (
-                  <TableRow
-                    key={
-                      examen.id && examen.id !== ""
-                        ? examen.id
-                        : `examen-${index}`
-                    }
-                  >
-                    <TableCell>{renameExamen(examen.id)}</TableCell>
-                    <TableCell>Examen</TableCell>
-                    <TableCell>{getExamenPrix(examen.id)} CFA</TableCell>
-                    <TableCell>1</TableCell>
-                    <TableCell>
+                    <TableCell className="font-semibold">
                       {Number(form.watch("remiseExamen"))
                         ? Math.round(
-                            examen.prixExamen *
-                              (1 - Number(form.watch("remiseExamen")) / 100)
+                            montantPrestations(facturePrestation) +
+                              montantExamen(demandeExamens) -
+                              montantExamen(demandeExamens) *
+                                (Number(form.watch("remiseExamen")) / 100) +
+                              montantEchographie(demandeEchographies)
                           )
-                        : examen.prixExamen}{" "}
+                        : Math.round(
+                            montantProduits(factureProduit) +
+                              montantPrestations(facturePrestation) +
+                              montantExamen(demandeExamens) +
+                              montantEchographie(demandeEchographies)
+                          ).toFixed(0)}{" "}
                       CFA
                     </TableCell>
                     <TableCell>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteDemandeExamen(examen.id)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {demandeEchographies.map((echographie, index) => (
-                  <TableRow
-                    key={
-                      echographie.id && echographie.id !== ""
-                        ? echographie.id
-                        : `echographie-${index}`
-                    }
-                  >
-                    <TableCell>{renameEchographie(echographie.id)}</TableCell>
-                    <TableCell>Echographie</TableCell>
-                    <TableCell>
-                      {getEchographiePrix(echographie.id)} CFA
-                    </TableCell>
-                    <TableCell>1</TableCell>
-                    <TableCell>
-                      {Number(form.watch("remiseEchographie"))
-                        ? (
-                            echographie.prixEchographie *
-                            (1 - Number(form.watch("remiseEchographie")) / 100)
-                          ).toFixed(0)
-                        : echographie.prixEchographie}{" "}
-                      CFA
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          handleDeleteDemandeEchographie(echographie.id)
+                        onClick={handleFacturation}
+                        disabled={
+                          !form.watch("idVisite") ||
+                          !form.watch("couverture") ||
+                          isLoading ||
+                          (!form.watch("typeExamen") &&
+                            demandeExamens.length > 0)
                         }
                       >
-                        <Trash2 size={16} />
+                        {isLoading ? <Spinner /> : "Facturer"}
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={4} className="text-right font-semibold">
-                    Total:
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {Number(form.watch("remiseExamen"))
-                      ? Math.round(
-                          montantPrestations(facturePrestation) +
-                            montantExamen(demandeExamens) -
-                            montantExamen(demandeExamens) *
-                              (Number(form.watch("remiseExamen")) / 100) +
-                            montantEchographie(demandeEchographies)
-                        )
-                      : Math.round(
-                          montantProduits(factureProduit) +
-                            montantPrestations(facturePrestation) +
-                            montantExamen(demandeExamens) +
-                            montantEchographie(demandeEchographies)
-                        ).toFixed(0)}{" "}
-                    CFA
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      onClick={handleFacturation}
-                      disabled={
-                        !form.watch("idVisite") ||
-                        !form.watch("couverture") ||
-                        isLoading ||
-                        (!form.watch("typeExamen") && demandeExamens.length > 0)
-                      }
-                    >
-                      {isLoading ? <Spinner /> : "Facturer"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          )}
-        </div>
-
-        <Separator className="my-3" />
-
-        {/* Tableau des produits */}
-        {isLoadingFacture && (
-          <div className="flex justify-center items-center h-32">
-            <SpinnerBar />
+                </TableFooter>
+              </Table>
+            )}
           </div>
-        )}
-        {/* Animer l'apparition du tableau avec framer-motion - CORRECTION APPLIQUÉE */}
-        <AnimatePresence initial={false} mode="wait">
-          <motion.div
-            key={`facture-${produitFacture.length}-${prestationfacture.length}-${examensFacture.length}-${echographiesFacture.length}`}
-            initial={{ opacity: 0, scaleY: 0 }}
-            animate={{ opacity: 1, scaleY: 1 }}
-            exit={{ opacity: 0, scaleY: 0 }}
-            transition={{
-              duration: 0.4,
-              ease: [0.25, 0.1, 0.25, 1],
-            }}
-            style={{ originY: 0 }}
-            className="will-change-transform overflow-hidden"
-          >
-            <div className="w-full p-8" ref={contentRef}>
-              {(produitFacture.length > 0 ||
-                prestationfacture.length > 0 ||
-                echographiesFacture.length > 0 ||
-                examensFacture.length > 0) && (
-                <div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center px-auto">
-                          <Image
-                            src="/logo/LOGO_AIBEF_IPPF.png"
-                            alt="Logo"
-                            width={400}
-                            height={10}
-                            style={{ margin: "auto" }}
-                          />
-                        </TableCell>
-                      </TableRow>
 
-                      <TableRow>
-                        <TableCell>Nom</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Prix Unitaire</TableCell>
-                        <TableCell>Quantité</TableCell>
-                        <TableCell>Montant</TableCell>
-                        <TableCell>Actions</TableCell>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {produitFacture.map((produit, index) => (
-                        <TableRow
-                          key={
-                            produit.id && produit.id !== ""
-                              ? produit.id
-                              : `produit-${index}`
-                          }
-                        >
-                          <TableCell>{produit.nomProduit}</TableCell>
-                          <TableCell>{"Produit"}</TableCell>
-                          <TableCell>{produit.montantProduit} CFA</TableCell>
-                          <TableCell>{produit.quantite}</TableCell>
-                          <TableCell>{produit.montantProduit} CFA</TableCell>
-                          <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  🗑
-                                </Button>
-                              </AlertDialogTrigger>
+          <Separator className="my-3" />
 
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Es-tu sûr ?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. Le produit
-                                    sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                                    onClick={() =>
-                                      handleDeleteProduitFactureInBd(
-                                        produit.idTarifProduit,
-                                        produit.id,
-                                        produit.quantite
-                                      )
-                                    }
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+          {/* Tableau des produits */}
+          {isLoadingFacture && (
+            <div className="flex justify-center items-center h-32">
+              <SpinnerBar />
+            </div>
+          )}
+          {/* Animer l'apparition du tableau avec framer-motion - CORRECTION APPLIQUÉE */}
+          <AnimatePresence initial={false} mode="wait">
+            <motion.div
+              key={`facture-${produitFacture.length}-${prestationfacture.length}-${examensFacture.length}-${echographiesFacture.length}`}
+              initial={{ opacity: 0, scaleY: 0 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              exit={{ opacity: 0, scaleY: 0 }}
+              transition={{
+                duration: 0.4,
+                ease: [0.25, 0.1, 0.25, 1],
+              }}
+              style={{ originY: 0 }}
+              className="will-change-transform overflow-hidden"
+            >
+              <div className="w-full p-8" ref={contentRef}>
+                {(produitFacture.length > 0 ||
+                  prestationfacture.length > 0 ||
+                  echographiesFacture.length > 0 ||
+                  examensFacture.length > 0) && (
+                  <div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center px-auto"
+                          >
+                            <Image
+                              src="/logo/LOGO_AIBEF_IPPF.png"
+                              alt="Logo"
+                              width={400}
+                              height={10}
+                              style={{ margin: "auto" }}
+                            />
                           </TableCell>
                         </TableRow>
-                      ))}
 
-                      {prestationfacture.map((prestation, index) => (
-                        <TableRow
-                          key={
-                            prestation.id && prestation.id !== ""
-                              ? prestation.id
-                              : `prestation-${index}`
-                          }
-                        >
-                          <TableCell>
-                            {nomPrestation(prestation.idPrestation)}
+                        <TableRow>
+                          <TableCell>Nom</TableCell>
+                          <TableCell>Type</TableCell>
+                          <TableCell>Prix Unitaire</TableCell>
+                          <TableCell>Quantité</TableCell>
+                          <TableCell>Montant</TableCell>
+                          <TableCell>Actions</TableCell>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {produitFacture.map((produit, index) => (
+                          <TableRow
+                            key={
+                              produit.id && produit.id !== ""
+                                ? produit.id
+                                : `produit-${index}`
+                            }
+                          >
+                            <TableCell>{produit.nomProduit}</TableCell>
+                            <TableCell>{"Produit"}</TableCell>
+                            <TableCell>{produit.montantProduit} CFA</TableCell>
+                            <TableCell>{produit.quantite}</TableCell>
+                            <TableCell>{produit.montantProduit} CFA</TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    🗑
+                                  </Button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Es-tu sûr ?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible. Le produit
+                                      sera définitivement supprimé.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                      onClick={() =>
+                                        handleDeleteProduitFactureInBd(
+                                          produit.idTarifProduit,
+                                          produit.id,
+                                          produit.quantite
+                                        )
+                                      }
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                        {prestationfacture.map((prestation, index) => (
+                          <TableRow
+                            key={
+                              prestation.id && prestation.id !== ""
+                                ? prestation.id
+                                : `prestation-${index}`
+                            }
+                          >
+                            <TableCell>
+                              {nomPrestation(prestation.idPrestation)}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              Prestation
+                            </TableCell>
+                            <TableCell>
+                              {prestation.prixPrestation} CFA
+                            </TableCell>
+                            <TableCell>1</TableCell>
+                            <TableCell>
+                              {prestation.prixPrestation} CFA
+                            </TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    🗑
+                                  </Button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Es-tu sûr ?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible. La
+                                      prestation sera définitivement supprimée.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                      onClick={() =>
+                                        handleDeletePrestationFactureInBd(
+                                          prestation.id
+                                        )
+                                      }
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {examensFacture.map((examen, index) => (
+                          <TableRow
+                            key={
+                              examen.id && examen.id !== ""
+                                ? examen.id
+                                : `examen-${index}`
+                            }
+                          >
+                            <TableCell>{examen.libelleExamen}</TableCell>
+                            <TableCell>
+                              Examen
+                              {examen.remiseExamen > 0
+                                ? ` (comission de ${examen.remiseExamen}%)`
+                                : ""}{" "}
+                            </TableCell>
+                            <TableCell>
+                              {examen.remiseExamen > 0
+                                ? (
+                                    examen.prixExamen /
+                                    (1 - examen.remiseExamen / 100)
+                                  ).toFixed(0)
+                                : examen.prixExamen}{" "}
+                              CFA
+                            </TableCell>
+                            <TableCell>1</TableCell>
+                            <TableCell>{examen.prixExamen} CFA</TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    className={isHidden ? "hidden" : ""}
+                                    variant="ghost"
+                                    size="icon"
+                                  >
+                                    🗑
+                                  </Button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Es-tu sûr ?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible.{" "}
+                                      {"L'examen"} sera définitivement supprimé.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                      onClick={() =>
+                                        handleDeleteExamenFactureInBd(examen.id)
+                                      }
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {echographiesFacture.map((echographie, index) => (
+                          <TableRow
+                            key={
+                              echographie.id && echographie.id !== ""
+                                ? echographie.id
+                                : `echographie-${index}`
+                            }
+                          >
+                            <TableCell>
+                              {echographie.libelleEchographie}
+                            </TableCell>
+                            <TableCell>
+                              Echographie
+                              {echographie.remiseEchographie > 0
+                                ? ` (comission de ${echographie.remiseEchographie}%)`
+                                : ""}{" "}
+                            </TableCell>
+                            <TableCell>
+                              {echographie.remiseEchographie > 0
+                                ? (
+                                    echographie.prixEchographie /
+                                    (1 - echographie.remiseEchographie / 100)
+                                  ).toFixed(0)
+                                : echographie.prixEchographie}{" "}
+                              CFA
+                            </TableCell>
+                            <TableCell>1</TableCell>
+                            <TableCell>
+                              {echographie.prixEchographie} CFA
+                            </TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    className={isHidden ? "hidden" : ""}
+                                    variant="ghost"
+                                    size="icon"
+                                  >
+                                    🗑
+                                  </Button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Es-tu sûr ?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible.{" "}
+                                      {"L'examen"} sera définitivement supprimé.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                      onClick={() =>
+                                        handleDeleteEchographieFactureInBd(
+                                          echographie.id
+                                        )
+                                      }
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            className="text-right font-semibold"
+                          >
+                            Total:
                           </TableCell>
                           <TableCell className="font-semibold">
-                            Prestation
-                          </TableCell>
-                          <TableCell>{prestation.prixPrestation} CFA</TableCell>
-                          <TableCell>1</TableCell>
-                          <TableCell>{prestation.prixPrestation} CFA</TableCell>
-                          <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  🗑
-                                </Button>
-                              </AlertDialogTrigger>
-
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Es-tu sûr ?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. La prestation
-                                    sera définitivement supprimée.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                                    onClick={() =>
-                                      handleDeletePrestationFactureInBd(
-                                        prestation.id
-                                      )
-                                    }
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {examensFacture.map((examen, index) => (
-                        <TableRow
-                          key={
-                            examen.id && examen.id !== ""
-                              ? examen.id
-                              : `examen-${index}`
-                          }
-                        >
-                          <TableCell>{examen.libelleExamen}</TableCell>
-                          <TableCell>
-                            Examen
-                            {examen.remiseExamen > 0
-                              ? ` (comission de ${examen.remiseExamen}%)`
-                              : ""}{" "}
-                          </TableCell>
-                          <TableCell>
-                            {examen.remiseExamen > 0
-                              ? (
-                                  examen.prixExamen /
-                                  (1 - examen.remiseExamen / 100)
-                                ).toFixed(0)
-                              : examen.prixExamen}{" "}
+                            {montantProduits(produitFacture) +
+                              montantPrestations(prestationfacture) +
+                              montantFactureExamens(examensFacture) +
+                              montantFactureEchographies(
+                                echographiesFacture
+                              )}{" "}
                             CFA
                           </TableCell>
-                          <TableCell>1</TableCell>
-                          <TableCell>{examen.prixExamen} CFA</TableCell>
-                          <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  className={isHidden ? "hidden" : ""}
-                                  variant="ghost"
-                                  size="icon"
-                                >
-                                  🗑
-                                </Button>
-                              </AlertDialogTrigger>
-
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Es-tu sûr ?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. {"L'examen"}{" "}
-                                    sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                                    onClick={() =>
-                                      handleDeleteExamenFactureInBd(examen.id)
-                                    }
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
-                      ))}
-                      {echographiesFacture.map((echographie, index) => (
-                        <TableRow
-                          key={
-                            echographie.id && echographie.id !== ""
-                              ? echographie.id
-                              : `echographie-${index}`
-                          }
-                        >
-                          <TableCell>
-                            {echographie.libelleEchographie}
-                          </TableCell>
-                          <TableCell>
-                            Echographie
-                            {echographie.remiseEchographie > 0
-                              ? ` (comission de ${echographie.remiseEchographie}%)`
-                              : ""}{" "}
-                          </TableCell>
-                          <TableCell>
-                            {echographie.remiseEchographie > 0
-                              ? (
-                                  echographie.prixEchographie /
-                                  (1 - echographie.remiseEchographie / 100)
-                                ).toFixed(0)
-                              : echographie.prixEchographie}{" "}
-                            CFA
-                          </TableCell>
-                          <TableCell>1</TableCell>
-                          <TableCell>
-                            {echographie.prixEchographie} CFA
-                          </TableCell>
-                          <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  className={isHidden ? "hidden" : ""}
-                                  variant="ghost"
-                                  size="icon"
-                                >
-                                  🗑
-                                </Button>
-                              </AlertDialogTrigger>
-
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Es-tu sûr ?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. {"L'examen"}{" "}
-                                    sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                                    onClick={() =>
-                                      handleDeleteEchographieFactureInBd(
-                                        echographie.id
-                                      )
-                                    }
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-
-                    <TableFooter>
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className="text-right font-semibold"
-                        >
-                          Total:
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          {montantProduits(produitFacture) +
-                            montantPrestations(prestationfacture) +
-                            montantFactureExamens(examensFacture) +
-                            montantFactureEchographies(
-                              echographiesFacture
-                            )}{" "}
-                          CFA
-                        </TableCell>
-                        <TableCell></TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                  <div>
-                    <p className="pl-2">
-                      Clinique: {nomClinique(client?.cliniqueId as string)}{" "}
-                    </p>
-                    <p className="pl-2">Caissière : {session?.user.name} </p>
-                    <p className="pl-2">
-                      Date :{" "}
-                      {new Date().toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                      &nbsp;à&nbsp;{new Date().toLocaleTimeString("fr-FR")}
-                    </p>
-                    <p className="pl-2">
-                      Reçu Caisse:{" "}
-                      {client?.nom
-                        ? client.nom
-                            .split(" ")
-                            .map(
-                              (word) =>
-                                word.charAt(0).toUpperCase() +
-                                word.slice(1).toLowerCase()
-                            )
-                            .join(" ")
-                        : ""}{" "}
-                      {client?.prenom
-                        ? client.prenom
-                            .split(" ")
-                            .map(
-                              (word) =>
-                                word.charAt(0).toUpperCase() +
-                                word.slice(1).toLowerCase()
-                            )
-                            .join(" ")
-                        : ""}{" "}
-                    </p>
+                      </TableFooter>
+                    </Table>
+                    <div>
+                      <p className="pl-2">
+                        Clinique: {nomClinique(client?.cliniqueId as string)}{" "}
+                      </p>
+                      <p className="pl-2">Caissière : {session?.user.name} </p>
+                      <p className="pl-2">
+                        Date :{" "}
+                        {new Date().toLocaleDateString("fr-FR", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                        &nbsp;à&nbsp;{new Date().toLocaleTimeString("fr-FR")}
+                      </p>
+                      <p className="pl-2">
+                        Reçu Caisse:{" "}
+                        {client?.nom
+                          ? client.nom
+                              .split(" ")
+                              .map(
+                                (word) =>
+                                  word.charAt(0).toUpperCase() +
+                                  word.slice(1).toLowerCase()
+                              )
+                              .join(" ")
+                          : ""}{" "}
+                        {client?.prenom
+                          ? client.prenom
+                              .split(" ")
+                              .map(
+                                (word) =>
+                                  word.charAt(0).toUpperCase() +
+                                  word.slice(1).toLowerCase()
+                              )
+                              .join(" ")
+                          : ""}{" "}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Section d'impression et modals */}
+        {form.watch("idVisite") &&
+          isLoadingFacture === false &&
+          produitFacture.length === 0 &&
+          prestationfacture.length === 0 &&
+          examensFacture.length === 0 &&
+          facturePrestation.length === 0 &&
+          factureProduit.length === 0 &&
+          echographiesFacture.length === 0 &&
+          demandeExamens.length === 0 && (
+            <div className="text-center font-light italic">
+              Zéro Facture pour cette visite séléctionnée
             </div>
-          </motion.div>
-        </AnimatePresence>
+          )}
+
+        {form.watch("idVisite") &&
+          (produitFacture.length > 0 ||
+            prestationfacture.length > 0 ||
+            echographiesFacture.length > 0 ||
+            examensFacture.length > 0) && (
+            <div className="flex justify-center -mt-4 gap-4">
+              <Button
+                onClick={() => {
+                  setIsHidden(true);
+                  reactToPrintFn();
+                }}
+              >
+                Imprimer la facture
+              </Button>
+              <Button onClick={() => router.push(`/fiches/${pharmacyId}`)}>
+                Retour
+              </Button>
+            </div>
+          )}
+
+        {/* Modals */}
+        <FactureModal
+          open={open}
+          idClient={pharmacyId}
+          tabClinique={tabClinique}
+          allProduits={tabProduit}
+          clientData={client}
+          setOpen={setOpen}
+          refreshProduits={refreshProduits}
+          setFactureProduit={setFactureProduit}
+        />
+
+        <PrestationsModal
+          openPrestation={openPrestation}
+          idClient={pharmacyId}
+          setOpenPrestation={setOpenPrestation}
+          refreshProduits={refreshProduits}
+          setFacturePrestation={setFacturePrestation}
+        />
+        <ExamensModal
+          open={openExamens}
+          idClient={pharmacyId}
+          idVisite={form.watch("idVisite")}
+          setOpen={setOpenExamens}
+          setExamensSelectionnes={setDemandeExamens}
+          refreshExamens={async () => {
+            const allDemandeExamens = await getAllDemandeExamensByIdVisite(
+              form.watch("idVisite")
+            );
+            setTabDemandeExamens(allDemandeExamens as DemandeExamen[]);
+          }}
+        />
+        <EchographiesModal
+          open={openEchographies}
+          idClient={pharmacyId}
+          idVisite={form.watch("idVisite")}
+          setOpen={setOpenEchographies}
+          setEchographiesSelectionnees={setDemandeEchographies}
+          refreshExamens={async () => {
+            const allDemandeEchographies =
+              await getAllDemandeEchographiesByIdVisite(form.watch("idVisite"));
+            setTabDemandeEchographies(
+              allDemandeEchographies as DemandeEchographie[]
+            );
+          }}
+        />
       </div>
-
-      {/* Section d'impression et modals */}
-      {form.watch("idVisite") &&
-        isLoadingFacture === false &&
-        produitFacture.length === 0 &&
-        prestationfacture.length === 0 &&
-        examensFacture.length === 0 &&
-        facturePrestation.length === 0 &&
-        factureProduit.length === 0 &&
-        echographiesFacture.length === 0 &&
-        demandeExamens.length === 0 && (
-          <div className="text-center font-light italic">
-            Zéro Facture pour cette visite séléctionnée
-          </div>
-        )}
-
-      {form.watch("idVisite") &&
-        (produitFacture.length > 0 ||
-          prestationfacture.length > 0 ||
-          echographiesFacture.length > 0 ||
-          examensFacture.length > 0) && (
-          <div className="flex justify-center -mt-4 gap-4">
-            <Button
-              onClick={() => {
-                setIsHidden(true);
-                reactToPrintFn();
-              }}
-            >
-              Imprimer la facture
-            </Button>
-            <Button onClick={() => router.push(`/fiches/${pharmacyId}`)}>
-              Retour
-            </Button>
-          </div>
-        )}
-
-      {/* Modals */}
-      <FactureModal
-        open={open}
-        idClient={pharmacyId}
-        tabClinique={tabClinique}
-        allProduits={tabProduit}
-        clientData={client}
-        setOpen={setOpen}
-        refreshProduits={refreshProduits}
-        setFactureProduit={setFactureProduit}
-      />
-
-      <PrestationsModal
-        openPrestation={openPrestation}
-        idClient={pharmacyId}
-        setOpenPrestation={setOpenPrestation}
-        refreshProduits={refreshProduits}
-        setFacturePrestation={setFacturePrestation}
-      />
-      <ExamensModal
-        open={openExamens}
-        idClient={pharmacyId}
-        idVisite={form.watch("idVisite")}
-        setOpen={setOpenExamens}
-        setExamensSelectionnes={setDemandeExamens}
-        refreshExamens={async () => {
-          const allDemandeExamens = await getAllDemandeExamensByIdVisite(
-            form.watch("idVisite")
-          );
-          setTabDemandeExamens(allDemandeExamens as DemandeExamen[]);
-        }}
-      />
-      <EchographiesModal
-        open={openEchographies}
-        idClient={pharmacyId}
-        idVisite={form.watch("idVisite")}
-        setOpen={setOpenEchographies}
-        setEchographiesSelectionnees={setDemandeEchographies}
-        refreshExamens={async () => {
-          const allDemandeEchographies =
-            await getAllDemandeEchographiesByIdVisite(form.watch("idVisite"));
-          setTabDemandeEchographies(
-            allDemandeEchographies as DemandeEchographie[]
-          );
-        }}
-      />
     </div>
   );
 }

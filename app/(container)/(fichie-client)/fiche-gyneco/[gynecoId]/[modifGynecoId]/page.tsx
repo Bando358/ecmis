@@ -736,10 +736,19 @@ export default function GynecoPage({
                   )}
                 />
               )}
-
-              <Button type="submit" className="mt-4">
-                {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-              </Button>
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
+                </Button>
+              </div>
             </form>
           </Form>
         </>
@@ -943,7 +952,14 @@ export default function GynecoPage({
                   <small className="italic">{prescripteur}</small>
                 )}
               </div>
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdateVisite}>
                   {form.formState.isSubmitting ? "En cours..." : "Modifier"}
                 </Button>

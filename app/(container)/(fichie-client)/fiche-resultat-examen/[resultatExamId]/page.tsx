@@ -55,6 +55,7 @@ import { useRouter } from "next/navigation";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import Retour from "@/components/retour";
 
 export default function PageResultatExamen({
   params,
@@ -283,296 +284,309 @@ export default function PageResultatExamen({
   const reactToPrintFn = useReactToPrint({ contentRef });
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Résultats des examens</h1>
+    <div className="w-full relative">
+      <Retour />
+      <div className="px-6">
+        <h1 className="text-2xl font-bold mb-6">Résultats des examens</h1>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <select
-            value={selectedVisite}
-            onChange={(e) => setSelectedVisite(e.target.value)}
-            className="border rounded-md px-4 py-2"
-          >
-            <option value="">Sélectionner une visite</option>
-            {visites.map((visite) => (
-              <option key={visite.id} value={visite.id}>
-                {new Date(visite.dateVisite).toLocaleDateString("fr-FR")}
-              </option>
-            ))}
-          </select>
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <select
+              value={selectedVisite}
+              onChange={(e) => setSelectedVisite(e.target.value)}
+              className="border rounded-md px-4 py-2"
+            >
+              <option value="">Sélectionner une visite</option>
+              {visites.map((visite) => (
+                <option key={visite.id} value={visite.id}>
+                  {new Date(visite.dateVisite).toLocaleDateString("fr-FR")}
+                </option>
+              ))}
+            </select>
 
-          <Button onClick={() => setModalOpen(true)} disabled={!selectedVisite}>
-            <Plus className="mr-2" size={16} /> Ajouter un résultat
-          </Button>
-        </div>
+            <Button
+              onClick={() => setModalOpen(true)}
+              disabled={!selectedVisite}
+            >
+              <Plus className="mr-2" size={16} /> Ajouter un résultat
+            </Button>
+          </div>
 
-        <Separator className="my-4" />
+          <Separator className="my-4" />
 
-        {selectedVisite && resultatExamens.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Examen</TableCell>
-                <TableCell>Valeur</TableCell>
-                <TableCell>Unité</TableCell>
-                <TableCell>Valeur Usuelle</TableCell>
-                <TableCell>Observations</TableCell>
-                <TableCell className="text-center">Actions</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {resultatExamens.length > 0 ? (
-                resultatExamens.map((resultat) => (
-                  <TableRow key={resultat.id}>
-                    <TableCell>
-                      {dateVisiteByidVisite(resultat.idVisite)}
-                    </TableCell>
-                    <TableCell>
-                      {libelleFactureExamenById(resultat.idFactureExamen) ||
-                        "-"}
-                    </TableCell>
-                    <TableCell>
-                      {resultat.resultatExamen === ""
-                        ? resultat.valeurResultat
-                        : resultat.resultatExamen}
-                    </TableCell>
-                    <TableCell>
-                      {getUniteMesureById(resultat.idFactureExamen)}
-                    </TableCell>
-                    <TableCell>
-                      {getValeurUsuelleByIdFacture(resultat.idFactureExamen)}
-                    </TableCell>
-                    <TableCell>{resultat.observations || "-"}</TableCell>
-                    <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteResultatExamen(resultat.id)}
-                      >
-                        🗑
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+          {selectedVisite && resultatExamens.length > 0 && (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-4">
-                    Aucun résultat pour cette visite
-                  </TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Examen</TableCell>
+                  <TableCell>Valeur</TableCell>
+                  <TableCell>Unité</TableCell>
+                  <TableCell>Valeur Usuelle</TableCell>
+                  <TableCell>Observations</TableCell>
+                  <TableCell className="text-center">Actions</TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={5} className="text-right font-semibold">
-                  Total:
-                </TableCell>
-                <TableCell>
-                  <Button
-                    onClick={handlePushResultatExamenToBd}
-                    disabled={resultatExamens.length === 0 || isSubmitting}
-                  >
-                    {isSubmitting ? "Enregistrement..." : "Enregistrer"}
-                  </Button>
-                </TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        )}
-        <Separator className="my-4" />
-        {isPending ? (
-          <SpinnerBar />
-        ) : (
-          <>
-            <div className="w-full" ref={contentRef}>
-              {selectedVisite && tabResultatExamens.length > 0 && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center px-auto">
-                        <Image
-                          src="/logo/LOGO_AIBEF_IPPF.png"
-                          alt="Logo"
-                          width={400}
-                          height={10}
-                          // layout="responsive"
-                          style={{ margin: "auto" }}
-                        />
+              </TableHeader>
+              <TableBody>
+                {resultatExamens.length > 0 ? (
+                  resultatExamens.map((resultat) => (
+                    <TableRow key={resultat.id}>
+                      <TableCell>
+                        {dateVisiteByidVisite(resultat.idVisite)}
+                      </TableCell>
+                      <TableCell>
+                        {libelleFactureExamenById(resultat.idFactureExamen) ||
+                          "-"}
+                      </TableCell>
+                      <TableCell>
+                        {resultat.resultatExamen === ""
+                          ? resultat.valeurResultat
+                          : resultat.resultatExamen}
+                      </TableCell>
+                      <TableCell>
+                        {getUniteMesureById(resultat.idFactureExamen)}
+                      </TableCell>
+                      <TableCell>
+                        {getValeurUsuelleByIdFacture(resultat.idFactureExamen)}
+                      </TableCell>
+                      <TableCell>{resultat.observations || "-"}</TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            handleDeleteResultatExamen(resultat.id)
+                          }
+                        >
+                          🗑
+                        </Button>
                       </TableCell>
                     </TableRow>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Examen</TableCell>
-                      <TableCell>Valeur</TableCell>
-                      <TableCell>Unité</TableCell>
-                      <TableCell>Valeur Usuelle</TableCell>
-                      <TableCell>Observations</TableCell>
-                      <TableCell className="text-center">Actions</TableCell>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tabResultatExamens.length > 0 ? (
-                      tabResultatExamens.map((resultat) => (
-                        <TableRow key={resultat.id}>
-                          <TableCell>
-                            {dateVisiteByidVisite(resultat.idVisite)}
-                          </TableCell>
-                          <TableCell>
-                            {libelleFactureExamenById(
-                              resultat.idFactureExamen
-                            ) || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {resultat.resultatExamen === ""
-                              ? resultat.valeurResultat
-                              : resultat.resultatExamen}
-                          </TableCell>
-                          <TableCell>
-                            {getUniteMesureById(resultat.idFactureExamen)}
-                          </TableCell>
-                          <TableCell>
-                            {getValeurUsuelleByIdFacture(
-                              resultat.idFactureExamen
-                            )}
-                          </TableCell>
-                          <TableCell>{resultat.observations || "-"}</TableCell>
-                          <TableCell>
-                            <AlertDialog>
-                              {/* 📌 Ton bouton destructif déclenche le dialog */}
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  🗑
-                                </Button>
-                              </AlertDialogTrigger>
-
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Es-tu sûr ?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. Le produit
-                                    sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  {/* 📌 Action de confirmation qui supprime réellement */}
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      handleDeleteResultatExamenInBD(
-                                        resultat.id
-                                      )
-                                    }
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4">
+                      Aucun résultat pour cette visite
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-right font-semibold">
+                    Total:
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      onClick={handlePushResultatExamenToBd}
+                      disabled={resultatExamens.length === 0 || isSubmitting}
+                    >
+                      {isSubmitting ? "Enregistrement..." : "Enregistrer"}
+                    </Button>
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
+          <Separator className="my-4" />
+          {isPending ? (
+            <SpinnerBar />
+          ) : (
+            <>
+              <div className="w-full" ref={contentRef}>
+                {selectedVisite && tabResultatExamens.length > 0 && (
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-4">
-                          Aucun résultat pour cette visite
+                        <TableCell colSpan={7} className="text-center px-auto">
+                          <Image
+                            src="/logo/LOGO_AIBEF_IPPF.png"
+                            alt="Logo"
+                            width={400}
+                            height={10}
+                            // layout="responsive"
+                            style={{ margin: "auto" }}
+                          />
                         </TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="text-right font-semibold"
-                      ></TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  </TableFooter>
-                </Table>
-              )}
-              {tabResultatExamens.length > 0 && (
-                <div>
-                  <p className="pl-2">
-                    Clinique: {clinique?.nomClinique || "Clinique introuvable"}{" "}
-                  </p>
-                  <p className="pl-2">
-                    Laborantin : {laborantin?.name || "Introuvable"}{" "}
-                  </p>
-                  <p className="pl-2">
-                    Date :{" "}
-                    {new Date().toLocaleDateString("fr-FR", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                    &nbsp;à&nbsp;{new Date().toLocaleTimeString("fr-FR")}
-                  </p>
-                  <p className="pl-2">
-                    Résultat Client:{" "}
-                    {client?.nom
-                      ? client.nom
-                          .split(" ")
-                          .map(
-                            (word) =>
-                              word.charAt(0).toUpperCase() +
-                              word.slice(1).toLowerCase()
-                          )
-                          .join(" ")
-                      : ""}{" "}
-                    {client?.prenom
-                      ? client.prenom
-                          .split(" ")
-                          .map(
-                            (word) =>
-                              word.charAt(0).toUpperCase() +
-                              word.slice(1).toLowerCase()
-                          )
-                          .join(" ")
-                      : ""}{" "}
-                  </p>
+                      <TableRow>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Examen</TableCell>
+                        <TableCell>Valeur</TableCell>
+                        <TableCell>Unité</TableCell>
+                        <TableCell>Valeur Usuelle</TableCell>
+                        <TableCell>Observations</TableCell>
+                        <TableCell className="text-center">Actions</TableCell>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tabResultatExamens.length > 0 ? (
+                        tabResultatExamens.map((resultat) => (
+                          <TableRow key={resultat.id}>
+                            <TableCell>
+                              {dateVisiteByidVisite(resultat.idVisite)}
+                            </TableCell>
+                            <TableCell>
+                              {libelleFactureExamenById(
+                                resultat.idFactureExamen
+                              ) || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {resultat.resultatExamen === ""
+                                ? resultat.valeurResultat
+                                : resultat.resultatExamen}
+                            </TableCell>
+                            <TableCell>
+                              {getUniteMesureById(resultat.idFactureExamen)}
+                            </TableCell>
+                            <TableCell>
+                              {getValeurUsuelleByIdFacture(
+                                resultat.idFactureExamen
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {resultat.observations || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                {/* 📌 Ton bouton destructif déclenche le dialog */}
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    🗑
+                                  </Button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Es-tu sûr ?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible. Le produit
+                                      sera définitivement supprimé.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    {/* 📌 Action de confirmation qui supprime réellement */}
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        handleDeleteResultatExamenInBD(
+                                          resultat.id
+                                        )
+                                      }
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4">
+                            Aucun résultat pour cette visite
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="text-right font-semibold"
+                        ></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                )}
+                {tabResultatExamens.length > 0 && (
+                  <div>
+                    <p className="pl-2">
+                      Clinique:{" "}
+                      {clinique?.nomClinique || "Clinique introuvable"}{" "}
+                    </p>
+                    <p className="pl-2">
+                      Laborantin : {laborantin?.name || "Introuvable"}{" "}
+                    </p>
+                    <p className="pl-2">
+                      Date :{" "}
+                      {new Date().toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                      &nbsp;à&nbsp;{new Date().toLocaleTimeString("fr-FR")}
+                    </p>
+                    <p className="pl-2">
+                      Résultat Client:{" "}
+                      {client?.nom
+                        ? client.nom
+                            .split(" ")
+                            .map(
+                              (word) =>
+                                word.charAt(0).toUpperCase() +
+                                word.slice(1).toLowerCase()
+                            )
+                            .join(" ")
+                        : ""}{" "}
+                      {client?.prenom
+                        ? client.prenom
+                            .split(" ")
+                            .map(
+                              (word) =>
+                                word.charAt(0).toUpperCase() +
+                                word.slice(1).toLowerCase()
+                            )
+                            .join(" ")
+                        : ""}{" "}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {selectedVisite && tabResultatExamens.length > 0 && (
+                <div className="flex justify-center -mt-4 gap-4">
+                  <Button
+                    onClick={() => {
+                      // setIsHidden(true);
+                      reactToPrintFn();
+                    }}
+                  >
+                    Imprimer la facture
+                  </Button>
+                  <Button
+                    onClick={() => router.push(`/fiches/${resultatExamId}`)}
+                  >
+                    Retour
+                  </Button>
                 </div>
               )}
-            </div>
-            {selectedVisite && tabResultatExamens.length > 0 && (
-              <div className="flex justify-center -mt-4 gap-4">
-                <Button
-                  onClick={() => {
-                    // setIsHidden(true);
-                    reactToPrintFn();
-                  }}
-                >
-                  Imprimer la facture
-                </Button>
-                <Button
-                  onClick={() => router.push(`/fiches/${resultatExamId}`)}
-                >
-                  Retour
-                </Button>
-              </div>
-            )}
-          </>
+            </>
+          )}
+        </div>
+
+        {selectedVisite && (
+          <ResultatExamenModal
+            open={modalOpen}
+            setOpen={setModalOpen}
+            // refreshResultatExamens={refreshResultatExamens}
+            tabExamens={tabExamens}
+            idClient={resultatExamId}
+            idVisite={selectedVisite}
+            setResultatExamens={setResultatExamens}
+            resultatExamens={resultatExamens}
+            factureExamens={factureExamens}
+          />
         )}
       </div>
-
-      {selectedVisite && (
-        <ResultatExamenModal
-          open={modalOpen}
-          setOpen={setModalOpen}
-          // refreshResultatExamens={refreshResultatExamens}
-          tabExamens={tabExamens}
-          idClient={resultatExamId}
-          idVisite={selectedVisite}
-          setResultatExamens={setResultatExamens}
-          resultatExamens={resultatExamens}
-          factureExamens={factureExamens}
-        />
-      )}
     </div>
   );
 }

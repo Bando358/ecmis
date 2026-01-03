@@ -160,9 +160,7 @@ const ConditionalCounsellingFields = ({
   return (
     <div
       className={`transition-all duration-300 ease-in-out overflow-hidden ${
-        showCounsellingFields
-          ? "max-h-52 opacity-100"
-          : "max-h-0 opacity-0"
+        showCounsellingFields ? "max-h-52 opacity-100" : "max-h-0 opacity-0"
       }`}
     >
       <div className="pt-2">
@@ -249,7 +247,7 @@ export default function ModifDepistageVihPage({
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
         const perm = permissions.find(
-          (p: { table: string; }) => p.table === TableName.DEPISTAGE_VIH
+          (p: { table: string }) => p.table === TableName.DEPISTAGE_VIH
         );
         setPermission(perm || null);
       } catch (error) {
@@ -299,7 +297,8 @@ export default function ModifDepistageVihPage({
           selectedDepistageVih.depistageVihIdClient
         );
         const visiteDate = result.find(
-          (r: { id: string; }) => r.id === selectedDepistageVih.depistageVihIdVisite
+          (r: { id: string }) =>
+            r.id === selectedDepistageVih.depistageVihIdVisite
         );
 
         const nomPrescripteur = await getOneUser(
@@ -310,7 +309,8 @@ export default function ModifDepistageVihPage({
 
         setVisites(
           result.filter(
-            (r: { id: string; }) => r.id === selectedDepistageVih.depistageVihIdVisite
+            (r: { id: string }) =>
+              r.id === selectedDepistageVih.depistageVihIdVisite
           )
         );
         setDateVisite(visiteDate?.dateVisite);
@@ -620,8 +620,16 @@ export default function ModifDepistageVihPage({
                   )}
                 />
               )}
-              <div className="flex justify-content">
-                <Button type="submit" className="mt-4 mx-auto">
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
                 </Button>
               </div>
@@ -784,7 +792,14 @@ export default function ModifDepistageVihPage({
                 )}
               </div>
 
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdateVisite}>Modifier</Button>
               </div>
             </div>

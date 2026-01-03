@@ -13,6 +13,12 @@ import { getAllCponByIdClient, createCpon } from "@/lib/actions/cponActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useSession } from "next-auth/react";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Client,
   Cpon,
   Permission,
@@ -45,6 +51,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useClientContext } from "@/components/ClientContext";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { ArrowBigLeftDash } from "lucide-react";
 
 const TabDuree = [
   { value: "6_72", label: "Les 6 et 72 heures" },
@@ -177,211 +184,240 @@ export default function CponPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-250 mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("cponIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        {`Formulaire de consultation CPoN`}
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="cponIdVisite"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Selectionnez la visite</FormLabel>
-                  <Select
-                    required
-                    onValueChange={field.onChange}
-                    value={field.value ?? ""} // <-- IMPORTANT
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Visite à sélectionner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {visites.map((visite, index) => (
-                        <SelectItem
-                          key={index}
-                          value={visite.id}
-                          disabled={selectedCpon.some(
-                            (p) => p.cponIdVisite === visite.id
-                          )}
-                        >
-                          {new Date(visite.dateVisite).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="cponConsultation"
-              render={({ field }) => (
-                <FormItem className="hidden">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? true}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">Consultation</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="cponCounselling"
-              render={({ field }) => (
-                <FormItem className="hidden">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? true}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">Counselling</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="cponInvestigationPhysique"
-              render={({ field }) => (
-                <FormItem className="hidden">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? true}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Investigation Physique
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <Separator className="my-4" />
-            <FormField
-              control={form.control}
-              name="cponDuree"
-              render={({ field }) => (
-                <FormItem className="  pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">
-                      Consultation CPon entre :
-                    </FormLabel>
-                  </div>
-                  <FormControl>
-                    <RadioGroup
+    <div className="w-full relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-0 left-4"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("cponIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          {`Formulaire de consultation CPoN`}
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="cponIdVisite"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Selectionnez la visite</FormLabel>
+                    <Select
+                      required
                       onValueChange={field.onChange}
-                      value={field.value ?? ""}
-                      className="gap-x-5 items-center"
+                      value={field.value ?? ""} // <-- IMPORTANT
                     >
-                      {TabDuree.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Visite à sélectionner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {visites.map((visite, index) => (
+                          <SelectItem
+                            key={index}
+                            value={visite.id}
+                            disabled={selectedCpon.some(
+                              (p) => p.cponIdVisite === visite.id
+                            )}
+                          >
+                            {new Date(visite.dateVisite).toLocaleDateString(
+                              "fr-FR"
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="cponIdClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    className="hidden"
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="cponConsultation"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Consultation
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cponCounselling"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">Counselling</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cponInvestigationPhysique"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Investigation Physique
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <Separator className="my-4" />
+              <FormField
+                control={form.control}
+                name="cponDuree"
+                render={({ field }) => (
+                  <FormItem className="  pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">
+                        Consultation CPon entre :
+                      </FormLabel>
+                    </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        className="gap-x-5 items-center"
+                      >
+                        {TabDuree.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-          {isPrescripteur === true ? (
             <FormField
               control={form.control}
-              name="cponIdUser"
+              name="cponIdClient"
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input {...field} value={idUser ?? ""} className="hidden" />
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      className="hidden"
+                    />
                   </FormControl>
                 </FormItem>
               )}
             />
-          ) : (
-            <FormField
-              control={form.control}
-              name="cponIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur .....
-                  </FormLabel>
-                  <Select
-                    required
-                    // value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescipteur, index) => (
-                        <SelectItem key={index} value={prescipteur.id}>
-                          <span>{prescipteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
 
-          <Button type="submit" className="mt-4">
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
-          </Button>
-        </form>
-      </Form>
+            {isPrescripteur === true ? (
+              <FormField
+                control={form.control}
+                name="cponIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={idUser ?? ""}
+                        className="hidden"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="cponIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le precripteur .....
+                    </FormLabel>
+                    <Select
+                      required
+                      // value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Prescripteur" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allPrescripteur.map((prescipteur, index) => (
+                          <SelectItem key={index} value={prescipteur.id}>
+                            <span>{prescipteur.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button
+              type="submit"
+              className="mt-4"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

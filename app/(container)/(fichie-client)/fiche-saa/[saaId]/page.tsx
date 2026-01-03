@@ -50,6 +50,7 @@ import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import Retour from "@/components/retour";
 
 const tabTypeAvortement = [
   { value: "spontanee", label: "Spontanée" },
@@ -394,164 +395,47 @@ export default function SaaPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-250 mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("saaIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        Formulaire de Soins Après Avortement (SAA)
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-100 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="saaIdVisite"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sélectionnez la visite</FormLabel>
-                  <Select
-                    required
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Visite à sélectionner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {visites.map((visite, index) => (
-                        <SelectItem
-                          key={index}
-                          value={visite.id}
-                          disabled={selectedSaa.some(
-                            (p) => p.saaIdVisite === visite.id
-                          )}
-                        >
-                          {new Date(visite.dateVisite).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {grossesses.length > 0 &&
-              grossesses[0].grossesseInterruption === false && (
-                <FormField
-                  control={form.control}
-                  name="saaIdGrossesse"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Sélectionnez la grossesse (optionnel)
-                      </FormLabel>
-                      <Select onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Grossesse à sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {grossesses.map((grossesse, index) => (
-                            <SelectItem
-                              key={index}
-                              value={grossesse.id}
-                              disabled={selectedSaa.some(
-                                (p) => p.saaIdGrossesse === grossesse.id
-                              )}
-                            >
-                              {grossesse.grossesseDdr &&
-                                new Date(
-                                  grossesse.grossesseDdr
-                                ).toLocaleDateString("fr-FR")}{" "}
-                              -{" "}
-                              {grossesse.termePrevu &&
-                                new Date(
-                                  grossesse.termePrevu
-                                ).toLocaleDateString("fr-FR")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-          </div>
-
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="saaSuiviPostAvortement"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Consultation post-Abortum suivi
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="saaCounsellingPre"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Counselling pré-avortement
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {/* Champ de motif avec transition */}
-            <div
-              className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                form.watch("saaCounsellingPre")
-                  ? "max-h-25 opacity-100 mt-2"
-                  : "max-h-0 opacity-0"
-              }`}
-            >
+    <div className="w-full relative">
+      <Retour />
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("saaIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          Formulaire de Soins Après Avortement (SAA)
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-100 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
               <FormField
                 control={form.control}
-                name="saaMotifDemande"
+                name="saaIdVisite"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-medium">
-                      Motif de demande (optionnel)
-                    </FormLabel>
-                    <Select onValueChange={field.onChange}>
+                    <FormLabel>Sélectionnez la visite</FormLabel>
+                    <Select
+                      required
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
                       <FormControl>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Motif de demande" />
+                          <SelectValue placeholder="Visite à sélectionner" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {tabMotifDemande.map((option, index) => (
-                          <SelectItem key={index} value={option.value}>
-                            {option.label}
+                        {visites.map((visite, index) => (
+                          <SelectItem
+                            key={index}
+                            value={visite.id}
+                            disabled={selectedSaa.some(
+                              (p) => p.saaIdVisite === visite.id
+                            )}
+                          >
+                            {new Date(visite.dateVisite).toLocaleDateString(
+                              "fr-FR"
+                            )}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -560,60 +444,184 @@ export default function SaaPage({
                   </FormItem>
                 )}
               />
+              {grossesses.length > 0 &&
+                grossesses[0].grossesseInterruption === false && (
+                  <FormField
+                    control={form.control}
+                    name="saaIdGrossesse"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-medium">
+                          Sélectionnez la grossesse (optionnel)
+                        </FormLabel>
+                        <Select onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Grossesse à sélectionner" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {grossesses.map((grossesse, index) => (
+                              <SelectItem
+                                key={index}
+                                value={grossesse.id}
+                                disabled={selectedSaa.some(
+                                  (p) => p.saaIdGrossesse === grossesse.id
+                                )}
+                              >
+                                {grossesse.grossesseDdr &&
+                                  new Date(
+                                    grossesse.grossesseDdr
+                                  ).toLocaleDateString("fr-FR")}{" "}
+                                -{" "}
+                                {grossesse.termePrevu &&
+                                  new Date(
+                                    grossesse.termePrevu
+                                  ).toLocaleDateString("fr-FR")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
             </div>
 
-            <Separator className="my-3" />
-
-            {/* Champs conditionnels avec transition */}
-            <ConditionalFields form={form} />
-          </div>
-
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="saaIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input {...field} value={idUser} className="hidden" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="saaIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Sélectionnez le prescripteur
-                  </FormLabel>
-                  <Select required onValueChange={field.onChange}>
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="saaSuiviPostAvortement"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
                     <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sélectionner un prescripteur" />
-                      </SelectTrigger>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur, index) => (
-                        <SelectItem key={index} value={prescripteur.id}>
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Consultation post-Abortum suivi
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="saaCounsellingPre"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Counselling pré-avortement
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
 
-          <Button type="submit" className="mt-4 w-full">
-            {form.formState.isSubmitting ? "Soumission..." : "Soumettre"}
-          </Button>
-        </form>
-      </Form>
+              {/* Champ de motif avec transition */}
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                  form.watch("saaCounsellingPre")
+                    ? "max-h-25 opacity-100 mt-2"
+                    : "max-h-0 opacity-0"
+                }`}
+              >
+                <FormField
+                  control={form.control}
+                  name="saaMotifDemande"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-medium">
+                        Motif de demande (optionnel)
+                      </FormLabel>
+                      <Select onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Motif de demande" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tabMotifDemande.map((option, index) => (
+                            <SelectItem key={index} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Separator className="my-3" />
+
+              {/* Champs conditionnels avec transition */}
+              <ConditionalFields form={form} />
+            </div>
+
+            {isPrescripteur === true ? (
+              <FormField
+                control={form.control}
+                name="saaIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input {...field} value={idUser} className="hidden" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="saaIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Sélectionnez le prescripteur
+                    </FormLabel>
+                    <Select required onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Sélectionner un prescripteur" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allPrescripteur.map((prescripteur, index) => (
+                          <SelectItem key={index} value={prescripteur.id}>
+                            <span>{prescripteur.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting}
+              className="w-full mt-4"
+            >
+              {form.formState.isSubmitting ? "Soumission..." : "Soumettre"}
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

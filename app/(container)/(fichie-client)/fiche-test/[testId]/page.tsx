@@ -46,6 +46,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import Retour from "@/components/retour";
 
 const TabTest = [
   { value: "positif", label: "Positif" },
@@ -60,10 +61,11 @@ export default function GynecoPage({
   const { testId } = use(params);
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedTest, setSelectedTest] = useState<TestGrossesse[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [prescripteur, setPrescripteur] = useState<User>();
-  const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
+  const [isPrescripteur, setIsPrescripteur] = useState<boolean>(false);
   const [permission, setPermission] = useState<Permission | null>(null);
   const [client, setClient] = useState<Client | null>(null);
 
@@ -77,6 +79,10 @@ export default function GynecoPage({
     }
   }, [testIdUser, form]);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetUser = async () => {
@@ -165,154 +171,178 @@ export default function GynecoPage({
     }
   };
 
+  if (!isMounted) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-gray-600">Chargement...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col w-full justify-center max-w-250 mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("testIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        {`Formulaire de Test de Grossesse`}
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+    <div className="w-full relative">
+      <Retour />
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("testIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          {`Formulaire de Test de Grossesse`}
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="testIdVisite"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Selectionnez la visite</FormLabel>
+                    <Select required onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Visite à sélectionner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {visites.map((visite) => {
+                          const dateStr = new Date(
+                            visite.dateVisite
+                          ).toLocaleDateString("fr-FR", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                          });
+                          return (
+                            <SelectItem
+                              key={visite.id}
+                              value={visite.id}
+                              disabled={selectedTest.some(
+                                (p) => p.testIdVisite === visite.id
+                              )}
+                            >
+                              {dateStr}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Separator className="my-4" />
+              <FormField
+                control={form.control}
+                name="testResultat"
+                render={({ field }) => (
+                  <FormItem className="  pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">
+                        Résultat test de grossesse :
+                      </FormLabel>
+                    </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={
+                          typeof field.value === "string" ? field.value : ""
+                        }
+                        className="gap-x-5 items-center grid-cols-3"
+                      >
+                        {TabTest.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="testIdVisite"
+              name="testIdClient"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Selectionnez la visite</FormLabel>
-                  <Select required onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Visite à sélectionner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {visites.map((visite) => (
-                        <SelectItem
-                          key={visite.id}
-                          value={visite.id}
-                          disabled={selectedTest.some(
-                            (p) => p.testIdVisite === visite.id
-                          )}
-                        >
-                          {new Date(visite.dateVisite).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                  <FormControl>
+                    <Input {...field} className="hidden" />
+                  </FormControl>
                 </FormItem>
               )}
             />
-            <Separator className="my-4" />
-            <FormField
-              control={form.control}
-              name="testResultat"
-              render={({ field }) => (
-                <FormItem className="  pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">
-                      Résultat test de grossesse :
+
+            {isPrescripteur === true ? (
+              <FormField
+                control={form.control}
+                name="testIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      {/* Hidden controlled input. value is stable string to avoid uncontrolled->controlled warning */}
+                      <Input {...field} value={testIdUser} className="hidden" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="testIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le precripteur
                     </FormLabel>
-                  </div>
-                  <FormControl>
-                    <RadioGroup
+                    <Select
+                      required
+                      // value={field.value}
                       onValueChange={field.onChange}
-                      value={typeof field.value === "string" ? field.value : ""}
-                      className="gap-x-5 items-center grid-cols-3"
                     >
-                      {TabTest.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="testIdClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} className="hidden" />
-                </FormControl>
-              </FormItem>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Prescripteur" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allPrescripteur.map((prescripteur) => (
+                          <SelectItem
+                            key={prescripteur.id}
+                            value={prescripteur.id}
+                          >
+                            <span>{prescripteur.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
-          />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="testIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    {/* Hidden controlled input. value is stable string to avoid uncontrolled->controlled warning */}
-                    <Input {...field} value={testIdUser} className="hidden" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="testIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    // value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-
-          <Button type="submit" className="mt-4">
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
-          </Button>
-        </form>
-      </Form>
+            <Button
+              type="submit"
+              className="mt-4 mx-auto block"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

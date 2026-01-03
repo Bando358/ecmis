@@ -122,7 +122,9 @@ export default function GynecoPage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.OBSTETRIQUE);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.OBSTETRIQUE
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -146,7 +148,7 @@ export default function GynecoPage({
           oneObstetrique.obstIdClient
         );
         const visiteDate = result.find(
-          (r: { id: string; }) => r.id === oneObstetrique.obstIdVisite
+          (r: { id: string }) => r.id === oneObstetrique.obstIdVisite
         );
         const resultGrossesse = await getOneGrossesse(
           oneObstetrique.obstIdGrossesse
@@ -161,7 +163,11 @@ export default function GynecoPage({
         }
         setAllPrescripteur(allPrestataire as User[]);
 
-        setVisites(result.filter((r: { id: string; }) => r.id === oneObstetrique.obstIdVisite)); // Use oneObstetrique instead of selectedObstetrique
+        setVisites(
+          result.filter(
+            (r: { id: string }) => r.id === oneObstetrique.obstIdVisite
+          )
+        ); // Use oneObstetrique instead of selectedObstetrique
         setDateVisite(visiteDate?.dateVisite);
         setSelectedClientId(oneObstetrique.obstIdClient); // Use oneObstetrique instead of selectedObstetrique
       }
@@ -291,7 +297,7 @@ export default function GynecoPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-5xl mx-auto px-4 py-2 border rounded-md">
+    <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
       {selectedObstetrique && (
         <ConstanteClient idVisite={selectedObstetrique.obstIdVisite} />
       )}
@@ -866,9 +872,19 @@ export default function GynecoPage({
                 />
               )}
 
-              <Button type="submit" className="mt-4">
-                {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-              </Button>
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
+                </Button>
+              </div>
             </form>
           </Form>
         </>
@@ -1182,7 +1198,14 @@ export default function GynecoPage({
                   <small className="italic">{prescripteur}</small>
                 )}
               </div>
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdateVisite}>Modifier</Button>
               </div>
             </div>

@@ -11,6 +11,13 @@ import {
 } from "@/lib/actions/authActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { useSession } from "next-auth/react";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Client,
   Grossesse,
@@ -48,6 +55,7 @@ import {
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { ArrowBigLeftDash } from "lucide-react";
 
 const TabHta = [
   { value: "oui", label: "Oui" },
@@ -170,253 +178,41 @@ export default function GrossessePage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("grossesseIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        {`Formulaire de Création de Grossesse`}
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-3xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <FormField
-            control={form.control}
-            name="grossesseIdVisite"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez la visite
-                </FormLabel>
-                <Select
-                  required
-                  // value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Visite à sélectionner" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {visites.map((visite, index) => (
-                      <SelectItem
-                        key={index}
-                        value={visite.id}
-                        disabled={selectedGrossesse.some(
-                          (p) => p.grossesseIdVisite === visite.id
-                        )}
-                      >
-                        {new Date(visite.dateVisite).toLocaleDateString(
-                          "fr-FR"
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* ************************* */}
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <Label>Patologies Antécédentes</Label>
-            <div className="flex flex-row justify-between">
-              <FormField
-                control={form.control}
-                name="grossesseHta"
-                render={({ field }) => (
-                  <FormItem className="  pb-4">
-                    <div className="text-xl font-bold flex justify-between items-center">
-                      <FormLabel className="ml-4">HTA :</FormLabel>
-                    </div>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        className="flex gap-x-5 items-center"
-                      >
-                        {TabHta.map((option) => (
-                          <FormItem
-                            key={option.value}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={option.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {option.label}
-                            </FormLabel>
-                          </FormItem>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Separator orientation="vertical" className="mx-2 bg-gray-400" />
-              <FormField
-                control={form.control}
-                name="grossesseDiabete"
-                render={({ field }) => (
-                  <FormItem className="  pb-4">
-                    <div className="text-xl font-bold flex justify-between items-center">
-                      <FormLabel className="ml-4">Diabète :</FormLabel>
-                    </div>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        className="flex gap-x-5 items-center"
-                      >
-                        {TabHta.map((option) => (
-                          <FormItem
-                            key={option.value}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={option.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {option.label}
-                            </FormLabel>
-                          </FormItem>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+    <div className="w-full relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sticky top-0 left-4 ml-3"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("grossesseIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          {`Formulaire de Création de Grossesse`}
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-3xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
             <FormField
               control={form.control}
-              name="grossesseGestite"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center">
-                  <FormLabel className="flex-1">Gestité :</FormLabel>
-                  <FormControl>
-                    <Input
-                      className="flex-1"
-                      required
-                      type="number"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="grossesseParite"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center">
-                  <FormLabel className="flex-1">Parité :</FormLabel>
-                  <FormControl>
-                    <Input
-                      className="flex-1"
-                      required
-                      type="number"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="my-2 px-4 py-2 flex flex-col shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="grossesseAge"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center">
-                  <FormLabel className="flex-1">Âge en Semaine :</FormLabel>
-                  <FormControl>
-                    <Input
-                      className="flex-1"
-                      required
-                      type="number"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="mb-3 flex flex-row items-center">
-              <label className="block text-sm flex-1 font-medium">
-                D.D.R :
-              </label>
-              <Input
-                {...form.register("grossesseDdr")}
-                className="mt-1 px-3 py-1 flex-1 w-full rounded-md border border-slate-200"
-                type="date"
-              />
-            </div>
-            <div className="flex flex-row items-center">
-              <label className="block text-sm flex-1 font-medium">
-                Terme prévu :
-              </label>
-              <Input
-                {...form.register("termePrevu")}
-                className="mt-1 px-3 py-1 flex-1 w-full rounded-md border border-slate-200"
-                type="date"
-              />
-            </div>
-          </div>
-
-          <FormField
-            control={form.control}
-            name="grossesseIdClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="hidden"
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="grossesseIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={idUser ?? ""}
-                      onChange={field.onChange}
-                      className="hidden"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="grossesseIdUser"
+              name="grossesseIdVisite"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-medium">
-                    Selectionnez le precripteur
+                    Selectionnez la visite
                   </FormLabel>
                   <Select
                     required
@@ -425,16 +221,21 @@ export default function GrossessePage({
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
+                        <SelectValue placeholder="Visite à sélectionner" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
+                      {visites.map((visite, index) => (
                         <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id ?? ""}
+                          key={index}
+                          value={visite.id}
+                          disabled={selectedGrossesse.some(
+                            (p) => p.grossesseIdVisite === visite.id
+                          )}
                         >
-                          <span>{prescripteur.name}</span>
+                          {new Date(visite.dateVisite).toLocaleDateString(
+                            "fr-FR"
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -443,13 +244,248 @@ export default function GrossessePage({
                 </FormItem>
               )}
             />
-          )}
 
-          <Button type="submit" className="mt-4">
-            {form.formState.isSubmitting ? "En cours..." : "Créer la Grossesse"}
-          </Button>
-        </form>
-      </Form>
+            {/* ************************* */}
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <Label>Patologies Antécédentes</Label>
+              <div className="flex flex-row justify-between">
+                <FormField
+                  control={form.control}
+                  name="grossesseHta"
+                  render={({ field }) => (
+                    <FormItem className="  pb-4">
+                      <div className="text-xl font-bold flex justify-between items-center">
+                        <FormLabel className="ml-4">HTA :</FormLabel>
+                      </div>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value ?? ""}
+                          className="flex gap-x-5 items-center"
+                        >
+                          {TabHta.map((option) => (
+                            <FormItem
+                              key={option.value}
+                              className="flex items-center space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <RadioGroupItem value={option.value} />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {option.label}
+                              </FormLabel>
+                            </FormItem>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Separator
+                  orientation="vertical"
+                  className="mx-2 bg-gray-400"
+                />
+                <FormField
+                  control={form.control}
+                  name="grossesseDiabete"
+                  render={({ field }) => (
+                    <FormItem className="  pb-4">
+                      <div className="text-xl font-bold flex justify-between items-center">
+                        <FormLabel className="ml-4">Diabète :</FormLabel>
+                      </div>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value ?? ""}
+                          className="flex gap-x-5 items-center"
+                        >
+                          {TabHta.map((option) => (
+                            <FormItem
+                              key={option.value}
+                              className="flex items-center space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <RadioGroupItem value={option.value} />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {option.label}
+                              </FormLabel>
+                            </FormItem>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="grossesseGestite"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center">
+                    <FormLabel className="flex-1">Gestité :</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="flex-1"
+                        required
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="grossesseParite"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center">
+                    <FormLabel className="flex-1">Parité :</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="flex-1"
+                        required
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="my-2 px-4 py-2 flex flex-col shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="grossesseAge"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center">
+                    <FormLabel className="flex-1">Âge en Semaine :</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="flex-1"
+                        required
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="mb-3 flex flex-row items-center">
+                <label className="block text-sm flex-1 font-medium">
+                  D.D.R :
+                </label>
+                <Input
+                  {...form.register("grossesseDdr")}
+                  className="mt-1 px-3 py-1 flex-1 w-full rounded-md border border-slate-200"
+                  type="date"
+                />
+              </div>
+              <div className="flex flex-row items-center">
+                <label className="block text-sm flex-1 font-medium">
+                  Terme prévu :
+                </label>
+                <Input
+                  {...form.register("termePrevu")}
+                  className="mt-1 px-3 py-1 flex-1 w-full rounded-md border border-slate-200"
+                  type="date"
+                />
+              </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="grossesseIdClient"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="hidden"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {isPrescripteur === true ? (
+              <FormField
+                control={form.control}
+                name="grossesseIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={idUser ?? ""}
+                        onChange={field.onChange}
+                        className="hidden"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="grossesseIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le precripteur
+                    </FormLabel>
+                    <Select
+                      required
+                      // value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Prescripteur" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allPrescripteur.map((prescripteur) => (
+                          <SelectItem
+                            key={prescripteur.id}
+                            value={prescripteur.id ?? ""}
+                          >
+                            <span>{prescripteur.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button
+              type="submit"
+              className="mt-4"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting
+                ? "En cours..."
+                : "Créer la Grossesse"}
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

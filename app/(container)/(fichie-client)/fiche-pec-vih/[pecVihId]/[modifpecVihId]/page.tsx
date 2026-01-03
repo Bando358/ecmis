@@ -100,7 +100,9 @@ export default function ModifPecVihPage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.PEC_VIH);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.PEC_VIH
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -148,7 +150,7 @@ export default function ModifPecVihPage({
           selectedPecVih.pecVihIdClient
         );
         const visiteDate = result.find(
-          (r: { id: string; }) => r.id === selectedPecVih.pecVihIdVisite
+          (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite
         );
 
         const nomPrescripteur = await getOneUser(selectedPecVih.pecVihIdUser);
@@ -156,7 +158,9 @@ export default function ModifPecVihPage({
         setPrescripteur(nomP);
 
         setVisites(
-          result.filter((r: { id: string; }) => r.id === selectedPecVih.pecVihIdVisite)
+          result.filter(
+            (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite
+          )
         );
         setDateVisite(visiteDate?.dateVisite);
         setSelectedClientId(selectedPecVih.pecVihIdClient);
@@ -242,7 +246,7 @@ export default function ModifPecVihPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+    <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
       {selectedPecVih && (
         <ConstanteClient idVisite={selectedPecVih.pecVihIdVisite} />
       )}
@@ -606,8 +610,16 @@ export default function ModifPecVihPage({
                   )}
                 />
               )}
-              <div className="flex justify-content">
-                <Button type="submit" className="mt-4 mx-auto">
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
                 </Button>
               </div>
@@ -783,7 +795,14 @@ export default function ModifPecVihPage({
                 )}
               </div>
 
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdatePecVih}>Modifier</Button>
               </div>
             </div>

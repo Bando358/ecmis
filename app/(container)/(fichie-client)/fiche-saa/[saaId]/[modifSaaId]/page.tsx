@@ -413,7 +413,7 @@ export default function ModifSaaPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-250 mx-auto px-4 py-2 border rounded-md">
+    <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
       {selectedSaa && <ConstanteClient idVisite={selectedSaa.saaIdVisite} />}
       {isVisible ? (
         <>
@@ -624,9 +624,19 @@ export default function ModifSaaPage({
                 />
               )}
 
-              <Button type="submit" className="mt-4">
-                {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-              </Button>
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
+                </Button>
+              </div>
             </form>
           </Form>
         </>
@@ -813,7 +823,14 @@ export default function ModifSaaPage({
                 <Separator className="my-2" />
               </div>
 
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdateVisite}>Modifier</Button>
               </div>
             </div>

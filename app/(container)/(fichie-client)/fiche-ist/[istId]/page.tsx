@@ -23,6 +23,12 @@ import {
 import { Button } from "@/components/ui/button";
 
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Form,
   FormControl,
   FormField,
@@ -41,7 +47,7 @@ import { Input } from "@/components/ui/input";
 import ConstanteClient from "@/components/constanteClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { RefreshCw } from "lucide-react";
+import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
@@ -120,7 +126,9 @@ export default function IstPage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.IST);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.IST
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -204,78 +212,64 @@ export default function IstPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-225 mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("istIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        Formulaire de Ist
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <FormField
-            control={form.control}
-            name="istIdVisite"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez la visite
-                </FormLabel>
-                <Select
-                  required
-                  // value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Visite à sélectionner" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {visites.map((visite) => (
-                      <SelectItem
-                        key={visite.id}
-                        value={visite.id}
-                        disabled={selectedIst.some(
-                          (p) => p.istIdVisite === visite.id
-                        )}
-                      >
-                        {new Date(visite.dateVisite).toLocaleDateString(
-                          "fr-FR"
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* ************************* */}
-          <div className="my-2 p-3 shadow-md border rounded-md ">
+    <div className="w-full relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sticky top-0 left-4 ml-3"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div className="flex flex-col  justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("istIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          Formulaire de Ist
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
             <FormField
               control={form.control}
-              name="istTypeClient"
+              name="istIdVisite"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-medium">
-                    Selectionnez le type de client
+                    Selectionnez la visite
                   </FormLabel>
-                  <Select required onValueChange={field.onChange}>
+                  <Select
+                    required
+                    // value={field.value}
+                    onValueChange={field.onChange}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Type à sélectionner" />
+                        <SelectValue placeholder="Visite à sélectionner" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {TabTypeClient.map((option) => (
+                      {visites.map((visite) => (
                         <SelectItem
-                          key={option.value}
-                          value={option.value ?? ""}
+                          key={visite.id}
+                          value={visite.id}
+                          disabled={selectedIst.some(
+                            (p) => p.istIdVisite === visite.id
+                          )}
                         >
-                          {option.label}
+                          {new Date(visite.dateVisite).toLocaleDateString(
+                            "fr-FR"
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -284,176 +278,25 @@ export default function IstPage({
                 </FormItem>
               )}
             />
-            <Separator className="my-3" />
-            <FormField
-              control={form.control}
-              name="istType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le type de Ist
-                  </FormLabel>
-                  <Select required onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Type à sélectionner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {TabTypeIst.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value ?? ""}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="my-2 shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="istCounsellingAvantDepitage"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Counselling Avant dépistage ist
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="istExamenPhysique"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Exament Physique
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="istCounsellingApresDepitage"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Counselling Après dépistage ist
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
 
-            {/* <Separator /> */}
-            <FormField
-              control={form.control}
-              name="istCounselingReductionRisque"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Counseling Réduction du risque
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="istTypePec"
-              render={({ field }) => (
-                <FormItem className=" px-4 pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">
-                      Type de traitement IST:
-                    </FormLabel>
-                    <RefreshCw
-                      onClick={() => {
-                        form.setValue("istTypePec", "");
-                      }}
-                      className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                    />
-                  </div>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value ?? ""}
-                      className="flex gap-x-5 items-center"
-                    >
-                      {TabTypePec.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value ?? ""} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {form.watch("istTypePec") === "etiologique" && (
+            {/* ************************* */}
+            <div className="my-2 p-3 shadow-md border rounded-md ">
               <FormField
                 control={form.control}
-                name="istPecEtiologique"
+                name="istTypeClient"
                 render={({ field }) => (
-                  <FormItem className="mx-6 mb-3 outline-red-500">
+                  <FormItem>
                     <FormLabel className="font-medium">
-                      Selectionnez le type de PEC
+                      Selectionnez le type de client
                     </FormLabel>
-                    <Select onValueChange={field.onChange}>
+                    <Select required onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Traitement à sélectionner" />
+                          <SelectValue placeholder="Type à sélectionner" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {tabTypePec.map((option) => (
+                        {TabTypeClient.map((option) => (
                           <SelectItem
                             key={option.value}
                             value={option.value ?? ""}
@@ -467,59 +310,246 @@ export default function IstPage({
                   </FormItem>
                 )}
               />
-            )}
-          </div>
-          <FormField
-            control={form.control}
-            name="istIdClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} className="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+              <Separator className="my-3" />
+              <FormField
+                control={form.control}
+                name="istType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le type de Ist
+                    </FormLabel>
+                    <Select required onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Type à sélectionner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {TabTypeIst.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value ?? ""}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="my-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="istCounsellingAvantDepitage"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Counselling Avant dépistage ist
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="istExamenPhysique"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Exament Physique
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="istCounsellingApresDepitage"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Counselling Après dépistage ist
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="istIdUser"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez le prescripteur
-                </FormLabel>
-                <Select
-                  required
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  defaultValue={isPrescripteur ? idUser : undefined}
-                >
+              {/* <Separator /> */}
+              <FormField
+                control={form.control}
+                name="istCounselingReductionRisque"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Counseling Réduction du risque
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="istTypePec"
+                render={({ field }) => (
+                  <FormItem className=" px-4 pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">
+                        Type de traitement IST:
+                      </FormLabel>
+                      <RefreshCw
+                        onClick={() => {
+                          form.setValue("istTypePec", "");
+                        }}
+                        className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                      />
+                    </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        className="flex gap-x-5 items-center"
+                      >
+                        {TabTypePec.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value ?? ""} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("istTypePec") === "etiologique" && (
+                <FormField
+                  control={form.control}
+                  name="istPecEtiologique"
+                  render={({ field }) => (
+                    <FormItem className="mx-6 mb-3 outline-red-500">
+                      <FormLabel className="font-medium">
+                        Selectionnez le type de PEC
+                      </FormLabel>
+                      <Select onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Traitement à sélectionner" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tabTypePec.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value ?? ""}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+            <FormField
+              control={form.control}
+              name="istIdClient"
+              render={({ field }) => (
+                <FormItem>
                   <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez un prescripteur" />
-                    </SelectTrigger>
+                    <Input {...field} className="hidden" />
                   </FormControl>
-                  <SelectContent>
-                    {allPrescripteur.map((prescripteur) => (
-                      <SelectItem key={prescripteur.id} value={prescripteur.id}>
-                        <span>{prescripteur.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </FormItem>
+              )}
+            />
 
-          <div className="flex flex-row justify-center py-2">
-            <Button type="submit">
-              {form.formState.isSubmitting ? "Submitting..." : "Soumettre"}
-            </Button>
-          </div>
-        </form>
-      </Form>
+            <FormField
+              control={form.control}
+              name="istIdUser"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-medium">
+                    Selectionnez le prescripteur
+                  </FormLabel>
+                  <Select
+                    required
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    defaultValue={isPrescripteur ? idUser : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sélectionnez un prescripteur" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {allPrescripteur.map((prescripteur) => (
+                        <SelectItem
+                          key={prescripteur.id}
+                          value={prescripteur.id}
+                        >
+                          <span>{prescripteur.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex flex-row justify-center py-2">
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Submitting..." : "Soumettre"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

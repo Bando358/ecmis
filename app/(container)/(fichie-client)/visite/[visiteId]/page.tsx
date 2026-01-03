@@ -13,6 +13,13 @@ import { fr } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Activite,
   Client,
@@ -35,6 +42,7 @@ import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getAllActiviteByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
+import { ArrowBigLeftDash } from "lucide-react";
 
 // Type pour la création de visite
 type VisiteFormValues = {
@@ -260,7 +268,24 @@ export default function FormVisite({
   ];
 
   return (
-    <div className="flex flex-col w-full justify-center p-4">
+    <div className="flex flex-col w-full justify-center p-4 relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-0 left-4"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <h2 className="text-2xl text-gray-600 font-black text-center mb-6">
         Fiche de création de visite
       </h2>

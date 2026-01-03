@@ -2,7 +2,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { RefreshCw } from "lucide-react";
+import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getAllGrossesseByIdClient } from "@/lib/actions/grossesseActions";
@@ -11,6 +11,12 @@ import {
   createObstetrique,
   getEtatImcByIdVisite,
 } from "@/lib/actions/obstetriqueActions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Client,
   Grossesse,
@@ -121,7 +127,9 @@ export default function ObstetriquePage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.OBSTETRIQUE);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.OBSTETRIQUE
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -255,328 +263,121 @@ export default function ObstetriquePage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-5xl mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("obstIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        {`Formulaire de Consultation Obstétricale`}
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="obstIdVisite"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez la visite
-                  </FormLabel>
-                  <Select
-                    required
-                    value={field.value || ""}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      handleVisiteChange(value);
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Visite à sélectionner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {visites.map((visite) => (
-                        <SelectItem
-                          key={visite.id}
-                          value={visite.id}
-                          disabled={selectedObstetrique.some(
-                            (p) => p.obstIdVisite === visite.id
-                          )}
-                        >
-                          {new Date(visite.dateVisite).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="obstIdGrossesse"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez la grossesse
-                  </FormLabel>
-                  <Select
-                    required
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Visite à sélectionner" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {grossesses.map((grossesse) => (
-                        <SelectItem key={grossesse.id} value={grossesse.id}>
-                          {grossesse.grossesseDdr &&
-                            new Date(grossesse.grossesseDdr).toLocaleDateString(
-                              "fr-FR"
-                            )}{" "}
-                          -{" "}
-                          {grossesse.termePrevu &&
-                            new Date(grossesse.termePrevu).toLocaleDateString(
+    <div className="w-full relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sticky top-0 left-4 ml-3"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("obstIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          {`Formulaire de Consultation Obstétricale`}
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="obstIdVisite"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez la visite
+                    </FormLabel>
+                    <Select
+                      required
+                      value={field.value || ""}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        handleVisiteChange(value);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Visite à sélectionner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {visites.map((visite) => (
+                          <SelectItem
+                            key={visite.id}
+                            value={visite.id}
+                            disabled={selectedObstetrique.some(
+                              (p) => p.obstIdVisite === visite.id
+                            )}
+                          >
+                            {new Date(visite.dateVisite).toLocaleDateString(
                               "fr-FR"
                             )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="obstConsultation"
-            render={({ field }) => (
-              <FormItem className="hidden">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value || false}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="font-normal">Consultation</FormLabel>
-                </div>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="obstCounselling"
-            render={({ field }) => (
-              <FormItem className="hidden">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value || false}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="font-normal">Counselling</FormLabel>
-                </div>
-              </FormItem>
-            )}
-          />
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <FormField
-              control={form.control}
-              name="obstTypeVisite"
-              render={({ field }) => (
-                <FormItem className="pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">Num CPN :</FormLabel>
-                  </div>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value || ""}
-                      className="gap-x-5 items-center grid grid-cols-3"
-                    >
-                      {TabCpn.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Separator className="mb-3" />
-            <FormField
-              control={form.control}
-              name="obstSp"
-              render={({ field }) => (
-                <FormItem className="pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">SP :</FormLabel>
-                    <RefreshCw
-                      onClick={() => {
-                        form.setValue("obstSp", "");
-                      }}
-                      className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                    />
-                  </div>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value || ""}
-                      className="gap-x-5 items-center grid-cols-3"
-                    >
-                      {TabSp.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Separator className="mb-3" />
-            <FormField
-              control={form.control}
-              name="obstVat"
-              render={({ field }) => (
-                <FormItem className="pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">Vaccination :</FormLabel>
-                    <RefreshCw
-                      onClick={() => {
-                        form.setValue("obstVat", "");
-                      }}
-                      className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                    />
-                  </div>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value || ""}
-                      className="gap-x-5 items-center grid-cols-3"
-                    >
-                      {TabVat.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-            <Label className="flex justify-center">Prescriptions</Label>
-            <div className="grid grid-cols-2">
-              <FormField
-                control={form.control}
-                name="obstFer"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">Fer</FormLabel>
-                    </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="obstFolate"
+                name="obstIdGrossesse"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">Folate</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="obstDeparasitant"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">
-                        Déparasitant
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="obstMilda"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">MILDA</FormLabel>
-                    </div>
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez la grossesse
+                    </FormLabel>
+                    <Select
+                      required
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Visite à sélectionner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {grossesses.map((grossesse) => (
+                          <SelectItem key={grossesse.id} value={grossesse.id}>
+                            {grossesse.grossesseDdr &&
+                              new Date(
+                                grossesse.grossesseDdr
+                              ).toLocaleDateString("fr-FR")}{" "}
+                            -{" "}
+                            {grossesse.termePrevu &&
+                              new Date(grossesse.termePrevu).toLocaleDateString(
+                                "fr-FR"
+                              )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </div>
-          <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+
             <FormField
               control={form.control}
-              name="obstInvestigations"
+              name="obstConsultation"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                <FormItem className="hidden">
                   <FormControl>
                     <Checkbox
                       checked={field.value || false}
@@ -584,75 +385,16 @@ export default function ObstetriquePage({
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Investigation Physique
-                    </FormLabel>
+                    <FormLabel className="font-normal">Consultation</FormLabel>
                   </div>
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="obstEtatNutritionnel"
+              name="obstCounselling"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center">
-                  <FormLabel className="flex-1">Etat Nutritionnel :</FormLabel>
-                  <FormControl>
-                    <Input
-                      className={`flex-1 ${styleImc}`}
-                      required
-                      disabled
-                      value={field.value || ""}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Separator className="my-3" />
-            <FormField
-              control={form.control}
-              name="obstEtatGrossesse"
-              render={({ field }) => (
-                <FormItem className="pb-4">
-                  <div className="text-xl font-bold flex justify-between items-center">
-                    <FormLabel className="ml-4">
-                      Etat de la grossesse :
-                    </FormLabel>
-                  </div>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value || ""}
-                      className="flex gap-x-5 items-center"
-                      required
-                    >
-                      {TabEtatGrossesse.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Separator />
-            <FormField
-              control={form.control}
-              name="obstPfppi"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                <FormItem className="hidden">
                   <FormControl>
                     <Checkbox
                       checked={field.value || false}
@@ -660,182 +402,473 @@ export default function ObstetriquePage({
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel className="font-normal">
-                      Counselling PF ppi
-                    </FormLabel>
+                    <FormLabel className="font-normal">Counselling</FormLabel>
                   </div>
                 </FormItem>
               )}
             />
-            <Separator className="mb-3" />
-            <Label className="flex justify-center mt-2">Dépistages</Label>
-            <div className="grid grid-cols-2">
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
               <FormField
                 control={form.control}
-                name="obstAlbuminieSucre"
+                name="obstTypeVisite"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">
-                        Dépistage sucre
-                      </FormLabel>
+                  <FormItem className="pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">Num CPN :</FormLabel>
                     </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        className="gap-x-5 items-center grid grid-cols-3"
+                      >
+                        {TabCpn.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
+              <Separator className="mb-3" />
               <FormField
                 control={form.control}
-                name="obstAnemie"
+                name="obstSp"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
+                  <FormItem className="pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">SP :</FormLabel>
+                      <RefreshCw
+                        onClick={() => {
+                          form.setValue("obstSp", "");
+                        }}
+                        className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
                       />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">
-                        Dépistage Anémie
-                      </FormLabel>
                     </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        className="gap-x-5 items-center grid-cols-3"
+                      >
+                        {TabSp.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
+              <Separator className="mb-3" />
               <FormField
                 control={form.control}
-                name="obstSyphilis"
+                name="obstVat"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
+                  <FormItem className="pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">Vaccination :</FormLabel>
+                      <RefreshCw
+                        onClick={() => {
+                          form.setValue("obstVat", "");
+                        }}
+                        className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
                       />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">
-                        Dépistage Syphilis
-                      </FormLabel>
                     </div>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="obstAghbs"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
                     <FormControl>
-                      <Checkbox
-                        checked={field.value || false}
-                        onCheckedChange={field.onChange}
-                      />
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        className="gap-x-5 items-center grid-cols-3"
+                      >
+                        {TabVat.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">
-                        Dépistage AgHbs
-                      </FormLabel>
-                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </div>
-
-          <div className="my-2 px-4 py-2 flex flex-col shadow-md border rounded-md ">
-            <div className="mb-3 flex flex-row items-center">
-              <label className="block text-sm flex-1 font-medium">
-                Rendez-Vous :
-              </label>
-              <Input
-                className="mt-1 px-3 py-1 flex-1 w-full rounded-md border border-slate-200"
-                type="date"
-                value={(() => {
-                  const v = form.watch("obstRdv");
-                  if (!v) return "";
-                  const dateObj = typeof v === "string" ? new Date(v) : v;
-                  return dateObj.toISOString().split("T")[0];
-                })()}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  form.setValue("obstRdv", val ? new Date(val) : null);
-                }}
-              />
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <Label className="flex justify-center">Prescriptions</Label>
+              <div className="grid grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="obstFer"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">Fer</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="obstFolate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">Folate</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="obstDeparasitant"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">
+                          Déparasitant
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="obstMilda"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">MILDA</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
-          </div>
+            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="obstInvestigations"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value || false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Investigation Physique
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="obstEtatNutritionnel"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center">
+                    <FormLabel className="flex-1">
+                      Etat Nutritionnel :
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        className={`flex-1 ${styleImc}`}
+                        required
+                        disabled
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Separator className="my-3" />
+              <FormField
+                control={form.control}
+                name="obstEtatGrossesse"
+                render={({ field }) => (
+                  <FormItem className="pb-4">
+                    <div className="text-xl font-bold flex justify-between items-center">
+                      <FormLabel className="ml-4">
+                        Etat de la grossesse :
+                      </FormLabel>
+                    </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        className="flex gap-x-5 items-center"
+                        required
+                      >
+                        {TabEtatGrossesse.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Separator />
+              <FormField
+                control={form.control}
+                name="obstPfppi"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value || false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="font-normal">
+                        Counselling PF ppi
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <Separator className="mb-3" />
+              <Label className="flex justify-center mt-2">Dépistages</Label>
+              <div className="grid grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="obstAlbuminieSucre"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">
+                          Dépistage sucre
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="obstAnemie"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">
+                          Dépistage Anémie
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="obstSyphilis"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">
+                          Dépistage Syphilis
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="obstAghbs"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">
+                          Dépistage AgHbs
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-          <FormField
-            control={form.control}
-            name="obstIdClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} className="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+            <div className="my-2 px-4 py-2 flex flex-col shadow-md border rounded-md ">
+              <div className="mb-3 flex flex-row items-center">
+                <label className="block text-sm flex-1 font-medium">
+                  Rendez-Vous :
+                </label>
+                <Input
+                  className="mt-1 px-3 py-1 flex-1 w-full rounded-md border border-slate-200"
+                  type="date"
+                  value={(() => {
+                    const v = form.watch("obstRdv");
+                    if (!v) return "";
+                    const dateObj = typeof v === "string" ? new Date(v) : v;
+                    return dateObj.toISOString().split("T")[0];
+                  })()}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    form.setValue("obstRdv", val ? new Date(val) : null);
+                  }}
+                />
+              </div>
+            </div>
 
-          {isPrescripteur === true ? (
             <FormField
               control={form.control}
-              name="obstIdUser"
+              name="obstIdClient"
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input {...field} value={idUser} className="hidden" />
+                    <Input {...field} className="hidden" />
                   </FormControl>
                 </FormItem>
               )}
             />
-          ) : (
-            <FormField
-              control={form.control}
-              name="obstIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur .....
-                  </FormLabel>
-                  <Select
-                    required
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
 
-          <Button type="submit" className="mt-4">
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
-          </Button>
-        </form>
-      </Form>
+            {isPrescripteur === true ? (
+              <FormField
+                control={form.control}
+                name="obstIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input {...field} value={idUser} className="hidden" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="obstIdUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le precripteur .....
+                    </FormLabel>
+                    <Select
+                      required
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Prescripteur" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allPrescripteur.map((prescripteur) => (
+                          <SelectItem
+                            key={prescripteur.id}
+                            value={prescripteur.id}
+                          >
+                            <span>{prescripteur.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button
+              type="submit"
+              className="mt-4"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

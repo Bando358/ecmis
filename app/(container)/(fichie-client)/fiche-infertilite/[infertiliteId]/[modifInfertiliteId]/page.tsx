@@ -97,7 +97,9 @@ export default function IstPage({
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find((p: { table: string; }) => p.table === TableName.INFERTILITE);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.INFERTILITE
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -147,7 +149,7 @@ export default function IstPage({
           selectedInfertilite.infertIdClient
         );
         const visiteDate = result.find(
-          (r: { id: string; }) => r.id === selectedInfertilite.infertIdVisite
+          (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite
         );
 
         const nomPrescripteur = await getOneUser(
@@ -157,7 +159,9 @@ export default function IstPage({
         setPrescripteur(nomP);
 
         setVisites(
-          result.filter((r: { id: string; }) => r.id === selectedInfertilite.infertIdVisite)
+          result.filter(
+            (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite
+          )
         ); // Assurez-vous que result est bien de type CliniqueData[]
         setDateVisite(visiteDate?.dateVisite);
         // const clientData = await getOneClient(selectedGyneco.idClient);
@@ -436,8 +440,16 @@ export default function IstPage({
                   )}
                 />
               )}
-              <div className="flex justify-content">
-                <Button type="submit" className="mt-4 mx-auto">
+              <div className="flex flex-row  justify-center items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVisible(false)}
+                  disabled={form.formState.isSubmitting}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
                 </Button>
               </div>
@@ -530,7 +542,14 @@ export default function IstPage({
                   <small className="italic">{prescripteur}</small>
                 )}
               </div>
-              <div className="col-span-2 flex flex-row justify-center">
+              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Retour
+                </Button>
                 <Button onClick={handleUpdateVisite}>Modifier</Button>
               </div>
             </div>

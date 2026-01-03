@@ -12,9 +12,15 @@ import { createRecapVisite } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
-import { Visite, Constante, TableName, Permission } from "@prisma/client";
+import { Visite, Constante, TableName, Permission, User } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Form,
   FormControl,
@@ -32,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { getOneUser } from "@/lib/actions/authActions";
+import { ArrowBigLeftDash } from "lucide-react";
 
 export default function ConstantePage({
   params,
@@ -41,6 +49,7 @@ export default function ConstantePage({
   const { constanteId } = use(params);
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedConstante, setSelectedConstante] = useState<Constante[]>([]);
+  const [oneUser, setOneUser] = useState<User | null>(null);
   const [resulImc, setResulImc] = useState<number>(0);
   const [etatImc, setEtatImc] = useState<string>("");
   const [styleImc, setStyleImc] = useState<string>("");
@@ -62,12 +71,20 @@ export default function ConstantePage({
   }, [constanteId, setSelectedClientId]);
 
   useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setOneUser(user);
+    };
+    fetUser();
+  }, [idUser]);
+
+  useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!oneUser) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.CONSTANTE
         );
@@ -87,7 +104,7 @@ export default function ConstantePage({
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [oneUser, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -197,10 +214,26 @@ export default function ConstantePage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center">
+    <div className="flex flex-col w-full justify-center relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-0 left-4"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <h2 className="text-2xl text-gray-600 font-black text-center">
-        Créer la visite de -{" "}
-        {client ? `${client.nom} ${client.prenom}` : "Chargement..."}
+        Formulaire des constantes
       </h2>
 
       <Form {...form}>
@@ -413,7 +446,11 @@ export default function ConstantePage({
               </FormItem>
             )}
           />
-          <Button type="submit" className="mt-4 mx-auto block">
+          <Button
+            type="submit"
+            className="mt-4 mx-auto block"
+            disabled={form.formState.isSubmitting}
+          >
             {form.formState.isSubmitting ? "En cours..." : "Créer la constante"}
           </Button>
         </form>

@@ -2,7 +2,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { RefreshCw } from "lucide-react";
+import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useClientContext } from "@/components/ClientContext";
@@ -12,6 +12,12 @@ import {
   createPlanning,
 } from "@/lib/actions/planningActions";
 import { useSession } from "next-auth/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Client,
   Permission,
@@ -272,191 +278,258 @@ export default function PlanningPage({
   }, [planningId, form]);
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-225 mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("idVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        Formulaire de planification familiale
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <FormField
-            control={form.control}
-            name="idVisite"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez la visite
-                </FormLabel>
-                <Select required onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Visite à sélectionner ....." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {visites.map((visite, index) => (
-                      <SelectItem
-                        key={index}
-                        value={visite.id}
-                        disabled={selectedPlanning.some(
-                          (p) => p.idVisite === visite.id
-                        )}
-                      >
-                        {new Date(visite.dateVisite).toLocaleDateString(
-                          "fr-FR"
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {/* ************************* */}
-          <div className="flex w-full flex-col gap-5">
+    <div className="w-full relative">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-0 left-4"
+              onClick={() => router.back()}
+            >
+              <ArrowBigLeftDash className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Retour à la page précédente</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md relative">
+        <ConstanteClient idVisite={form.getValues("idVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          Formulaire de planification familiale
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
             <FormField
               control={form.control}
-              name="statut"
+              name="idVisite"
               render={({ field }) => (
-                <FormItem className="flex items-center gap-5 w-full">
-                  {/* Label aligné avec les options */}
-                  <FormLabel className="whitespace-nowrap">
-                    Statut client :
+                <FormItem>
+                  <FormLabel className="font-medium">
+                    Selectionnez la visite
                   </FormLabel>
-                  <FormControl className="flex flex-row gap-x-5 items-center">
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value ?? ""}
-                      className="flex gap-x-5 items-center"
-                    >
-                      {tabStatut.map((option) => (
-                        <FormItem
-                          key={option.id}
-                          className="flex items-center space-x-3 space-y-0"
+                  <Select required onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Visite à sélectionner ....." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {visites.map((visite, index) => (
+                        <SelectItem
+                          key={index}
+                          value={visite.id}
+                          disabled={selectedPlanning.some(
+                            (p) => p.idVisite === visite.id
+                          )}
                         >
-                          <FormControl>
-                            <RadioGroupItem value={option.value} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
+                          {new Date(visite.dateVisite).toLocaleDateString(
+                            "fr-FR"
+                          )}
+                        </SelectItem>
                       ))}
-                    </RadioGroup>
-                  </FormControl>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
-          {/* ************************* */}
-          <FormField
-            control={form.control}
-            name="typeContraception"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez le type de contraception
-                </FormLabel>
-                <Select
-                  required
-                  // value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="le type de contraception ....." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {TypeContraception.map((contraception, index) => (
-                      <SelectItem key={index} value={contraception.value}>
-                        {contraception.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="motifVisite"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez le motif de la visite
-                </FormLabel>
-                <Select
-                  required
-                  // value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="le motif ....." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {motifs.map((motif, index) => (
-                      <SelectItem key={index} value={motif.value}>
-                        {motif.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="flex flex-row justify-between">
+            {/* ************************* */}
+            <div className="flex w-full flex-col gap-5">
+              <FormField
+                control={form.control}
+                name="statut"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-5 w-full">
+                    {/* Label aligné avec les options */}
+                    <FormLabel className="whitespace-nowrap">
+                      Statut client :
+                    </FormLabel>
+                    <FormControl className="flex flex-row gap-x-5 items-center">
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        className="flex gap-x-5 items-center"
+                      >
+                        {tabStatut.map((option) => (
+                          <FormItem
+                            key={option.id}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            {/* ************************* */}
             <FormField
               control={form.control}
-              name="consultation"
+              name="typeContraception"
               render={({ field }) => (
-                <FormItem className="hidden">
-                  <FormControl>
-                    <Checkbox
-                      checked={!!field.value}
-                      onCheckedChange={(checked) => field.onChange(!!checked)}
-                      required
-                    />
-                  </FormControl>
+                <FormItem>
+                  <FormLabel className="font-medium">
+                    Selectionnez le type de contraception
+                  </FormLabel>
+                  <Select
+                    required
+                    // value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="le type de contraception ....." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TypeContraception.map((contraception, index) => (
+                        <SelectItem key={index} value={contraception.value}>
+                          {contraception.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="motifVisite"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-medium">
+                    Selectionnez le motif de la visite
+                  </FormLabel>
+                  <Select
+                    required
+                    // value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="le motif ....." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {motifs.map((motif, index) => (
+                        <SelectItem key={index} value={motif.value}>
+                          {motif.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex flex-row justify-between">
+              <FormField
+                control={form.control}
+                name="consultation"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Checkbox
+                        checked={!!field.value}
+                        onCheckedChange={(checked) => field.onChange(!!checked)}
+                        required
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="counsellingPf"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0 ">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Counselling PF</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="flex flex-col border rounded-md shadow-md p-2">
-            <div className="font-sans">
-              <div className="text-xl font-bold mb-4 flex justify-between items-center">
-                <Label>Méthode de courte durée</Label>
+              <FormField
+                control={form.control}
+                name="counsellingPf"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-2 space-y-0 ">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Counselling PF</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex flex-col border rounded-md shadow-md p-2">
+              <div className="font-sans">
+                <div className="text-xl font-bold mb-4 flex justify-between items-center">
+                  <Label>Méthode de courte durée</Label>
+                  <RefreshCw
+                    onClick={() => {
+                      form.setValue("courtDuree", "");
+                    }}
+                    className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                  />
+                </div>
+                <div className="px-5 pb-4 font-sans relative">
+                  <FormField
+                    control={form.control}
+                    name="courtDuree"
+                    render={({ field }) => (
+                      <FormItem className="">
+                        <div className="text-xl font-bold flex justify-between items-center">
+                          <FormLabel></FormLabel>
+                        </div>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value ?? ""}
+                            className="grid grid-cols-2 space-y-1 gap-2 items-center"
+                          >
+                            {Mcd.map((option) => (
+                              <FormItem
+                                key={option.value}
+                                className="flex items-center space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <RadioGroupItem value={option.value} />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {option.label}
+                                </FormLabel>
+                              </FormItem>
+                            ))}
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col border rounded-md shadow-md p-2">
+              <div className="flex justify-between">
+                <Label className="font-sans">Méthode de longue durée</Label>
                 <RefreshCw
                   onClick={() => {
-                    form.setValue("courtDuree", "");
+                    form.setValue("implanon", "");
+                    form.setValue("jadelle", "");
+                    form.setValue("sterilet", "");
                   }}
                   className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
                 />
@@ -464,21 +537,22 @@ export default function PlanningPage({
               <div className="px-5 pb-4 font-sans relative">
                 <FormField
                   control={form.control}
-                  name="courtDuree"
+                  name="implanon"
                   render={({ field }) => (
                     <FormItem className="">
                       <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel></FormLabel>
+                        <FormLabel>Implanon</FormLabel>
+                        <div></div>
                       </div>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
                           value={field.value ?? ""}
-                          className="grid grid-cols-2 space-y-1 gap-2 items-center"
+                          className="flex gap-x-5 items-center"
                         >
-                          {Mcd.map((option) => (
+                          {implans.map((option) => (
                             <FormItem
-                              key={option.value}
+                              key={option.id}
                               className="flex items-center space-x-3 space-y-0"
                             >
                               <FormControl>
@@ -495,308 +569,261 @@ export default function PlanningPage({
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="retraitImplanon"
+                  render={({ field }) => (
+                    <FormItem className="absolute right-8 bottom-4 flex flex-row items-start space-x-2 space-y-0 mt-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          // className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">Retrait</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               </div>
-            </div>
-          </div>
-          <div className="flex flex-col border rounded-md shadow-md p-2">
-            <div className="flex justify-between">
-              <Label className="font-sans">Méthode de longue durée</Label>
-              <RefreshCw
-                onClick={() => {
-                  form.setValue("implanon", "");
-                  form.setValue("jadelle", "");
-                  form.setValue("sterilet", "");
-                }}
-                className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-              />
-            </div>
-            <div className="px-5 pb-4 font-sans relative">
-              <FormField
-                control={form.control}
-                name="implanon"
-                render={({ field }) => (
-                  <FormItem className="">
-                    <div className="text-xl font-bold flex justify-between items-center">
-                      <FormLabel>Implanon</FormLabel>
-                      <div></div>
-                    </div>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        className="flex gap-x-5 items-center"
-                      >
-                        {implans.map((option) => (
-                          <FormItem
-                            key={option.id}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={option.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {option.label}
-                            </FormLabel>
-                          </FormItem>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="retraitImplanon"
-                render={({ field }) => (
-                  <FormItem className="absolute right-8 bottom-4 flex flex-row items-start space-x-2 space-y-0 mt-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        // className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">Retrait</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-            {/* jadelle */}
-            <div className="px-5 pb-4 font-sans relative">
-              <FormField
-                control={form.control}
-                name="jadelle"
-                render={({ field }) => (
-                  <FormItem className="">
-                    <div className="text-xl font-bold flex justify-between items-center">
-                      <FormLabel>Jadelle</FormLabel>
-                      {/* <RefreshCw
+              {/* jadelle */}
+              <div className="px-5 pb-4 font-sans relative">
+                <FormField
+                  control={form.control}
+                  name="jadelle"
+                  render={({ field }) => (
+                    <FormItem className="">
+                      <div className="text-xl font-bold flex justify-between items-center">
+                        <FormLabel>Jadelle</FormLabel>
+                        {/* <RefreshCw
                         onClick={() => {
                           form.setValue("jadelle", "");
                           // form.setValue("retraitJadelle", false);
                         }}
                         className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
                       /> */}
-                      <div></div>
-                    </div>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        className="flex gap-x-5 items-center"
-                      >
-                        {implans.map((option) => (
-                          <FormItem
-                            key={option.id}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={option.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {option.label}
-                            </FormLabel>
-                          </FormItem>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="retraitJadelle"
-                render={({ field }) => (
-                  <FormItem className="absolute right-8 bottom-4 flex flex-row items-start space-x-2 space-y-0 mt-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">Retrait</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-            {/* Stérilet */}
-            <div className="px-5 pb-2 font-sans relative">
-              <FormField
-                control={form.control}
-                name="sterilet"
-                render={({ field }) => (
-                  <FormItem className="">
-                    <div className="text-xl font-bold flex justify-between items-center">
-                      <FormLabel>Stérilet</FormLabel>
-                      <div></div>
-                    </div>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        className="flex gap-x-5 items-center"
-                      >
-                        {implans.map((option) => (
-                          <FormItem
-                            key={option.id}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={option.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {option.label}
-                            </FormLabel>
-                          </FormItem>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="retraitSterilet"
-                render={({ field }) => (
-                  <FormItem className="absolute right-8 bottom-2 flex flex-row items-start space-x-2 space-y-0 mt-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        // className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">Retrait</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-            <Separator className="my-2" />
-            {form.watch("retraitImplanon") === true ||
-            form.watch("retraitJadelle") === true ||
-            form.watch("retraitSterilet") === true ? (
-              <div className="flex flex-col gap-2">
-                <FormField
-                  control={form.control}
-                  name="raisonRetrait"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-red-400">
-                        Quel est la raison du retraire
-                      </FormLabel>
-                      <Select onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="La raison ..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tabRaisonEffet.map((raison, index) => (
-                            <SelectItem key={index} value={raison.value}>
-                              {raison.label}
-                            </SelectItem>
+                        <div></div>
+                      </div>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value ?? ""}
+                          className="flex gap-x-5 items-center"
+                        >
+                          {implans.map((option) => (
+                            <FormItem
+                              key={option.id}
+                              className="flex items-center space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <RadioGroupItem value={option.value} />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {option.label}
+                              </FormLabel>
+                            </FormItem>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </RadioGroup>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                {form.watch("raisonRetrait") === "effet_secondaire" && (
-                  <Input
-                    {...form.register("raisonEffetSecondaire")}
-                    placeholder="Quel est l'effet secondaire..."
-                    className="border border-red-400"
-                  />
-                )}
+                <FormField
+                  control={form.control}
+                  name="retraitJadelle"
+                  render={({ field }) => (
+                    <FormItem className="absolute right-8 bottom-4 flex flex-row items-start space-x-2 space-y-0 mt-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">Retrait</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               </div>
-            ) : (
-              ""
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium">
-              Date de Rendez-vous
-            </label>
-            <input
-              {...form.register("rdvPf")}
-              className="mt-1 px-3 py-1 w-full rounded-md border border-slate-200"
-              type="date"
-              name="rdvPf"
-            />
-          </div>
-          <FormField
-            control={form.control}
-            name="idClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} className="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          {isPrescripteur === true ? (
+              {/* Stérilet */}
+              <div className="px-5 pb-2 font-sans relative">
+                <FormField
+                  control={form.control}
+                  name="sterilet"
+                  render={({ field }) => (
+                    <FormItem className="">
+                      <div className="text-xl font-bold flex justify-between items-center">
+                        <FormLabel>Stérilet</FormLabel>
+                        <div></div>
+                      </div>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value ?? ""}
+                          className="flex gap-x-5 items-center"
+                        >
+                          {implans.map((option) => (
+                            <FormItem
+                              key={option.id}
+                              className="flex items-center space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <RadioGroupItem value={option.value} />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {option.label}
+                              </FormLabel>
+                            </FormItem>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="retraitSterilet"
+                  render={({ field }) => (
+                    <FormItem className="absolute right-8 bottom-2 flex flex-row items-start space-x-2 space-y-0 mt-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          // className="w-5 h-5 border-2 rounded-full text-blue-500 border-blue-500"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-normal">Retrait</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Separator className="my-2" />
+              {form.watch("retraitImplanon") === true ||
+              form.watch("retraitJadelle") === true ||
+              form.watch("retraitSterilet") === true ? (
+                <div className="flex flex-col gap-2">
+                  <FormField
+                    control={form.control}
+                    name="raisonRetrait"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-red-400">
+                          Quel est la raison du retraire
+                        </FormLabel>
+                        <Select onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="La raison ..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {tabRaisonEffet.map((raison, index) => (
+                              <SelectItem key={index} value={raison.value}>
+                                {raison.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {form.watch("raisonRetrait") === "effet_secondaire" && (
+                    <Input
+                      {...form.register("raisonEffetSecondaire")}
+                      placeholder="Quel est l'effet secondaire..."
+                      className="border border-red-400"
+                    />
+                  )}
+                </div>
+              ) : (
+                ""
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium">
+                Date de Rendez-vous
+              </label>
+              <input
+                {...form.register("rdvPf")}
+                className="mt-1 px-3 py-1 w-full rounded-md border border-slate-200"
+                type="date"
+                name="rdvPf"
+              />
+            </div>
             <FormField
               control={form.control}
-              name="idUser"
+              name="idClient"
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input {...field} value={idUser} className="hidden" />
+                    <Input {...field} className="hidden" />
                   </FormControl>
                 </FormItem>
               )}
             />
-          ) : (
-            <FormField
-              control={form.control}
-              name="idUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    // value={field.value}
-                    onValueChange={field.onChange}
-                  >
+            {isPrescripteur === true ? (
+              <FormField
+                control={form.control}
+                name="idUser"
+                render={({ field }) => (
+                  <FormItem>
                     <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur ....." />
-                      </SelectTrigger>
+                      <Input {...field} value={idUser} className="hidden" />
                     </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescipteur, index) => (
-                        <SelectItem key={index} value={prescipteur.id}>
-                          <span>{prescipteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-          <Button type="submit" className="mt-4">
-            {form.formState.isSubmitting
-              ? "Valider le formulaire..."
-              : "Valider le formulaire"}
-          </Button>
-        </form>
-      </Form>
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="idUser"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le precripteur
+                    </FormLabel>
+                    <Select
+                      required
+                      // value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Prescripteur ....." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allPrescripteur.map((prescipteur, index) => (
+                          <SelectItem key={index} value={prescipteur.id}>
+                            <span>{prescipteur.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <Button
+              type="submit"
+              className="mt-4"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            </Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

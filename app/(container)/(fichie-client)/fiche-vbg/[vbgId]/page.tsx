@@ -45,6 +45,7 @@ import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { createVbg, getAllVbgByIdClient } from "@/lib/actions/vbgActions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import Retour from "@/components/retour";
 
 const TabTypeVbg = [
   { value: "viol", label: "Viol" },
@@ -188,78 +189,48 @@ export default function VbgPage({
   const consultationValue = form.watch("vbgConsultation");
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-225 mx-auto px-4 py-2 border rounded-md">
-      <ConstanteClient idVisite={form.getValues("vbgIdVisite")} />
-      <h2 className="text-2xl text-gray-600 font-black text-center">
-        Formulaire de Vbg
-      </h2>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-        >
-          <FormField
-            control={form.control}
-            name="vbgIdVisite"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez la visite
-                </FormLabel>
-                <Select
-                  required
-                  // value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Visite à sélectionner" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {visites.map((visite) => (
-                      <SelectItem
-                        key={visite.id}
-                        value={visite.id}
-                        disabled={selectedVbg.some(
-                          (p) => p.vbgIdVisite === visite.id
-                        )}
-                      >
-                        {new Date(visite.dateVisite).toLocaleDateString(
-                          "fr-FR"
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* ************************* */}
-          <div className="my-2 p-3 shadow-md border rounded-md ">
+    <div className="w-full relative">
+      <Retour />
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        <ConstanteClient idVisite={form.getValues("vbgIdVisite")} />
+        <h2 className="text-2xl text-gray-600 font-black text-center">
+          Formulaire de Vbg
+        </h2>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+          >
             <FormField
               control={form.control}
-              name="vbgType"
+              name="vbgIdVisite"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-medium">
-                    Selectionnez le type de client
+                    Selectionnez la visite
                   </FormLabel>
-                  <Select required onValueChange={field.onChange}>
+                  <Select
+                    required
+                    // value={field.value}
+                    onValueChange={field.onChange}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Type à sélectionner" />
+                        <SelectValue placeholder="Visite à sélectionner" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {TabTypeVbg.map((option) => (
+                      {visites.map((visite) => (
                         <SelectItem
-                          key={option.value}
-                          value={option.value ?? ""}
+                          key={visite.id}
+                          value={visite.id}
+                          disabled={selectedVbg.some(
+                            (p) => p.vbgIdVisite === visite.id
+                          )}
                         >
-                          {option.label}
+                          {new Date(visite.dateVisite).toLocaleDateString(
+                            "fr-FR"
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -268,238 +239,274 @@ export default function VbgPage({
                 </FormItem>
               )}
             />
-            <Separator className="my-3" />
+
+            {/* ************************* */}
+            <div className="my-2 p-3 shadow-md border rounded-md ">
+              <FormField
+                control={form.control}
+                name="vbgType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-medium">
+                      Selectionnez le type de client
+                    </FormLabel>
+                    <Select required onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Type à sélectionner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {TabTypeVbg.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value ?? ""}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Separator className="my-3" />
+              <FormField
+                control={form.control}
+                name="vbgDuree"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duree écoulée en (heures)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value}
+                        placeholder="28"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex w-full flex-col gap-5 my-2">
+              <FormField
+                control={form.control}
+                name="vbgConsultation"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-5 mt-2 w-full">
+                    {/* Label aligné avec les options */}
+                    <FormLabel className="whitespace-nowrap">
+                      Consultation :
+                    </FormLabel>
+                    <FormControl className="flex flex-row gap-x-5 items-center">
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        className="flex gap-x-5 items-center"
+                      >
+                        {tabPec.map((option) => (
+                          <FormItem
+                            key={option.value}
+                            className="flex items-center space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={option.value ?? ""} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {option.label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div>
+              {/* S'affiche uniquement si la consultation est PEC */}
+              {consultationValue === "pec" && (
+                <div className="my-2  shadow-md border rounded-md ">
+                  <FormField
+                    control={form.control}
+                    name="vbgCounsellingRelation"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">
+                            Counselling - Relation Sexuelle
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vbgCounsellingViolenceSexuel"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">
+                            Counselling - Violence Sexuelle
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vbgCounsellingViolencePhysique"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">
+                            Counselling - Violence Physique
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* <Separator /> */}
+                  <FormField
+                    control={form.control}
+                    name="vbgCounsellingSexuelite"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">
+                            Counseling - Sexualité
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <Separator className="my-3" />
+                  <FormField
+                    control={form.control}
+                    name="vbgPreventionViolenceSexuelle"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">
+                            Prévention - Violence Sexuelle
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vbgPreventionViolencePhysique"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">
+                            Prévention - Violence Physique
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+            </div>
+
             <FormField
               control={form.control}
-              name="vbgDuree"
+              name="vbgIdClient"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Duree écoulée en (heures)</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      value={field.value}
-                      placeholder="28"
-                    />
+                    <Input {...field} className="hidden" />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
-          <div className="flex w-full flex-col gap-5 my-2">
+
             <FormField
               control={form.control}
-              name="vbgConsultation"
+              name="vbgIdUser"
               render={({ field }) => (
-                <FormItem className="flex items-center gap-5 mt-2 w-full">
-                  {/* Label aligné avec les options */}
-                  <FormLabel className="whitespace-nowrap">
-                    Consultation :
+                <FormItem>
+                  <FormLabel className="font-medium">
+                    Selectionnez le prescripteur
                   </FormLabel>
-                  <FormControl className="flex flex-row gap-x-5 items-center">
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value ?? ""}
-                      className="flex gap-x-5 items-center"
-                    >
-                      {tabPec.map((option) => (
-                        <FormItem
-                          key={option.value}
-                          className="flex items-center space-x-3 space-y-0"
+                  <Select
+                    required
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    defaultValue={isPrescripteur ? idUser : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sélectionnez un prescripteur" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {allPrescripteur.map((prescripteur) => (
+                        <SelectItem
+                          key={prescripteur.id}
+                          value={prescripteur.id}
                         >
-                          <FormControl>
-                            <RadioGroupItem value={option.value ?? ""} />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {option.label}
-                          </FormLabel>
-                        </FormItem>
+                          <span>{prescripteur.name}</span>
+                        </SelectItem>
                       ))}
-                    </RadioGroup>
-                  </FormControl>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
-          <div>
-            {/* S'affiche uniquement si la consultation est PEC */}
-            {consultationValue === "pec" && (
-              <div className="my-2  shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="vbgCounsellingRelation"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling - Relation Sexuelle
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vbgCounsellingViolenceSexuel"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling - Violence Sexuelle
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vbgCounsellingViolencePhysique"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling - Violence Physique
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
 
-                {/* <Separator /> */}
-                <FormField
-                  control={form.control}
-                  name="vbgCounsellingSexuelite"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counseling - Sexualité
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <Separator className="my-3" />
-                <FormField
-                  control={form.control}
-                  name="vbgPreventionViolenceSexuelle"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Prévention - Violence Sexuelle
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vbgPreventionViolencePhysique"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Prévention - Violence Physique
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-          </div>
-
-          <FormField
-            control={form.control}
-            name="vbgIdClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} className="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="vbgIdUser"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="font-medium">
-                  Selectionnez le prescripteur
-                </FormLabel>
-                <Select
-                  required
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  defaultValue={isPrescripteur ? idUser : undefined}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez un prescripteur" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {allPrescripteur.map((prescripteur) => (
-                      <SelectItem key={prescripteur.id} value={prescripteur.id}>
-                        <span>{prescripteur.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="flex flex-row justify-center py-2">
-            <Button type="submit">
-              {form.formState.isSubmitting ? "Submitting..." : "Soumettre"}
-            </Button>
-          </div>
-        </form>
-      </Form>
+            <div className="flex flex-row justify-center py-2">
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Submitting..." : "Soumettre"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }
