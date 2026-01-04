@@ -191,7 +191,7 @@ export default function CponPage({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-0 left-4"
+              className="sticky top-0 left-4 ml-3"
               onClick={() => router.back()}
             >
               <ArrowBigLeftDash className="h-5 w-5" />

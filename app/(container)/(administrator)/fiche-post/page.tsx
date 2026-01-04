@@ -51,7 +51,8 @@ import { Input } from "@/components/ui/input";
 import Select from "react-select";
 
 export default function CreatePostForm() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // Pour le formulaire
+  const [allUsers, setAllUsers] = useState<User[]>([]); // Pour l'affichage des noms
   const [posts, setPosts] = useState<Post[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [isVisible, setIsVisible] = useState(false);
@@ -153,6 +154,9 @@ export default function CreatePostForm() {
       console.log(" allUserFilter ", allUserFilter);
       console.log(" filteredUsers ", filteredUsers);
 
+      // Garder tous les utilisateurs pour l'affichage des noms
+      setAllUsers(filteredUsers as User[]);
+      // Filtrer les utilisateurs pour le formulaire (exclure l'utilisateur courant)
       setUsers(allUserFilter.filter((user) => user.id !== idUser) as User[]);
       setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
       setFilteredPosts(
@@ -324,7 +328,7 @@ export default function CreatePostForm() {
   };
 
   const getUserName = (userId: string) => {
-    const user = users.find((u) => u.id === userId);
+    const user = allUsers.find((u) => u.id === userId);
     return user ? user.name : "Utilisateur inconnu";
   };
 
@@ -363,7 +367,7 @@ export default function CreatePostForm() {
   // Options pour les filtres
   const userOptions = [
     { value: "", label: "Tous les utilisateurs" },
-    ...users.map((user) => ({
+    ...allUsers.map((user) => ({
       value: user.id,
       label: `${user.name} (${user.email})`,
     })),

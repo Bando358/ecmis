@@ -133,6 +133,7 @@ export default function PermissionInitialPage() {
       if (!selectedUserId) {
         setPermissions([]);
         setSelectedUser(null);
+        setUserPost(null);
         setLoading(false);
         return;
       }
@@ -141,6 +142,10 @@ export default function PermissionInitialPage() {
       try {
         const userData = await getOneUser(selectedUserId);
         const perms = await getUserPermissionsById(selectedUserId);
+
+        // Récupérer le poste de l'utilisateur sélectionné
+        const postData = await getOnePostIdClient(selectedUserId);
+        setUserPost(postData);
 
         // Trier par nom de table
         const sorted = perms.sort((a: { table: string }, b: { table: any }) =>
