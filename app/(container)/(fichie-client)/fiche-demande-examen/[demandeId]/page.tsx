@@ -60,6 +60,7 @@ import { useReactToPrint } from "react-to-print";
 import { useRouter } from "next/navigation";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import Retour from "@/components/retour";
 
 export default function PageDemandeExamen({
   params,
@@ -74,8 +75,7 @@ export default function PageDemandeExamen({
   const [tabExamens, setTabExamens] = useState<Examen[]>([]);
   const [tabClinique, setTabClinique] = useState<Clinique[]>([]);
   const [tabUser, setTabUser] = useState<User[]>([]);
-  const [prescripteurs, setPrescripteurs] = useState<User | null>(null);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [prescripteur, setPrescripteur] = useState<User | null>(null);
   const [tabPrescripteurs, setTabPrescripteurs] = useState<User[]>([]);
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
@@ -112,7 +112,7 @@ export default function PageDemandeExamen({
 
       fetchPrescripteurs();
     }
-  }, [client, session?.user]);
+  }, [prescripteur, client]);
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
@@ -122,7 +122,7 @@ export default function PageDemandeExamen({
       try {
         const permissions = await getUserPermissionsById(prescripteur.id);
         const perm = permissions.find(
-          (p: { table: string; }) => p.table === TableName.DEMANDE_EXAMEN
+          (p: { table: string }) => p.table === TableName.DEMANDE_EXAMEN
         );
         setPermission(perm || null);
       } catch (error) {
@@ -252,12 +252,12 @@ export default function PageDemandeExamen({
     setIsPending(true);
 
     try {
-      if (prescripteurs) {
+      if (prescripteur) {
         for (const demande of demandeExamens) {
           const newDemande = {
             id: demande.id,
-            idUser: prescripteurs.prescripteur
-              ? prescripteurs.id
+            idUser: prescripteur.prescripteur
+              ? prescripteur.id
               : selectedPrescripteur,
             idClient: demande.idClient,
             createdAt: demande.createdAt,
@@ -276,7 +276,11 @@ export default function PageDemandeExamen({
       // On vide la liste des demandes après soumission réussie
       setDemandeExamens([]);
       const newDemandes = await getAllDemandeExamensByIdVisite(selectedVisite);
-      setDemandes(newDemandes.filter((d: { idVisite: string; }) => d.idVisite === selectedVisite));
+      setDemandes(
+        newDemandes.filter(
+          (d: { idVisite: string }) => d.idVisite === selectedVisite
+        )
+      );
 
       toast.success("Toutes les demandes ont été soumises avec succès ✅");
     } catch (error) {
@@ -318,272 +322,278 @@ export default function PageDemandeExamen({
   const reactToPrintFn = useReactToPrint({ contentRef });
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">{"Demandes d'examens"}</h1>
+    <div className="w-full relative">
+      <Retour />
+      <div className="px-6 pb-6">
+        <h1 className="text-2xl font-bold mb-6">{"Demandes d'examens"}</h1>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex flex-justify-start items-center gap-2">
-            <select
-              value={selectedVisite}
-              onChange={(e) => setSelectedVisite(e.target.value)}
-              className="border rounded-md px-4 py-2"
-            >
-              <option value="">Sélectionner une visite</option>
-              {visites.map((visite) => (
-                <option key={visite.id} value={visite.id}>
-                  {new Date(visite.dateVisite).toLocaleDateString("fr-FR")}
-                </option>
-              ))}
-            </select>
-            {selectedVisite && !prescripteur?.prescripteur && (
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex flex-justify-start items-center gap-2">
               <select
-                value={selectedPrescripteur}
-                onChange={(e) => setSelectedPrescripteur(e.target.value)}
-                className="border rounded-md px-4 py-2 max-w-50"
+                value={selectedVisite}
+                onChange={(e) => setSelectedVisite(e.target.value)}
+                className="border rounded-md px-4 py-2"
               >
-                <option value="">Sélectionner un prescripteur</option>
-                {tabPrescripteurs.map((prescripteur) => (
-                  <option key={prescripteur.id} value={prescripteur.id}>
-                    {prescripteur.name}
+                <option value="">Sélectionner une visite</option>
+                {visites.map((visite) => (
+                  <option key={visite.id} value={visite.id}>
+                    {new Date(visite.dateVisite).toLocaleDateString("fr-FR")}
                   </option>
                 ))}
               </select>
-            )}
+              {selectedVisite && prescripteur && !prescripteur.prescripteur && (
+                <select
+                  value={selectedPrescripteur}
+                  onChange={(e) => setSelectedPrescripteur(e.target.value)}
+                  className="border rounded-md px-4 py-2 max-w-50"
+                >
+                  <option value="">Sélectionner un prescripteur</option>
+                  {tabPrescripteurs.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <Button
+              onClick={() => setModalOpen(true)}
+              disabled={!selectedVisite}
+            >
+              <Plus className="mr-2" size={16} /> Nouvelle demande
+            </Button>
           </div>
 
-          <Button onClick={() => setModalOpen(true)} disabled={!selectedVisite}>
-            <Plus className="mr-2" size={16} /> Nouvelle demande
-          </Button>
-        </div>
+          <Separator className="my-4" />
 
-        <Separator className="my-4" />
-
-        {selectedVisite && demandeExamens.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Examen</TableCell>
-                <TableCell>Prix</TableCell>
-                <TableCell className="max-w-37.5 text-center">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {demandeExamens.length > 0 ? (
-                demandeExamens.map((demande) => (
-                  <TableRow key={demande.id}>
-                    <TableCell>
-                      {dateVisiteByidVisite(selectedVisite)}
-                    </TableCell>
-                    <TableCell>{getNomExamen(demande)}</TableCell>
-                    <TableCell>
-                      {getPrixExamen(demande.idTarifExamen)} CFA
-                    </TableCell>
-                    <TableCell className="max-w-37.5 text-center">
-                      <Button
-                        className="mx-auto"
-                        variant="destructive"
-                        onClick={() => handleDeleteDemande(demande.id)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+          {selectedVisite && demandeExamens.length > 0 && (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4">
-                    Aucune demande pour cette visite
+                  <TableCell>Date</TableCell>
+                  <TableCell>Examen</TableCell>
+                  <TableCell>Prix</TableCell>
+                  <TableCell className="max-w-37.5 text-center">
+                    Actions
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={2} className="text-right py-4 font-bold">
-                  Total :
-                </TableCell>
-                <TableCell>
-                  {demandeExamens.reduce(
-                    (total, demande) =>
-                      total + getPrixExamen(demande.idTarifExamen),
-                    0
-                  )}{" "}
-                  CFA
-                </TableCell>
-                <TableCell className="max-w-37.5 text-center">
-                  <Button disabled={isPending} onClick={handleDemandeExamen}>
-                    Soumettre
-                  </Button>
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        )}
-      </div>
-      <Separator className="my-4" />
+              </TableHeader>
+              <TableBody>
+                {demandeExamens.length > 0 ? (
+                  demandeExamens.map((demande) => (
+                    <TableRow key={demande.id}>
+                      <TableCell>
+                        {dateVisiteByidVisite(selectedVisite)}
+                      </TableCell>
+                      <TableCell>{getNomExamen(demande)}</TableCell>
+                      <TableCell>
+                        {getPrixExamen(demande.idTarifExamen)} CFA
+                      </TableCell>
+                      <TableCell className="max-w-37.5 text-center">
+                        <Button
+                          className="mx-auto"
+                          variant="destructive"
+                          onClick={() => handleDeleteDemande(demande.id)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4">
+                      Aucune demande pour cette visite
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={2} className="text-right py-4 font-bold">
+                    Total :
+                  </TableCell>
+                  <TableCell>
+                    {demandeExamens.reduce(
+                      (total, demande) =>
+                        total + getPrixExamen(demande.idTarifExamen),
+                      0
+                    )}{" "}
+                    CFA
+                  </TableCell>
+                  <TableCell className="max-w-37.5 text-center">
+                    <Button disabled={isPending} onClick={handleDemandeExamen}>
+                      Soumettre
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
+        </div>
+        <Separator className="my-4" />
 
-      {demandes.filter((d) => d.idVisite === selectedVisite).length > 0 && (
-        <div className="p-4 flex flex-col" ref={contentRef}>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-100 opacity-95">
-                <TableCell colSpan={4} className="text-center px-auto">
-                  <Image
-                    src="/logo/LOGO_AIBEF_IPPF.png"
-                    alt="Logo"
-                    width={400}
-                    height={10}
-                    // layout="responsive"
-                    style={{ margin: "auto" }}
-                  />
-                </TableCell>
-              </TableRow>
-              <TableRow className="font-bold">
-                <TableCell>Date</TableCell>
-                <TableCell>Examen</TableCell>
-                <TableCell>Prix</TableCell>
-                <TableCell className="max-w-37.5 text-center">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {demandes.length > 0 ? (
-                demandes.map((demande) => (
-                  <TableRow key={demande.id}>
-                    <TableCell>
-                      {dateVisiteByidVisite(demande.idVisite)}
-                    </TableCell>
-                    <TableCell>{getNomExamen(demande)}</TableCell>
-                    <TableCell>
-                      {getPrixExamen(demande.idTarifExamen)} CFA
-                    </TableCell>
-                    <TableCell className="max-w-37.5 text-center">
-                      {/* <Button
+        {demandes.filter((d) => d.idVisite === selectedVisite).length > 0 && (
+          <div className="p-4 flex flex-col" ref={contentRef}>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-100 opacity-95">
+                  <TableCell colSpan={4} className="text-center px-auto">
+                    <Image
+                      src="/LOGO_AIBEF_IPPF.png"
+                      alt="Logo"
+                      width={400}
+                      height={10}
+                      // layout="responsive"
+                      style={{ margin: "auto" }}
+                    />
+                  </TableCell>
+                </TableRow>
+                <TableRow className="font-bold">
+                  <TableCell>Date</TableCell>
+                  <TableCell>Examen</TableCell>
+                  <TableCell>Prix</TableCell>
+                  <TableCell className="max-w-37.5 text-center">
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {demandes.length > 0 ? (
+                  demandes.map((demande) => (
+                    <TableRow key={demande.id}>
+                      <TableCell>
+                        {dateVisiteByidVisite(demande.idVisite)}
+                      </TableCell>
+                      <TableCell>{getNomExamen(demande)}</TableCell>
+                      <TableCell>
+                        {getPrixExamen(demande.idTarifExamen)} CFA
+                      </TableCell>
+                      <TableCell className="max-w-37.5 text-center">
+                        {/* <Button
                           className="mx-auto"
                           variant="destructive"
                           onClick={() => handleDeleteDemandeInBD(demande.id)}
                         >
                           <Trash2 size={16} />
                         </Button> */}
-                          <AlertDialog>
-                        {/* 📌 Ton bouton destructif déclenche le dialog */}
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            🗑
-                          </Button>
-                        </AlertDialogTrigger>
+                        <AlertDialog>
+                          {/* 📌 Ton bouton destructif déclenche le dialog */}
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              🗑
+                            </Button>
+                          </AlertDialogTrigger>
 
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Es-tu sûr ?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Cette action est irréversible. {"L'examen"} sera
-                              définitivement supprimé.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annuler</AlertDialogCancel>
-                            {/* 📌 Action de confirmation qui supprime réellement */}
-                            <AlertDialogAction
-                              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                              onClick={() =>
-                                handleDeleteDemandeInBD(demande.id)
-                              }
-                            >
-                              Supprimer
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Es-tu sûr ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action est irréversible. {"L'examen"} sera
+                                définitivement supprimé.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              {/* 📌 Action de confirmation qui supprime réellement */}
+                              <AlertDialogAction
+                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                onClick={() =>
+                                  handleDeleteDemandeInBD(demande.id)
+                                }
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4">
+                      Aucune demande pour cette visite
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
+                )}
+              </TableBody>
+              <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4">
-                    Aucune demande pour cette visite
+                  <TableCell colSpan={2} className="text-right py-4 font-bold">
+                    Total :
                   </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={2} className="text-right py-4 font-bold">
-                  Total :
-                </TableCell>
-                <TableCell>
-                  {demandes.reduce(
-                    (total, demande) =>
-                      total + getPrixExamen(demande.idTarifExamen),
-                    0
-                  )}{" "}
-                  CFA
-                </TableCell>
-                <TableCell className="max-w-37.5 text-center">
-                  {/* <Button disabled={isPending} onClick={handleDemandeExamen}>
+                  <TableCell>
+                    {demandes.reduce(
+                      (total, demande) =>
+                        total + getPrixExamen(demande.idTarifExamen),
+                      0
+                    )}{" "}
+                    CFA
+                  </TableCell>
+                  <TableCell className="max-w-37.5 text-center">
+                    {/* <Button disabled={isPending} onClick={handleDemandeExamen}>
                   Soumettre
                 </Button> */}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-          <table className="max-w-md mt-4 " style={{ float: "left" }}>
-            <tbody>
-              <tr>
-                <td className=" font-bold px-2 py-1">Prescripteur :</td>
-                <td className=" font-bold px-2 py-1">
-                  {demandes.length > 0
-                    ? getUserNameById(demandes[0]?.idUser as string)
-                    : "Inconnu"}
-                </td>
-              </tr>
-              <tr>
-                <td className=" font-bold px-2 py-1">Clinique :</td>
-                <td className=" font-bold px-2 py-1">
-                  {getAllCliniqueNameById(client?.cliniqueId as string)}
-                </td>
-              </tr>
-              <tr>
-                <td className=" font-bold px-2 py-1">Date :</td>
-                <td className=" font-bold px-2 py-1">
-                  {new Date().toLocaleDateString("fr-FR")}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-      {demandes.filter((d) => d.idVisite === selectedVisite).length > 0 && (
-        <div className="flex justify-center my-4 gap-4">
-          <Button
-            onClick={() => {
-              // setIsHidden(true);
-              reactToPrintFn();
-            }}
-          >
-            Imprimer la facture
-          </Button>
-          <Button onClick={() => router.push(`/fiches/${demandeId}`)}>
-            Retour
-          </Button>
-        </div>
-      )}
-      {selectedVisite && (
-        <DemandeExamenModal
-          open={modalOpen}
-          setOpen={setModalOpen}
-          refreshDemandes={refreshDemandes}
-          idClient={demandeId}
-          idVisite={selectedVisite}
-          examensDisponibles={tabTarifExamens}
-          setDemandeExamens={setDemandeExamens}
-        />
-      )}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+            <table className="max-w-md mt-4 " style={{ float: "left" }}>
+              <tbody>
+                <tr>
+                  <td className=" font-bold px-2 py-1">Prescripteur :</td>
+                  <td className=" font-bold px-2 py-1">
+                    {demandes.length > 0
+                      ? getUserNameById(demandes[0]?.idUser as string)
+                      : "Inconnu"}
+                  </td>
+                </tr>
+                <tr>
+                  <td className=" font-bold px-2 py-1">Clinique :</td>
+                  <td className=" font-bold px-2 py-1">
+                    {getAllCliniqueNameById(client?.cliniqueId as string)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className=" font-bold px-2 py-1">Date :</td>
+                  <td className=" font-bold px-2 py-1">
+                    {new Date().toLocaleDateString("fr-FR")}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        {demandes.filter((d) => d.idVisite === selectedVisite).length > 0 && (
+          <div className="flex justify-center my-4 gap-4">
+            <Button
+              onClick={() => {
+                // setIsHidden(true);
+                reactToPrintFn();
+              }}
+            >
+              Imprimer la facture
+            </Button>
+            <Button onClick={() => router.push(`/fiches/${demandeId}`)}>
+              Retour
+            </Button>
+          </div>
+        )}
+        {selectedVisite && (
+          <DemandeExamenModal
+            open={modalOpen}
+            setOpen={setModalOpen}
+            refreshDemandes={refreshDemandes}
+            idClient={demandeId}
+            idVisite={selectedVisite}
+            examensDisponibles={tabTarifExamens}
+            setDemandeExamens={setDemandeExamens}
+          />
+        )}
+      </div>
     </div>
   );
 }

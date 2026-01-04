@@ -73,6 +73,7 @@ export default function PageResultatExamen({
   const [client, setClient] = useState<Client>();
   const [clinique, setClinique] = useState<Clinique>();
   const [laborantin, setLaborantin] = useState<User | null>();
+  const [prescripteur, setPrescripteur] = useState<User | null>(null);
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -82,14 +83,24 @@ export default function PageResultatExamen({
 
   const router = useRouter();
   const { data: session } = useSession();
+  const idUser = session?.user.id as string;
+
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      // setIsPrescripteur(user?.prescripteur ? true : false);
+      setPrescripteur(user!);
+    };
+    fetUser();
+  }, [idUser]);
 
   useEffect(() => {
     // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
+    if (!prescripteur) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(prescripteur.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.RESULTAT_EXAMEN
         );
@@ -103,7 +114,7 @@ export default function PageResultatExamen({
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [prescripteur, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -132,9 +143,15 @@ export default function PageResultatExamen({
   }, [resultatExamId]);
 
   useEffect(() => {
+    if (!selectedVisite) {
+      setIsPending(false);
+      setFactureExamens([]);
+      setTabResultatExamens([]);
+      return;
+    }
+
     const fetchResultats = async () => {
       setIsPending(true);
-      if (!selectedVisite) return;
       try {
         const [facturesData, resultatsData, tabCliniqueData] =
           await Promise.all([
@@ -147,8 +164,9 @@ export default function PageResultatExamen({
         setClinique(tabCliniqueData as Clinique);
       } catch (error) {
         console.error("Erreur lors du chargement :", error);
+      } finally {
+        setIsPending(false);
       }
-      setIsPending(false);
     };
 
     fetchResultats();
@@ -286,7 +304,7 @@ export default function PageResultatExamen({
   return (
     <div className="w-full relative">
       <Retour />
-      <div className="px-6">
+      <div className="px-6 pb-6">
         <h1 className="text-2xl font-bold mb-6">Résultats des examens</h1>
 
         <div className="mb-6">

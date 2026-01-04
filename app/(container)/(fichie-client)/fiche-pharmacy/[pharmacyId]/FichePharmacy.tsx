@@ -79,7 +79,7 @@ import {
 } from "@prisma/client";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import PrestationsModal from "@/components/prestationModal";
 import ExamensModal from "@/components/examenModal";
 import { useSession } from "next-auth/react";
@@ -215,6 +215,7 @@ export default function FichePharmacyClient({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFacture, setIsLoadingFacture] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [selectedIdVisite, setSelectedIdVisite] = useState<string>("");
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
@@ -427,7 +428,10 @@ export default function FichePharmacyClient({
     return produits.reduce((total, p) => total + (p.prixExamen || 0), 0);
   };
 
-  const montantEchographie = (echographies: DemandeEchographieFormValues[]) => {
+  const montantEchographie = (
+    echographies: DemandeEchographieFormValues[],
+    remise: number
+  ) => {
     const tarifs = echographies.map((e) => {
       return tabTarifEchographies.find((t) => t.id === e.idTarifEchographie);
     });
@@ -435,7 +439,7 @@ export default function FichePharmacyClient({
       (total, t) => total + (t?.prixEchographie || 0),
       0
     );
-    return total * (1 - (form.watch("remiseEchographie") || 0) / 100);
+    return total * (1 - (remise || 0) / 100);
   };
 
   const montantPrestations = (prestations: FacturePrestation[]) => {
@@ -469,6 +473,32 @@ export default function FichePharmacyClient({
     },
   });
 
+  // Utiliser useWatch pour éviter les re-renders
+  const watchedIdVisite = useWatch({ control: form.control, name: "idVisite" });
+  const watchedRemiseExamen = useWatch({
+    control: form.control,
+    name: "remiseExamen",
+  });
+  const watchedRemiseEchographie = useWatch({
+    control: form.control,
+    name: "remiseEchographie",
+  });
+  const watchedCouverture = useWatch({
+    control: form.control,
+    name: "couverture",
+  });
+  const watchedSoustractionExamen = useWatch({
+    control: form.control,
+    name: "soustractionExamen",
+  });
+
+  // Synchroniser watchedIdVisite avec selectedIdVisite
+  useEffect(() => {
+    if (watchedIdVisite) {
+      setSelectedIdVisite(watchedIdVisite);
+    }
+  }, [watchedIdVisite]);
+
   // Chargement des permissions
   useEffect(() => {
     if (!session?.user) return;
@@ -493,48 +523,52 @@ export default function FichePharmacyClient({
 
   // Chargement des données de facturation basées sur la visite sélectionnée
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingFacture(true);
-
-      const idVisite = form.watch("idVisite");
-      if (idVisite) {
-        setProduitFacture(
-          serverData.tabProduitFactureClient.filter(
-            (tab) => tab.idVisite === idVisite
-          ) as FactureProduit[]
-        );
-        setPrestationFacture(
-          serverData.tabPrestationFactureClient.filter(
-            (tab) => tab.idVisite === idVisite
-          ) as FacturePrestation[]
-        );
-        setExamensFacture(
-          serverData.tabExamenFactureClient.filter(
-            (tab) => tab.idVisite === idVisite
-          ) as FactureExamen[]
-        );
-        setTabDemandeExamens(
-          serverData.tabDemandeExamensClient.filter(
-            (tab) => tab.idVisite === idVisite
-          ) as DemandeExamen[]
-        );
-        setTabDemandeEchographies(
-          serverData.tabDemandeEchographiesClient.filter(
-            (tab) => tab.idVisite === idVisite
-          ) as DemandeEchographie[]
-        );
-        setEchographiesFacture(
-          serverData.tabEchographieFactureClient.filter(
-            (tab) => tab.idVisite === idVisite
-          ) as FactureEchographie[]
-        );
-      }
-
+    if (!selectedIdVisite) {
       setIsLoadingFacture(false);
-    };
+      setProduitFacture([]);
+      setPrestationFacture([]);
+      setExamensFacture([]);
+      setTabDemandeExamens([]);
+      setTabDemandeEchographies([]);
+      setEchographiesFacture([]);
+      return;
+    }
 
-    fetchData();
-  }, [form.watch("idVisite")]);
+    setIsLoadingFacture(true);
+
+    setProduitFacture(
+      serverData.tabProduitFactureClient.filter(
+        (tab) => tab.idVisite === selectedIdVisite
+      ) as FactureProduit[]
+    );
+    setPrestationFacture(
+      serverData.tabPrestationFactureClient.filter(
+        (tab) => tab.idVisite === selectedIdVisite
+      ) as FacturePrestation[]
+    );
+    setExamensFacture(
+      serverData.tabExamenFactureClient.filter(
+        (tab) => tab.idVisite === selectedIdVisite
+      ) as FactureExamen[]
+    );
+    setTabDemandeExamens(
+      serverData.tabDemandeExamensClient.filter(
+        (tab) => tab.idVisite === selectedIdVisite
+      ) as DemandeExamen[]
+    );
+    setTabDemandeEchographies(
+      serverData.tabDemandeEchographiesClient.filter(
+        (tab) => tab.idVisite === selectedIdVisite
+      ) as DemandeEchographie[]
+    );
+    setEchographiesFacture(
+      serverData.tabEchographieFactureClient.filter(
+        (tab) => tab.idVisite === selectedIdVisite
+      ) as FactureEchographie[]
+    );
+
+    setIsLoadingFacture(false);
+  }, [selectedIdVisite, serverData]);
 
   const handleFacturation = async () => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
@@ -561,16 +595,13 @@ export default function FichePharmacyClient({
       setIsLoading(true);
 
       // On va vérifier si data.remiseExamen N'est pas un nombre
-      if (
-        demandeExamens.length > 0 &&
-        isNaN(Number(form.watch("remiseExamen")))
-      ) {
+      if (demandeExamens.length > 0 && isNaN(Number(watchedRemiseExamen))) {
         toast.error("La remise pour les examens doit être un nombre valide");
         return;
       }
       if (
         demandeEchographies.length > 0 &&
-        isNaN(Number(form.watch("remiseEchographie")))
+        isNaN(Number(watchedRemiseEchographie))
       ) {
         toast.error(
           "La remise pour les échographies doit être un nombre valide"
@@ -582,8 +613,8 @@ export default function FichePharmacyClient({
       const couvertureData = {
         id: crypto.randomUUID(),
         couvertIdClient: pharmacyId,
-        couvertType: form.watch("couverture") as TypeCouverture,
-        couvertIdVisite: form.watch("idVisite"),
+        couvertType: watchedCouverture as TypeCouverture,
+        couvertIdVisite: watchedIdVisite,
       };
       await createCouverture(couvertureData);
 
@@ -591,7 +622,7 @@ export default function FichePharmacyClient({
       for (const produit of factureProduit) {
         const dataProduit = {
           // ...produit,
-          idVisite: form.watch("idVisite"),
+          idVisite: watchedIdVisite,
           nomProduit: renameValue(produit.idTarifProduit),
           montantProduit: produit.montantProduit || 0,
           id: crypto.randomUUID(), // Génère un nouvel id unique à chaque création
@@ -620,7 +651,7 @@ export default function FichePharmacyClient({
       for (const prestation of facturePrestation) {
         const dataPrestation = {
           // ...prestation,
-          idVisite: form.watch("idVisite"),
+          idVisite: watchedIdVisite,
           idClient: pharmacyId,
           idClinique: client?.idClinique || "",
           prixPrestation: Number(prestation.prixPrestation),
@@ -645,21 +676,20 @@ export default function FichePharmacyClient({
       for (const demande of demandeExamens) {
         const dataDemande = {
           id: crypto.randomUUID(),
-          idVisite: form.watch("idVisite"),
+          idVisite: watchedIdVisite,
           idClient: pharmacyId,
           idClinique: client?.idClinique || "",
-          remiseExamen: parseInt(String(form.watch("remiseExamen") || "0")),
-          soustraitanceExamen: Boolean(form.watch("soustractionExamen")),
+          remiseExamen: parseInt(String(watchedRemiseExamen || "0")),
+          soustraitanceExamen: Boolean(watchedSoustractionExamen),
           idUser: idUser,
           libelleExamen: renameExamen(demande.id),
-          // prixExamen: Number(form.watch("remiseExamen"))
+          // prixExamen: Number(watchedRemiseExamen)
           //   ? demande.prixExamen *
-          //     (1 - Number(form.watch("remiseExamen")) / 100)
+          //     (1 - Number(watchedRemiseExamen) / 100)
           //   : demande.prixExamen,
-          prixExamen: Number(form.watch("remiseExamen"))
+          prixExamen: Number(watchedRemiseExamen)
             ? Math.round(
-                demande.prixExamen *
-                  (1 - Number(form.watch("remiseExamen")) / 100)
+                demande.prixExamen * (1 - Number(watchedRemiseExamen) / 100)
               )
             : demande.prixExamen,
           idDemandeExamen: demande.id,
@@ -679,18 +709,16 @@ export default function FichePharmacyClient({
       for (const demande of demandeEchographies) {
         const dataDemande = {
           id: crypto.randomUUID(),
-          idVisite: form.watch("idVisite"),
+          idVisite: watchedIdVisite,
           idClient: pharmacyId,
           idClinique: client?.idClinique || "",
-          remiseEchographie: parseInt(
-            String(form.watch("remiseEchographie") || "0")
-          ),
+          remiseEchographie: parseInt(String(watchedRemiseEchographie || "0")),
           idUser: idUser,
           libelleEchographie: renameEchographie(demande.id),
-          prixEchographie: Number(form.watch("remiseEchographie"))
+          prixEchographie: Number(watchedRemiseEchographie)
             ? Math.round(
                 demande.prixEchographie *
-                  (1 - Number(form.watch("remiseEchographie")) / 100)
+                  (1 - Number(watchedRemiseEchographie) / 100)
               )
             : demande.prixEchographie,
           idDemandeEchographie: demande.id,
@@ -721,10 +749,10 @@ export default function FichePharmacyClient({
         updatedExamens,
         updatedEchographies,
       ] = await Promise.all([
-        getAllFactureProduitByIdVisite(form.watch("idVisite")),
-        getAllFacturePrestationByIdVisite(form.watch("idVisite")),
-        getAllFactureExamenByIdVisite(form.watch("idVisite")),
-        getAllFactureEchographieByIdVisite(form.watch("idVisite")),
+        getAllFactureProduitByIdVisite(watchedIdVisite),
+        getAllFacturePrestationByIdVisite(watchedIdVisite),
+        getAllFactureExamenByIdVisite(watchedIdVisite),
+        getAllFactureEchographieByIdVisite(watchedIdVisite),
       ]);
 
       setProduitFacture(updatedProduits as FactureProduit[]);
@@ -732,11 +760,7 @@ export default function FichePharmacyClient({
       setExamensFacture(updatedExamens as FactureExamen[]);
       setEchographiesFacture(updatedEchographies as FactureEchographie[]);
 
-      await updateRecapVisite(
-        form.watch("idVisite"),
-        idUser,
-        "05 Fiche facturation"
-      );
+      await updateRecapVisite(watchedIdVisite, idUser, "05 Fiche facturation");
 
       toast.success("Client facturé avec succès! 🎉");
     } catch (error) {
@@ -757,27 +781,24 @@ export default function FichePharmacyClient({
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold flex-1">Liste des Produits</h2>
           <div className="flex gap-2">
-            <Button
-              onClick={() => setOpen(true)}
-              disabled={!form.watch("idVisite")}
-            >
+            <Button onClick={() => setOpen(true)} disabled={!watchedIdVisite}>
               <Plus className="mr-2" size={16} /> Facturer le Produit
             </Button>
             <Button
               onClick={() => setOpenPrestation(true)}
-              disabled={!form.watch("idVisite")}
+              disabled={!watchedIdVisite}
             >
               <Plus className="mr-2" size={16} /> Facturer la Prestation
             </Button>
             <Button
               onClick={() => setOpenExamens(true)}
-              disabled={!form.watch("idVisite")}
+              disabled={!watchedIdVisite}
             >
               <Plus className="mr-2" size={16} /> {"Facturer l'Examen"}
             </Button>
             <Button
               onClick={() => setOpenEchographies(true)}
-              disabled={!form.watch("idVisite")}
+              disabled={!watchedIdVisite}
             >
               <Plus className="mr-2" size={16} /> {"Facturer l'Echographie"}
             </Button>
@@ -796,7 +817,10 @@ export default function FichePharmacyClient({
                     <Select
                       required
                       value={field.value ?? ""}
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedIdVisite(value);
+                      }}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -1099,19 +1123,25 @@ export default function FichePharmacyClient({
                       Total:
                     </TableCell>
                     <TableCell className="font-semibold">
-                      {Number(form.watch("remiseExamen"))
+                      {Number(watchedRemiseExamen)
                         ? Math.round(
                             montantPrestations(facturePrestation) +
                               montantExamen(demandeExamens) -
                               montantExamen(demandeExamens) *
-                                (Number(form.watch("remiseExamen")) / 100) +
-                              montantEchographie(demandeEchographies)
+                                (Number(watchedRemiseExamen) / 100) +
+                              montantEchographie(
+                                demandeEchographies,
+                                watchedRemiseEchographie || 0
+                              )
                           )
                         : Math.round(
                             montantProduits(factureProduit) +
                               montantPrestations(facturePrestation) +
                               montantExamen(demandeExamens) +
-                              montantEchographie(demandeEchographies)
+                              montantEchographie(
+                                demandeEchographies,
+                                watchedRemiseEchographie || 0
+                              )
                           ).toFixed(0)}{" "}
                       CFA
                     </TableCell>
@@ -1119,8 +1149,8 @@ export default function FichePharmacyClient({
                       <Button
                         onClick={handleFacturation}
                         disabled={
-                          !form.watch("idVisite") ||
-                          !form.watch("couverture") ||
+                          !watchedIdVisite ||
+                          !watchedCouverture ||
                           isLoading ||
                           (!form.watch("typeExamen") &&
                             demandeExamens.length > 0)
@@ -1171,7 +1201,7 @@ export default function FichePharmacyClient({
                             className="text-center px-auto"
                           >
                             <Image
-                              src="/logo/LOGO_AIBEF_IPPF.png"
+                              src="/LOGO_AIBEF_IPPF.png"
                               alt="Logo"
                               width={400}
                               height={10}
