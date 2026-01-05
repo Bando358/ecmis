@@ -201,7 +201,6 @@ export function FactureModal({
     setTarifProduits([]);
     setSelectedOptions([]);
     form.reset();
-    setOpen(false);
   };
 
   return (
