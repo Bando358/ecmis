@@ -13,7 +13,14 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Activite, Lieu, Permission, TableName, Visite } from "@prisma/client";
+import {
+  Activite,
+  Lieu,
+  Permission,
+  TableName,
+  User,
+  Visite,
+} from "@prisma/client";
 import {
   Form,
   FormControl,
@@ -28,6 +35,7 @@ import { RefreshCw } from "lucide-react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getAllActiviteByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
+import { getOneUser } from "@/lib/actions/authActions";
 
 type FormValues = {
   dateVisite: string;
@@ -57,6 +65,7 @@ export default function FormVisiteModification({
   const [oneVisite, setOneVisite] = useState<Visite>();
   const [isVisible, setIsVisible] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [prescripteur, setPrescripteur] = useState<User | null>(null);
   const [loadingLieu, setLoadingLieu] = useState(false);
   const [loadingActivite, setLoadingActivite] = useState(false);
   const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
@@ -71,6 +80,16 @@ export default function FormVisiteModification({
   const { data: session, status } = useSession();
   const idPrestataire = session?.user.id as string;
   const router = useRouter();
+  const idUser = session?.user?.id || "";
+
+  useEffect(() => {
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      // setIsPrescripteur(user?.prescripteur ? true : false);
+      setPrescripteur(user!);
+    };
+    fetUser();
+  }, [idUser]);
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -152,11 +171,11 @@ export default function FormVisiteModification({
   // Vérification des permissions avec gestion d'erreur NextAuth
   useEffect(() => {
     // Attendre que la session soit complètement chargée
-    if (status === "loading" || !session?.user) return;
+    if (status === "loading" || !prescripteur) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(prescripteur.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.VISITE
         );
@@ -184,7 +203,7 @@ export default function FormVisiteModification({
     };
 
     fetchPermissions();
-  }, [session?.user, status, router]);
+  }, [prescripteur, status, router]);
 
   // Charger les lieux quand l'activité change
   useEffect(() => {
@@ -325,15 +344,21 @@ export default function FormVisiteModification({
   const tabPrestation: Option[] = [
     { id: 1, name: "motif", libelle: "CONTRACEPTION", value: "CONTRACEPTION" },
     { id: 2, name: "motif", libelle: "GYNECOLOGIE", value: "GYNECOLOGIE" },
-    { id: 3, name: "motif", libelle: "CPN", value: "CPN" },
-    { id: 4, name: "motif", libelle: "VIH", value: "VIH" },
-    { id: 5, name: "motif", libelle: "MEDECINE GENERALE", value: "MDG" },
-    { id: 6, name: "motif", libelle: "INFERTILITE", value: "INFERTILITE" },
-    { id: 7, name: "motif", libelle: "VBG", value: "VBG" },
-    { id: 8, name: "motif", libelle: "IST", value: "IST" },
-    { id: 9, name: "motif", libelle: "SAA", value: "SAA" },
-    { id: 10, name: "motif", libelle: "LABORATOIRE", value: "LABORATOIRE" },
-    { id: 11, name: "motif", libelle: "ECHOGRAPHIE", value: "ECHOGRAPHIE" },
+    {
+      id: 3,
+      name: "motif",
+      libelle: "TEST GROSSESSE",
+      value: "TEST GROSSESSE",
+    },
+    { id: 4, name: "motif", libelle: "CPN", value: "CPN" },
+    { id: 5, name: "motif", libelle: "VIH", value: "VIH" },
+    { id: 6, name: "motif", libelle: "MEDECINE GENERALE", value: "MDG" },
+    { id: 7, name: "motif", libelle: "INFERTILITE", value: "INFERTILITE" },
+    { id: 8, name: "motif", libelle: "VBG", value: "VBG" },
+    { id: 9, name: "motif", libelle: "IST", value: "IST" },
+    { id: 10, name: "motif", libelle: "SAA", value: "SAA" },
+    { id: 11, name: "motif", libelle: "LABORATOIRE", value: "LABORATOIRE" },
+    { id: 12, name: "motif", libelle: "ECHOGRAPHIE", value: "ECHOGRAPHIE" },
   ];
 
   const handleUpdateVisite = () => {

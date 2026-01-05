@@ -36,6 +36,7 @@ import { Table13 } from "@/components/table/tableDepistage";
 import { Table14 } from "@/components/table/tablePecVih";
 import { Table15 } from "@/components/table/tableVbg";
 import { Table16 } from "@/components/table/tableMedecine";
+import Retour from "@/components/retour";
 
 interface FicheLink {
   label: string;
@@ -509,142 +510,145 @@ export default function Fiches({
   };
 
   return (
-    <div className="space-y-4 max-w-300 mx-auto p-4">
-      <h2 className="text-center text-xl font-bold uppercase text-gray-600">
-        Fiches médicales
-      </h2>
+    <div className="w-full relative">
+      <Retour />
+      <div className="space-y-4 max-w-300 mx-auto p-4">
+        <h2 className="text-center text-xl font-bold uppercase text-gray-600">
+          Fiches médicales
+        </h2>
 
-      {/* Accordion avec framer motion */}
-      <Accordion
-        type="single"
-        collapsible
-        className="w-full px-4 mx-auto grid gap-2 border p-2 rounded-md bg-blue-50 md:grid-cols-2 lg:grid-cols-4"
-        onValueChange={(value) => {
-          if (value) {
-            const categoryIndex = parseInt(value.replace("cat-", ""));
-            handleAccordionClick(categories[categoryIndex].name);
-          }
-        }}
-      >
-        {categories.map((cat, idx) => (
-          <AccordionItem
-            key={idx}
-            value={`cat-${idx}`}
-            className="border rounded-md"
-          >
-            <AccordionTrigger className="font-bold text-blue-700 px-3">
-              {cat.name}
-            </AccordionTrigger>
-            <AccordionContent>
-              <AnimatePresence>
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="grid gap-2 pl-4"
-                >
-                  {cat.fiches.map((fiche, index) => (
-                    <Link
-                      href={fiche.href}
-                      key={index}
-                      className="text-blue-800 dark:text-slate-400 underline font-semibold"
-                    >
-                      {fiche.label}
-                    </Link>
-                  ))}
-                </motion.div>
-              </AnimatePresence>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
-
-      {/* Section visites */}
-      <Card className="w-full py-3">
-        <div className="flex justify-between -mt-3 py-2 px-3">
-          <div>
-            {allVisite.length < 10 ? (
-              <span>0{allVisite.length}</span>
-            ) : (
-              <span>{allVisite.length}</span>
-            )}{" "}
-            <span>visites</span>
-          </div>
-          <div className="relative flex items-center gap-2">
-            {/* Flèche gauche */}
-            <button
-              className={cn(
-                "text-2xl text-blue-600",
-                currentIndex === 0 && "text-gray-400 cursor-not-allowed"
-              )}
-              onClick={decrementDate}
-              disabled={currentIndex === 0}
+        {/* Accordion avec framer motion */}
+        <Accordion
+          type="single"
+          collapsible
+          className="w-full px-4 mx-auto grid gap-2 border p-2 rounded-md bg-blue-50 md:grid-cols-2 lg:grid-cols-4"
+          onValueChange={(value) => {
+            if (value) {
+              const categoryIndex = parseInt(value.replace("cat-", ""));
+              handleAccordionClick(categories[categoryIndex].name);
+            }
+          }}
+        >
+          {categories.map((cat, idx) => (
+            <AccordionItem
+              key={idx}
+              value={`cat-${idx}`}
+              className="border rounded-md"
             >
-              <SquareChevronLeft />
-            </button>
-
-            {/* Carousel */}
-            <div className="w-48 overflow-hidden">
-              <div
-                className="flex transition-transform duration-500 ease-in-out"
-                style={{
-                  transform: `translateX(-${currentIndex * 100}%)`, // Défilement horizontal
-                }}
-              >
-                {allVisite.map((visite) => (
-                  <div
-                    key={visite.id}
-                    className="w-48 text-center border px-2 rounded-sm shrink-0"
+              <AccordionTrigger className="font-bold text-blue-700 px-3">
+                {cat.name}
+              </AccordionTrigger>
+              <AccordionContent>
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid gap-2 pl-4"
                   >
-                    {visite.dateVisite.toLocaleDateString("fr-FR")}
-                  </div>
-                ))}
-              </div>
+                    {cat.fiches.map((fiche, index) => (
+                      <Link
+                        href={fiche.href}
+                        key={index}
+                        className="text-blue-800 dark:text-slate-400 underline font-semibold"
+                      >
+                        {fiche.label}
+                      </Link>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+
+        {/* Section visites */}
+        <Card className="w-full py-3">
+          <div className="flex justify-between -mt-3 py-2 px-3">
+            <div>
+              {allVisite.length < 10 ? (
+                <span>0{allVisite.length}</span>
+              ) : (
+                <span>{allVisite.length}</span>
+              )}{" "}
+              <span>visites</span>
             </div>
+            <div className="relative flex items-center gap-2">
+              {/* Flèche gauche */}
+              <button
+                className={cn(
+                  "text-2xl text-blue-600",
+                  currentIndex === 0 && "text-gray-400 cursor-not-allowed"
+                )}
+                onClick={decrementDate}
+                disabled={currentIndex === 0}
+              >
+                <SquareChevronLeft />
+              </button>
 
-            {/* Flèche droite */}
-            <button
-              className={cn(
-                "text-2xl text-blue-600",
-                currentIndex === allVisite.length - 1 &&
-                  "text-gray-400 cursor-not-allowed"
-              )}
-              onClick={incrementDate}
-              disabled={currentIndex === allVisite.length - 1}
-            >
-              <SquareChevronRight />
-            </button>
-          </div>
-        </div>
-        <Separator orientation="horizontal" className="-mt-6 bg-blue-200" />
-        <CardContent>
-          {allVisite.length > 0 ? (
-            <>
-              <div className="grid grid-cols-4">
-                {tabRecapVisite.length > 0 &&
-                  tabRecapVisite[currentIndex]?.formulaires.map(
-                    (form, index) => (
-                      <p key={index}>
-                        <span className="text-blue-800 font-semibold">
-                          {form}
-                        </span>
-                      </p>
-                    )
-                  )}
+              {/* Carousel */}
+              <div className="w-48 overflow-hidden">
+                <div
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{
+                    transform: `translateX(-${currentIndex * 100}%)`, // Défilement horizontal
+                  }}
+                >
+                  {allVisite.map((visite) => (
+                    <div
+                      key={visite.id}
+                      className="w-48 text-center border px-2 rounded-sm shrink-0"
+                    >
+                      {visite.dateVisite.toLocaleDateString("fr-FR")}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </>
-          ) : (
-            "Chargement en cours..."
-          )}
-          {allVisite.length > 0 &&
-            tabRecapVisite.length === 0 &&
-            "Aucune fiche saisie"}
-        </CardContent>
-      </Card>
 
-      {/* Afficher uniquement le Tabs correspondant à la catégorie sélectionnée */}
-      {renderTabsForCategory(selectedCategory)}
+              {/* Flèche droite */}
+              <button
+                className={cn(
+                  "text-2xl text-blue-600",
+                  currentIndex === allVisite.length - 1 &&
+                    "text-gray-400 cursor-not-allowed"
+                )}
+                onClick={incrementDate}
+                disabled={currentIndex === allVisite.length - 1}
+              >
+                <SquareChevronRight />
+              </button>
+            </div>
+          </div>
+          <Separator orientation="horizontal" className="-mt-6 bg-blue-200" />
+          <CardContent>
+            {allVisite.length > 0 ? (
+              <>
+                <div className="grid grid-cols-4">
+                  {tabRecapVisite.length > 0 &&
+                    tabRecapVisite[currentIndex]?.formulaires.map(
+                      (form, index) => (
+                        <p key={index}>
+                          <span className="text-blue-800 font-semibold">
+                            {form}
+                          </span>
+                        </p>
+                      )
+                    )}
+                </div>
+              </>
+            ) : (
+              "Chargement en cours..."
+            )}
+            {allVisite.length > 0 &&
+              tabRecapVisite.length === 0 &&
+              "Aucune fiche saisie"}
+          </CardContent>
+        </Card>
+
+        {/* Afficher uniquement le Tabs correspondant à la catégorie sélectionnée */}
+        {renderTabsForCategory(selectedCategory)}
+      </div>
     </div>
   );
 }
