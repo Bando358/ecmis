@@ -191,6 +191,23 @@ export default function TableRapportMedecine({
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Médecine");
 
+    // AJOUTER UN LOGO A LA LIGNE DU HAUT
+    // le logo se trouve dans le fichier public
+    const logoBase64 = await fetch("/LOGO_AIBEF_IPPF.png")
+      .then((res) => res.blob())
+      .then((blob) => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      });
+    const imageId = workbook.addImage({
+      base64: logoBase64 as string,
+      extension: "png",
+    });
+    worksheet.addImage(imageId, "B1:H2");
+
     // === En-tête période ===
     worksheet.getCell("A3").value = "Période";
     worksheet.getCell("B3").value = new Date(dateDebut).toLocaleDateString(

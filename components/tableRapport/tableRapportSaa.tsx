@@ -188,7 +188,7 @@ export default function TableRapportSaa({
     worksheet.mergeCells("D3:J4");
     // AJOUTER UN LOGO A LA LIGNE DU HAUT
     // le logo se trouve dans le fichier public
-    const logoBase64 = await fetch("/logo/LOGO_AIBEF_IPPF.png")
+    const logoBase64 = await fetch("/LOGO_AIBEF_IPPF.png")
       .then((res) => res.blob())
       .then((blob) => {
         return new Promise((resolve) => {

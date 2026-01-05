@@ -9,13 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { FolderOpen, FilePenLine, Trash2, Funnel, FunnelX } from "lucide-react";
 
-import {
-  Client,
-  Clinique,
-  Permission,
-  TableName,
-  User,
-} from "@prisma/client";
+import { Client, Clinique, Permission, TableName, User } from "@prisma/client";
 import { deleteClient, getAllClient } from "@/lib/actions/clientActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
@@ -144,6 +138,7 @@ export default function Clients() {
   const router = useRouter();
   const { setSelectedClientId } = useClientContext();
   const { data: session } = useSession();
+  const idUser = session?.user?.id || "";
 
   const nomCliniques = useCallback(
     (idClinique: string) => {
@@ -153,32 +148,24 @@ export default function Clients() {
     [cliniques]
   );
 
-  // Charger l'utilisateur une seule fois
   useEffect(() => {
-    const user = session?.user;
-    if (user && !utilisateur) {
-      getOneUser(user.id)
-        .then((data) => {
-          setUtilisateur(data);
-        })
-        .catch((error) => {
-          console.error(
-            "Erreur lors de la récupération de l'utilisateur :",
-            error
-          );
-        });
-    }
-  }, [session?.user, utilisateur]);
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setUtilisateur(user);
+    };
+    fetUser();
+  }, [idUser]);
 
   // Charger les permissions une seule fois
   useEffect(() => {
-    if (!session?.user || permission !== null) return;
-    const user = session.user;
+    if (!utilisateur || permission !== null) return;
 
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(user.id);
-        const perm = permissions.find((p: { table: string }) => p.table === TableName.CLIENT);
+        const permissions = await getUserPermissionsById(utilisateur.id);
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.CLIENT
+        );
         setPermission(perm || null);
       } catch (error) {
         console.error(
@@ -189,7 +176,7 @@ export default function Clients() {
     };
 
     fetchPermissions();
-  }, [session?.user, permission]);
+  }, [utilisateur, permission]);
 
   // Fetch data - une seule fois au chargement initial
   useEffect(() => {
@@ -414,9 +401,7 @@ export default function Clients() {
 
                   <TableBody
                     className={`max-w-200 ${
-                      isLoading
-                        ? "animate-pulse no-scrollbar max-w-200"
-                        : ""
+                      isLoading ? "animate-pulse no-scrollbar max-w-200" : ""
                     }`}
                   >
                     {isLoading ? (

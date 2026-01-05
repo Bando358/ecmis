@@ -302,7 +302,7 @@ export default function TableRapportLabo({
 
       // Ajouter un logo (optionnel) depuis /public/logo
       try {
-        const logoBase64 = await fetch("/logo/LOGO_AIBEF_IPPF.png")
+        const logoBase64 = await fetch("/LOGO_AIBEF_IPPF.png")
           .then((res) => res.blob())
           .then(
             (blob) =>

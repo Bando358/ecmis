@@ -24,6 +24,7 @@ import { getAllRegion } from "@/lib/actions/regionActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
+import Retour from "@/components/retour";
 
 interface RegionData {
   id: string;
@@ -98,6 +99,7 @@ const sexeOptions = [
   { label: "Féminin", value: "Féminin" },
 ];
 const serologieOptions = [
+  { label: "Inconnu", value: "inconnu" },
   { label: "Négatif", value: "negatif" },
   { label: "Positif", value: "positif" },
 ];
@@ -275,472 +277,478 @@ export default function FormulaireClient() {
   if (status === "authenticated") {
     return (
       <React.Fragment>
-        <div>
-          <h2 className="text-center text-xl font-bold uppercase">
-            Formulaire de création d un client
-          </h2>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="space-y-4 max-w-225 mx-auto p-4 border rounded-md bg-white"
-          >
-            <div className="grid grid-cols-2 gap-4 w-full">
-              <div className="w-full flex gap-4 justify-between items-center">
-                <div className="w-full">
+        <div className="w-full relative">
+          <Retour />
+          <div>
+            <h2 className="text-center text-xl font-bold uppercase">
+              Formulaire de création d un client
+            </h2>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="space-y-4 max-w-225 mx-auto p-4 border rounded-md bg-white"
+            >
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <div className="w-full flex gap-4 justify-between items-center">
+                  <div className="w-full">
+                    <label className="block text-sm font-medium">
+                      Clinique<sup className="text-red-600 font-black">*</sup>
+                    </label>
+                    <select
+                      {...register("cliniqueId", {
+                        required: "Clinique est requise",
+                      })}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="" disabled>
+                        Select
+                      </option>
+                      {clinique.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.nomClinique}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.cliniqueId && (
+                      <span className="text-red-500 text-sm">
+                        {errors.cliniqueId.message}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <label className="block text-sm font-medium">
-                    Clinique<sup className="text-red-600 font-black">*</sup>
+                    Date d enregistrement
+                    <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <input
+                    {...register("dateEnregistrement", {
+                      required: "Date est requise",
+                    })}
+                    value={selectedDate}
+                    onChange={handleDateChange}
+                    className="mt-1 p-1 w-full rounded-md border border-slate-200"
+                    type="date"
+                    name="dateEnregistrement"
+                  />
+                  {errors.dateEnregistrement && (
+                    <span className="text-red-500 text-sm">
+                      {errors.dateEnregistrement.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">
+                    Nom<sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <Input
+                    {...register("nom", { required: "Nom est requis" })}
+                    placeholder="Nom"
+                    className="mt-1 capitalize"
+                    name="nom"
+                  />
+                  {errors.nom && (
+                    <span className="text-red-500 text-sm">
+                      {errors.nom.message}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium">
+                    Prénom<sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <Input
+                    {...register("prenom", { required: "Prénom est requis" })}
+                    placeholder="Prénom"
+                    className="mt-1 capitalize"
+                    name="prenom"
+                  />
+                  {errors.prenom && (
+                    <span className="text-red-500 text-sm">
+                      {errors.prenom.message}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium">
+                    Date de naissance
+                    <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <input
+                    {...register("dateNaissance", {
+                      required: "Date de naissance est requise",
+                    })}
+                    className="mt-1 p-1 w-full rounded-md border border-slate-200"
+                    type="date"
+                    name="dateNaissance"
+                  />
+                  {errors.dateNaissance && (
+                    <span className="text-red-500 text-sm">
+                      {errors.dateNaissance.message}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium">
+                    Sexe<sup className="text-red-600 font-black">*</sup>
                   </label>
                   <select
-                    {...register("cliniqueId", {
-                      required: "Clinique est requise",
-                    })}
+                    {...register("sexe", { required: "Sexe est requis" })}
                     className="w-full p-2 border rounded-md"
+                    name="sexe"
+                    defaultValue={""}
                   >
                     <option value="" disabled>
                       Select
                     </option>
-                    {clinique.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.nomClinique}
+                    {sexeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
-                  {errors.cliniqueId && (
+                  {errors.sexe && (
                     <span className="text-red-500 text-sm">
-                      {errors.cliniqueId.message}
+                      {errors.sexe.message}
                     </span>
                   )}
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Date d enregistrement
-                  <sup className="text-red-600 font-black">*</sup>
-                </label>
-                <input
-                  {...register("dateEnregistrement", {
-                    required: "Date est requise",
-                  })}
-                  value={selectedDate}
-                  onChange={handleDateChange}
-                  className="mt-1 p-1 w-full rounded-md border border-slate-200"
-                  type="date"
-                  name="dateEnregistrement"
-                />
-                {errors.dateEnregistrement && (
-                  <span className="text-red-500 text-sm">
-                    {errors.dateEnregistrement.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Nom<sup className="text-red-600 font-black">*</sup>
-                </label>
-                <Input
-                  {...register("nom", { required: "Nom est requis" })}
-                  placeholder="Nom"
-                  className="mt-1 capitalize"
-                  name="nom"
-                />
-                {errors.nom && (
-                  <span className="text-red-500 text-sm">
-                    {errors.nom.message}
-                  </span>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium">
-                  Prénom<sup className="text-red-600 font-black">*</sup>
-                </label>
-                <Input
-                  {...register("prenom", { required: "Prénom est requis" })}
-                  placeholder="Prénom"
-                  className="mt-1 capitalize"
-                  name="prenom"
-                />
-                {errors.prenom && (
-                  <span className="text-red-500 text-sm">
-                    {errors.prenom.message}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium">
-                  Date de naissance
-                  <sup className="text-red-600 font-black">*</sup>
-                </label>
-                <input
-                  {...register("dateNaissance", {
-                    required: "Date de naissance est requise",
-                  })}
-                  className="mt-1 p-1 w-full rounded-md border border-slate-200"
-                  type="date"
-                  name="dateNaissance"
-                />
-                {errors.dateNaissance && (
-                  <span className="text-red-500 text-sm">
-                    {errors.dateNaissance.message}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium">
-                  Sexe<sup className="text-red-600 font-black">*</sup>
-                </label>
-                <select
-                  {...register("sexe", { required: "Sexe est requis" })}
-                  className="w-full p-2 border rounded-md"
-                  name="sexe"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {sexeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.sexe && (
-                  <span className="text-red-500 text-sm">
-                    {errors.sexe.message}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium">
-                  Lieu de naissance
-                </label>
-                <Input
-                  {...register("lieuNaissance")}
-                  placeholder="Lieu de naissance"
-                  className="mt-1 capitalize"
-                  name="lieuNaissance"
-                  defaultValue={""}
-                />
-                {/* {errors.lieuNaissance && (
+                <div>
+                  <label className="block text-sm font-medium">
+                    Lieu de naissance
+                  </label>
+                  <Input
+                    {...register("lieuNaissance")}
+                    placeholder="Lieu de naissance"
+                    className="mt-1 capitalize"
+                    name="lieuNaissance"
+                    defaultValue={""}
+                  />
+                  {/* {errors.lieuNaissance && (
                   <span className="text-red-500 text-sm">
                     {errors.lieuNaissance.message}
                   </span>
                 )} */}
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium">
-                  Niveau scolaire
-                </label>
-                <select
-                  {...register("niveauScolaire", {
-                    required: "Niveau scolaire est requis",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="niveauScolaire"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {niveauScolaireOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                <div>
+                  <label className="block text-sm font-medium">
+                    Niveau scolaire
+                  </label>
+                  <select
+                    {...register("niveauScolaire", {
+                      required: "Niveau scolaire est requis",
+                    })}
+                    className="w-full p-2 border rounded-md"
+                    name="niveauScolaire"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.niveauScolaire && (
-                  <span className="text-red-500 text-sm">
-                    {errors.niveauScolaire.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  État matrimonial
-                  <sup className="text-red-600 font-black"> *</sup>
-                </label>
-                <select
-                  {...register("etatMatrimonial", {
-                    required: "État matrimonial est requis",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="etatMatrimonial"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {etatMatrimonialOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                    {niveauScolaireOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.niveauScolaire && (
+                    <span className="text-red-500 text-sm">
+                      {errors.niveauScolaire.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">
+                    État matrimonial
+                    <sup className="text-red-600 font-black"> *</sup>
+                  </label>
+                  <select
+                    {...register("etatMatrimonial", {
+                      required: "État matrimonial est requis",
+                    })}
+                    className="w-full p-2 border rounded-md"
+                    name="etatMatrimonial"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.etatMatrimonial && (
-                  <span className="text-red-500 text-sm">
-                    {errors.etatMatrimonial.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Ethnie <sup className="text-red-600 font-black">*</sup>
-                </label>
-                <select
-                  {...register("ethnie", { required: "Ethnie est requise" })}
-                  className="w-full p-2 border rounded-md"
-                  name="ethnie"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {ethnieOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                    {etatMatrimonialOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.etatMatrimonial && (
+                    <span className="text-red-500 text-sm">
+                      {errors.etatMatrimonial.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">
+                    Ethnie <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <select
+                    {...register("ethnie", { required: "Ethnie est requise" })}
+                    className="w-full p-2 border rounded-md"
+                    name="ethnie"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.ethnie && (
-                  <span className="text-red-500 text-sm">
-                    {errors.ethnie.message}
-                  </span>
-                )}
-              </div>
+                    {ethnieOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.ethnie && (
+                    <span className="text-red-500 text-sm">
+                      {errors.ethnie.message}
+                    </span>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium">
-                  Profession <sup className="text-red-600 font-black">*</sup>
-                </label>
-                <select
-                  {...register("profession", {
-                    required: "Profession est requise",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="profession"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {professionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                <div>
+                  <label className="block text-sm font-medium">
+                    Profession <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <select
+                    {...register("profession", {
+                      required: "Profession est requise",
+                    })}
+                    className="w-full p-2 border rounded-md"
+                    name="profession"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.profession && (
-                  <span className="text-red-500 text-sm">
-                    {errors.profession.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Quartier</label>
-                {/* quartier n'est pas obligatoire */}
-                <Input
-                  {...register("quartier")}
-                  placeholder="Quartier"
-                  className="mt-1 capitalize"
-                  name="quartier"
-                  defaultValue={""}
-                />
-                {/* {errors.quartier && (
+                    {professionOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.profession && (
+                    <span className="text-red-500 text-sm">
+                      {errors.profession.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Quartier</label>
+                  {/* quartier n'est pas obligatoire */}
+                  <Input
+                    {...register("quartier")}
+                    placeholder="Quartier"
+                    className="mt-1 capitalize"
+                    name="quartier"
+                    defaultValue={""}
+                  />
+                  {/* {errors.quartier && (
                   <span className="text-red-500 text-sm">
                     {errors.quartier.message}
                   </span>
                 )} */}
-              </div>
-              <div>
-                <label className="block text-sm font-medium ">
-                  Code<sup className="text-red-600 font-black">*</sup>
-                </label>
-                <div className="flex relative -m-1.25">
-                  <Input
-                    {...register("code", { required: "Code est requis" })}
-                    placeholder="AB/CA01/2025/01/00001-XXX"
-                    className="mt-1 uppercase"
-                    name="code"
-                  />
-                  <span className="absolute right-1 top-2.5">
-                    {!newCode ? (
-                      <BadgePlus
-                        onClick={() => handleGenerateCode()}
-                        className="text-slate-800   font-bold text-3xl  cursor-pointer transition-all duration-300 scale-110 active:text-blue-900"
-                      />
-                    ) : (
-                      <BadgePlus className="text-blue-800   font-bold text-3xl" />
-                    )}
-                  </span>
                 </div>
-                {errors.code && (
-                  <span className="text-red-500 text-sm">
-                    {errors.code.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Code VIH</label>
-                <Input
-                  {...register("codeVih")}
-                  placeholder="07060/01/25/00001"
-                  className="mt-1"
-                  name="codeVih"
-                />
-                {errors.codeVih && (
-                  <span className="text-red-500 text-sm">
-                    {errors.codeVih.message}
-                  </span>
-                )}
-              </div>
-              <div className="hidden">
-                <label className="block text-sm font-medium">Téléphone 2</label>
-                <Input
-                  {...register("tel_2")}
-                  placeholder="Téléphone 2"
-                  className="mt-1"
-                  name="tel_2"
-                />
-                {errors.tel_2?.message && (
-                  <span className="text-red-500 text-sm">
-                    {errors.tel_2.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Sérologie <sup className="text-red-600 font-black">*</sup>
-                </label>
-                <select
-                  {...register("serologie", {
-                    required: "Sérologie est requise",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="serologie"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {serologieOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                <div>
+                  <label className="block text-sm font-medium ">
+                    Code<sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <div className="flex relative -m-1.25">
+                    <Input
+                      {...register("code", { required: "Code est requis" })}
+                      placeholder="AB/CA01/2025/01/00001-XXX"
+                      className="mt-1 uppercase"
+                      name="code"
+                    />
+                    <span className="absolute right-1 top-2.5">
+                      {!newCode ? (
+                        <BadgePlus
+                          onClick={() => handleGenerateCode()}
+                          className="text-slate-800   font-bold text-3xl  cursor-pointer transition-all duration-300 scale-110 active:text-blue-900"
+                        />
+                      ) : (
+                        <BadgePlus className="text-blue-800   font-bold text-3xl" />
+                      )}
+                    </span>
+                  </div>
+                  {errors.code && (
+                    <span className="text-red-500 text-sm">
+                      {errors.code.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Code VIH</label>
+                  <Input
+                    {...register("codeVih")}
+                    placeholder="07060/01/25/00001"
+                    className="mt-1"
+                    name="codeVih"
+                  />
+                  {errors.codeVih && (
+                    <span className="text-red-500 text-sm">
+                      {errors.codeVih.message}
+                    </span>
+                  )}
+                </div>
+                <div className="hidden">
+                  <label className="block text-sm font-medium">
+                    Téléphone 2
+                  </label>
+                  <Input
+                    {...register("tel_2")}
+                    placeholder="Téléphone 2"
+                    className="mt-1"
+                    name="tel_2"
+                  />
+                  {errors.tel_2?.message && (
+                    <span className="text-red-500 text-sm">
+                      {errors.tel_2.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">
+                    Sérologie <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <select
+                    {...register("serologie", {
+                      required: "Sérologie est requise",
+                    })}
+                    className="w-full p-2 border rounded-md"
+                    name="serologie"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.serologie && (
-                  <span className="text-red-500 text-sm">
-                    {errors.serologie.message}
-                  </span>
-                )}
-              </div>
+                    {serologieOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.serologie && (
+                    <span className="text-red-500 text-sm">
+                      {errors.serologie.message}
+                    </span>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium">
-                  Source d information{" "}
-                  <sup className="text-red-600 font-black">*</sup>
-                </label>
-                <select
-                  {...register("sourceInfo", {
-                    required: "Source d'information est requise",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="sourceInfo"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {sourceInfoOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                <div>
+                  <label className="block text-sm font-medium">
+                    Source d information{" "}
+                    <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <select
+                    {...register("sourceInfo", {
+                      required: "Source d'information est requise",
+                    })}
+                    className="w-full p-2 border rounded-md"
+                    name="sourceInfo"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.sourceInfo && (
-                  <span className="text-red-500 text-sm">
-                    {errors.sourceInfo.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Status client<sup className="text-red-600 font-black">*</sup>
-                </label>
-                <select
-                  {...register("statusClient", {
-                    required: "Status client est requis",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="statusClient"
-                  defaultValue={""}
-                >
-                  <option value="" disabled>
-                    Select
-                  </option>
-                  {statusClientOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                    {sourceInfoOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.sourceInfo && (
+                    <span className="text-red-500 text-sm">
+                      {errors.sourceInfo.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">
+                    Status client
+                    <sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <select
+                    {...register("statusClient", {
+                      required: "Status client est requis",
+                    })}
+                    className="w-full p-2 border rounded-md"
+                    name="statusClient"
+                    defaultValue={""}
+                  >
+                    <option value="" disabled>
+                      Select
                     </option>
-                  ))}
-                </select>
-                {errors.statusClient && (
-                  <span className="text-red-500 text-sm">
-                    {errors.statusClient.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Téléphone 1<sup className="text-red-600 font-black">*</sup>
-                </label>
-                <Input
-                  {...register("tel_1")}
-                  placeholder="Téléphone 1"
-                  className="mt-1"
-                  name="tel_1"
-                />
-                {errors.tel_1 && (
-                  <span className="text-red-500 text-sm">
-                    {errors.tel_1.message}
-                  </span>
-                )}
-              </div>
+                    {statusClientOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.statusClient && (
+                    <span className="text-red-500 text-sm">
+                      {errors.statusClient.message}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">
+                    Téléphone 1<sup className="text-red-600 font-black">*</sup>
+                  </label>
+                  <Input
+                    {...register("tel_1")}
+                    placeholder="Téléphone 1"
+                    className="mt-1"
+                    name="tel_1"
+                  />
+                  {errors.tel_1 && (
+                    <span className="text-red-500 text-sm">
+                      {errors.tel_1.message}
+                    </span>
+                  )}
+                </div>
 
-              <div>
-                <Input
-                  // className="mt-1 hidden"
-                  type="hidden"
-                  name="idUser"
-                  value={idPrestataire}
-                />
-              </div>
+                <div>
+                  <Input
+                    // className="mt-1 hidden"
+                    type="hidden"
+                    name="idUser"
+                    value={idPrestataire}
+                  />
+                </div>
 
-              <div>
-                <Input
-                  // className="mt-1 hidden"
-                  type="hidden"
-                  name="idClinique"
-                  value={clinic}
-                />
+                <div>
+                  <Input
+                    // className="mt-1 hidden"
+                    type="hidden"
+                    name="idClinique"
+                    value={clinic}
+                  />
+                </div>
               </div>
-            </div>
-            <Button
-              type="submit"
-              className="w-full mt-4"
-              disabled={isSubmitting}
-            >
-              <span className="flex flex-row items-center">
-                {isSubmitting && (
-                  <SpinnerCustom className="mr-2 text-gray-300" />
-                )}
-                Créer le client
-              </span>
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                className="w-full mt-4"
+                disabled={isSubmitting}
+              >
+                <span className="flex flex-row items-center">
+                  {isSubmitting && (
+                    <SpinnerCustom className="mr-2 text-gray-300" />
+                  )}
+                  Créer le client
+                </span>
+              </Button>
+            </form>
+          </div>
         </div>
       </React.Fragment>
     );

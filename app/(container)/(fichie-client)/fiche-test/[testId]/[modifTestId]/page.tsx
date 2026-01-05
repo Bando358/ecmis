@@ -48,6 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import Retour from "@/components/retour";
 
 type Option = {
   value: string;
@@ -209,213 +210,221 @@ export default function GynecoPage({
   };
 
   return (
-    <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-      {selectedTest && <ConstanteClient idVisite={selectedTest.testIdVisite} />}
-      {isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
-            {`Formulaire de modification de Test de Grossesse`}
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-            >
-              <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+    <div className="w-full relative">
+      <Retour />
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+        {selectedTest && (
+          <ConstanteClient idVisite={selectedTest.testIdVisite} />
+        )}
+        {isVisible ? (
+          <>
+            <h2 className="text-2xl text-gray-600 font-black text-center">
+              {`Formulaire de modification de Test de Grossesse`}
+            </h2>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+              >
+                <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+                  <FormField
+                    control={form.control}
+                    name="testIdVisite"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Selectionnez la visite</FormLabel>
+                        <Select required onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Visite à sélectionner ....." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {visites.map((visite, index) => (
+                              <SelectItem key={index} value={visite.id}>
+                                {new Date(visite.dateVisite).toLocaleDateString(
+                                  "fr-FR"
+                                )}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Separator className="my-4" />
+                  <FormField
+                    control={form.control}
+                    name="testResultat"
+                    render={({ field }) => (
+                      <FormItem className="  pb-4">
+                        <div className="text-xl font-bold flex justify-between items-center">
+                          <FormLabel className="ml-4">
+                            Résultat test de grossesse :
+                          </FormLabel>
+                        </div>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value ?? ""}
+                            className="gap-x-5 items-center grid-cols-3"
+                          >
+                            {TabTest.map((option) => (
+                              <FormItem
+                                key={option.value}
+                                className="flex items-center space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <RadioGroupItem value={option.value} />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {option.label}
+                                </FormLabel>
+                              </FormItem>
+                            ))}
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
-                  name="testIdVisite"
+                  name="testIdClient"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Selectionnez la visite</FormLabel>
-                      <Select required onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Visite à sélectionner ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {visites.map((visite, index) => (
-                            <SelectItem key={index} value={visite.id}>
-                              {new Date(visite.dateVisite).toLocaleDateString(
-                                "fr-FR"
-                              )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
+                      <FormControl>
+                        <Input {...field} className="hidden" />
+                      </FormControl>
                     </FormItem>
                   )}
                 />
-                <Separator className="my-4" />
-                <FormField
-                  control={form.control}
-                  name="testResultat"
-                  render={({ field }) => (
-                    <FormItem className="  pb-4">
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="ml-4">
-                          Résultat test de grossesse :
+
+                {isPrescripteur === true ? (
+                  <FormField
+                    control={form.control}
+                    name="testIdUser"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} value={idUser} className="hidden" />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="testIdUser"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-medium">
+                          Selectionnez le precripteur
                         </FormLabel>
-                      </div>
-                      <FormControl>
-                        <RadioGroup
+                        <Select
+                          required
+                          // value={field.value}
                           onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          className="gap-x-5 items-center grid-cols-3"
                         >
-                          {TabTest.map((option) => (
-                            <FormItem
-                              key={option.value}
-                              className="flex items-center space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <RadioGroupItem value={option.value} />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {option.label}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select Prescripteur ....." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {allPrescripteur.map((prescripteur, index) => (
+                              <SelectItem key={index} value={prescripteur.id}>
+                                <span>{prescripteur.name}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
-              <FormField
-                control={form.control}
-                name="testIdClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} className="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {isPrescripteur === true ? (
-                <FormField
-                  control={form.control}
-                  name="testIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={idUser} className="hidden" />
-                      </FormControl>
-                    </FormItem>
+                <div className="flex flex-row  justify-center items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsVisible(false)}
+                    disabled={form.formState.isSubmitting}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2 max-w-md mx-auto">
+            {!selectedTest ? (
+              <div className="flex items-center space-x-4">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-62.5" />
+                  <Skeleton className="h-4 w-50" />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div>{selectedTest && <span>Date de visite : </span>}</div>
+                <div>
+                  {dateVisite &&
+                    new Date(dateVisite).toLocaleDateString("fr-FR")}
+                </div>
+                <div>
+                  {selectedTest && selectedTest.testResultat !== null && (
+                    <span>Résulat Test</span>
                   )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="testIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le precripteur
-                      </FormLabel>
-                      <Select
-                        required
-                        // value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((prescripteur, index) => (
-                            <SelectItem key={index} value={prescripteur.id}>
-                              <span>{prescripteur.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+                </div>
+                <div>
+                  {selectedTest && selectedTest.testResultat !== null && (
+                    <span>
+                      {renameValue(selectedTest.testResultat, TabTest)}
+                    </span>
                   )}
-                />
-              )}
-
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-                </Button>
+                </div>
+                <div>
+                  {prescripteur && (
+                    <small className="italic">Prescripteur :</small>
+                  )}
+                </div>
+                <div>
+                  {allPrescripteur && (
+                    <small className="italic">
+                      {
+                        allPrescripteur.find(
+                          (prescripteur) =>
+                            prescripteur.id === selectedTest?.testIdUser
+                        )?.name
+                      }
+                    </small>
+                  )}
+                </div>
+                <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.back()}
+                  >
+                    Retour
+                  </Button>
+                  <Button onClick={handleUpdateVisite}>Modifier</Button>
+                </div>
               </div>
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {!selectedTest ? (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-62.5" />
-                <Skeleton className="h-4 w-50" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>{selectedTest && <span>Date de visite : </span>}</div>
-              <div>
-                {dateVisite && new Date(dateVisite).toLocaleDateString("fr-FR")}
-              </div>
-              <div>
-                {selectedTest && selectedTest.testResultat !== null && (
-                  <span>Résulat Test</span>
-                )}
-              </div>
-              <div>
-                {selectedTest && selectedTest.testResultat !== null && (
-                  <span>{renameValue(selectedTest.testResultat, TabTest)}</span>
-                )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">Prescripteur :</small>
-                )}
-              </div>
-              <div>
-                {allPrescripteur && (
-                  <small className="italic">
-                    {
-                      allPrescripteur.find(
-                        (prescripteur) =>
-                          prescripteur.id === selectedTest?.testIdUser
-                      )?.name
-                    }
-                  </small>
-                )}
-              </div>
-              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Retour
-                </Button>
-                <Button onClick={handleUpdateVisite}>Modifier</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
