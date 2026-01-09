@@ -99,7 +99,12 @@ export function InventaireDetailDialog({
         theorique: detail.quantiteTheorique,
         reel: detail.quantiteReelle,
         ecart: detail.ecart,
-        anomalies: detail.AnomalieInventaire?.length || 0,
+        anomalies:
+          detail.AnomalieInventaire && detail.AnomalieInventaire.length > 0
+            ? detail.AnomalieInventaire.map(
+                (a) => a.description || "Sans description"
+              ).join(", ")
+            : "-",
       }));
 
       autoTable(doc, {
@@ -110,7 +115,7 @@ export function InventaireDetailDialog({
           d.theorique.toString(),
           d.reel.toString(),
           d.ecart > 0 ? `+${d.ecart}` : d.ecart.toString(),
-          d.anomalies.toString(),
+          d.anomalies,
         ]),
         startY: 85,
         headStyles: {
@@ -123,11 +128,11 @@ export function InventaireDetailDialog({
         alternateRowStyles: { fillColor: [245, 245, 245] },
         columnStyles: {
           0: { cellWidth: 15 },
-          1: { cellWidth: 60 },
+          1: { cellWidth: 50 },
           2: { cellWidth: 25 },
           3: { cellWidth: 25 },
           4: { cellWidth: 25 },
-          5: { cellWidth: 25 },
+          5: { cellWidth: 35 },
         },
         didDrawPage: (data) => {
           // Pied de page

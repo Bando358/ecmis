@@ -295,7 +295,7 @@ export default function DetailInventairePage() {
           toast.error("Erreur lors de la création de l'inventaire");
           return null;
         }
-// Ajouter le nouvel inventaire à la liste et le sélectionner si date inventaire n'est pas passée de 2 jours
+        // Ajouter le nouvel inventaire à la liste et le sélectionner si date inventaire n'est pas passée de 2 jours
         const now = new Date();
         const twoDaysAgo = new Date(now);
         twoDaysAgo.setDate(now.getDate() - 2);
@@ -940,7 +940,7 @@ export default function DetailInventairePage() {
             Imprimer
           </Button>
           <InventaireDialog
-            cliniques={cliniques.filter((c) => idCliniques.includes(c.id))}
+            cliniques={cliniques}
             allInventaires={inventaires.filter((inv) =>
               idCliniques.includes(inv.idClinique)
             )}
@@ -1134,7 +1134,7 @@ export default function DetailInventairePage() {
                               ? "bg-green-500 text-white hover:bg-green-600"
                               : ""
                           }
-                          style={isValidating ? { width: "80px" } : {}}
+                          style={isValidating ? { width: "60px" } : {}}
                         >
                           {isValidating ? (
                             <SpinnerCustom />
@@ -1171,7 +1171,7 @@ export default function DetailInventairePage() {
                               hasAnomalie ||
                               isAdjusting
                             }
-                            style={isAdjusting ? { width: "80px" } : {}}
+                            style={isAdjusting ? { width: "60px" } : {}}
                           >
                             {isAdjusting ? <SpinnerCustom /> : "Ajuster"}
                           </Button>
