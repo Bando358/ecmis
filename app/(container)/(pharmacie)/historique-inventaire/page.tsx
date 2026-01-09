@@ -512,7 +512,7 @@ export default function HistoriqueInventairePage() {
         setIsGeneratingPDF(false);
       }
     },
-    []
+    [produits]
   );
 
   // Suppression d'un inventaire
