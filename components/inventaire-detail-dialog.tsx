@@ -59,10 +59,28 @@ export function InventaireDetailDialog({
         format: "a4",
       });
 
+      // Ajouter le logo
+      try {
+        const logo = new Image();
+        logo.src = "/LOGO_AIBEF_IPPF.png";
+        await new Promise((resolve, reject) => {
+          logo.onload = resolve;
+          logo.onerror = reject;
+        });
+        // 60% de la largeur de la page (210mm) = 126mm
+        const logoWidth = 126;
+        const logoHeight = 15;
+        const pageWidth = doc.internal.pageSize.width;
+        const logoX = (pageWidth - logoWidth) / 2; // Centrer le logo
+        doc.addImage(logo, "PNG", logoX, 10, logoWidth, logoHeight);
+      } catch (error) {
+        console.warn("Impossible de charger le logo:", error);
+      }
+
       // En-tête
       doc.setFontSize(20);
       doc.setTextColor(40, 40, 40);
-      doc.text("RAPPORT D'INVENTAIRE", 105, 20, { align: "center" });
+      doc.text("RAPPORT D'INVENTAIRE", 105, 37, { align: "center" });
 
       // Informations générales
       doc.setFontSize(11);
@@ -76,19 +94,19 @@ export function InventaireDetailDialog({
       doc.text(
         `Clinique: ${inventaire.Clinique?.nomClinique || "Non spécifiée"}`,
         14,
-        35
+        48
       );
-      doc.text(`Date: ${dateInventaire}`, 14, 42);
+      doc.text(`Date: ${dateInventaire}`, 14, 55);
       doc.text(
         `Réalisé par: ${inventaire.User?.name || "Utilisateur inconnu"}`,
         14,
-        49
+        62
       );
 
-      doc.text(`Produits inventoriés: ${stats.totalProduits}`, 14, 56);
-      doc.text(`Produits conformes: ${stats.produitsValides}`, 14, 63);
-      doc.text(`Anomalies détectées: ${stats.totalAnomalies}`, 14, 70);
-      doc.text(`Écart total: ${stats.totalEcart} unités`, 14, 77);
+      doc.text(`Produits inventoriés: ${stats.totalProduits}`, 14, 69);
+      doc.text(`Produits conformes: ${stats.produitsValides}`, 14, 76);
+      doc.text(`Anomalies détectées: ${stats.totalAnomalies}`, 14, 83);
+      doc.text(`Écart total: ${stats.totalEcart} unités`, 14, 90);
 
       // Tableau des produits
       const tableData = inventaire.detailInventaire.map((detail, index) => ({
@@ -117,7 +135,7 @@ export function InventaireDetailDialog({
           d.ecart > 0 ? `+${d.ecart}` : d.ecart.toString(),
           d.anomalies,
         ]),
-        startY: 85,
+        startY: 98,
         headStyles: {
           fillColor: [59, 130, 246],
           textColor: [255, 255, 255],

@@ -100,6 +100,7 @@ export default function DetailInventairePage() {
     useState<Permission | null>(null);
   const [recherche, setRecherche] = useState<string>("");
   const [prescripteur, setPrescripteur] = useState<User>();
+  const [selectedClinique, setSelectedClinique] = useState<string>("");
   const [quantitesReelles, setQuantitesReelles] = useState<{
     [key: string]: number;
   }>({});
@@ -558,9 +559,9 @@ export default function DetailInventairePage() {
     try {
       toast.info("Génération du PDF en cours...");
 
-      const cliniqueName = currentInventaire
-        ? cliniques.find((c) => c.id === currentInventaire.idClinique)
-            ?.nomClinique
+      const cliniqueName = selectedClinique
+        ? cliniques.find((c) => c.id === selectedClinique)?.nomClinique ||
+          "Clinique inconnue"
         : "Toutes les cliniques";
 
       const dateInventaire = currentInventaire
@@ -574,20 +575,42 @@ export default function DetailInventairePage() {
         format: "a4",
       });
 
+      // Ajouter le logo
+      try {
+        const logo = new Image();
+        logo.src = "/LOGO_AIBEF_IPPF.png";
+        await new Promise((resolve, reject) => {
+          logo.onload = resolve;
+          logo.onerror = reject;
+        });
+        // 60% de la largeur de la page (210mm) = 126mm
+        const logoWidth = 126;
+        const logoHeight = 15;
+        const pageWidth = doc.internal.pageSize.width;
+        const logoX = (pageWidth - logoWidth) / 2; // Centrer le logo
+        doc.addImage(logo, "PNG", logoX, 10, logoWidth, logoHeight);
+      } catch (error) {
+        console.warn("Impossible de charger le logo:", error);
+      }
+
       // Ajouter l'en-tête
       doc.setFontSize(20);
       doc.setTextColor(40, 40, 40);
-      doc.text("INVENTAIRE DES PRODUITS", 105, 20, { align: "center" });
+      doc.text("INVENTAIRE DES PRODUITS", 105, 37, { align: "center" });
 
       // Informations de l'inventaire
       doc.setFontSize(11);
       doc.setTextColor(80, 80, 80);
-      doc.text(`Clinique: ${cliniqueName}`, 14, 30);
-      doc.text(`Date: ${dateInventaire}`, 14, 36);
+      doc.text(`Clinique: ${cliniqueName}`, 14, 46);
+      doc.text(`Date: ${dateInventaire}`, 14, 52);
       if (recherche) {
-        doc.text(`Recherche: "${recherche}"`, 14, 42);
+        doc.text(`Recherche: "${recherche}"`, 14, 58);
       }
-      doc.text(`Nombre de produits: ${tarifsFiltres.length}`, 14, 48);
+      doc.text(
+        `Nombre de produits: ${tarifsFiltres.length}`,
+        14,
+        recherche ? 64 : 58
+      );
 
       // Préparer les données du tableau
       const tableData = tarifsFiltres.map((item, index) => {
@@ -618,7 +641,7 @@ export default function DetailInventairePage() {
           ],
         ],
         body: tableData,
-        startY: 55,
+        startY: recherche ? 70 : 64,
         headStyles: {
           fillColor: [76, 175, 80] as [number, number, number], // Vert
           textColor: [255, 255, 255] as [number, number, number],
@@ -631,7 +654,6 @@ export default function DetailInventairePage() {
         alternateRowStyles: {
           fillColor: [245, 245, 245] as [number, number, number],
         },
-        margin: { top: 55 },
         styles: {
           overflow: "linebreak" as const,
           cellWidth: "wrap" as const,
@@ -700,6 +722,7 @@ export default function DetailInventairePage() {
     detailInventaires,
     currentInventaire,
     recherche,
+    selectedClinique,
   ]);
 
   // Fonction pour imprimer les produits
@@ -710,9 +733,9 @@ export default function DetailInventairePage() {
       return;
     }
 
-    const cliniqueName = currentInventaire
-      ? cliniques.find((c) => c.id === currentInventaire.idClinique)
-          ?.nomClinique
+    const cliniqueName = selectedClinique
+      ? cliniques.find((c) => c.id === selectedClinique)?.nomClinique ||
+        "Clinique inconnue"
       : "Toutes les cliniques";
 
     const dateInventaire = currentInventaire
@@ -753,6 +776,15 @@ export default function DetailInventairePage() {
             body {
               font-family: Arial, sans-serif;
               margin: 20px;
+            }
+            .logo-container {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .logo-container img {
+              width: 60%;
+              max-width: 600px;
+              height: auto;
             }
             h1 {
               text-align: center;
@@ -807,6 +839,9 @@ export default function DetailInventairePage() {
           </style>
         </head>
         <body>
+          <div class="logo-container">
+            <img src="/LOGO_AIBEF_IPPF.png" alt="Logo AIBEF IPPF" />
+          </div>
           <h1>Inventaire des Produits</h1>
           <div class="header-info">
             <p><strong>Clinique:</strong> ${cliniqueName}</p>
@@ -870,6 +905,7 @@ export default function DetailInventairePage() {
     currentInventaire,
     quantitesReelles,
     recherche,
+    selectedClinique,
   ]);
 
   const TableRowSkeleton = () => (
@@ -940,10 +976,25 @@ export default function DetailInventairePage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Détail de l'inventaire</h1>
         <div className="flex gap-2">
+          <Select value={selectedClinique} onValueChange={setSelectedClinique}>
+            <SelectTrigger className="w-50 bg-gray-50">
+              <SelectValue placeholder="Sélectionner une clinique" />
+            </SelectTrigger>
+            <SelectContent>
+              {cliniques.map((clinique) => (
+                <SelectItem key={clinique.id} value={clinique.id}>
+                  {clinique.nomClinique}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Button
             onClick={handleDownloadPDF}
             variant="outline"
-            disabled={isGeneratingPDF || tarifsFiltres.length === 0}
+            disabled={
+              !selectedClinique || isGeneratingPDF || tarifsFiltres.length === 0
+            }
           >
             {isGeneratingPDF ? (
               <>
@@ -960,7 +1011,7 @@ export default function DetailInventairePage() {
           <Button
             onClick={handlePrintProducts}
             variant="outline"
-            disabled={tarifsFiltres.length === 0}
+            disabled={!selectedClinique || tarifsFiltres.length === 0}
           >
             <Printer className="mr-2 h-4 w-4" />
             Imprimer
@@ -972,7 +1023,7 @@ export default function DetailInventairePage() {
             )}
             onCreateInventaire={handleCreateInventaire}
           >
-            <Button>Nouvel Inventaire</Button>
+            <Button disabled={!selectedClinique}>Nouvel Inventaire</Button>
           </InventaireDialog>
         </div>
       </div>
