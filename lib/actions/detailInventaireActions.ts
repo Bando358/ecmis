@@ -59,3 +59,9 @@ export async function deleteDetailInventaire(id: string) {
     where: { id },
   });
 }
+// Suppression d'un Inventaire
+export async function deleteDetailInventairesByIds(ids: string[]) {
+  return await prisma.detailInventaire.deleteMany({
+    where: { id: { in: ids } },
+  });
+}

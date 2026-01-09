@@ -1,4 +1,4 @@
-// /clients/page.tsx
+// /liste clients/page.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
@@ -511,7 +511,11 @@ export default function Clients() {
               </ScrollArea>
 
               {/* Pagination */}
-              <div className="flex justify-center mt-4">
+              <div className="flex flex-col items-center mt-4 gap-2">
+                <div className="text-sm text-gray-600">
+                  Affichage de {currentRows.length} client(s) sur{" "}
+                  {filteredData.length} au total
+                </div>
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>

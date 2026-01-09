@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 
-import { TypeVisite } from "@/lib/generated/prisma";
+import { TypeVisite } from "@prisma/client";
 import { CalendarIcon } from "lucide-react";
 
 interface DialogGestionVisiteProps {
@@ -139,6 +139,7 @@ export function DialogGestionVisite({
                 <SelectItem value="ARRET_CONTRACEPTION">
                   Arrêt de contraception
                 </SelectItem>
+                <SelectItem value="INJOIGNABLE">Injoignable</SelectItem>
               </SelectContent>
             </Select>
           </div>

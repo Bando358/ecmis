@@ -26,7 +26,6 @@ import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { getUserByUsername } from "@/lib/actions/authActions";
-import { el } from "date-fns/locale";
 
 const signUpSchema = z.object({
   username: z.string().min(5, {
@@ -88,7 +87,7 @@ export function LoginForm({
           return;
         } else {
           toast.success("Connexion réussie !");
-          router.replace("/dashboard");
+          router.replace("/");
         }
       }
     } catch (error) {

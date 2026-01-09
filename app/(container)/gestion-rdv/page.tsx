@@ -1,5 +1,5 @@
-import RendezVousDashboard from "@/components/rendez-vous-dashboard";
+import GestionRdv from "@/components/rendez-vous-dashboard";
 
 export default function GestionRdvPage() {
-  return <RendezVousDashboard />;
+  return <GestionRdv />;
 }

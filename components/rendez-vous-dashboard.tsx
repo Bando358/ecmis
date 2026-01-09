@@ -82,7 +82,7 @@ const typeRapportOptions = [
 ];
 
 // ✅ COMPOSANT SANS PROPS PROBLÉMATIQUES
-export default function RendezVousDashboard() {
+export default function GestionRdv() {
   const [cliniques, setCliniques] = useState<CliniqueOption[]>([]);
   const [activites, setActivites] = useState<ActiviteOption[]>([]);
   const [isVisible, setIsVisible] = useState(true);

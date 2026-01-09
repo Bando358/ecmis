@@ -40,7 +40,7 @@ export function TeamSwitcher({
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Link href="/client" className="block">
+        <Link href="/" className="block">
           <SidebarMenuButton
             size="lg"
             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground px-3 w-full hover:bg-accent/50 transition-colors cursor-pointer"

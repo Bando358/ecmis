@@ -1,3 +1,4 @@
+// --- Menu ---
 "use client";
 
 import * as React from "react";
@@ -88,6 +89,11 @@ const data = {
         {
           title: "Inventaire",
           url: "/inventaire",
+        },
+        {
+          title: "Historique Inventaire",
+          // url: "#",
+          url: "/historique-inventaire",
         },
       ],
     },

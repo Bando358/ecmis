@@ -87,6 +87,8 @@ export function AnomalieInventaireDialog({
             <div className="grid gap-3">
               <Label htmlFor="quantiteManquante">
                 Désormais, la quantité de {produit} sera de : {quantiteReelle}{" "}
+                car {ecart}{" "}
+                {ecart > 1 ? "unités sont en plus" : "unité sont manquantes"}.
               </Label>
             </div>
 

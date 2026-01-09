@@ -816,7 +816,7 @@ export default function PlanningPage({
             )}
             <Button
               type="submit"
-              className="mt-4"
+              className="my-2 mx-auto block"
               disabled={form.formState.isSubmitting}
             >
               {form.formState.isSubmitting ? "En cours..." : "Soumettre"}

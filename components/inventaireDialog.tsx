@@ -21,28 +21,57 @@ import { Clinique, Inventaire } from "@prisma/client";
 interface InventaireDialogProps {
   children: React.ReactNode;
   cliniques?: Clinique[];
+
+  allInventaires?: Inventaire[];
   onCreateInventaire: (data: Partial<Inventaire>) => Promise<Inventaire | null>;
 }
 
 export function InventaireDialog({
   children,
   cliniques = [],
+  allInventaires = [],
   onCreateInventaire,
 }: InventaireDialogProps) {
   const { register, handleSubmit, reset } = useForm<Partial<Inventaire>>();
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (data: Partial<Inventaire>) => {
+    setIsSubmitting(true);
     try {
+      // Vérifier si un inventaire existe déjà pour cette clinique à cette date
+      const dateInventaire = new Date(data.dateInventaire!);
+      const dateStr = dateInventaire.toISOString().split("T")[0]; // Format YYYY-MM-DD
+
+      const inventaireExistant = allInventaires.find((inv) => {
+        const invDate = new Date(inv.dateInventaire)
+          .toISOString()
+          .split("T")[0];
+        return inv.idClinique === data.idClinique && invDate === dateStr;
+      });
+
+      if (inventaireExistant) {
+        toast.error(
+          "Un inventaire existe déjà pour cette clinique à cette date. Veuillez choisir une autre date."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       const nouvelInventaire = await onCreateInventaire(data);
       if (nouvelInventaire) {
-        toast.success("Inventaire créé avec succès!");
         setOpen(false);
         reset();
       }
     } catch (error) {
-      toast.error("Erreur lors de la création de l'inventaire");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de la création de l'inventaire";
+      toast.error(errorMessage);
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -92,9 +121,14 @@ export function InventaireDialog({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Annuler</Button>
+              <Button variant="outline" disabled={isSubmitting}>
+                Annuler
+              </Button>
             </DialogClose>
-            <Button type="submit">Enregistrer {`l'inventaire`}</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Enregistrement..." : "Enregistrer"}{" "}
+              {`l'inventaire`}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

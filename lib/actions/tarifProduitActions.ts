@@ -81,14 +81,14 @@ export async function updateQuantiteStockTarifProduit(
       throw new Error("Produit non trouvé");
     }
 
-    const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
+    // const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
 
     await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
-      data: { quantiteStock: nouvelleQuantite },
+      data: { quantiteStock: quantiteAjoutee },
     });
 
-    return { success: true, nouvelleQuantite };
+    return { success: true, quantiteAjoutee };
   } catch (error) {
     console.error(
       "Erreur lors de la mise à jour de la quantité en stock :",
