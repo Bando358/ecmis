@@ -37,6 +37,7 @@ import {
   updateQuantiteStockTarifProduit,
 } from "@/lib/actions/tarifProduitActions";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InventaireDialog } from "@/components/inventaireDialog";
 import {
@@ -83,6 +84,8 @@ export default function DetailInventairePage() {
   const [anomalies, setAnomalies] = useState<AnomalieInventaire[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
   const [validatingProducts, setValidatingProducts] = useState<{
     [key: string]: boolean;
   }>({});
@@ -103,6 +106,7 @@ export default function DetailInventairePage() {
 
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -248,16 +252,26 @@ export default function DetailInventairePage() {
           (p: { table: string }) => p.table === TableName.AJUSTEMENT_STOCK
         );
         setPermissionAjustement(permAjustement || null);
+
+        // Vérification de l'accès à la page
+        if (permInventaire?.canRead || prescripteur.role === "ADMIN") {
+          setHasAccess(true);
+        } else {
+          alert("Vous n'avez pas la permission d'accéder à cette page.");
+          router.back();
+        }
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
           error
         );
+      } finally {
+        setIsCheckingPermissions(false);
       }
     };
 
     fetchPermissions();
-  }, [prescripteur]);
+  }, [prescripteur, router]);
 
   // Création d'un nouvel inventaire
   const handleCreateInventaire = useCallback(
@@ -886,6 +900,18 @@ export default function DetailInventairePage() {
       </TableCell>
     </TableRow>
   );
+
+  // Afficher un loader pendant la vérification des permissions
+  if (isCheckingPermissions) {
+    return (
+      <div className="flex justify-center gap-2 items-center h-64">
+        <p className="text-gray-500">Vérification des permissions</p>
+        <SpinnerCustom />
+      </div>
+    );
+  }
+
+  if (!hasAccess) return null;
 
   // Afficher un loader pendant le chargement de la session
   if (status === "loading") {

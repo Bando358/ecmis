@@ -47,6 +47,7 @@ import {
 } from "@prisma/client";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Download, Eye, MoreVertical } from "lucide-react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
@@ -96,6 +97,8 @@ export default function HistoriqueInventairePage() {
   const [produits, setProduits] = useState<Produit[]>([]);
   const [tarifProduits, setTarifProduits] = useState<TarifProduit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [recherche, setRecherche] = useState<string>("");
@@ -109,6 +112,7 @@ export default function HistoriqueInventairePage() {
 
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
+  const router = useRouter();
 
   //  Récupération de l'utilisateur courant
   useEffect(() => {
@@ -279,16 +283,25 @@ export default function HistoriqueInventairePage() {
           (p: { table: string }) => p.table === TableName.INVENTAIRE
         );
         setPermission(permInventaire || null);
+
+        if (permInventaire?.canRead || user.role === "ADMIN") {
+          setHasAccess(true);
+        } else {
+          alert("Vous n'avez pas la permission d'accéder à cette page.");
+          router.back();
+        }
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
           error
         );
+      } finally {
+        setIsCheckingPermissions(false);
       }
     };
 
     fetchPermissions();
-  }, [user]);
+  }, [user, router]);
 
   // Filtrage des inventaires
   useEffect(() => {
@@ -601,6 +614,17 @@ export default function HistoriqueInventairePage() {
       </TableCell>
     </TableRow>
   );
+
+  if (isCheckingPermissions) {
+    return (
+      <div className="flex justify-center gap-2 items-center h-64">
+        <p className="text-gray-500">Vérification des permissions</p>
+        <SpinnerCustom />
+      </div>
+    );
+  }
+
+  if (!hasAccess) return null;
 
   if (status === "loading") {
     return (
