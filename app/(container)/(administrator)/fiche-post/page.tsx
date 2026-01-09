@@ -155,9 +155,15 @@ export default function CreatePostForm() {
       console.log(" filteredUsers ", filteredUsers);
 
       // Garder tous les utilisateurs pour l'affichage des noms
-      setAllUsers(filteredUsers as User[]);
-      // Filtrer les utilisateurs pour le formulaire (exclure l'utilisateur courant)
-      setUsers(allUserFilter.filter((user) => user.id !== idUser) as User[]);
+      if (oneUser.role === "ADMIN") {
+        setAllUsers(filteredUsers as User[]);
+        // Pour ADMIN : utiliser tous les utilisateurs filtrés (sans les admins)
+        setUsers(filteredUsers.filter((user) => user.id !== idUser) as User[]);
+      } else {
+        setAllUsers(allUserFilter as User[]);
+        // Pour non-ADMIN : utiliser seulement les utilisateurs des mêmes cliniques
+        setUsers(allUserFilter.filter((user) => user.id !== idUser) as User[]);
+      }
       setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
       setFilteredPosts(
         postsResult.filter((post) => post.userId !== idUser) as Post[]
