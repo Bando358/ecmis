@@ -116,13 +116,21 @@ export const fetchDashboardData = async (
     },
   });
 
-  const clients = await getAllClientIncludedInDate({
-    dateDebut: dateFrom,
-    dateFin: dateTo,
+  const clients = await prisma.client.findMany({
+    where: {
+      idClinique: { in: clinicIds },
+      dateEnregistrement: {
+        gte: dateFrom,
+        lte: dateTo,
+      },
+    },
   });
+
   // récupérer les activités qui ont leur id dans visite
   // Construire dynamiquement le filtre dateVisite
-  const whereVisite: any = {};
+  const whereVisite: any = {
+    idClinique: { in: clinicIds },
+  };
 
   if (dateFrom || dateTo) {
     whereVisite.dateVisite = {};

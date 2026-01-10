@@ -142,29 +142,32 @@ export default function DashboardChart({
   // Références pour suivre les valeurs précédentes
   const prevStartDateRef = useRef<string>(startDate);
   const prevEndDateRef = useRef<string>(endDate);
-  const prevClinicIdsRef = useRef<string[]>(clinicIds);
+  const prevClinicIdsRef = useRef<string>(clinicIds.join(","));
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    // Si on a des données initiales et que les paramètres n'ont pas changé, on les utilise
-    if (
-      initialData &&
-      prevStartDateRef.current === startDate &&
-      prevEndDateRef.current === endDate &&
-      JSON.stringify(prevClinicIdsRef.current) === JSON.stringify(clinicIds)
-    ) {
+    const currentClinicIdsStr = clinicIds.join(",");
+
+    // Si c'est le premier render et qu'on a des données initiales, ne pas recharger
+    if (isFirstRender.current && initialData && chartData.length > 0) {
+      isFirstRender.current = false;
+      prevStartDateRef.current = startDate;
+      prevEndDateRef.current = endDate;
+      prevClinicIdsRef.current = currentClinicIdsStr;
       return;
     }
 
-    // Vérifier si les dates ou clinicIds ont changé
+    isFirstRender.current = false;
+
+    // Vérifier si les paramètres ont changé
     const datesChanged =
       prevStartDateRef.current !== startDate ||
       prevEndDateRef.current !== endDate;
 
-    const clinicIdsChanged =
-      JSON.stringify(prevClinicIdsRef.current) !== JSON.stringify(clinicIds);
+    const clinicIdsChanged = prevClinicIdsRef.current !== currentClinicIdsStr;
 
     // Si rien n'a changé, ne pas recharger les données
-    if (!datesChanged && !clinicIdsChanged && chartData.length > 0) {
+    if (!datesChanged && !clinicIdsChanged) {
       return;
     }
 
@@ -232,7 +235,7 @@ export default function DashboardChart({
         // Mettre à jour les références
         prevStartDateRef.current = startDate;
         prevEndDateRef.current = endDate;
-        prevClinicIdsRef.current = clinicIds;
+        prevClinicIdsRef.current = currentClinicIdsStr;
       } catch (error) {
         console.error("Erreur lors du chargement du graphique :", error);
       } finally {
@@ -241,7 +244,7 @@ export default function DashboardChart({
     };
 
     fetchData();
-  }, [clinicIds, startDate, endDate, initialData, chartData.length]);
+  }, [clinicIds, startDate, endDate]);
 
   // Calcul des totaux pour la légende
   const totalNouveaux = Array.isArray(clients)

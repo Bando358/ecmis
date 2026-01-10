@@ -625,12 +625,12 @@ export default function Fiches({
           <CardContent>
             {allVisite.length > 0 ? (
               <>
-                <div className="grid grid-cols-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {tabRecapVisite.length > 0 &&
                     tabRecapVisite[currentIndex]?.formulaires.map(
                       (form, index) => (
                         <p key={index}>
-                          <span className="text-blue-800 font-semibold">
+                          <span className="text-blue-800 font-semibold text-xs sm:text-sm">
                             {form}
                           </span>
                         </p>

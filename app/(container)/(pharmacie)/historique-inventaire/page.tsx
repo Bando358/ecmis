@@ -646,12 +646,12 @@ export default function HistoriqueInventairePage() {
 
   if (status === "loading") {
     return (
-      <div className="space-y-4 p-4 max-w-7xl mx-auto">
-        <Skeleton className="h-8 w-64 mb-6" />
-        <div className="flex gap-4 mb-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-10 w-40" />
+      <div className="space-y-4 p-2 sm:p-4 max-w-7xl mx-auto">
+        <Skeleton className="h-6 sm:h-8 w-48 sm:w-64 mb-4 sm:mb-6" />
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <Skeleton className="h-10 w-full sm:w-64" />
+          <Skeleton className="h-10 w-full sm:w-40" />
+          <Skeleton className="h-10 w-full sm:w-40" />
         </div>
         <Card>
           <CardHeader>
@@ -684,14 +684,14 @@ export default function HistoriqueInventairePage() {
 
   return (
     <>
-      <div className="space-y-6 p-4 max-w-7xl mx-auto">
+      <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">
         {/* En-tête */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
               Historique des inventaires
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Consultez l'historique complet des inventaires réalisés
             </p>
           </div>
@@ -699,28 +699,28 @@ export default function HistoriqueInventairePage() {
 
         {/* Filtres */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex flex-col sm:flex-col md:flex-row gap-2 sm:gap-4">
               {/* Barre de recherche */}
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Rechercher par clinique, date, utilisateur..."
+                    placeholder="Rechercher..."
                     value={recherche}
                     onChange={(e) => setRecherche(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 text-sm"
                   />
                 </div>
               </div>
 
               {/* Filtre par clinique */}
-              <div className="w-full md:w-64">
+              <div className="w-full sm:w-full md:w-64">
                 <Select
                   value={filtreClinique}
                   onValueChange={setFiltreClinique}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full text-sm">
                     <SelectValue placeholder="Filtrer par clinique" />
                   </SelectTrigger>
                   <SelectContent>
@@ -735,9 +735,9 @@ export default function HistoriqueInventairePage() {
               </div>
 
               {/* Filtre par statut */}
-              <div className="w-full md:w-64">
+              <div className="w-full sm:w-full md:w-64">
                 <Select value={filtreStatut} onValueChange={setFiltreStatut}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full text-sm">
                     <SelectValue placeholder="Filtrer par statut" />
                   </SelectTrigger>
                   <SelectContent>
@@ -756,14 +756,16 @@ export default function HistoriqueInventairePage() {
 
         {/* Résultats */}
         <Card>
-          <CardHeader>
-            <CardTitle>Liste des inventaires</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">
+              Liste des inventaires
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               {inventairesFiltres.length} inventaire(s) trouvé(s)
               {recherche && ` pour "${recherche}"`}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-2 sm:p-4 md:p-6">
             {isLoading ? (
               <Table>
                 <TableHeader>
@@ -784,74 +786,89 @@ export default function HistoriqueInventairePage() {
                 </TableBody>
               </Table>
             ) : inventairesFiltres.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Clinique</TableHead>
-                    <TableHead>Réalisé par</TableHead>
-                    <TableHead>Produits</TableHead>
-                    <TableHead>Écart total</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inventairesFiltres
-                    .slice(
-                      (currentPage - 1) * itemsPerPage,
-                      currentPage * itemsPerPage
-                    )
-                    .map((inventaire) => {
-                      const status = getInventaireStatus(inventaire);
-                      const stats = getInventaireStats(inventaire);
-                      const dateFormatted = format(
-                        new Date(inventaire.dateInventaire),
-                        "dd/MM/yyyy HH:mm",
-                        { locale: fr }
-                      );
+              <div className="overflow-x-auto">
+                <Table className="min-w-200">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                        Date
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                        Clinique
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                        Réalisé par
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                        Produits
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                        Écart total
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                        Statut
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm text-right whitespace-nowrap">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inventairesFiltres
+                      .slice(
+                        (currentPage - 1) * itemsPerPage,
+                        currentPage * itemsPerPage
+                      )
+                      .map((inventaire) => {
+                        const status = getInventaireStatus(inventaire);
+                        const stats = getInventaireStats(inventaire);
+                        const dateFormatted = format(
+                          new Date(inventaire.dateInventaire),
+                          "dd/MM/yyyy HH:mm",
+                          { locale: fr }
+                        );
 
-                      return (
-                        <TableRow key={inventaire.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{dateFormatted}</span>
-                              <span className="text-xs text-muted-foreground">
-                                ID: {inventaire.id.substring(0, 8)}...
+                        return (
+                          <TableRow key={inventaire.id}>
+                            <TableCell className="font-medium text-xs sm:text-sm">
+                              <div className="flex flex-col">
+                                <span>{dateFormatted}</span>
+                                <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                  ID: {inventaire.id.substring(0, 8)}...
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              {inventaire.Clinique?.nomClinique || "N/A"}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              {inventaire.User?.name || "Utilisateur inconnu"}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <div className="flex flex-col">
+                                <span>{stats.totalProduits} produits</span>
+                                <span className="text-[10px] sm:text-xs text-green-600">
+                                  {stats.produitsValides} conforme(s)
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <span
+                                className={`font-medium ${
+                                  stats.totalEcart > 0
+                                    ? "text-red-600"
+                                    : "text-green-600"
+                                }`}
+                              >
+                                {stats.totalEcart > 0
+                                  ? `+${stats.totalEcart}`
+                                  : stats.totalEcart}
                               </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {inventaire.Clinique?.nomClinique || "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            {inventaire.User?.name || "Utilisateur inconnu"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span>{stats.totalProduits} produits</span>
-                              <span className="text-xs text-green-600">
-                                {stats.produitsValides} conforme(s)
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`font-medium ${
-                                stats.totalEcart > 0
-                                  ? "text-red-600"
-                                  : "text-green-600"
-                              }`}
-                            >
-                              {stats.totalEcart > 0
-                                ? `+${stats.totalEcart}`
-                                : stats.totalEcart}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={`
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] sm:text-xs
                             ${
                               status.color === "green"
                                 ? "bg-green-50 text-green-700 border-green-200"
@@ -873,69 +890,74 @@ export default function HistoriqueInventairePage() {
                                 : ""
                             }
                           `}
-                            >
-                              {status.label}
-                            </Badge>
-                            {stats.totalAnomalies > 0 && (
-                              <span className="ml-2 text-xs text-red-600">
-                                ({stats.totalAnomalies} anomalie
-                                {stats.totalAnomalies > 1 ? "s" : ""})
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => handleViewDetails(inventaire)}
-                                >
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Voir les détails
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDownloadPDF(inventaire)}
-                                >
-                                  {isGeneratingPDF ? (
-                                    <SpinnerCustom className="mr-2 h-4 w-4" />
-                                  ) : (
-                                    <Download className="mr-2 h-4 w-4" />
-                                  )}
-                                  Télécharger PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className={
-                                    user?.role !== "ADMIN" ? "hidden" : ""
-                                  }
-                                  disabled={user?.role !== "ADMIN"}
-                                  onClick={() =>
-                                    handleDeleteInventaire(inventaire)
-                                  }
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Supprimer
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
+                              >
+                                {status.label}
+                              </Badge>
+                              {stats.totalAnomalies > 0 && (
+                                <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-red-600">
+                                  ({stats.totalAnomalies} anomalie
+                                  {stats.totalAnomalies > 1 ? "s" : ""})
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleViewDetails(inventaire)
+                                    }
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Voir les détails
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleDownloadPDF(inventaire)
+                                    }
+                                  >
+                                    {isGeneratingPDF ? (
+                                      <SpinnerCustom className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <Download className="mr-2 h-4 w-4" />
+                                    )}
+                                    Télécharger PDF
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className={
+                                      user?.role !== "ADMIN" ? "hidden" : ""
+                                    }
+                                    disabled={user?.role !== "ADMIN"}
+                                    onClick={() =>
+                                      handleDeleteInventaire(inventaire)
+                                    }
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
-              <div className="text-center py-12">
-                <div className="mx-auto w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Search className="h-12 w-12 text-muted-foreground" />
+              <div className="text-center py-8 sm:py-12">
+                <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-muted flex items-center justify-center mb-3 sm:mb-4">
+                  <Search className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-base sm:text-lg font-semibold mb-2">
                   Aucun inventaire trouvé
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {recherche ||
                   filtreClinique !== "all" ||
                   filtreStatut !== "all"
@@ -947,7 +969,7 @@ export default function HistoriqueInventairePage() {
                   filtreStatut !== "all") && (
                   <Button
                     variant="outline"
-                    className="mt-4"
+                    className="mt-3 sm:mt-4 text-xs sm:text-sm"
                     onClick={() => {
                       setRecherche("");
                       setFiltreClinique("all");
@@ -962,9 +984,9 @@ export default function HistoriqueInventairePage() {
 
             {/* Pagination */}
             {!isLoading && inventairesFiltres.length > 0 && (
-              <div className="flex items-center justify-between px-2 py-4 border-t">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 px-2 py-3 sm:py-4 border-t">
                 <div className="flex items-center gap-2">
-                  <Label className="text-sm text-muted-foreground">
+                  <Label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
                     Lignes par page:
                   </Label>
                   <Select
@@ -974,7 +996,7 @@ export default function HistoriqueInventairePage() {
                       setCurrentPage(1);
                     }}
                   >
-                    <SelectTrigger className="w-17.5 h-8">
+                    <SelectTrigger className="w-full sm:w-17.5 h-8 text-xs sm:text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -986,15 +1008,15 @@ export default function HistoriqueInventairePage() {
                   </Select>
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6 w-full sm:w-auto">
+                  <div className="text-xs sm:text-sm text-muted-foreground">
                     Page {currentPage} sur{" "}
                     {Math.ceil(inventairesFiltres.length / itemsPerPage)}(
                     {inventairesFiltres.length} résultat
                     {inventairesFiltres.length > 1 ? "s" : ""})
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1002,9 +1024,11 @@ export default function HistoriqueInventairePage() {
                         setCurrentPage((prev) => Math.max(1, prev - 1))
                       }
                       disabled={currentPage === 1}
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
                     >
-                      <ChevronLeft className="h-4 w-4" />
-                      Précédent
+                      <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Précédent</span>
+                      <span className="sm:hidden">Préc.</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -1021,9 +1045,11 @@ export default function HistoriqueInventairePage() {
                         currentPage >=
                         Math.ceil(inventairesFiltres.length / itemsPerPage)
                       }
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
                     >
-                      Suivant
-                      <ChevronRight className="h-4 w-4" />
+                      <span className="hidden sm:inline">Suivant</span>
+                      <span className="sm:hidden">Suiv.</span>
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1045,13 +1071,17 @@ export default function HistoriqueInventairePage() {
       {/* Overlay de suppression */}
       {isDeleting && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center w-full h-full"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center w-full h-full px-4"
           style={{ zIndex: 999 }}
         >
-          <div className="bg-black/80 text-gray-300 opacity-90 rounded-lg p-8 flex flex-col items-center gap-4 shadow-xl max-w-6xl max-h-full overflow-auto">
-            <SpinnerCustom className="h-16 w-16 text-red-800" />
-            <p className="text-lg font-semibold">Suppression en cours...</p>
-            <p className="text-sm text-muted-foreground">Veuillez patienter</p>
+          <div className="bg-black/80 text-gray-300 opacity-90 rounded-lg p-6 sm:p-8 flex flex-col items-center gap-3 sm:gap-4 shadow-xl max-w-sm sm:max-w-6xl max-h-full overflow-auto">
+            <SpinnerCustom className="h-12 w-12 sm:h-16 sm:w-16 text-red-800" />
+            <p className="text-base sm:text-lg font-semibold">
+              Suppression en cours...
+            </p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Veuillez patienter
+            </p>
           </div>
         </div>
       )}

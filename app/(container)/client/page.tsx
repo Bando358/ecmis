@@ -65,6 +65,14 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
 import { toast } from "sonner";
@@ -133,7 +141,7 @@ export default function Clients() {
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 8;
+  const [rowsPerPage, setRowsPerPage] = useState(8);
 
   const router = useRouter();
   const { setSelectedClientId } = useClientContext();
@@ -239,7 +247,7 @@ export default function Clients() {
   const currentRows = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredData.slice(start, start + rowsPerPage);
-  }, [filteredData, currentPage]);
+  }, [filteredData, currentPage, rowsPerPage]);
 
   // Handlers
   const handleDelete = async (id: string) => {
@@ -289,24 +297,24 @@ export default function Clients() {
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, selectedAntennes]);
+  }, [search, selectedAntennes, rowsPerPage]);
 
   return (
-    <div className="space-y-4 max-w-350 mx-auto p-4">
+    <div className="space-y-4 max-w-350 mx-auto p-2 sm:p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between w-full items-center">
+      <div className="flex flex-col sm:flex-row justify-between w-full items-stretch sm:items-center gap-3 sm:gap-4">
         <input
           type="text"
           placeholder="Recherche..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-stone-100 opacity-85 font-bold text-blue-900 outline-slate-500 my-2 w-4/12 focus:w-8/12 duration-300 rounded-sm border-2 border-slate-400 text-xl py-1 px-2"
+          className="bg-stone-100 opacity-85 font-bold text-blue-900 outline-slate-500 w-full sm:w-4/12 sm:focus:w-8/12 duration-300 rounded-sm border-2 border-slate-400 text-base sm:text-xl py-2 sm:py-1 px-2"
           autoFocus
         />
         <Button
           onClick={handleNewClient}
           disabled={spinner}
-          className="flex flex-row items-center"
+          className="flex flex-row items-center justify-center w-full sm:w-auto text-sm sm:text-base py-2"
         >
           <Spinner
             show={spinner}
@@ -327,204 +335,246 @@ export default function Clients() {
           transition={{ duration: 0.4 }}
         >
           <Card className="no-scrollbar">
-            <CardContent className="no-scrollbar">
-              <ScrollArea className="no-scrollbar">
-                <Table className="w-full text-left mt-5 no-scrollbar">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Ouvrir</TableHead>
-                      <TableHead>Nom</TableHead>
-                      <TableHead className="max-w-25 p-2 break-normal">
-                        Prénom
-                      </TableHead>
-                      <TableHead>Age</TableHead>
-                      {/* <TableHead>Sexe</TableHead> */}
-                      <TableHead>Code</TableHead>
-                      <TableHead>
-                        <div className="flex items-center">
-                          Antenne
-                          <Popover
-                            open={openCombobox}
-                            onOpenChange={setOpenCombobox}
-                          >
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                              >
-                                {selectedAntennes.length > 0 ? (
-                                  <FunnelX className="h-4 w-4 text-red-600" />
-                                ) : (
-                                  <Funnel className="h-4 w-4 text-blue-600" />
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-50 p-0">
-                              <Command>
-                                <CommandInput placeholder="Rechercher une antenne..." />
-                                <CommandEmpty>
-                                  Aucune antenne trouvée
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {cliniques.map((antenne) => (
-                                    <CommandItem
-                                      key={antenne.id}
-                                      onSelect={() =>
-                                        toggleAntenne(antenne.nomClinique)
-                                      }
-                                    >
-                                      <div className="flex items-center">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedAntennes.includes(
-                                            antenne.nomClinique
-                                          )}
-                                          readOnly
-                                          className="mr-2 h-4 w-4"
-                                        />
-                                        {antenne.nomClinique}
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </TableHead>
-                      <TableHead>Tel 1</TableHead>
-                      <TableHead>Code VIH</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
+            <CardContent className="no-scrollbar p-2 sm:p-4 md:p-6">
+              <div className="overflow-x-auto -mx-2 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <Table className="min-w-250 w-full text-left mt-2 sm:mt-5">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Ouvrir
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Nom
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm max-w-25 p-2 break-normal whitespace-nowrap">
+                          Prénom
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Age
+                        </TableHead>
+                        {/* <TableHead>Sexe</TableHead> */}
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Code
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm">
+                          <div className="flex items-center">
+                            Antenne
+                            <Popover
+                              open={openCombobox}
+                              onOpenChange={setOpenCombobox}
+                            >
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 sm:h-6 sm:w-6"
+                                >
+                                  {selectedAntennes.length > 0 ? (
+                                    <FunnelX className="h-3 w-3 sm:h-4 sm:w-4 text-red-600" />
+                                  ) : (
+                                    <Funnel className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                                  )}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-50 p-0">
+                                <Command>
+                                  <CommandInput placeholder="Rechercher une antenne..." />
+                                  <CommandEmpty>
+                                    Aucune antenne trouvée
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {cliniques.map((antenne) => (
+                                      <CommandItem
+                                        key={antenne.id}
+                                        onSelect={() =>
+                                          toggleAntenne(antenne.nomClinique)
+                                        }
+                                      >
+                                        <div className="flex items-center">
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedAntennes.includes(
+                                              antenne.nomClinique
+                                            )}
+                                            readOnly
+                                            className="mr-2 h-4 w-4"
+                                          />
+                                          {antenne.nomClinique}
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Tel 1
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Code VIH
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">
+                          Action
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
 
-                  <TableBody
-                    className={`max-w-200 ${
-                      isLoading ? "animate-pulse no-scrollbar max-w-200" : ""
-                    }`}
-                  >
-                    {isLoading ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <TableRowSkeleton key={i} />
-                      ))
-                    ) : currentRows.length > 0 ? (
-                      <AnimatePresence mode="wait">
-                        {currentRows.map((row) => (
-                          <motion.tr
-                            key={row.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -30 }}
-                            transition={{ duration: 0.3 }}
-                          >
-                            <TableCell>
-                              <Link
-                                // target="_blank"
-                                href={`/fiches/${row.id}`}
-                                className="block -pr-1"
-                              >
-                                <FolderOpen
-                                  onClick={() => setSelectedClientId(row.id)}
-                                  className="text-xl m-1 duration-300 hover:scale-150 text-blue-600 cursor-pointer"
-                                />
-                              </Link>
-                            </TableCell>
-                            <TableCell className="capitalize">
-                              {highlightText(row.nom, search)}
-                            </TableCell>
-                            <TableCell className="p-2">
-                              <div className="max-w-25 wrap-break-word whitespace-normal">
-                                {highlightText(row.prenom, search)}
-                              </div>
-                            </TableCell>
+                    <TableBody
+                      className={`max-w-200 ${
+                        isLoading ? "animate-pulse no-scrollbar max-w-200" : ""
+                      }`}
+                    >
+                      {isLoading ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                          <TableRowSkeleton key={i} />
+                        ))
+                      ) : currentRows.length > 0 ? (
+                        <AnimatePresence mode="wait">
+                          {currentRows.map((row) => (
+                            <motion.tr
+                              key={row.id}
+                              initial={{ opacity: 0, y: 30 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -30 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <TableCell className="text-xs sm:text-sm">
+                                <Link
+                                  // target="_blank"
+                                  href={`/fiches/${row.id}`}
+                                  className="block -pr-1"
+                                >
+                                  <FolderOpen
+                                    onClick={() => setSelectedClientId(row.id)}
+                                    className="text-base sm:text-xl m-0.5 sm:m-1 duration-300 hover:scale-150 text-blue-600 cursor-pointer"
+                                  />
+                                </Link>
+                              </TableCell>
+                              <TableCell className="capitalize text-xs sm:text-sm">
+                                {highlightText(row.nom, search)}
+                              </TableCell>
+                              <TableCell className="p-1 sm:p-2 text-xs sm:text-sm">
+                                <div className="max-w-25 wrap-break-word whitespace-normal">
+                                  {highlightText(row.prenom, search)}
+                                </div>
+                              </TableCell>
 
-                            <TableCell>
-                              {calculateAge(row.dateNaissance)}
-                            </TableCell>
-                            {/* <TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                {calculateAge(row.dateNaissance)}
+                              </TableCell>
+                              {/* <TableCell>
                               {row.sexe === "Féminin"
                                 ? highlightText("F", search)
                                 : highlightText("M", search)}
                             </TableCell> */}
-                            <TableCell className="uppercase">
-                              {highlightText(row.code, search)}
-                            </TableCell>
-                            <TableCell className="uppercase">
-                              {nomCliniques(row.idClinique)}
-                            </TableCell>
-                            <TableCell>
-                              {highlightText(row.tel_1, search)}
-                            </TableCell>
-                            <TableCell>
-                              {row.codeVih &&
-                                highlightText(row.codeVih, search)}
-                            </TableCell>
-                            <TableCell className="flex">
-                              <FilePenLine
-                                onClick={() => handleUpdatedClient(row.id)}
-                                className="text-xl m-1 duration-300 hover:scale-150 text-blue-600 cursor-pointer"
-                              />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Trash2 className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-red-600 cursor-pointer" />
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Êtes-vous absolument sûr ?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Cette action est irréversible. Le client{" "}
-                                      <span className="font-bold">
-                                        {row.nom} {row.prenom}
-                                      </span>{" "}
-                                      sera définitivement supprimé.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Annuler
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-red-600"
-                                      onClick={() => handleDelete(row.id)}
-                                    >
-                                      Supprimer
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </TableCell>
-                          </motion.tr>
-                        ))}
-                      </AnimatePresence>
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={10} className="text-center">
-                          <span>Aucun client trouvé</span>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                              <TableCell className="uppercase text-xs sm:text-sm">
+                                {highlightText(row.code, search)}
+                              </TableCell>
+                              <TableCell className="uppercase text-xs sm:text-sm">
+                                {nomCliniques(row.idClinique)}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                {highlightText(row.tel_1, search)}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                {row.codeVih &&
+                                  highlightText(row.codeVih, search)}
+                              </TableCell>
+                              <TableCell className="flex">
+                                <FilePenLine
+                                  onClick={() => handleUpdatedClient(row.id)}
+                                  className="text-base sm:text-xl m-0.5 sm:m-1 duration-300 hover:scale-150 text-blue-600 cursor-pointer"
+                                />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Trash2 className="text-base sm:text-xl m-0.5 sm:m-1 duration-300 hover:scale-150 active:scale-125 text-red-600 cursor-pointer" />
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Êtes-vous absolument sûr ?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Cette action est irréversible. Le client{" "}
+                                        <span className="font-bold">
+                                          {row.nom} {row.prenom}
+                                        </span>{" "}
+                                        sera définitivement supprimé.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Annuler
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-red-600"
+                                        onClick={() => handleDelete(row.id)}
+                                      >
+                                        Supprimer
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TableCell>
+                            </motion.tr>
+                          ))}
+                        </AnimatePresence>
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={10}
+                            className="text-center text-xs sm:text-sm py-6 sm:py-8"
+                          >
+                            <span>Aucun client trouvé</span>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
 
               {/* Pagination */}
-              <div className="flex flex-col items-center mt-4 gap-2">
-                <div className="text-sm text-gray-600">
-                  Affichage de {currentRows.length} client(s) sur{" "}
-                  {filteredData.length} au total
+              <div className="flex flex-col items-center mt-3 sm:mt-4 gap-2">
+                <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-2 sm:gap-4">
+                  <div className="text-xs sm:text-sm text-gray-600">
+                    Affichage de {currentRows.length} client(s) sur{" "}
+                    {filteredData.length} au total
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                      Lignes par page:
+                    </span>
+                    <Select
+                      value={rowsPerPage.toString()}
+                      onValueChange={(value) => setRowsPerPage(Number(value))}
+                    >
+                      <SelectTrigger className="w-16 sm:w-20 h-8 text-xs sm:text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="8">8</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Pagination>
-                  <PaginationContent>
+                  <PaginationContent className="flex-wrap gap-1">
                     <PaginationItem>
                       <PaginationPrevious
-                        className={
+                        className={`${
                           currentPage === 1
                             ? "text-gray-400 cursor-not-allowed"
                             : "cursor-pointer"
-                        }
+                        } text-xs sm:text-sm px-2 sm:px-3`}
                         onClick={() =>
                           currentPage > 1 && setCurrentPage(currentPage - 1)
                         }
@@ -536,13 +586,13 @@ export default function Clients() {
                         <PaginationItem>
                           <PaginationLink
                             onClick={() => setCurrentPage(1)}
-                            className="cursor-pointer"
+                            className="cursor-pointer text-xs sm:text-sm px-2 sm:px-3"
                           >
                             1
                           </PaginationLink>
                         </PaginationItem>
                         <PaginationItem>
-                          <PaginationEllipsis />
+                          <PaginationEllipsis className="text-xs sm:text-sm" />
                         </PaginationItem>
                       </>
                     )}
@@ -559,7 +609,7 @@ export default function Clients() {
                           <PaginationLink
                             onClick={() => setCurrentPage(page)}
                             isActive={page === currentPage}
-                            className="cursor-pointer"
+                            className="cursor-pointer text-xs sm:text-sm px-2 sm:px-3"
                           >
                             {page}
                           </PaginationLink>
@@ -569,12 +619,12 @@ export default function Clients() {
                     {currentPage < totalPages - 1 && (
                       <>
                         <PaginationItem>
-                          <PaginationEllipsis />
+                          <PaginationEllipsis className="text-xs sm:text-sm" />
                         </PaginationItem>
                         <PaginationItem>
                           <PaginationLink
                             onClick={() => setCurrentPage(totalPages)}
-                            className="cursor-pointer"
+                            className="cursor-pointer text-xs sm:text-sm px-2 sm:px-3"
                           >
                             {totalPages}
                           </PaginationLink>
@@ -584,11 +634,11 @@ export default function Clients() {
 
                     <PaginationItem>
                       <PaginationNext
-                        className={
+                        className={`${
                           currentPage === totalPages
                             ? "text-gray-400 cursor-not-allowed"
                             : "cursor-pointer"
-                        }
+                        } text-xs sm:text-sm px-2 sm:px-3`}
                         onClick={() =>
                           currentPage < totalPages &&
                           setCurrentPage(currentPage + 1)

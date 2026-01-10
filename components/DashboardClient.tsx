@@ -23,7 +23,6 @@ interface DashboardClientProps {
   // Paramètres par défaut
   defaultStartDate: string;
   defaultEndDate: string;
-  defaultPeriod: string;
   defaultCliniqueId: string;
   defaultPrescripteurId: string;
 }
@@ -34,7 +33,6 @@ export default function DashboardClient({
   dashboardData,
   defaultStartDate,
   defaultEndDate,
-  defaultPeriod,
   defaultCliniqueId,
   defaultPrescripteurId,
 }: DashboardClientProps) {
@@ -45,7 +43,6 @@ export default function DashboardClient({
   // États locaux
   const [startDate, setStartDate] = useState<string>(defaultStartDate);
   const [endDate, setEndDate] = useState<string>(defaultEndDate);
-  const [period, setPeriod] = useState<string>(defaultPeriod);
   const [selectedClinique, setSelectedClinique] = useState<{
     id: string;
     name: string;
@@ -74,17 +71,8 @@ export default function DashboardClient({
     const timeoutId = setTimeout(() => {
       const params = new URLSearchParams();
 
-      if (startDate !== defaultStartDate) {
-        params.set("startDate", startDate);
-      }
-
-      if (endDate !== defaultEndDate) {
-        params.set("endDate", endDate);
-      }
-
-      if (period !== "mensuel") {
-        params.set("period", period);
-      }
+      params.set("startDate", startDate);
+      params.set("endDate", endDate);
 
       if (selectedClinique.id !== "all") {
         params.set("clinique", selectedClinique.id);
@@ -95,9 +83,7 @@ export default function DashboardClient({
       }
 
       // Mettre à jour l'URL sans recharger la page
-      const newUrl = `${pathname}${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
+      const newUrl = `${pathname}?${params.toString()}`;
       router.replace(newUrl, { scroll: false });
     }, 300);
 
@@ -105,13 +91,10 @@ export default function DashboardClient({
   }, [
     startDate,
     endDate,
-    period,
     selectedClinique.id,
     selectedPrescripteur.id,
     pathname,
     router,
-    defaultStartDate,
-    defaultEndDate,
   ]);
 
   // 🔹 Gestionnaire pour la sélection de clinique (mémorisé)
@@ -155,33 +138,6 @@ export default function DashboardClient({
     [selectedClinique.id, tabPrescripteur]
   );
 
-  // 🔹 Mise à jour automatique des dates quand la période change
-  useEffect(() => {
-    const calculateStartDate = (period: string) => {
-      const now = new Date();
-      switch (period) {
-        case "bimestriel":
-          return new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        case "trimestriel":
-          return new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        case "semestriel":
-          return new Date(now.getFullYear(), now.getMonth() - 5, 1);
-        case "annuel":
-          return new Date(now.getFullYear(), 0, 1);
-        default: // mensuel
-          return new Date(now.getFullYear(), now.getMonth(), 1);
-      }
-    };
-
-    const formatDate = (date: Date) => date.toISOString().split("T")[0];
-
-    const newStartDate = formatDate(calculateStartDate(period));
-    const newEndDate = formatDate(new Date());
-
-    setStartDate(newStartDate);
-    setEndDate(newEndDate);
-  }, [period]);
-
   // 🔹 Redirection si non authentifié
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -202,51 +158,41 @@ export default function DashboardClient({
   }
 
   return (
-    <div className="min-h-screen ">
-      <div className="flex flex-wrap items-center justify-start gap-2 px-4 mx-4 py-3 bg-white shadow-md rounded-2xl opacity-90">
-        <div className="flex flex-col">
-          <label className=" font-semibold mb-1">Date de début</label>
+    <div className="min-h-screen">
+      <div className="flex flex-wrap items-center justify-start gap-2  sm:gap-3 px-2 sm:px-4 mx-4 sm:mx-4 py-2 sm:py-3 bg-white shadow-md rounded-2xl opacity-90">
+        <div className="flex flex-col w-full sm:w-auto">
+          <label className="font-semibold mb-1 text-xs sm:text-sm">
+            Date de début
+          </label>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="border rounded-md p-2 w-full"
+            className="border rounded-md p-2 w-full text-xs sm:text-sm"
           />
         </div>
 
-        <div className="flex flex-col">
-          <label className="font-semibold mb-1">Date de fin</label>
+        <div className="flex flex-col w-full sm:w-auto">
+          <label className="font-semibold mb-1 text-xs sm:text-sm">
+            Date de fin
+          </label>
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="border rounded-md p-2 w-full"
+            className="border rounded-md p-2 w-full text-xs sm:text-sm"
           />
         </div>
 
-        <div className="flex flex-col">
-          <label className=" font-semibold mb-1">Période</label>
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-45">
-              <SelectValue placeholder="Sélectionner une période" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mensuel">Mensuel</SelectItem>
-              <SelectItem value="bimestriel">Bimestriel</SelectItem>
-              <SelectItem value="trimestriel">Trimestriel</SelectItem>
-              <SelectItem value="semestriel">Semestriel</SelectItem>
-              <SelectItem value="annuel">Annuel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col">
-          <label className="font-semibold mb-1">Clinique</label>
+        <div className="flex flex-col w-full sm:w-auto">
+          <label className="font-semibold mb-1 text-xs sm:text-sm">
+            Clinique
+          </label>
           <Select
             value={selectedClinique.id}
             onValueChange={handleCliniqueChange}
           >
-            <SelectTrigger className="w-50">
+            <SelectTrigger className="w-full sm:w-50 text-xs sm:text-sm">
               <SelectValue placeholder="Sélectionner une clinique">
                 {selectedClinique.name}
               </SelectValue>
@@ -262,13 +208,15 @@ export default function DashboardClient({
           </Select>
         </div>
 
-        <div className="flex flex-col">
-          <label className="font-semibold mb-1">Prescripteur</label>
+        <div className="flex flex-col w-full sm:w-auto">
+          <label className="font-semibold mb-1 text-xs sm:text-sm">
+            Prescripteur
+          </label>
           <Select
             value={selectedPrescripteur.id}
             onValueChange={handlePrescripteurChange}
           >
-            <SelectTrigger className="w-55">
+            <SelectTrigger className="w-full sm:w-55 text-xs sm:text-sm">
               <SelectValue placeholder="Sélectionner un prescripteur">
                 {selectedPrescripteur.name}
               </SelectValue>
@@ -297,11 +245,13 @@ export default function DashboardClient({
           initialData={dashboardData}
         />
 
-        <div className="mt-4 p-4 bg-white rounded-lg shadow">
-          <h3 className="font-semibold mb-2">Paramètres sélectionnés :</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+        <div className="mt-4 p-3 sm:p-4 bg-white rounded-lg shadow">
+          <h3 className="font-semibold mb-2 text-sm sm:text-base">
+            Paramètres sélectionnés :
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs sm:text-sm">
             <p>
-              🗓️ <strong>Période :</strong> {startDate} → {endDate} ({period})
+              🗓️ <strong>Période :</strong> {startDate} → {endDate}
             </p>
             <p>
               📍 <strong>Clinique :</strong> {selectedClinique.name}

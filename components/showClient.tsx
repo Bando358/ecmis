@@ -32,8 +32,8 @@ export function ShowClient() {
   return (
     <div>
       {selectedClientId && client && (
-        <div className="flex flex-col text-xl  text-center">
-          <p className="font-bold text-gray-600">
+        <div className="flex flex-col text-center">
+          <p className="font-bold text-gray-600 text-sm sm:text-base md:text-lg lg:text-xl">
             {<span>{client.nom.toUpperCase()} </span>}{" "}
             {<span>{client.prenom.toUpperCase()} </span>}{" "}
             {client.dateNaissance
@@ -41,7 +41,7 @@ export function ShowClient() {
               : "Âge non disponible"}{" "}
             ans Tel: {client.tel_1}
           </p>
-          <p className="font-semibold uppercase text-gray-600 dark:text-slate-400">
+          <p className="font-semibold uppercase text-gray-600 dark:text-slate-400 text-xs sm:text-sm md:text-base">
             {client.code}
           </p>
         </div>

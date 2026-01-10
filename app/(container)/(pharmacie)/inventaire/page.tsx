@@ -208,6 +208,13 @@ export default function DetailInventairePage() {
   useEffect(() => {
     let filtered = listeTarifProduit;
 
+    // Filtre par clinique sélectionnée
+    if (selectedClinique) {
+      filtered = filtered.filter(
+        (tarif) => tarif.idClinique === selectedClinique
+      );
+    }
+
     // Filtre par clinique si un inventaire est sélectionné
     if (currentInventaire) {
       filtered = filtered.filter(
@@ -231,7 +238,14 @@ export default function DetailInventairePage() {
     }
 
     setTarifsFiltres(filtered);
-  }, [recherche, listeTarifProduit, produits, cliniques, currentInventaire]);
+  }, [
+    recherche,
+    listeTarifProduit,
+    produits,
+    cliniques,
+    currentInventaire,
+    selectedClinique,
+  ]);
 
   useEffect(() => {
     if (!prescripteur) return;
@@ -972,12 +986,14 @@ export default function DetailInventairePage() {
   }
 
   return (
-    <div className="space-y-4 max-w-7xl p-4 mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Détail de l'inventaire</h1>
-        <div className="flex gap-2">
+    <div className="space-y-4 max-w-7xl p-2 sm:p-4 md:p-6 mx-auto">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">
+          Détail de l'inventaire
+        </h1>
+        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
           <Select value={selectedClinique} onValueChange={setSelectedClinique}>
-            <SelectTrigger className="w-50 bg-gray-50">
+            <SelectTrigger className="w-full sm:w-50 bg-gray-50">
               <SelectValue placeholder="Sélectionner une clinique" />
             </SelectTrigger>
             <SelectContent>
@@ -995,16 +1011,19 @@ export default function DetailInventairePage() {
             disabled={
               !selectedClinique || isGeneratingPDF || tarifsFiltres.length === 0
             }
+            className="w-full sm:w-auto"
           >
             {isGeneratingPDF ? (
               <>
                 <SpinnerCustom className="mr-2 h-4 w-4" />
-                Génération...
+                <span className="hidden sm:inline">Génération...</span>
+                <span className="sm:hidden">PDF...</span>
               </>
             ) : (
               <>
                 <Download className="mr-2 h-4 w-4" />
-                Télécharger PDF
+                <span className="hidden sm:inline">Télécharger PDF</span>
+                <span className="sm:hidden">PDF</span>
               </>
             )}
           </Button>
@@ -1012,9 +1031,11 @@ export default function DetailInventairePage() {
             onClick={handlePrintProducts}
             variant="outline"
             disabled={!selectedClinique || tarifsFiltres.length === 0}
+            className="w-full sm:w-auto"
           >
             <Printer className="mr-2 h-4 w-4" />
-            Imprimer
+            <span className="hidden sm:inline">Imprimer</span>
+            <span className="sm:hidden">Print</span>
           </Button>
           <InventaireDialog
             cliniques={cliniques}
@@ -1023,17 +1044,19 @@ export default function DetailInventairePage() {
             )}
             onCreateInventaire={handleCreateInventaire}
           >
-            <Button disabled={!selectedClinique}>Nouvel Inventaire</Button>
+            <Button disabled={!selectedClinique} className="w-full sm:w-auto">
+              Nouvel Inventaire
+            </Button>
           </InventaireDialog>
         </div>
       </div>
 
       {inventaires && inventaires.length > 0 && (
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-3">
+        <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <Label
               htmlFor="select-inventaire"
-              className="font-semibold text-blue-900 whitespace-nowrap"
+              className="font-semibold text-blue-900 whitespace-nowrap text-sm sm:text-base"
             >
               Inventaire en cours :
             </Label>
@@ -1043,7 +1066,7 @@ export default function DetailInventairePage() {
             >
               <SelectTrigger
                 id="select-inventaire"
-                className="w-full max-w-xs bg-white"
+                className="w-full sm:max-w-xs bg-white"
               >
                 <SelectValue placeholder="Sélectionnez un inventaire" />
               </SelectTrigger>
@@ -1067,7 +1090,7 @@ export default function DetailInventairePage() {
             </Select>
           </div>
           {currentInventaire && (
-            <p className="text-sm text-blue-700 mt-2">
+            <p className="text-xs sm:text-sm text-blue-700 mt-2 wrap-break-word">
               Inventaire sélectionné :{" "}
               {
                 cliniques.find((c) => c.id === currentInventaire.idClinique)
@@ -1083,193 +1106,235 @@ export default function DetailInventairePage() {
       )}
 
       {/* Barre de recherche */}
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full sm:max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Rechercher un produit, clinique ou stock..."
+          placeholder="Rechercher..."
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          className="pl-10"
+          className="pl-10 text-sm sm:text-base"
         />
       </div>
 
       {/* Affichage du nombre de résultats */}
-      {recherche && (
-        <div className="text-sm text-muted-foreground">
+      {recherche && selectedClinique && (
+        <div className="text-xs sm:text-sm text-muted-foreground">
           {tarifsFiltres.length} produit(s) trouvé(s) pour "{recherche}"
         </div>
       )}
 
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableCell className="font-semibold">N°</TableCell>
-              <TableCell className="font-semibold">Produit</TableCell>
-              <TableCell className="font-semibold">Clinique</TableCell>
-              <TableCell className="font-semibold">
-                Quantité théorique
-              </TableCell>
-              <TableCell className="font-semibold">Quantité réelle</TableCell>
-              <TableCell className="font-semibold">Écart</TableCell>
-              <TableCell className="font-semibold">Actions</TableCell>
-              <TableCell className="font-semibold">Ajustement</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <TableRowSkeleton key={index} />
-              ))
-            ) : tarifsFiltres && tarifsFiltres.length > 0 ? (
-              tarifsFiltres.map((item, index) => {
-                const produit = produits.find((p) => p.id === item.idProduit);
-                const clinique = cliniques.find(
-                  (c) => c.id === item.idClinique
-                );
-                const idTarifProduit = item.id;
-                const detailInventaire = detailInventaires.find(
-                  (d) =>
-                    d.idTarifProduit === item.id &&
-                    d.idInventaire === currentInventaire?.id
-                );
-                const idDetailInventaire = detailInventaire?.id;
-                const quantiteTheorique = item.quantiteStock;
-                const quantiteReelle =
-                  quantitesReelles[item.id] || quantiteTheorique;
-                const ecart = quantiteReelle - quantiteTheorique;
-
-                const isValidating = validatingProducts[item.id] || false;
-                const isAdjusting = adjustingProducts[item.id] || false;
-
-                // Vérifier si le produit est déjà validé
-                const isAlreadyValidated = !!detailInventaire;
-                // Vérifier si une anomalie existe déjà pour ce détail
-                const hasAnomalie = anomalies.some(
-                  (a) => a.idDetailInventaire === idDetailInventaire
-                );
-
-                return (
-                  <TableRow key={item.id} className="hover:bg-gray-50">
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{produit?.nomProduit || "Inconnu"}</TableCell>
-                    <TableCell>{clinique?.nomClinique || "Inconnu"}</TableCell>
-                    <TableCell>{quantiteTheorique}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={
-                          isAlreadyValidated
-                            ? detailInventaire?.quantiteReelle || quantiteReelle
-                            : quantiteReelle
-                        }
-                        onChange={(e) =>
-                          handleQuantiteReelleChange(item.id, e.target.value)
-                        }
-                        className="w-24"
-                        disabled={isAlreadyValidated || !currentInventaire}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const detailInventaire = detailInventaires.find(
-                          (d) =>
-                            d.idInventaire === currentInventaire?.id &&
-                            d.idTarifProduit === item.id
-                        );
-                        const ecartFinal = detailInventaire?.ecart ?? ecart;
-
-                        return (
-                          <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              ecartFinal === 0
-                                ? "bg-green-100 text-green-800"
-                                : ecartFinal > 0
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {ecartFinal > 0 ? `+${ecartFinal}` : ecartFinal}
-                          </span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant={isAlreadyValidated ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleValiderProduit(item)}
-                          disabled={
-                            !currentInventaire ||
-                            isAlreadyValidated ||
-                            isValidating
-                          }
-                          className={
-                            isAlreadyValidated
-                              ? "bg-green-500 text-white hover:bg-green-600"
-                              : ""
-                          }
-                          style={isValidating ? { width: "60px" } : {}}
-                        >
-                          {isValidating ? (
-                            <SpinnerCustom />
-                          ) : isAlreadyValidated ? (
-                            "Validé"
-                          ) : (
-                            "Valider"
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <AnomalieInventaireDialog
-                          quantiteReelle={
-                            detailInventaire?.quantiteReelle || ecart
-                          }
-                          ecart={detailInventaire?.ecart || ecart}
-                          idDetailInventaire={idDetailInventaire || ""}
-                          idTarifProduit={idTarifProduit}
-                          produit={produit?.nomProduit || "Inconnu"}
-                          idUser={idUser}
-                          onCreateAnomalie={handleCreateAnomalie}
-                        >
-                          <Button
-                            variant="default"
-                            size="sm"
-                            disabled={
-                              !currentInventaire ||
-                              !isAlreadyValidated ||
-                              !detailInventaire ||
-                              detailInventaire.quantiteReelle ===
-                                quantiteTheorique ||
-                              hasAnomalie ||
-                              isAdjusting
-                            }
-                            style={isAdjusting ? { width: "60px" } : {}}
-                          >
-                            {isAdjusting ? <SpinnerCustom /> : "Ajuster"}
-                          </Button>
-                        </AnomalieInventaireDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
+      {!selectedClinique ? (
+        <div className="bg-blue-50 p-6 sm:p-8 rounded-lg border border-blue-200 text-center">
+          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-blue-100 flex items-center justify-center mb-3 sm:mb-4">
+            <Search className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
+          </div>
+          <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
+            Sélectionnez une clinique
+          </h3>
+          <p className="text-xs sm:text-sm text-blue-700">
+            Veuillez sélectionner une clinique pour afficher les produits
+            disponibles.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-gray-50 p-2 sm:p-4 rounded-lg overflow-x-auto">
+          <Table className="min-w-200">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  {recherche
-                    ? "Aucun produit trouvé pour votre recherche."
-                    : "Aucun tarif produit trouvé."}
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  N°
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Produit
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Clinique
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Qté théorique
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Qté réelle
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Écart
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Actions
+                </TableCell>
+                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                  Ajustement
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <TableRowSkeleton key={index} />
+                ))
+              ) : tarifsFiltres && tarifsFiltres.length > 0 ? (
+                tarifsFiltres.map((item, index) => {
+                  const produit = produits.find((p) => p.id === item.idProduit);
+                  const clinique = cliniques.find(
+                    (c) => c.id === item.idClinique
+                  );
+                  const idTarifProduit = item.id;
+                  const detailInventaire = detailInventaires.find(
+                    (d) =>
+                      d.idTarifProduit === item.id &&
+                      d.idInventaire === currentInventaire?.id
+                  );
+                  const idDetailInventaire = detailInventaire?.id;
+                  const quantiteTheorique = item.quantiteStock;
+                  const quantiteReelle =
+                    quantitesReelles[item.id] || quantiteTheorique;
+                  const ecart = quantiteReelle - quantiteTheorique;
+
+                  const isValidating = validatingProducts[item.id] || false;
+                  const isAdjusting = adjustingProducts[item.id] || false;
+
+                  // Vérifier si le produit est déjà validé
+                  const isAlreadyValidated = !!detailInventaire;
+                  // Vérifier si une anomalie existe déjà pour ce détail
+                  const hasAnomalie = anomalies.some(
+                    (a) => a.idDetailInventaire === idDetailInventaire
+                  );
+
+                  return (
+                    <TableRow key={item.id} className="hover:bg-gray-50">
+                      <TableCell className="text-xs sm:text-sm">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
+                        {produit?.nomProduit || "Inconnu"}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
+                        {clinique?.nomClinique || "Inconnu"}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
+                        {quantiteTheorique}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={
+                            isAlreadyValidated
+                              ? detailInventaire?.quantiteReelle ||
+                                quantiteReelle
+                              : quantiteReelle
+                          }
+                          onChange={(e) =>
+                            handleQuantiteReelleChange(item.id, e.target.value)
+                          }
+                          className="w-20 sm:w-24 text-xs sm:text-sm"
+                          disabled={isAlreadyValidated || !currentInventaire}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const detailInventaire = detailInventaires.find(
+                            (d) =>
+                              d.idInventaire === currentInventaire?.id &&
+                              d.idTarifProduit === item.id
+                          );
+                          const ecartFinal = detailInventaire?.ecart ?? ecart;
+
+                          return (
+                            <span
+                              className={`px-1 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${
+                                ecartFinal === 0
+                                  ? "bg-green-100 text-green-800"
+                                  : ecartFinal > 0
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {ecartFinal > 0 ? `+${ecartFinal}` : ecartFinal}
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 sm:gap-2">
+                          <Button
+                            variant={isAlreadyValidated ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleValiderProduit(item)}
+                            disabled={
+                              !currentInventaire ||
+                              isAlreadyValidated ||
+                              isValidating
+                            }
+                            className={
+                              isAlreadyValidated
+                                ? "bg-green-500 text-white hover:bg-green-600 text-xs sm:text-sm px-2 sm:px-3"
+                                : "text-xs sm:text-sm px-2 sm:px-3"
+                            }
+                            style={isValidating ? { width: "50px" } : {}}
+                          >
+                            {isValidating ? (
+                              <SpinnerCustom />
+                            ) : isAlreadyValidated ? (
+                              "Validé"
+                            ) : (
+                              "Valider"
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 sm:gap-2">
+                          <AnomalieInventaireDialog
+                            quantiteReelle={
+                              detailInventaire?.quantiteReelle || ecart
+                            }
+                            ecart={detailInventaire?.ecart || ecart}
+                            idDetailInventaire={idDetailInventaire || ""}
+                            idTarifProduit={idTarifProduit}
+                            produit={produit?.nomProduit || "Inconnu"}
+                            idUser={idUser}
+                            onCreateAnomalie={handleCreateAnomalie}
+                          >
+                            <Button
+                              variant="default"
+                              size="sm"
+                              disabled={
+                                !currentInventaire ||
+                                !isAlreadyValidated ||
+                                !detailInventaire ||
+                                detailInventaire.quantiteReelle ===
+                                  quantiteTheorique ||
+                                hasAnomalie ||
+                                isAdjusting
+                              }
+                              className="text-xs sm:text-sm px-2 sm:px-3"
+                              style={isAdjusting ? { width: "50px" } : {}}
+                            >
+                              {isAdjusting ? <SpinnerCustom /> : "Ajuster"}
+                            </Button>
+                          </AnomalieInventaireDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="text-center py-6 sm:py-8 text-xs sm:text-sm"
+                  >
+                    {recherche
+                      ? "Aucun produit trouvé pour votre recherche."
+                      : "Aucun tarif produit trouvé."}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
