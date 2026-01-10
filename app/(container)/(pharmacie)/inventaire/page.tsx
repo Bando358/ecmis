@@ -1072,20 +1072,26 @@ export default function DetailInventairePage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sélectionnez un inventaire</SelectItem>
-                {inventaires.map((inventaire) => {
-                  const clinique = cliniques.find(
-                    (c) => c.id === inventaire.idClinique
-                  );
-                  return (
-                    <SelectItem key={inventaire.id} value={inventaire.id}>
-                      {`${
-                        clinique?.nomClinique || "Clinique inconnue"
-                      } - ${new Date(
-                        inventaire.dateInventaire
-                      ).toLocaleDateString("fr-FR")}`}
-                    </SelectItem>
-                  );
-                })}
+                {inventaires
+                  .filter((inventaire) =>
+                    selectedClinique
+                      ? inventaire.idClinique === selectedClinique
+                      : true
+                  )
+                  .map((inventaire) => {
+                    const clinique = cliniques.find(
+                      (c) => c.id === inventaire.idClinique
+                    );
+                    return (
+                      <SelectItem key={inventaire.id} value={inventaire.id}>
+                        {`${
+                          clinique?.nomClinique || "Clinique inconnue"
+                        } - ${new Date(
+                          inventaire.dateInventaire
+                        ).toLocaleDateString("fr-FR")}`}
+                      </SelectItem>
+                    );
+                  })}
               </SelectContent>
             </Select>
           </div>
