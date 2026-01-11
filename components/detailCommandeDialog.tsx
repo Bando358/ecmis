@@ -41,7 +41,7 @@ export function DetailCommandeDialog({
   idCommande,
   onAddDetail,
 }: DetailCommandeDialogProps) {
-  const { register, handleSubmit, reset } = useForm();
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
   const [produits, setProduits] = useState<Produit[]>([]);
   const [commandeFournisseur, setCommandeFournisseur] = useState<
     CommandeFournisseur[]
@@ -104,13 +104,13 @@ export function DetailCommandeDialog({
               {...register("idCommande")}
               value={idCommande}
             />
-            <div className="grid gap-3">
+            <div className="hidden">
               <Label htmlFor="idClinique">
                 Sélectionnez la commande fournisseur
               </Label>
               <select
                 id="idCommande"
-                {...register("idCommande", { required: true })}
+                {...register("idCommande", { required: false })}
                 className="border rounded-md p-2"
                 defaultValue={idCommande}
               >
@@ -136,7 +136,7 @@ export function DetailCommandeDialog({
             <DialogClose asChild>
               <Button variant="outline">Annuler</Button>
             </DialogClose>
-            <Button type="submit">Ajouter au stock</Button>
+            <Button type="submit" disabled={isSubmitting} >Ajouter au stock</Button>
           </DialogFooter>
         </form>
       </DialogContent>

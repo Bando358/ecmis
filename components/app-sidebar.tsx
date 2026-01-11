@@ -75,12 +75,12 @@ const data = {
           url: "/produits",
         },
         {
-          title: "Gestion de Stock",
-          url: "/stock-produit",
-        },
-        {
           title: "Prix Produits",
           url: "/prix-produit",
+        },
+        {
+          title: "Gestion de Stock",
+          url: "/stock-produit",
         },
         {
           title: "Fiche de vente",
@@ -91,8 +91,11 @@ const data = {
           url: "/inventaire",
         },
         {
+          title: "Historique commande",
+          url: "/historique-commande",
+        },
+        {
           title: "Historique Inventaire",
-          // url: "#",
           url: "/historique-inventaire",
         },
       ],

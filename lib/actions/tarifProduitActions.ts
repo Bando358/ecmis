@@ -97,3 +97,63 @@ export async function updateQuantiteStockTarifProduit(
     return { success: false };
   }
 }
+export async function updateQuantiteStockTarifProduitByDetailCommande(
+  idTarifProduit: string,
+  quantiteAjoutee: number
+) {
+  try {
+    const tarif = await prisma.tarifProduit.findUnique({
+      where: { id: idTarifProduit },
+      select: { quantiteStock: true },
+    });
+
+    if (!tarif) {
+      throw new Error("Produit non trouvé");
+    }
+
+    // const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
+
+    await prisma.tarifProduit.update({
+      where: { id: idTarifProduit },
+      data: { quantiteStock: tarif.quantiteStock + quantiteAjoutee },
+    });
+
+    return { success: true, quantiteAjoutee };
+  } catch (error) {
+    console.error(
+      "Erreur lors de la mise à jour de la quantité en stock :",
+      error
+    );
+    return { success: false };
+  }
+}
+export async function updateTarifProduitByDetailCommandeAnnule(
+  idTarifProduit: string,
+  quantiteAjoutee: number
+) {
+  try {
+    const tarif = await prisma.tarifProduit.findUnique({
+      where: { id: idTarifProduit },
+      select: { quantiteStock: true },
+    });
+
+    if (!tarif) {
+      throw new Error("Produit non trouvé");
+    }
+
+    // const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
+
+    await prisma.tarifProduit.update({
+      where: { id: idTarifProduit },
+      data: { quantiteStock: tarif.quantiteStock - quantiteAjoutee },
+    });
+
+    return { success: true, quantiteAjoutee };
+  } catch (error) {
+    console.error(
+      "Erreur lors de la mise à jour de la quantité en stock :",
+      error
+    );
+    return { success: false };
+  }
+}

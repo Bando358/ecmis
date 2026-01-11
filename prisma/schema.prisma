@@ -265,6 +265,7 @@ model Clinique {
   TarifProduit         TarifProduit[]
   factureProduit       FactureProduit[]
   CommandeFournisseur  CommandeFournisseur[]
+  DetailCommande       DetailCommande[]
   TarifExamen     TarifExamen[]
   ResultatExamen ResultatExamen[]
   DemandeExamen   DemandeExamen[]
@@ -1457,10 +1458,13 @@ model CommandeFournisseur{
 model DetailCommande{
   id                        String   @id @default(uuid())
   idTarifProduit            String
+  quantiteInitiale         Int
   quantiteCommandee         Int
   idCommande                String
   createdAt               DateTime      @default(now())
   idUser                  String
+  idClinique                String
+  Clinique                  Clinique   @relation(fields: [idClinique], references: [id])
   User                     User   @relation(fields: [idUser], references: [id])
 
   commande                  CommandeFournisseur   @relation(fields: [idCommande],references: [id])

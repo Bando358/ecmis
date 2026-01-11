@@ -1,8 +1,16 @@
 "use client";
 
+import React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +36,7 @@ import {
   Clinique,
   Permission,
   TableName,
+  User,
 } from "@prisma/client";
 import { getAllProduits } from "@/lib/actions/produitActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
@@ -42,11 +51,13 @@ import { useSession } from "next-auth/react";
 import TarifProduitDialog from "@/components/tarifProduitDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { getOneUser } from "@/lib/actions/authActions";
 
 export default function PrixProduitPage() {
   const [listeTarifProduit, setListeTarifProduit] = useState<TarifProduit[]>(
     []
   );
+  const [user, setUser] = useState<User | null>(null);
   const [tarifsFiltres, setTarifsFiltres] = useState<TarifProduit[]>([]);
   const [produits, setProduits] = useState<Produit[]>([]);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
@@ -54,10 +65,20 @@ export default function PrixProduitPage() {
   const [permission, setPermission] = useState<Permission | null>(null);
   const [editingTarif, setEditingTarif] = useState<TarifProduit | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isUpdatingTrue, setIsUpdatingTrue] = useState(false);
   const [recherche, setRecherche] = useState<string>("");
+  const [selectedClinique, setSelectedClinique] = useState<string>("");
 
   const { data: session } = useSession();
   const idUser = session?.user?.id ?? "";
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const user = await getOneUser(idUser);
+      setUser(user!);
+    };
+    fetchUser();
+  }, [idUser]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,10 +104,10 @@ export default function PrixProduitPage() {
   }, []);
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!user) return;
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
+        const permissions = await getUserPermissionsById(user.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.TARIF_PRODUIT
         );
@@ -96,14 +117,43 @@ export default function PrixProduitPage() {
       }
     };
     fetchPermissions();
-  }, [session?.user]);
+  }, [user]);
 
   useEffect(() => {
-    if (recherche.trim() === "") {
-      setTarifsFiltres(listeTarifProduit);
-    } else {
+    const trierParTypeProduit = (tarifs: TarifProduit[]) => {
+      const ordreTypes = ["CONTRACEPTIF", "MEDICAMENTS", "CONSOMMABLES"];
+
+      return tarifs.sort((a, b) => {
+        const produitA = produits.find((p) => p.id === a.idProduit);
+        const produitB = produits.find((p) => p.id === b.idProduit);
+
+        if (!produitA || !produitB) return 0;
+
+        const indexA = ordreTypes.indexOf(produitA.typeProduit);
+        const indexB = ordreTypes.indexOf(produitB.typeProduit);
+
+        if (indexA !== indexB) {
+          return indexA - indexB;
+        }
+
+        // Si même type, trier par nom de produit
+        return produitA.nomProduit.localeCompare(produitB.nomProduit);
+      });
+    };
+
+    let filtres = [...listeTarifProduit];
+
+    // Filtrer par clinique (obligatoire)
+    if (selectedClinique) {
+      filtres = filtres.filter(
+        (tarif) => tarif.idClinique === selectedClinique
+      );
+    }
+
+    // Filtrer par recherche
+    if (recherche.trim() !== "") {
       const terme = recherche.toLowerCase();
-      const filtres = listeTarifProduit.filter((tarif) => {
+      filtres = filtres.filter((tarif) => {
         const produit = produits.find((p) => p.id === tarif.idProduit);
         const clinique = cliniques.find((c) => c.id === tarif.idClinique);
         return (
@@ -112,12 +162,14 @@ export default function PrixProduitPage() {
           tarif.prixUnitaire.toString().includes(terme)
         );
       });
-      setTarifsFiltres(filtres);
     }
-  }, [recherche, listeTarifProduit, produits, cliniques]);
+
+    const triees = trierParTypeProduit(filtres);
+    setTarifsFiltres(triees);
+  }, [recherche, selectedClinique, listeTarifProduit, produits, cliniques]);
 
   const onSubmit = async (data: TarifProduit) => {
-    if (!permission?.canCreate && session?.user?.role !== "ADMIN") {
+    if (!permission?.canCreate && user?.role !== "ADMIN") {
       alert(
         "Vous n'avez pas la permission de créer ce tarif produit. Contactez un administrateur."
       );
@@ -142,7 +194,7 @@ export default function PrixProduitPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user?.role !== "ADMIN") {
+    if (!permission?.canDelete && user?.role !== "ADMIN") {
       alert(
         "Vous n'avez pas la permission de supprimer ce tarif produit. Contactez un administrateur."
       );
@@ -159,6 +211,7 @@ export default function PrixProduitPage() {
   };
 
   const handleEdit = (tarif: TarifProduit) => {
+    setIsUpdatingTrue(true);
     setEditingTarif(tarif);
     setDialogOpen(true);
   };
@@ -173,6 +226,20 @@ export default function PrixProduitPage() {
     if (!open) setEditingTarif(null);
   };
 
+  // Filtrer les produits qui n'ont pas encore de tarif pour la clinique sélectionnée
+  const produitsDisponibles = produits.filter((produit) => {
+    // Si on est en mode édition, inclure le produit en cours d'édition
+    if (editingTarif && editingTarif.idProduit === produit.id) {
+      return true;
+    }
+    // Vérifier si le produit a déjà un tarif pour cette clinique
+    const aTarifExistant = listeTarifProduit.some(
+      (tarif) =>
+        tarif.idProduit === produit.id && tarif.idClinique === selectedClinique
+    );
+    return !aTarifExistant;
+  });
+
   const TableRowSkeleton = () => (
     <TableRow>
       {Array.from({ length: 6 }).map((_, i) => (
@@ -183,19 +250,45 @@ export default function PrixProduitPage() {
     </TableRow>
   );
 
+  // Filtrer les cliniques selon le rôle de l'utilisateur
+  const cliniquesAccessibles =
+    user?.role === "ADMIN"
+      ? cliniques
+      : cliniques.filter((clinique) => user?.idCliniques.includes(clinique.id));
+
   return (
     <div className="space-y-4 max-w-300 p-4 flex flex-col mx-auto">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center sm:flex-row flex-col gap-4">
         <h1 className="text-2xl font-bold">Gestion des tarifs produits</h1>
-
-        <Button onClick={handleCreate}>Ajouter un tarif</Button>
+        <div className="flex gap-2 flex-wrap items-center">
+          <Select value={selectedClinique} onValueChange={setSelectedClinique}>
+            <SelectTrigger className="w-full sm:w-62.5 bg-gray-50">
+              <SelectValue placeholder="Sélectionner une clinique *" />
+            </SelectTrigger>
+            <SelectContent>
+              {cliniquesAccessibles.map((clinique) => (
+                <SelectItem key={clinique.id} value={clinique.id}>
+                  {clinique.nomClinique}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={handleCreate}
+            className="w-full sm:w-auto"
+            disabled={!selectedClinique}
+          >
+            Ajouter un tarif
+          </Button>
+        </div>
       </div>
 
       <TarifProduitDialog
-        produits={produits}
-        cliniques={cliniques}
+        produits={produitsDisponibles}
+        cliniques={cliniquesAccessibles}
         isUpdating={!!editingTarif}
         initialData={editingTarif || undefined}
+        // isUpdatingTrue={isUpdatingTrue}
         onSubmit={onSubmit}
         open={dialogOpen}
         onOpenChange={handleDialogClose}
@@ -211,82 +304,126 @@ export default function PrixProduitPage() {
         />
       </div>
 
-      <div className="bg-gray-50 p-4 rounded-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableCell>N°</TableCell>
-              <TableCell>Produit</TableCell>
-              <TableCell>Clinique</TableCell>
-              <TableCell>Prix unitaire</TableCell>
-              <TableCell>Stock</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <TableRowSkeleton key={i} />
-              ))
-            ) : tarifsFiltres.length ? (
-              tarifsFiltres.map((item, index) => {
-                const produit = produits.find((p) => p.id === item.idProduit);
-                const clinique = cliniques.find(
-                  (c) => c.id === item.idClinique
-                );
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{produit?.nomProduit}</TableCell>
-                    <TableCell>{clinique?.nomClinique}</TableCell>
-                    <TableCell>{item.prixUnitaire} Fcfa</TableCell>
-                    <TableCell>{item.quantiteStock}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Pencil
-                          className="text-blue-600 cursor-pointer"
-                          size={16}
-                          onClick={() => handleEdit(item)}
-                        />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Trash2 className="text-red-600 cursor-pointer" />
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Supprimer ce tarif ?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Cette action est irréversible.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-red-600 text-white"
-                                onClick={() => handleDelete(item.id)}
-                              >
-                                Supprimer
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
+      {!selectedClinique ? (
+        <div className="bg-blue-50 border border-blue-200 p-8 rounded-lg text-center">
+          <p className="text-blue-700 text-lg">
+            Veuillez sélectionner une clinique pour afficher les tarifs
+          </p>
+        </div>
+      ) : (
+        <div className="bg-gray-50 p-4 rounded-sm">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Aucun tarif trouvé.
-                </TableCell>
+                <TableCell>N°</TableCell>
+                <TableCell>Produit</TableCell>
+                <TableCell>Clinique</TableCell>
+                <TableCell>Prix unitaire</TableCell>
+                <TableCell>Stock</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <TableRowSkeleton key={i} />
+                ))
+              ) : tarifsFiltres.length ? (
+                (() => {
+                  let currentType = "";
+                  let globalIndex = 0;
+
+                  return tarifsFiltres.map((item) => {
+                    const produit = produits.find(
+                      (p) => p.id === item.idProduit
+                    );
+                    const clinique = cliniques.find(
+                      (c) => c.id === item.idClinique
+                    );
+
+                    const showTypeHeader =
+                      produit && produit.typeProduit !== currentType;
+                    if (showTypeHeader) {
+                      currentType = produit.typeProduit;
+                    }
+
+                    globalIndex++;
+
+                    const typeLabels: Record<string, string> = {
+                      CONTRACEPTIF: "Contraceptifs",
+                      MEDICAMENTS: "Médicaments",
+                      CONSOMMABLES: "Consommables",
+                    };
+
+                    return (
+                      <React.Fragment key={item.id}>
+                        {showTypeHeader && (
+                          <TableRow className="bg-blue-50 hover:bg-blue-50">
+                            <TableCell
+                              colSpan={6}
+                              className="font-semibold text-blue-700"
+                            >
+                              {typeLabels[currentType] || currentType}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow>
+                          <TableCell>{globalIndex}</TableCell>
+                          <TableCell>{produit?.nomProduit}</TableCell>
+                          <TableCell>{clinique?.nomClinique}</TableCell>
+                          <TableCell>{item.prixUnitaire} Fcfa</TableCell>
+                          <TableCell>{item.quantiteStock}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Pencil
+                                className="text-blue-600 cursor-pointer"
+                                size={16}
+                                onClick={() => handleEdit(item)}
+                              />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Trash2 className="text-red-600 cursor-pointer" />
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Supprimer ce tarif ?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 text-white"
+                                      onClick={() => handleDelete(item.id)}
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  });
+                })()
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    Aucun tarif trouvé.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

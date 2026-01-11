@@ -32,7 +32,7 @@ export function CommandeFournisseurDialog({
   cliniques = [],
   onCreateCommande,
 }: CommandeFournisseurDialogProps) {
-  const { register, handleSubmit, reset } =
+  const { register, handleSubmit, reset, formState: { isSubmitting } } =
     useForm<Partial<CommandeFournisseur>>();
   const [open, setOpen] = useState(false);
 
@@ -90,7 +90,7 @@ export function CommandeFournisseurDialog({
             <DialogClose asChild>
               <Button variant="outline">Annuler</Button>
             </DialogClose>
-            <Button type="submit">Enregistrer la commande</Button>
+            <Button type="submit" disabled={isSubmitting} >Enregistrer la commande</Button>
           </DialogFooter>
         </form>
       </DialogContent>

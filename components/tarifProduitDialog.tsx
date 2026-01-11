@@ -193,7 +193,7 @@ export default function TarifProduitDialog({
                 control={form.control}
                 name="quantiteStock"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className={isUpdating ? "hidden" : ""}>
                     <FormLabel>Quantité en stock</FormLabel>
                     <Input
                       type="number"
