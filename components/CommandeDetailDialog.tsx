@@ -120,9 +120,9 @@ export function CommandeDetailDialog({
       doc.text(`Quantité initiale: ${stats.totalInitiale}`, 14, 76);
       doc.text(`Quantité commandée: ${stats.totalCommandee}`, 14, 83);
       doc.text(
-        `Différence: ${
-          stats.difference > 0 ? `+${stats.difference}` : stats.difference
-        }`,
+        `Différence: ${`Nouvelle Qté: ${
+          stats.totalCommandee + stats.totalInitiale
+        }`}`,
         14,
         90
       );
@@ -135,7 +135,7 @@ export function CommandeDetailDialog({
             ?.nomProduit || "Produit inconnu",
         initiale: detail.quantiteInitiale,
         commandee: detail.quantiteCommandee,
-        difference: detail.quantiteCommandee - detail.quantiteInitiale,
+        "Nouvelle Qté": detail.quantiteCommandee + detail.quantiteInitiale,
         responsable: detail.User?.name || "Non spécifié",
         date: format(new Date(detail.createdAt), "dd/MM/yyyy", { locale: fr }),
       }));
@@ -147,7 +147,7 @@ export function CommandeDetailDialog({
             "Produit",
             "Initiale",
             "Commandée",
-            "Différence",
+            "Nouvelle Qté",
             "Responsable",
             "Date",
           ],
@@ -157,7 +157,7 @@ export function CommandeDetailDialog({
           d.produit,
           d.initiale.toString(),
           d.commandee.toString(),
-          d.difference > 0 ? `+${d.difference}` : d.difference.toString(),
+          d["Nouvelle Qté"].toString(),
           d.responsable,
           d.date,
         ]),
@@ -234,7 +234,7 @@ export function CommandeDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-4xl! max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Détails de la commande fournisseur</DialogTitle>
           <DialogDescription>
@@ -277,16 +277,19 @@ export function CommandeDetailDialog({
             </div>
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                Différence totale
+                Nouvelle Qté
               </h4>
               <p
-                className={`text-lg font-bold ${
-                  stats.difference > 0 ? "text-green-600" : "text-red-600"
-                }`}
+              //   className={`text-lg font-bold ${
+              //     stats.difference > 0 ? "text-green-600" : "text-red-600"
+              //   }`
+              // }
               >
-                {stats.difference > 0
+                {/* {stats.difference > 0
                   ? `+${stats.difference}`
                   : stats.difference}{" "}
+                unités */}
+                {"Total: " + (stats.totalCommandee + stats.totalInitiale)}{" "}
                 unités
               </p>
             </div>
@@ -308,7 +311,7 @@ export function CommandeDetailDialog({
                     <TableHead className="text-right">
                       Quantité commandée
                     </TableHead>
-                    <TableHead className="text-right">Différence</TableHead>
+                    <TableHead className="text-right">Nouvelle Qté</TableHead>
                     <TableHead>Responsable</TableHead>
                     <TableHead>Date saisie</TableHead>
                   </TableRow>
@@ -319,8 +322,8 @@ export function CommandeDetailDialog({
                       produits.find(
                         (p) => p.id === detail.tarifProduit?.idProduit
                       )?.nomProduit || "Produit inconnu";
-                    const difference =
-                      detail.quantiteCommandee - detail.quantiteInitiale;
+                    const nouvelleQte =
+                      detail.quantiteCommandee + detail.quantiteInitiale;
 
                     return (
                       <TableRow key={detail.id}>
@@ -344,11 +347,11 @@ export function CommandeDetailDialog({
                         </TableCell>
                         <TableCell className="text-right">
                           <span
-                            className={`font-medium ${
-                              difference > 0 ? "text-green-600" : "text-red-600"
-                            }`}
+                          // className={`font-medium ${
+                          //   difference > 0 ? "text-green-600" : "text-red-600"
+                          // }`}
                           >
-                            {difference > 0 ? `+${difference}` : difference}
+                            {nouvelleQte}
                           </span>
                         </TableCell>
                         <TableCell>

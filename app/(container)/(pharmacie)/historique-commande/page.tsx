@@ -357,9 +357,10 @@ export default function HistoriqueCommandesPage() {
       (sum, d) => sum + d.quantiteCommandee,
       0
     );
-    const difference = totalCommandee - totalInitiale;
+    // const difference = totalCommandee - totalInitiale;
 
-    return { totalProduits, totalInitiale, totalCommandee, difference };
+    // return { totalProduits, totalInitiale, totalCommandee, difference };
+    return { totalProduits, totalInitiale, totalCommandee };
   };
 
   // Télécharger le PDF d'une commande
@@ -420,9 +421,7 @@ export default function HistoriqueCommandesPage() {
         doc.text(`Quantité initiale: ${stats.totalInitiale}`, 14, 76);
         doc.text(`Quantité commandée: ${stats.totalCommandee}`, 14, 83);
         doc.text(
-          `Différence: ${
-            stats.difference > 0 ? `+${stats.difference}` : stats.difference
-          }`,
+          `Nouvelle Qté: ${stats.totalCommandee + stats.totalInitiale}`,
           14,
           90
         );
@@ -435,7 +434,7 @@ export default function HistoriqueCommandesPage() {
               ?.nomProduit || "Produit inconnu",
           initiale: detail.quantiteInitiale,
           commandee: detail.quantiteCommandee,
-          difference: detail.quantiteCommandee - detail.quantiteInitiale,
+          "Nouvelle Qté": detail.quantiteCommandee + detail.quantiteInitiale,
           responsable: detail.User?.name || "Non spécifié",
         }));
 
@@ -446,7 +445,7 @@ export default function HistoriqueCommandesPage() {
               "Produit",
               "Initiale",
               "Commandée",
-              "Différence",
+              "Nouvelle Qté",
               "Responsable",
             ],
           ],
@@ -455,7 +454,7 @@ export default function HistoriqueCommandesPage() {
             d.produit,
             d.initiale.toString(),
             d.commandee.toString(),
-            d.difference > 0 ? `+${d.difference}` : d.difference.toString(),
+            d["Nouvelle Qté"].toString(),
             d.responsable,
           ]),
           startY: 98,
@@ -817,17 +816,20 @@ export default function HistoriqueCommandesPage() {
                                   {stats.totalCommandee} commandés
                                 </span>
                                 <span
-                                  className={`text-[10px] sm:text-xs ${
-                                    stats.difference > 0
-                                      ? "text-green-600"
-                                      : stats.difference < 0
-                                      ? "text-red-600"
-                                      : "text-muted-foreground"
-                                  }`}
+                                // className={`text-[10px] sm:text-xs ${
+                                //   stats.difference > 0
+                                //     ? "text-green-600"
+                                //     : stats.difference < 0
+                                //     ? "text-red-600"
+                                //     : "text-muted-foreground"
+                                // }`}
                                 >
-                                  {stats.difference > 0
+                                  {/* {stats.difference > 0
                                     ? `+${stats.difference}`
-                                    : stats.difference}
+                                    : stats.difference} */}
+                                  {"Total: " +
+                                    (stats.totalCommandee +
+                                      stats.totalInitiale)}
                                 </span>
                               </div>
                             </TableCell>
