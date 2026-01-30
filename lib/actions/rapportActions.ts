@@ -140,7 +140,7 @@ export const fetchClientsData = async (
   dateVisite2: Date
 ): Promise<ClientData[]> => {
   if (!clinicIds || clinicIds.length === 0) {
-    alert("Veuillez choisir au moins une clinique");
+    console.warn("rapportActions: Aucune clinique sélectionnée");
     return [];
   }
 
@@ -710,7 +710,7 @@ const visiteDataCpnUpdate = async (clients: ClientData[]) => {
 //   dateVisite2: Date
 // ): Promise<ClientStatusInfo[]> => {
 //   if (!clinicIds) {
-//     alert("Veuillez choisir au moins une clinique");
+//     console.warn("rapportActions: Aucune clinique sélectionnée");
 //     return [];
 //   }
 
@@ -969,7 +969,7 @@ export const fetchClientsStatusProtege = async (
   dateVisite2: Date
 ): Promise<ClientStatusInfo[]> => {
   if (!clinicIds || clinicIds.length === 0) {
-    alert("Veuillez choisir au moins une clinique");
+    console.warn("rapportActions: Aucune clinique sélectionnée");
     return [];
   }
 
@@ -1251,7 +1251,7 @@ export const fetchClientsStatusProteges = async (
   dateVisite2: Date
 ): Promise<ClientStatusInfo[]> => {
   if (!clinicIds?.length) {
-    alert("Veuillez choisir au moins une clinique");
+    console.warn("rapportActions: Aucune clinique sélectionnée");
     return [];
   }
 
@@ -1424,7 +1424,7 @@ export const fetchClientsDataLaboratoire = async (
   dateVisite2: Date
 ): Promise<ClientDataLaboratoire[]> => {
   if (!clinicIds || clinicIds.length === 0) {
-    alert("Veuillez choisir au moins une clinique");
+    console.warn("rapportActions: Aucune clinique sélectionnée");
     return [];
   }
 

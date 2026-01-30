@@ -19,12 +19,7 @@ import {
 } from "@/components/ui/table";
 
 import { DemandeExamen, Examen, Clinique, TarifExamen } from "@prisma/client";
-import { useState, useEffect } from "react";
-import { getAllClinique } from "@/lib/actions/cliniqueActions";
-import { getOneClient } from "@/lib/actions/clientActions";
-import { getAllDemandeExamensByIdVisite } from "@/lib/actions/demandeExamenActions";
-import { getAllExamen } from "@/lib/actions/examenActions";
-import { getAllTarifExamenByClinique } from "@/lib/actions/tarifExamenActions";
+import { useState, useEffect, useMemo } from "react";
 import { Form, FormField } from "./ui/form";
 import { Input } from "./ui/input";
 
@@ -49,6 +44,12 @@ interface ExamensModalProps {
     React.SetStateAction<DemandeExamenFormValues[]>
   >;
   refreshExamens: () => void;
+  // Données pré-chargées
+  tabClinique: Clinique[];
+  allExamens: Examen[];
+  tarifExamens: TarifExamen[];
+  demandesExamens: DemandeExamen[];
+  excludedExamenIds?: string[]; // IDs des examens déjà ajoutés à exclure
 }
 
 type FormValues = {
@@ -62,57 +63,24 @@ export default function ExamensModal({
   refreshExamens,
   idClient,
   setExamensSelectionnes,
+  // Données pré-chargées
+  tabClinique,
+  allExamens,
+  tarifExamens,
+  demandesExamens,
+  excludedExamenIds = [], // IDs des examens déjà ajoutés
 }: ExamensModalProps) {
-  const [allExamens, setAllExamens] = useState<Examen[]>([]);
-  const [tabTarifExamens, setTabTarifExamens] = useState<TarifExamen[]>([]);
-  const [tabClinique, setTabClinique] = useState<Clinique[]>([]);
-  const [selectedDemandes, setSelectedDemandes] = useState<DemandeExamen[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<DemandeExamen[]>([]);
 
-  useEffect(() => {
-    if (open === false) {
-      // setTabTarifExamens([]);
-      setSelectedOptions([]);
-    }
-  }, [open]);
+  // Filtrer les examens déjà ajoutés des options disponibles
+  const availableExamens = useMemo(
+    () => demandesExamens.filter((d) => !excludedExamenIds.includes(d.id)),
+    [demandesExamens, excludedExamenIds]
+  );
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const cliniques = await getAllClinique();
-      setTabClinique(cliniques);
-      const examens = await getAllExamen();
-      setAllExamens(examens);
-    };
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    const fetchDemandes = async () => {
-      if (!idClient) return;
-      const client = await getOneClient(idClient);
-      try {
-        const demandes = await getAllDemandeExamensByIdVisite(idVisite);
-        const demandesClient = demandes.filter(
-          (d: { idClient: string; idClinique: string }) =>
-            d.idClient === idClient && d.idClinique === client?.idClinique
-        );
-        setSelectedDemandes(demandesClient);
-        if (client?.idClinique) {
-          const tarifs = await getAllTarifExamenByClinique(client.idClinique);
-          setTabTarifExamens(tarifs);
-        } else {
-          setTabTarifExamens([]);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des demandes :", error);
-      }
-    };
-    fetchDemandes();
-  }, [idClient, idVisite]);
-
+  // Réinitialiser les options quand le modal se ferme
   useEffect(() => {
     if (!open) {
-      // Modal fermée => vider les options
       setSelectedOptions([]);
     }
   }, [open]);
@@ -141,7 +109,7 @@ export default function ExamensModal({
   };
 
   const getNomExamen = (demande: DemandeExamen) => {
-    const tarif = tabTarifExamens.find((t) => t.id === demande.idTarifExamen);
+    const tarif = tarifExamens.find((t) => t.id === demande.idTarifExamen);
     return (
       allExamens.find((e) => e.id === tarif?.idExamen)?.nomExamen || "Inconnu"
     );
@@ -152,11 +120,11 @@ export default function ExamensModal({
     form.reset({
       prixExamens: selectedOptions.map(
         (demande) =>
-          tabTarifExamens.find((t) => t.id === demande.idTarifExamen)
+          tarifExamens.find((t) => t.id === demande.idTarifExamen)
             ?.prixExamen || 0
       ),
     });
-  }, [selectedOptions, tabTarifExamens, form]);
+  }, [selectedOptions, tarifExamens, form]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -167,7 +135,7 @@ export default function ExamensModal({
         <div className="flex flow-row gap-3">
           <MultiSelectExamen
             idClinique={tabClinique[0]?.id ?? ""}
-            demandes={selectedDemandes}
+            demandes={availableExamens}
             selectedOptions={selectedOptions}
             setSelectedOptions={setSelectedOptions}
           />

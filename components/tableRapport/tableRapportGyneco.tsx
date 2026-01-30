@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import ExcelJS from "exceljs";
 import { Worksheet } from "exceljs";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { tableExport } from "../tableExportFonction";
 import { countClientBoolean } from "../rapport/gyneco/gyneco";
 import { clientDataProps } from "../rapportPfActions";
@@ -138,6 +140,7 @@ export default function TableRapportGyneco({
 }: TableRapportGynecoProps) {
   const [converted, setConverted] = useState<convertedType[]>([]);
   const [spinner, setSpinner] = useState(false);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   useEffect(() => {
     if (!clientData || clientData.length === 0) {
@@ -279,21 +282,178 @@ export default function TableRapportGyneco({
     setSpinner(false);
   };
 
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = new jsPDF("landscape", "mm", "a4") as any;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let currentY = 10;
+
+      // Charger et ajouter le logo
+      try {
+        const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+        const logoBlob = await logoResponse.blob();
+        const logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(logoBlob);
+        });
+        const logoWidth = pageWidth * 0.6;
+        const logoHeight = 15;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoBase64, "PNG", logoX, currentY, logoWidth, logoHeight);
+        currentY += logoHeight + 8;
+      } catch {
+        currentY = 15;
+      }
+
+      // Fonction pour ajouter un titre
+      const addTitle = (title: string, fontSize: number = 12) => {
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", "bold");
+        doc.text(title, 14, currentY);
+        currentY += 8;
+      };
+
+      // Fonction pour vérifier si un tableau peut tenir sur la page
+      const checkPageBreak = (tableHeight: number) => {
+        const pageHeight = doc.internal.pageSize.getHeight();
+        if (currentY + tableHeight > pageHeight - 15) {
+          doc.addPage();
+          currentY = 15;
+        }
+      };
+
+      // En-tête du rapport
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Rapport Gynécologie", pageWidth / 2, currentY, {
+        align: "center",
+      });
+      currentY += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+
+      // Vérifier si la période couvre un mois complet
+      const debut = new Date(dateDebut);
+      const fin = new Date(dateFin);
+      const isFirstDayOfMonth = debut.getDate() === 1;
+      const lastDayOfMonth = new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate();
+      const isLastDayOfMonth = fin.getDate() === lastDayOfMonth;
+      const isSameMonth = debut.getMonth() === fin.getMonth() && debut.getFullYear() === fin.getFullYear();
+
+      let periodeStr: string;
+      if (isFirstDayOfMonth && isLastDayOfMonth && isSameMonth) {
+        const moisFr = ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"];
+        periodeStr = `${moisFr[debut.getMonth()]} ${debut.getFullYear()}`;
+      } else {
+        periodeStr = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+      }
+
+      doc.text(`Période: ${periodeStr} | Clinique: ${clinic}`, pageWidth / 2, currentY, { align: "center" });
+      currentY += 12;
+
+      // En-têtes pour les tableaux (Femmes uniquement)
+      const headers = [
+        ["Indicateurs", "-10 ans", "10-14 ans", "15-19 ans", "20-24 ans", "25+ ans", "Total"],
+      ];
+
+      // Styles communs
+      const tableStyles = {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: "linebreak" as const,
+        halign: "center" as const,
+        valign: "middle" as const,
+      };
+
+      const headStyles = {
+        fillColor: [200, 200, 200] as [number, number, number],
+        textColor: [0, 0, 0] as [number, number, number],
+        fontStyle: "bold" as const,
+        halign: "center" as const,
+      };
+
+      // Fonction pour générer les données d'un tableau
+      const generateTableData = (tabConfig: { label: string; value: string }[]) => {
+        return tabConfig.map((item) => {
+          const values = ageRanges.map((range) =>
+            countClientBoolean(converted, range.min, range.max, item.value, true)
+          );
+          const total = values.reduce((sum, val) => sum + val, 0);
+          return [item.label, ...values, total];
+        });
+      };
+
+      // 1. Tableau clients Gynécologie
+      addTitle("Rapport clients Gynécologie");
+      const clientData = generateTableData(tabClientGyneco);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: headers,
+        body: clientData,
+        styles: tableStyles,
+        headStyles: headStyles,
+        columnStyles: { 0: { halign: "left" } },
+        pageBreak: "avoid",
+      });
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // 2. Tableau services Gynécologie
+      checkPageBreak(80);
+      addTitle("Rapport services gynécologiques offerts");
+      const serviceData = generateTableData(tabServiceGyneco);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: headers,
+        body: serviceData,
+        styles: tableStyles,
+        headStyles: headStyles,
+        columnStyles: { 0: { halign: "left" } },
+        pageBreak: "avoid",
+      });
+
+      // Section signature
+      currentY = doc.lastAutoTable.finalY + 20;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text("Réalisé par: ____________________________________", 14, currentY);
+      currentY += 15;
+      doc.text("Signature: ____________________________________", 14, currentY);
+
+      doc.save(`Rapport_Gyneco_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    } finally {
+      setSpinnerPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full">
-      <Button
-        onClick={exportToExcel}
-        type="button"
-        disabled={spinner}
-        className="bg-blue-500 mx-auto text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-      >
-        <Spinner
-          show={spinner}
-          size={"small"}
-          className="text-white dark:text-slate-400"
-        />
-        Exporter
-      </Button>
+      <div className="flex flex-row justify-center gap-3">
+        <Button
+          onClick={exportToExcel}
+          type="button"
+          disabled={spinner}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          <Spinner show={spinner} size={"small"} className="text-white dark:text-slate-400" />
+          Exporter Excel
+        </Button>
+        <Button
+          variant="outline"
+          onClick={exportToPdf}
+          type="button"
+          disabled={spinnerPdf}
+          className="px-4 py-2 rounded"
+        >
+          <Spinner show={spinnerPdf} size={"small"} className="text-white dark:text-slate-400" />
+          Exporter PDF
+        </Button>
+      </div>
       <h2 className="font-bold">Rapport clients Gynécologie</h2>
       <Table className="table-auto w-full">
         <TableHeader className="bg-gray-200  border border-gray-400">

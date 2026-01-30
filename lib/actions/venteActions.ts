@@ -80,7 +80,7 @@ export const fetchVentesData = async (
   facturesEchographies: FactureEchographieType[];
 }> => {
   if (!clinicIds || clinicIds.length === 0) {
-    alert("Veuillez choisir au moins une clinique");
+    console.warn("venteActions: Aucune clinique sélectionnée");
     return {
       facturesExamens: [],
       facturesProduits: [],

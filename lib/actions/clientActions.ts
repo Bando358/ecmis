@@ -1,8 +1,27 @@
 "use server";
 
-import { Client } from "@prisma/client";
+import { Client, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { PAGINATION, ERROR_MESSAGES } from "@/lib/constants";
+
+// Types pour la pagination
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface ClientFilterParams {
+  dateDebut?: Date | null;
+  dateFin?: Date | null;
+  search?: string;
+  cliniqueId?: string;
+}
 
 // Création d'une client
 export async function createClient(data: Client) {
@@ -40,7 +59,7 @@ export const getAllClientIncludedInDate = async ({
   dateDebut?: Date | null;
   dateFin?: Date | null;
 }) => {
-  const where: any = {};
+  const where: Prisma.ClientWhereInput = {};
 
   if (dateDebut || dateFin) {
     where.dateEnregistrement = {};
@@ -68,20 +87,93 @@ export const getAllClient = async () => {
     });
     return allClient;
   } catch (error: unknown) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "name" in error &&
-      (error as { name?: string }).name === "PrismaClientInitializationError"
-    ) {
-      // Cas problème de connexion à la base
-      console.error("Erreur Prisma :", (error as { message?: string }).message);
-      throw new Error("Ooops problème de connexion !");
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      console.error("Erreur Prisma :", error.message);
+      throw new Error(ERROR_MESSAGES.DB_CONNECTION_ERROR);
     }
 
-    // Pour toute autre erreur
     console.error("Erreur inattendue :", error);
-    throw new Error("Une erreur est survenue.");
+    throw new Error(ERROR_MESSAGES.UNKNOWN_ERROR);
+  }
+};
+
+/**
+ * Récupère les clients avec pagination
+ * @param page - Numéro de page (commence à 1)
+ * @param pageSize - Nombre d'éléments par page
+ * @param filters - Filtres optionnels
+ * @returns Résultat paginé avec métadonnées
+ */
+export const getClientsPaginated = async (
+  page: number = 1,
+  pageSize: number = PAGINATION.DEFAULT_PAGE_SIZE,
+  filters?: ClientFilterParams
+): Promise<PaginatedResult<Client>> => {
+  try {
+    // Validation des paramètres
+    const validPage = Math.max(1, page);
+    const validPageSize = Math.min(
+      Math.max(1, pageSize),
+      PAGINATION.MAX_PAGE_SIZE
+    );
+    const skip = (validPage - 1) * validPageSize;
+
+    // Construction du filtre
+    const where: Prisma.ClientWhereInput = {};
+
+    if (filters?.dateDebut || filters?.dateFin) {
+      where.dateEnregistrement = {};
+      if (filters.dateDebut) {
+        where.dateEnregistrement.gte = filters.dateDebut;
+      }
+      if (filters.dateFin) {
+        where.dateEnregistrement.lte = filters.dateFin;
+      }
+    }
+
+    if (filters?.cliniqueId) {
+      where.cliniqueId = filters.cliniqueId;
+    }
+
+    if (filters?.search) {
+      where.OR = [
+        { nom: { contains: filters.search, mode: "insensitive" } },
+        { prenom: { contains: filters.search, mode: "insensitive" } },
+        { code: { contains: filters.search, mode: "insensitive" } },
+        { codeVih: { contains: filters.search, mode: "insensitive" } },
+      ];
+    }
+
+    // Exécution des requêtes en parallèle
+    const [data, total] = await Promise.all([
+      prisma.client.findMany({
+        where,
+        skip,
+        take: validPageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.client.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / validPageSize);
+
+    return {
+      data,
+      total,
+      page: validPage,
+      pageSize: validPageSize,
+      totalPages,
+      hasNextPage: validPage < totalPages,
+      hasPreviousPage: validPage > 1,
+    };
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      console.error("Erreur Prisma :", error.message);
+      throw new Error(ERROR_MESSAGES.DB_CONNECTION_ERROR);
+    }
+
+    console.error("Erreur inattendue :", error);
+    throw new Error(ERROR_MESSAGES.UNKNOWN_ERROR);
   }
 };
 

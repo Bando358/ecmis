@@ -10,7 +10,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import DashboardChart from "./DashboardChart";
+import type { Client, Planning, Visite, Activite } from "@prisma/client";
+import type {
+  FactureExamenType,
+  FactureProduitType,
+  FacturePrestationType,
+  FactureEchographieType,
+} from "@/lib/actions/dashboardActions";
+
+// 🔹 Type strict pour les données du dashboard
+interface DashboardData {
+  facturesExamens?: FactureExamenType[];
+  facturesProduits?: FactureProduitType[];
+  facturesPrestations?: FacturePrestationType[];
+  facturesEchographies?: FactureEchographieType[];
+  clients?: Client[];
+  activites?: Activite[];
+  visites?: Visite[];
+  planning?: Planning[];
+  allData?: { name: string; data: unknown }[];
+}
 
 interface DashboardClientProps {
   // Données des filtres
@@ -18,13 +40,16 @@ interface DashboardClientProps {
   tabPrescripteur: { id: string; name: string; cliniqueId: string }[];
 
   // Données du dashboard
-  dashboardData: Record<string, unknown>;
+  dashboardData: DashboardData;
 
   // Paramètres par défaut
   defaultStartDate: string;
   defaultEndDate: string;
   defaultCliniqueId: string;
   defaultPrescripteurId: string;
+
+  // Message d'erreur (optionnel)
+  errorMessage?: string;
 }
 
 export default function DashboardClient({
@@ -35,14 +60,41 @@ export default function DashboardClient({
   defaultEndDate,
   defaultCliniqueId,
   defaultPrescripteurId,
+  errorMessage,
 }: DashboardClientProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
-  // États locaux
-  const [startDate, setStartDate] = useState<string>(defaultStartDate);
+  // Types
+  type PeriodType =
+    | "quotidien"
+    | "hebdomadaire"
+    | "mensuel"
+    | "bimestriel"
+    | "trimestriel"
+    | "semestriel"
+    | "annuel";
+
+  // 🔹 Calculer le premier jour du mois en cours
+  const getFirstDayOfMonth = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
+  };
+
+  // États locaux pour les filtres (modification en cours)
+  // startDate est toujours le premier jour du mois en cours par défaut
+  const [startDate, setStartDate] = useState<string>(getFirstDayOfMonth());
   const [endDate, setEndDate] = useState<string>(defaultEndDate);
+  const [period, setPeriod] = useState<PeriodType>("hebdomadaire");
+
+  // États appliqués (envoyés au graphique après clic sur Rechercher - uniquement les dates)
+  const [appliedStartDate, setAppliedStartDate] =
+    useState<string>(getFirstDayOfMonth());
+  const [appliedEndDate, setAppliedEndDate] = useState<string>(defaultEndDate);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
   const [selectedClinique, setSelectedClinique] = useState<{
     id: string;
     name: string;
@@ -61,7 +113,7 @@ export default function DashboardClient({
       return { id: "all", name: "Tous les prescripteurs" };
     }
     const prescripteur = tabPrescripteur.find(
-      (p) => p.id === defaultPrescripteurId
+      (p) => p.id === defaultPrescripteurId,
     );
     return prescripteur || { id: "all", name: "Tous les prescripteurs" };
   });
@@ -97,6 +149,72 @@ export default function DashboardClient({
     router,
   ]);
 
+  // 🔹 Fonction pour calculer la date de début selon la période
+  const calculateStartDateFromPeriod = useCallback(
+    (period: PeriodType): string => {
+      const now = new Date();
+      const formatDate = (date: Date) => date.toISOString().split("T")[0];
+
+      switch (period) {
+        case "quotidien":
+          return formatDate(now);
+        case "hebdomadaire": {
+          const weekAgo = new Date(now);
+          weekAgo.setDate(now.getDate() - 7);
+          return formatDate(weekAgo);
+        }
+        case "mensuel":
+          return formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        case "bimestriel":
+          return formatDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+        case "trimestriel":
+          return formatDate(new Date(now.getFullYear(), now.getMonth() - 2, 1));
+        case "semestriel":
+          return formatDate(new Date(now.getFullYear(), now.getMonth() - 5, 1));
+        case "annuel":
+          return formatDate(new Date(now.getFullYear(), 0, 1));
+        default: {
+          const defaultWeekAgo = new Date(now);
+          defaultWeekAgo.setDate(now.getDate() - 7);
+          return formatDate(defaultWeekAgo);
+        }
+      }
+    },
+    [],
+  );
+
+  // 🔹 Gestionnaire pour la sélection de période (recalcule les dates)
+  const handlePeriodChange = useCallback(
+    (value: PeriodType) => {
+      setPeriod(value);
+      // Recalculer la date de début selon la période
+      const newStartDate = calculateStartDateFromPeriod(value);
+      setStartDate(newStartDate);
+      // La date de fin reste aujourd'hui
+      setEndDate(new Date().toISOString().split("T")[0]);
+    },
+    [calculateStartDateFromPeriod],
+  );
+
+  // 🔹 Vérifier si les DATES ont été modifiées (seul critère pour recharger les données)
+  const hasDateChanges = useMemo(() => {
+    return startDate !== appliedStartDate || endDate !== appliedEndDate;
+  }, [startDate, endDate, appliedStartDate, appliedEndDate]);
+
+  // 🔹 IDs des cliniques actuellement sélectionnées (pour filtrage côté client)
+  const currentClinicIds =
+    selectedClinique.id === "all"
+      ? tabClinique.map((c) => c.id)
+      : [selectedClinique.id];
+
+  // 🔹 Gestionnaire pour le bouton Rechercher (uniquement pour les dates)
+  const handleSearch = useCallback(() => {
+    if (!hasDateChanges) return;
+    setAppliedStartDate(startDate);
+    setAppliedEndDate(endDate);
+    setRefreshKey((prev) => prev + 1);
+  }, [startDate, endDate, hasDateChanges]);
+
   // 🔹 Gestionnaire pour la sélection de clinique (mémorisé)
   const handleCliniqueChange = useCallback(
     (value: string) => {
@@ -111,7 +229,7 @@ export default function DashboardClient({
       // Réinitialiser le prescripteur quand on change de clinique
       setSelectedPrescripteur({ id: "all", name: "Tous les prescripteurs" });
     },
-    [tabClinique]
+    [tabClinique],
   );
 
   // 🔹 Gestionnaire pour la sélection de prescripteur (mémorisé)
@@ -126,7 +244,7 @@ export default function DashboardClient({
         }
       }
     },
-    [tabPrescripteur]
+    [tabPrescripteur],
   );
 
   // 🔹 Filtrer les prescripteurs selon la clinique sélectionnée (mémorisé)
@@ -135,7 +253,7 @@ export default function DashboardClient({
       selectedClinique.id === "all"
         ? tabPrescripteur
         : tabPrescripteur.filter((p) => p.cliniqueId === selectedClinique.id),
-    [selectedClinique.id, tabPrescripteur]
+    [selectedClinique.id, tabPrescripteur],
   );
 
   // 🔹 Redirection si non authentifié
@@ -159,6 +277,28 @@ export default function DashboardClient({
 
   return (
     <div className="min-h-screen">
+      {/* 🔹 Affichage de l'erreur si présente */}
+      {errorMessage && (
+        <div className="mx-4 mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <svg
+              className="w-5 h-5 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-red-700 font-medium">Erreur</span>
+          </div>
+          <p className="mt-1 text-red-600 text-sm">{errorMessage}</p>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-start gap-2  sm:gap-3 px-2 sm:px-4 mx-4 sm:mx-4 py-2 sm:py-3 bg-white shadow-md rounded-2xl opacity-90">
         <div className="flex flex-col w-full sm:w-auto">
           <label className="font-semibold mb-1 text-xs sm:text-sm">
@@ -182,6 +322,24 @@ export default function DashboardClient({
             onChange={(e) => setEndDate(e.target.value)}
             className="border rounded-md p-2 w-full text-xs sm:text-sm"
           />
+        </div>
+
+        <div className="flex flex-col">
+          <label className=" font-semibold mb-1">Période</label>
+          <Select value={period} onValueChange={handlePeriodChange}>
+            <SelectTrigger className="w-45">
+              <SelectValue placeholder="Sélectionner une période" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="quotidien">Quotidien</SelectItem>
+              <SelectItem value="hebdomadaire">Hebdomadaire</SelectItem>
+              <SelectItem value="mensuel">Mensuel</SelectItem>
+              <SelectItem value="bimestriel">Bimestriel</SelectItem>
+              <SelectItem value="trimestriel">Trimestriel</SelectItem>
+              <SelectItem value="semestriel">Semestriel</SelectItem>
+              <SelectItem value="annuel">Annuel</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-col w-full sm:w-auto">
@@ -231,18 +389,41 @@ export default function DashboardClient({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="flex flex-col w-full sm:w-auto justify-end">
+          <Button
+            variant={"default"}
+            onClick={handleSearch}
+            disabled={!hasDateChanges}
+            aria-label="Rechercher les données du dashboard"
+            className="mt-6 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Rechercher
+          </Button>
+        </div>
       </div>
 
       <div className="px-4 -py-2">
         <DashboardChart
-          clinicIds={
-            selectedClinique.id === "all"
-              ? tabClinique.map((c) => c.id)
-              : [selectedClinique.id]
+          key={refreshKey}
+          clinicIds={tabClinique.map((c) => c.id)}
+          filterClinicIds={currentClinicIds}
+          filterPrescripteurId={
+            selectedPrescripteur.id !== "all"
+              ? selectedPrescripteur.id
+              : undefined
           }
-          startDate={startDate}
-          endDate={endDate}
-          initialData={dashboardData}
+          startDate={appliedStartDate}
+          endDate={appliedEndDate}
+          period={period}
+          initialData={
+            refreshKey === 0
+              ? (dashboardData as Parameters<
+                  typeof DashboardChart
+                >[0]["initialData"])
+              : undefined
+          }
         />
 
         <div className="mt-4 p-3 sm:p-4 bg-white rounded-lg shadow">

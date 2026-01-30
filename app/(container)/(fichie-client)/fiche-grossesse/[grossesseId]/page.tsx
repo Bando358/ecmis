@@ -76,61 +76,56 @@ export default function GrossessePage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!idUser || !grossesseId) return;
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
+      setIsLoading(true);
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
+        // Étape 1: Requêtes indépendantes en parallèle
+        const [user, resultGrossesse, resultVisites, cliniqueClient] = await Promise.all([
+          getOneUser(idUser),
+          getAllGrossesseByIdClient(grossesseId),
+          getAllVisiteByIdClient(grossesseId),
+          getOneClient(grossesseId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setPrescripteur(user!);
+        setSelectedGrossesse(resultGrossesse as Grossesse[]);
+        setVisites(resultVisites as Visite[]);
+        setClient(cliniqueClient);
+
+        // Étape 2: Requêtes dépendantes en parallèle
+        const [permissions, allPrestataire] = await Promise.all([
+          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
+          cliniqueClient?.idClinique
+            ? getAllUserIncludedIdClinique(cliniqueClient.idClinique)
+            : Promise.resolve([]),
+        ]);
+
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.GROSSESSE
         );
         setPermission(perm || null);
+        setAllPrescripteur(allPrestataire as User[]);
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
+        toast.error("Erreur lors du chargement");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const resultGyneco = await getAllGrossesseByIdClient(grossesseId);
-      setSelectedGrossesse(resultGyneco as Grossesse[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(grossesseId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-
-      const cliniqueClient = await getOneClient(grossesseId);
-      setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
-      }
-      setAllPrescripteur(allPrestataire as User[]);
-    };
-    fetchData();
-  }, [grossesseId]);
+    fetchAllData();
+  }, [idUser, grossesseId]);
 
   // console.log(visites);
 
@@ -176,6 +171,18 @@ export default function GrossessePage({
       console.error("Erreur lors de la création de la Grossesse:", error);
     }
   };
+
+  // Affichage du loader pendant le chargement
+  if (isLoading) {
+    return (
+      <div className="w-full h-96 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-500">Chargement du formulaire...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full relative">

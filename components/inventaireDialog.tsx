@@ -14,9 +14,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Clinique, Inventaire } from "@prisma/client";
+
+// Schéma de validation Zod
+const InventaireSchema = z.object({
+  idClinique: z.string().min(1, "Veuillez sélectionner une clinique"),
+  dateInventaire: z.string().min(1, "Veuillez sélectionner une date"),
+  idUser: z.string().optional(),
+});
+
+type InventaireFormData = z.infer<typeof InventaireSchema>;
 
 interface InventaireDialogProps {
   children: React.ReactNode;
@@ -32,11 +43,18 @@ export function InventaireDialog({
   allInventaires = [],
   onCreateInventaire,
 }: InventaireDialogProps) {
-  const { register, handleSubmit, reset } = useForm<Partial<Inventaire>>();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<InventaireFormData>({
+    resolver: zodResolver(InventaireSchema),
+  });
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = async (data: Partial<Inventaire>) => {
+  const onSubmit = async (data: InventaireFormData) => {
     setIsSubmitting(true);
     try {
       // Vérifier si un inventaire existe déjà pour cette clinique à cette date
@@ -58,7 +76,13 @@ export function InventaireDialog({
         return;
       }
 
-      const nouvelInventaire = await onCreateInventaire(data);
+      // Convertir les données pour correspondre au type attendu
+      const inventaireData = {
+        idClinique: data.idClinique,
+        dateInventaire: new Date(data.dateInventaire),
+        idUser: data.idUser,
+      };
+      const nouvelInventaire = await onCreateInventaire(inventaireData);
       if (nouvelInventaire) {
         setOpen(false);
         reset();
@@ -67,7 +91,7 @@ export function InventaireDialog({
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Erreur lors de la création de l'inventaire";
+          : "Erreur lors de la création de l'inventaire ou Un inventaire existe déjà pour cette clinique à cette date.";
       toast.error(errorMessage);
       console.error(error);
     } finally {
@@ -88,11 +112,13 @@ export function InventaireDialog({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-3">
-              <Label htmlFor="idClinique">Clinique</Label>
+              <Label htmlFor="idClinique">
+                Clinique <span className="text-red-500">*</span>
+              </Label>
               <select
                 id="idClinique"
-                {...register("idClinique", { required: true })}
-                className="border rounded-md p-2"
+                {...register("idClinique")}
+                className={`border rounded-md p-2 ${errors.idClinique ? "border-red-500" : ""}`}
               >
                 <option value="">Sélectionnez une clinique</option>
                 {cliniques.map((clinique) => (
@@ -101,14 +127,23 @@ export function InventaireDialog({
                   </option>
                 ))}
               </select>
+              {errors.idClinique && (
+                <span className="text-red-500 text-sm">{errors.idClinique.message}</span>
+              )}
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="dateInventaire">Date de {`l'inventaire`}</Label>
+              <Label htmlFor="dateInventaire">
+                Date de {`l'inventaire`} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="dateInventaire"
                 type="datetime-local"
-                {...register("dateInventaire", { required: true })}
+                {...register("dateInventaire")}
+                className={errors.dateInventaire ? "border-red-500" : ""}
               />
+              {errors.dateInventaire && (
+                <span className="text-red-500 text-sm">{errors.dateInventaire.message}</span>
+              )}
             </div>
             <div className=" gap-3 hidden">
               <Label htmlFor="idUser">ID Utilisateur</Label>

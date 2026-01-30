@@ -28,11 +28,7 @@ import {
 } from "@/components/ui/form";
 import { TarifPrestation, FacturePrestation } from "@prisma/client";
 import { Input } from "./ui/input";
-import { useState, useEffect } from "react";
-// import { useSession } from "next-auth/react";
-// import { getAllTarifPrestation, getOneClient } from "@/lib/actions/authActions";
-import { getAllTarifPrestation } from "@/lib/actions/tarifPrestationActions";
-import { getOneClient } from "@/lib/actions/clientActions";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 
 interface ProduitModalProps {
@@ -42,7 +38,9 @@ interface ProduitModalProps {
   setFacturePrestation: React.Dispatch<
     React.SetStateAction<FacturePrestation[]>
   >;
-  refreshProduits: () => void; // Ajout de la fonction en prop
+  refreshProduits: () => void;
+  tarifPrestations: TarifPrestation[]; // Données pré-chargées
+  excludedPrestationIds?: string[]; // IDs des prestations déjà ajoutées à exclure
 }
 
 export default function PrestationsModal({
@@ -51,44 +49,26 @@ export default function PrestationsModal({
   refreshProduits,
   idClient,
   setFacturePrestation,
+  tarifPrestations, // Données pré-chargées depuis le serveur
+  excludedPrestationIds = [], // IDs des prestations déjà ajoutées
 }: ProduitModalProps) {
   const [prestations, setPrestations] = useState<TarifPrestation[]>([]);
-  const [selectedPrestationsClinique, setSelectedPrestationsClinique] =
-    useState<TarifPrestation[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<TarifPrestation[]>([]);
+
+  // Filtrer les prestations déjà ajoutées des options disponibles
+  const availablePrestations = useMemo(
+    () => tarifPrestations.filter((p) => !excludedPrestationIds.includes(p.idPrestation)),
+    [tarifPrestations, excludedPrestationIds]
+  );
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
-
-  if (prestations.length > 0) {
-    console.log("prestations prestationModal:", prestations);
-  }
 
   useEffect(() => {
     if (openPrestation === false) {
       setPrestations([]);
     }
   }, [openPrestation]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!idClient) return;
-      const client = await getOneClient(idClient);
-      try {
-        const allProduits = await getAllTarifPrestation();
-        const produitClinique = allProduits.filter(
-          (p: { idClinique: any }) => p.idClinique === client?.idClinique
-        );
-        setSelectedPrestationsClinique(produitClinique);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération de la récupération des produits :",
-          error
-        );
-      }
-    };
-    fetchData();
-  }, [idClient]);
 
   const ajouterPrestations = () => {
     if (selectedOptions.length === 0) {
@@ -142,7 +122,7 @@ export default function PrestationsModal({
         </DialogHeader>
         <div className=" flex flow-row  gap-3">
           <MultiSelectPrestation
-            tarifs={selectedPrestationsClinique}
+            tarifs={availablePrestations}
             selectedOptions={selectedOptions}
             setSelectedOptions={setSelectedOptions}
           />

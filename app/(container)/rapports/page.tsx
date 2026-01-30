@@ -1,11 +1,20 @@
 "use client";
 // rapports/page.tsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Select from "react-select";
 import { Spinner, SpinnerCustom } from "@/components/ui/spinner";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 
 import {
   ClientStatusInfo,
@@ -72,7 +81,7 @@ const FormValuesSchema = z.object({
       z.object({
         value: z.string(),
         label: z.string(),
-      })
+      }),
     )
     .min(1, "Sélectionnez au moins une clinique"),
   idActivite: z
@@ -81,7 +90,7 @@ const FormValuesSchema = z.object({
         value: z.string(),
         label: z.string(),
         idActivite: z.string(),
-      })
+      }),
     )
     .optional(),
 });
@@ -125,7 +134,7 @@ const AnalyseReportPlanning = () => {
   const [cliniques, setCliniques] = useState<CliniqueOption[]>([]);
   const [activites, setActivites] = useState<ActiviteOption[]>([]);
   const [factureLaboratoire, setFactureLaboratoire] = useState<FactureExamen[]>(
-    []
+    [],
   );
   const [resultatLaboratoire, setResultatLaboratoire] = useState<
     (ResultatExamen & { libelleExamen?: string })[]
@@ -146,7 +155,7 @@ const AnalyseReportPlanning = () => {
         (clinique: { id: string; nomClinique: string }) => ({
           value: clinique.id,
           label: clinique.nomClinique,
-        })
+        }),
       );
       setCliniques(cliniqueOptions);
     };
@@ -175,7 +184,7 @@ const AnalyseReportPlanning = () => {
   useEffect(() => {
     const fetchActivites = async () => {
       const selectedCliniqueIds = (watchedIdCliniques || []).map(
-        (cl) => cl.value
+        (cl) => cl.value,
       );
 
       if (selectedCliniqueIds.length === 0) {
@@ -185,13 +194,12 @@ const AnalyseReportPlanning = () => {
 
       try {
         // Récupérer les activités pour les cliniques sélectionnées
-        const activitesData = await getAllActiviteByTabIdClinique(
-          selectedCliniqueIds
-        );
+        const activitesData =
+          await getAllActiviteByTabIdClinique(selectedCliniqueIds);
 
         // Récupérer les lieux pour ces activités
         const activiteIds = activitesData.map(
-          (activite: { id: string }) => activite.id
+          (activite: { id: string }) => activite.id,
         );
         // Récupérer les lieux et normaliser les champs (dateDebut/dateFin -> dateDebutLieu/dateFinLieu)
         const rawLieuxData = await getAllLieuByTabIdActivite(activiteIds);
@@ -231,9 +239,9 @@ const AnalyseReportPlanning = () => {
               return lieux.map((lieu) => ({
                 value: `${activite.id}>${lieu.id}`, // Combinaison unique activité-lieu
                 label: `${activite.libelle} - ${lieu.lieu} (${new Date(
-                  lieu.dateDebutLieu
+                  lieu.dateDebutLieu,
                 ).toLocaleDateString()} - ${new Date(
-                  lieu.dateFinLieu
+                  lieu.dateFinLieu,
                 ).toLocaleDateString()})`,
                 idLieu: lieu.id,
                 idActivite: activite.id,
@@ -253,7 +261,7 @@ const AnalyseReportPlanning = () => {
                 libelleActivite: activite.libelle,
               },
             ];
-          }
+          },
         );
 
         setActivites(activiteOptions);
@@ -268,7 +276,7 @@ const AnalyseReportPlanning = () => {
 
   const getAllClinicNameByIds = (
     clinique: CliniqueOption[],
-    tabId: string[]
+    tabId: string[],
   ): string[] => {
     return clinique
       .filter((clinic) => tabId.includes(clinic.value))
@@ -287,7 +295,7 @@ const AnalyseReportPlanning = () => {
         selectedIds,
         selectedActivites,
         new Date(dateDebut),
-        new Date(dateFin)
+        new Date(dateFin),
       );
 
       setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -297,18 +305,17 @@ const AnalyseReportPlanning = () => {
       const clientDataLabo = await fetchLaboData(
         selectedIds,
         new Date(dateDebut),
-        new Date(dateFin)
+        new Date(dateFin),
       );
       const prescripteurs = await getAllUserIncludedTabIdClinique(selectedIds);
       const allUsers = await getAllUserTabIdClinique(selectedIds);
 
-      setClientLaboData(clientDataLabo);
       console.log("clientDataLabo : ", clientDataLabo);
       const data = await fetchClientsStatusProteges(
         selectedIds,
         selectedActivites,
         new Date(dateDebut),
-        new Date(dateFin)
+        new Date(dateFin),
       );
       setClientDataProtege(data);
       console.log("ClientDataProtege : ", data);
@@ -316,21 +323,21 @@ const AnalyseReportPlanning = () => {
         selectedIds,
         selectedActivites,
         new Date(dateDebut),
-        new Date(dateFin)
+        new Date(dateFin),
       );
       const newAllData = clients.map((client) => ({
         ...client,
         nomPrescripteur: getPrescripteurName(
           client.recapPrescripteur,
           prescripteurs,
-          allUsers
+          allUsers,
         ),
       }));
       const newAllDataIdPrescripteur = newAllData.map((client) => ({
         ...client,
         idPrescripteur: allUsers.find(
           (user: { name: string; id: string }) =>
-            user.name === client.nomPrescripteur
+            user.name === client.nomPrescripteur,
         )?.id,
       }));
 
@@ -339,14 +346,14 @@ const AnalyseReportPlanning = () => {
           newAllData.flatMap((item) =>
             item.recapPrescripteur && item.recapPrescripteur.length > 0
               ? item.recapPrescripteur
-              : []
-          )
-        )
+              : [],
+          ),
+        ),
       );
 
       const prescripteurData = prescripteurNames.map((id) => {
         const prescripteur = allUsers.find(
-          (user: { name: string; id: string }) => user.id === id
+          (user: { name: string; id: string }) => user.id === id,
         );
         return prescripteur
           ? { name: prescripteur.name, id: prescripteur.id }
@@ -355,14 +362,14 @@ const AnalyseReportPlanning = () => {
       setDataPrescripteur(prescripteurData.filter((p) => p.name !== ""));
 
       console.log("clientAllData :", newAllDataIdPrescripteur);
+
+      setClientLaboData(clientDataLabo);
       setClientAllData(newAllDataIdPrescripteur);
       setRapportClinique(rapport);
       setClients(newAllDataIdPrescripteur);
       setSpinner(false);
       setClientData(
-        newAllDataIdPrescripteur.filter(
-          (client) => client.consultationPf === true
-        )
+        newAllDataIdPrescripteur.filter((client) => client.consultationPf === true),
       );
     } catch (error) {
       console.error("Erreur lors de la récupération :", error);
@@ -477,7 +484,7 @@ const AnalyseReportPlanning = () => {
               onChange={(selectedOptions) => {
                 setValue(
                   "idCliniques",
-                  selectedOptions ? [...selectedOptions] : []
+                  selectedOptions ? [...selectedOptions] : [],
                 );
                 // Réinitialiser les activités quand les cliniques changent
                 setValue("idActivite", []);
@@ -506,7 +513,7 @@ const AnalyseReportPlanning = () => {
               onChange={(selectedOptions) => {
                 setValue(
                   "idActivite",
-                  selectedOptions ? [...selectedOptions] : []
+                  selectedOptions ? [...selectedOptions] : [],
                 );
               }}
               getOptionValue={(option) => option.value}
@@ -518,6 +525,37 @@ const AnalyseReportPlanning = () => {
               </span>
             )}
           </div>
+
+          <AnimatePresence>
+            {watch("idActivite") && watch("idActivite")!.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              >
+                <FieldGroup className="mx-auto w-full max-w-240">
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="activites-uniquement"
+                      name="activites-uniquement"
+                      defaultChecked={false}
+                    />
+                    <FieldContent>
+                      <FieldLabel htmlFor="activites-uniquement">
+                        Rapport des activités uniquement
+                      </FieldLabel>
+                      <FieldDescription>
+                        Cochez cette case si vous souhaitez générer un rapport
+                        basé uniquement sur les activités sélectionnées, sans
+                        inclure les données de routine de la clinique.
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <button
             type="submit"
@@ -545,7 +583,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                     clinicIds={watch("idCliniques").map((item) => item.value)}
                   />
@@ -559,7 +597,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -572,7 +610,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -585,7 +623,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -598,7 +636,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -611,7 +649,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -624,7 +662,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -637,7 +675,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -650,7 +688,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -663,7 +701,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -677,7 +715,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -690,7 +728,7 @@ const AnalyseReportPlanning = () => {
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                   />
                 );
@@ -712,7 +750,7 @@ const AnalyseReportPlanning = () => {
                     dataPrescripteur={dataPrescripteur}
                     clinic={getAllClinicNameByIds(
                       cliniques,
-                      watch("idCliniques").map((item) => item.value)
+                      watch("idCliniques").map((item) => item.value),
                     ).join(", ")}
                     dateDebut={watch("dateDebut")}
                     dateFin={watch("dateFin")}
@@ -736,10 +774,10 @@ export default AnalyseReportPlanning;
 const getPrescripteurName = (
   prescripteurIds: string[],
   tabPrescripteur: User[],
-  tabAllUser: User[]
+  tabAllUser: User[],
 ): string => {
   const prescripteur = tabPrescripteur.find((p) =>
-    prescripteurIds.includes(p.id)
+    prescripteurIds.includes(p.id),
   );
   if (prescripteur && prescripteur.name) {
     return prescripteur.name;

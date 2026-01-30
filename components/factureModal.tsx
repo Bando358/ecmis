@@ -34,7 +34,6 @@ import {
 } from "@prisma/client";
 import { Input } from "./ui/input";
 import { useState, useEffect, useMemo } from "react";
-import { getAllTarifProduits } from "@/lib/actions/tarifProduitActions";
 import { Checkbox } from "./ui/checkbox";
 
 interface FactureModalProps {
@@ -46,6 +45,8 @@ interface FactureModalProps {
   setOpen: (open: boolean) => void;
   setFactureProduit: React.Dispatch<React.SetStateAction<FactureProduit[]>>;
   refreshProduits: () => void;
+  tarifProduits: TarifProduit[]; // Données pré-chargées filtrées par clinique
+  excludedProduitIds?: string[]; // IDs des produits déjà ajoutés à exclure
 }
 
 export function FactureModal({
@@ -57,14 +58,18 @@ export function FactureModal({
   refreshProduits,
   idClient,
   setFactureProduit,
+  tarifProduits: tarifProduitsPreloaded, // Données pré-chargées filtrées par clinique
+  excludedProduitIds = [], // IDs des produits déjà ajoutés
 }: FactureModalProps) {
-  const [tarifProduits, setTarifProduits] = useState<TarifProduit[]>([]);
+  const [selectedTarifProduits, setSelectedTarifProduits] = useState<TarifProduit[]>([]);
   const [checkProduits, setCheckProduits] = useState<number>(0);
-  const [selectedProduitsClinique, setSelectedProduitsClinique] = useState<
-    TarifProduit[]
-  >([]);
   const [selectedOptions, setSelectedOptions] = useState<TarifProduit[]>([]);
-  const [loading, setLoading] = useState(false);
+
+  // Filtrer les produits déjà ajoutés des options disponibles
+  const availableProduits = useMemo(
+    () => tarifProduitsPreloaded.filter((p) => !excludedProduitIds.includes(p.id)),
+    [tarifProduitsPreloaded, excludedProduitIds]
+  );
 
   // 🔥 OPTIMISATION : Pré-calcul des données pour éviter les re-rendus
   const { nameProduit, contraceptionProduits } = useMemo(() => {
@@ -81,29 +86,6 @@ export function FactureModal({
     return { nameProduit, contraceptionProduits };
   }, [allProduits]);
 
-  // 🔥 OPTIMISATION : Chargement uniquement des tarifs produits
-  useEffect(() => {
-    if (!open || !clientData?.idClinique) return;
-
-    const fetchTarifProduits = async () => {
-      setLoading(true);
-      try {
-        const allTarifs = await getAllTarifProduits();
-        const produitClinique = allTarifs.filter(
-          (p: { idClinique: string }) => p.idClinique === clientData.idClinique
-        );
-        setSelectedProduitsClinique(produitClinique);
-      } catch (error) {
-        console.error("Erreur lors du chargement des tarifs :", error);
-        toast.error("Erreur lors du chargement des produits");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTarifProduits();
-  }, [open, clientData?.idClinique]);
-
   const ajouterProduits = () => {
     if (selectedOptions.length === 0) {
       toast.error("Veuillez sélectionner au moins un produit.");
@@ -118,7 +100,7 @@ export function FactureModal({
         montantProduit: produit.prixUnitaire,
       }));
 
-    setTarifProduits(nouveauxProduits);
+    setSelectedTarifProduits(nouveauxProduits);
     setSelectedOptions([]);
   };
 
@@ -133,7 +115,7 @@ export function FactureModal({
   // Nettoyer à la fermeture
   useEffect(() => {
     if (!open) {
-      setTarifProduits([]);
+      setSelectedTarifProduits([]);
       setSelectedOptions([]);
       form.reset();
     }
@@ -141,8 +123,8 @@ export function FactureModal({
 
   // 🔥 OPTIMISATION : Regrouper les mises à jour du formulaire
   useEffect(() => {
-    if (tarifProduits.length > 0) {
-      const produit = tarifProduits[0];
+    if (selectedTarifProduits.length > 0) {
+      const produit = selectedTarifProduits[0];
       const quantite = form.watch("quantite") || 1;
       const montantProduit = quantite * produit.prixUnitaire;
       const isContraception = contraceptionProduits(produit.idProduit);
@@ -156,23 +138,23 @@ export function FactureModal({
     form.setValue("idClient", idClient);
     form.setValue("idClinique", tabClinique[0]?.id ?? "");
     form.setValue("dateFacture", new Date());
-  }, [tarifProduits, form, idClient, tabClinique, contraceptionProduits]);
+  }, [selectedTarifProduits, form, idClient, tabClinique, contraceptionProduits]);
 
   // Calcul du montant quand la quantité change
   const quantiteWatched = form.watch("quantite");
   useEffect(() => {
     const quantite = quantiteWatched || 1;
-    const produit = tarifProduits.find(
+    const produit = selectedTarifProduits.find(
       (p) => p.id === form.watch("idTarifProduit")
     );
 
     if (produit) {
       form.setValue("montantProduit", quantite * produit.prixUnitaire);
     }
-  }, [form, quantiteWatched, tarifProduits]);
+  }, [form, quantiteWatched, selectedTarifProduits]);
 
   const onSubmit: SubmitHandler<FactureProduit> = async (data) => {
-    const produit = tarifProduits.find((p) => p.id === data.idTarifProduit);
+    const produit = selectedTarifProduits.find((p) => p.id === data.idTarifProduit);
 
     if (!produit) {
       toast.error("Produit non trouvé");
@@ -198,7 +180,7 @@ export function FactureModal({
 
     setFactureProduit((prev) => [...prev, factureProduit]);
     refreshProduits();
-    setTarifProduits([]);
+    setSelectedTarifProduits([]);
     setSelectedOptions([]);
     form.reset();
   };
@@ -213,16 +195,16 @@ export function FactureModal({
         <div className="flex flow-row gap-3 items-start">
           <div className="flex-1">
             <MultiSelectProduit
-              produits={selectedProduitsClinique}
+              produits={availableProduits}
               allProduits={allProduits}
               selectedOptions={selectedOptions}
               setSelectedOptions={setSelectedOptions}
-              isLoading={loading}
+              isLoading={false}
             />
           </div>
           <Button
             onClick={ajouterProduits}
-            disabled={loading || selectedOptions.length === 0}
+            disabled={selectedOptions.length === 0}
           >
             Ajouter
           </Button>
@@ -242,7 +224,7 @@ export function FactureModal({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tarifProduits.map((produit, index) => (
+                {selectedTarifProduits.map((produit, index) => (
                   <TableRow key={`${produit.id}-${index}`}>
                     <TableCell className="font-medium">
                       {nameProduit(produit.idProduit)}
@@ -347,16 +329,15 @@ export function FactureModal({
             <DialogFooter>
               <Button
                 type="submit"
-                disabled={tarifProduits.length === 0 || loading}
+                disabled={selectedTarifProduits.length === 0}
                 className="min-w-24"
               >
-                {loading ? "Chargement..." : "Valider"}
+                Valider
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
-                disabled={loading}
                 className="min-w-24"
               >
                 Annuler

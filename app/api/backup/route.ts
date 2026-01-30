@@ -52,9 +52,31 @@
 // }
 // app/api/backup/route.ts
 import { neonBackup } from "@/lib/actions/neonBackup";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 300; // 5 minutes max (Vercel limite)
 
 export async function GET() {
+  // 🔒 Vérification de l'authentification et du rôle admin
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return NextResponse.json(
+      { success: false, message: "Non authentifié" },
+      { status: 401 }
+    );
+  }
+
+  // Vérifier le rôle admin (adapter selon votre structure de session)
+  const userRole = (session.user as { role?: string }).role;
+  if (userRole !== "ADMIN") {
+    return NextResponse.json(
+      { success: false, message: "Accès non autorisé - Admin requis" },
+      { status: 403 }
+    );
+  }
+
   return await neonBackup();
 }

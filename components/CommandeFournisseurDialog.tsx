@@ -14,10 +14,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Clinique, CommandeFournisseur } from "@prisma/client";
-// import { getAllClinique } from "@/lib/actions/cliniqueActions";
+
+// Schéma de validation Zod
+const CommandeSchema = z.object({
+  idClinique: z.string().min(1, "Veuillez sélectionner une clinique"),
+  dateCommande: z.string().min(1, "Veuillez sélectionner une date"),
+});
+
+type CommandeFormData = z.infer<typeof CommandeSchema>;
 
 interface CommandeFournisseurDialogProps {
   children: React.ReactNode;
@@ -32,13 +41,24 @@ export function CommandeFournisseurDialog({
   cliniques = [],
   onCreateCommande,
 }: CommandeFournisseurDialogProps) {
-  const { register, handleSubmit, reset, formState: { isSubmitting } } =
-    useForm<Partial<CommandeFournisseur>>();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<CommandeFormData>({
+    resolver: zodResolver(CommandeSchema),
+  });
   const [open, setOpen] = useState(false);
 
-  const onSubmit = async (data: Partial<CommandeFournisseur>) => {
+  const onSubmit = async (data: CommandeFormData) => {
     try {
-      const nouvelleCommande = await onCreateCommande(data);
+      // Convertir les données pour correspondre au type attendu
+      const commandeData = {
+        idClinique: data.idClinique,
+        dateCommande: new Date(data.dateCommande),
+      };
+      const nouvelleCommande = await onCreateCommande(commandeData);
       if (nouvelleCommande) {
         toast.success("Commande créée avec succès!");
         setOpen(false);
@@ -63,11 +83,13 @@ export function CommandeFournisseurDialog({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-3">
-              <Label htmlFor="idClinique">Clinique</Label>
+              <Label htmlFor="idClinique">
+                Clinique <span className="text-red-500">*</span>
+              </Label>
               <select
                 id="idClinique"
-                {...register("idClinique", { required: true })}
-                className="border rounded-md p-2"
+                {...register("idClinique")}
+                className={`border rounded-md p-2 ${errors.idClinique ? "border-red-500" : ""}`}
               >
                 <option value="">Sélectionnez une clinique</option>
                 {cliniques.map((clinique) => (
@@ -76,14 +98,23 @@ export function CommandeFournisseurDialog({
                   </option>
                 ))}
               </select>
+              {errors.idClinique && (
+                <span className="text-red-500 text-sm">{errors.idClinique.message}</span>
+              )}
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="dateCommande">Date de commande</Label>
+              <Label htmlFor="dateCommande">
+                Date de commande <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="dateCommande"
                 type="datetime-local"
-                {...register("dateCommande", { required: true })}
+                {...register("dateCommande")}
+                className={errors.dateCommande ? "border-red-500" : ""}
               />
+              {errors.dateCommande && (
+                <span className="text-red-500 text-sm">{errors.dateCommande.message}</span>
+              )}
             </div>
           </div>
           <DialogFooter>

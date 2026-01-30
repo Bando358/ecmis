@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import {
   Card,
   CardHeader,
@@ -42,19 +42,36 @@ type ChartDataType = {
   total: number;
 };
 
+type PeriodType = "quotidien" | "hebdomadaire" | "mensuel" | "bimestriel" | "trimestriel" | "semestriel" | "annuel";
+
+// Types pour les factures avec ID clinique et prescripteur
+type FactureProduitRaw = { prodMontantTotal?: number; prodIdClinique?: string; prodIdPrescripteur?: string };
+type FacturePrestationRaw = { prestPrixTotal?: number; prestIdClinique?: string; prestIdPrescripteur?: string };
+type FactureExamenRaw = { examPrixTotal?: number; examIdClinique?: string; examIdPrescripteur?: string };
+type FactureEchographieRaw = { echoPrixTotal?: number; echoIdClinique?: string; echoIdPrescripteur?: string };
+
+// Type pour les données de prestation avec ID clinique et utilisateur (prescripteur)
+type PrestationDataItem = {
+  name: string;
+  data: Array<{ idClinique?: string; idUser?: string; [key: string]: unknown }>
+};
+
 interface DashboardChartProps {
   clinicIds: string[];
+  filterClinicIds?: string[];
+  filterPrescripteurId?: string;
   startDate: string;
   endDate: string;
+  period?: PeriodType;
   initialData?: {
-    facturesProduits?: { prodMontantTotal?: number }[];
-    facturesPrestations?: { prestPrixTotal?: number }[];
-    facturesExamens?: { examPrixTotal?: number }[];
-    facturesEchographies?: { echoPrixTotal?: number }[];
+    facturesProduits?: FactureProduitRaw[];
+    facturesPrestations?: FacturePrestationRaw[];
+    facturesExamens?: FactureExamenRaw[];
+    facturesEchographies?: FactureEchographieRaw[];
     clients?: Client[];
     visites?: Visite[];
     planning?: Planning[];
-    allData?: { name: string; data: unknown[] }[];
+    allData?: PrestationDataItem[];
   };
 }
 
@@ -81,97 +98,210 @@ const colors = [
   "#475569",
 ];
 
+// Fonction pour obtenir le numéro de semaine d'une date
+const getWeekNumber = (date: Date): number => {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+};
+
+// Fonction pour obtenir la clé de regroupement selon la période
+const getGroupKey = (date: Date, period: PeriodType): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  switch (period) {
+    case "quotidien":
+      return date.toISOString().split("T")[0];
+    case "hebdomadaire":
+      return `${year}-S${getWeekNumber(date).toString().padStart(2, "0")}`;
+    case "mensuel":
+      return `${year}-${(month + 1).toString().padStart(2, "0")}`;
+    case "bimestriel":
+      return `${year}-B${Math.floor(month / 2) + 1}`;
+    case "trimestriel":
+      return `${year}-T${Math.floor(month / 3) + 1}`;
+    case "semestriel":
+      return `${year}-S${Math.floor(month / 6) + 1}`;
+    case "annuel":
+      return `${year}`;
+    default:
+      return date.toISOString().split("T")[0];
+  }
+};
+
+// Fonction pour formater l'affichage de l'axe X selon la période
+const formatAxisLabel = (value: string, period: PeriodType): string => {
+  const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+  const fullMonthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+  switch (period) {
+    case "quotidien": {
+      const date = new Date(value);
+      return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    }
+    case "hebdomadaire": {
+      // Format: "2024-S01" -> "S1"
+      const weekMatch = value.match(/-S(\d+)$/);
+      return weekMatch ? `S${parseInt(weekMatch[1])}` : value;
+    }
+    case "mensuel": {
+      // Format: "2024-01" -> "Janvier"
+      const parts = value.split("-");
+      if (parts.length === 2) {
+        const monthIndex = parseInt(parts[1]) - 1;
+        return fullMonthNames[monthIndex] || value;
+      }
+      return value;
+    }
+    case "bimestriel": {
+      // Format: "2024-B1" -> "Bim. 1"
+      const bimMatch = value.match(/-B(\d+)$/);
+      return bimMatch ? `Bim. ${bimMatch[1]}` : value;
+    }
+    case "trimestriel": {
+      // Format: "2024-T1" -> "Trim. 1"
+      const trimMatch = value.match(/-T(\d+)$/);
+      return trimMatch ? `Trim. ${trimMatch[1]}` : value;
+    }
+    case "semestriel": {
+      // Format: "2024-S1" -> "Sem. 1"
+      const semMatch = value.match(/-S(\d+)$/);
+      return semMatch ? `Sem. ${semMatch[1]}` : value;
+    }
+    case "annuel": {
+      return value;
+    }
+    default:
+      return value;
+  }
+};
+
 export default function DashboardChart({
   clinicIds,
+  filterClinicIds,
+  filterPrescripteurId,
   startDate,
   endDate,
+  period = "hebdomadaire",
   initialData,
 }: DashboardChartProps) {
-  // Initialisation des states avec les données initiales
-  const [chartData, setChartData] = useState<ChartDataType[]>(() => {
-    if (initialData) {
-      type FactureProduit = { prodMontantTotal?: number };
-      const totalProduits =
-        initialData.facturesProduits?.reduce(
-          (acc: number, f: FactureProduit) => acc + (f.prodMontantTotal ?? 0),
-          0
-        ) || 0;
-      type FacturePrestation = { prestPrixTotal?: number };
-      const totalPrestations =
-        initialData.facturesPrestations?.reduce(
-          (acc: number, f: FacturePrestation) => acc + (f.prestPrixTotal ?? 0),
-          0
-        ) || 0;
-      type FactureExamen = { examPrixTotal?: number };
-      const totalExamens =
-        initialData.facturesExamens?.reduce(
-          (acc: number, f: FactureExamen) => acc + (f.examPrixTotal ?? 0),
-          0
-        ) || 0;
-      type FactureEchographie = { echoPrixTotal?: number };
-      const totalEchographies =
-        initialData.facturesEchographies?.reduce(
-          (acc: number, f: FactureEchographie) => acc + (f.echoPrixTotal ?? 0),
-          0
-        ) || 0;
+  // Utiliser filterClinicIds pour le filtrage côté client, ou clinicIds si non défini
+  const activeClinicIds = filterClinicIds || clinicIds;
+  // Prescripteur sélectionné (undefined = tous les prescripteurs)
+  const activePrescripteurId = filterPrescripteurId;
 
-      const totalGeneral =
-        totalProduits + totalPrestations + totalExamens + totalEchographies;
+  // 🔹 Clé unique pour forcer le re-rendu des graphiques quand les filtres changent
+  const filterKey = `${activeClinicIds.join("-")}-${activePrescripteurId || "all"}-${period}`;
 
-      return [
-        { name: "Produits", total: totalProduits },
-        { name: "Prestations", total: totalPrestations },
-        { name: "Examens", total: totalExamens },
-        { name: "Échographies", total: totalEchographies },
-        { name: "Total", total: totalGeneral },
-      ];
-    }
-    return [];
-  });
+  // 🔹 Stocker les données BRUTES des factures (avec idClinique)
+  const [facturesProduits, setFacturesProduits] = useState<FactureProduitRaw[]>(
+    initialData?.facturesProduits || []
+  );
+  const [facturesPrestations, setFacturesPrestations] = useState<FacturePrestationRaw[]>(
+    initialData?.facturesPrestations || []
+  );
+  const [facturesExamens, setFacturesExamens] = useState<FactureExamenRaw[]>(
+    initialData?.facturesExamens || []
+  );
+  const [facturesEchographies, setFacturesEchographies] = useState<FactureEchographieRaw[]>(
+    initialData?.facturesEchographies || []
+  );
 
   const [clients, setClients] = useState<Client[]>(initialData?.clients || []);
   const [visites, setVisites] = useState<Visite[]>(initialData?.visites || []);
   const [planning, setPlanning] = useState<Planning[]>(
     initialData?.planning || []
   );
-  const [prestationData, setPrestationData] = useState<
-    { name: string; data: unknown[] }[]
-  >(initialData?.allData || []);
+  const [prestationData, setPrestationData] = useState<PrestationDataItem[]>(
+    (initialData?.allData || []) as PrestationDataItem[]
+  );
   const [loading, setLoading] = useState(!initialData);
 
-  // Références pour suivre les valeurs précédentes
-  const prevStartDateRef = useRef<string>(startDate);
-  const prevEndDateRef = useRef<string>(endDate);
-  const prevClinicIdsRef = useRef<string>(clinicIds.join(","));
-  const isFirstRender = useRef(true);
+  // 🔹 Ref pour suivre si les données ont déjà été chargées (évite le rechargement quand l'onglet redevient actif)
+  const hasLoadedData = useRef(false);
+  // 🔹 Ref pour savoir si les données initiales ont été traitées
+  const initialDataProcessed = useRef(false);
+  // 🔹 Ref pour les dates actuellement chargées
+  const loadedDatesRef = useRef({ startDate, endDate });
+
+  // 🔹 Calculer les données du graphique de revenus FILTRÉES par clinique ET prescripteur (memoizé)
+  const chartData: ChartDataType[] = useMemo(() => {
+    // Filtrer les factures par clinique ET prescripteur sélectionnés
+    const filteredProduits = facturesProduits.filter(
+      (f) =>
+        (!f.prodIdClinique || activeClinicIds.includes(f.prodIdClinique)) &&
+        (!activePrescripteurId || f.prodIdPrescripteur === activePrescripteurId)
+    );
+    const filteredPrestations = facturesPrestations.filter(
+      (f) =>
+        (!f.prestIdClinique || activeClinicIds.includes(f.prestIdClinique)) &&
+        (!activePrescripteurId || f.prestIdPrescripteur === activePrescripteurId)
+    );
+    const filteredExamens = facturesExamens.filter(
+      (f) =>
+        (!f.examIdClinique || activeClinicIds.includes(f.examIdClinique)) &&
+        (!activePrescripteurId || f.examIdPrescripteur === activePrescripteurId)
+    );
+    const filteredEchographies = facturesEchographies.filter(
+      (f) =>
+        (!f.echoIdClinique || activeClinicIds.includes(f.echoIdClinique)) &&
+        (!activePrescripteurId || f.echoIdPrescripteur === activePrescripteurId)
+    );
+
+    // Calculer les totaux
+    const totalProduits = filteredProduits.reduce(
+      (acc, f) => acc + (f.prodMontantTotal ?? 0),
+      0
+    );
+    const totalPrestations = filteredPrestations.reduce(
+      (acc, f) => acc + (f.prestPrixTotal ?? 0),
+      0
+    );
+    const totalExamens = filteredExamens.reduce(
+      (acc, f) => acc + (f.examPrixTotal ?? 0),
+      0
+    );
+    const totalEchographies = filteredEchographies.reduce(
+      (acc, f) => acc + (f.echoPrixTotal ?? 0),
+      0
+    );
+
+    const totalGeneral =
+      totalProduits + totalPrestations + totalExamens + totalEchographies;
+
+    return [
+      { name: "Produits", total: totalProduits },
+      { name: "Prestations", total: totalPrestations },
+      { name: "Examens", total: totalExamens },
+      { name: "Échographies", total: totalEchographies },
+      { name: "Total", total: totalGeneral },
+    ];
+  }, [facturesProduits, facturesPrestations, facturesExamens, facturesEchographies, activeClinicIds, activePrescripteurId]);
 
   useEffect(() => {
-    const currentClinicIdsStr = clinicIds.join(",");
-
-    // Si c'est le premier render et qu'on a des données initiales, ne pas recharger
-    if (isFirstRender.current && initialData && chartData.length > 0) {
-      isFirstRender.current = false;
-      prevStartDateRef.current = startDate;
-      prevEndDateRef.current = endDate;
-      prevClinicIdsRef.current = currentClinicIdsStr;
+    // 🔹 Traiter les données initiales au premier rendu
+    if (initialData && !initialDataProcessed.current) {
+      initialDataProcessed.current = true;
+      hasLoadedData.current = true;
+      loadedDatesRef.current = { startDate, endDate };
+      setLoading(false);
+      // Les états sont déjà initialisés avec initialData, pas besoin de fetch
       return;
     }
 
-    isFirstRender.current = false;
-
-    // Vérifier si les paramètres ont changé
-    const datesChanged =
-      prevStartDateRef.current !== startDate ||
-      prevEndDateRef.current !== endDate;
-
-    const clinicIdsChanged = prevClinicIdsRef.current !== currentClinicIdsStr;
-
-    // Si rien n'a changé, ne pas recharger les données
-    if (!datesChanged && !clinicIdsChanged) {
-      return;
-    }
-
+    // Si pas de clinicIds, ne pas charger
     if (!clinicIds || clinicIds.length === 0) return;
+
+    // 🔹 Vérifier si les dates ont réellement changé (évite le rechargement quand l'onglet redevient actif)
+    const datesChanged =
+      loadedDatesRef.current.startDate !== startDate ||
+      loadedDatesRef.current.endDate !== endDate;
+
+    // Si les données sont déjà chargées et les dates n'ont pas changé, ne pas recharger
+    if (hasLoadedData.current && !datesChanged) {
+      return;
+    }
 
     const fetchData = async () => {
       setLoading(true);
@@ -182,44 +312,19 @@ export default function DashboardChart({
           new Date(endDate)
         );
 
-        // Agrégation des totaux par catégorie
-        const totalProduits =
-          data.facturesProduits?.reduce(
-            (acc: number, f: { prodMontantTotal?: number }) =>
-              acc + (f.prodMontantTotal ?? 0),
-            0
-          ) || 0;
-        type FacturePrestation = { prestPrixTotal?: number };
-        const totalPrestations =
-          data.facturesPrestations?.reduce(
-            (acc: number, f: FacturePrestation) =>
-              acc + (f.prestPrixTotal ?? 0),
-            0
-          ) || 0;
-        type FactureExamen = { examPrixTotal?: number };
-        const totalExamens =
-          data.facturesExamens?.reduce(
-            (acc: number, f: FactureExamen) => acc + (f.examPrixTotal ?? 0),
-            0
-          ) || 0;
-        type FactureEchographie = { echoPrixTotal?: number };
-        const totalEchographies =
-          data.facturesEchographies?.reduce(
-            (acc: number, f: FactureEchographie) =>
-              acc + (f.echoPrixTotal ?? 0),
-            0
-          ) || 0;
-
-        const totalGeneral =
-          totalProduits + totalPrestations + totalExamens + totalEchographies;
-
-        setChartData([
-          { name: "Produits", total: totalProduits },
-          { name: "Prestations", total: totalPrestations },
-          { name: "Examens", total: totalExamens },
-          { name: "Échographies", total: totalEchographies },
-          { name: "Total", total: totalGeneral },
-        ]);
+        // 🔹 Stocker les données BRUTES des factures (avec idClinique)
+        setFacturesProduits(
+          Array.isArray(data.facturesProduits) ? data.facturesProduits : []
+        );
+        setFacturesPrestations(
+          Array.isArray(data.facturesPrestations) ? data.facturesPrestations : []
+        );
+        setFacturesExamens(
+          Array.isArray(data.facturesExamens) ? data.facturesExamens : []
+        );
+        setFacturesEchographies(
+          Array.isArray(data.facturesEchographies) ? data.facturesEchographies : []
+        );
         setClients(Array.isArray(data.clients) ? data.clients : []);
         setVisites(Array.isArray(data.visites) ? data.visites : []);
         setPlanning(Array.isArray(data.planning) ? data.planning : []);
@@ -232,10 +337,9 @@ export default function DashboardChart({
             : []
         );
 
-        // Mettre à jour les références
-        prevStartDateRef.current = startDate;
-        prevEndDateRef.current = endDate;
-        prevClinicIdsRef.current = currentClinicIdsStr;
+        // 🔹 Marquer les données comme chargées et sauvegarder les dates
+        hasLoadedData.current = true;
+        loadedDatesRef.current = { startDate, endDate };
       } catch (error) {
         console.error("Erreur lors du chargement du graphique :", error);
       } finally {
@@ -244,62 +348,87 @@ export default function DashboardChart({
     };
 
     fetchData();
-  }, [clinicIds, startDate, endDate]);
+  }, [clinicIds, startDate, endDate, initialData]);
 
-  // Calcul des totaux pour la légende
-  const totalNouveaux = Array.isArray(clients)
-    ? clients.filter((client) => client.statusClient === "nouveau").length
-    : 0;
-  const totalAnciens = Array.isArray(clients)
-    ? clients.filter((client) => client.statusClient === "ancien").length
-    : 0;
-  const totalClients = Array.isArray(clients) ? clients.length : 0;
+  // 🔹 Filtrer les clients par clinique ET prescripteur sélectionnés (memoizé)
+  const clientsFilteredByClinic = useMemo(() => {
+    if (!Array.isArray(clients)) return [];
+    return clients.filter((client) => {
+      const matchesClinic = activeClinicIds.includes(client.cliniqueId);
+      // Filtrer par prescripteur si un est sélectionné (utilise idUser du client)
+      const matchesPrescripteur = !activePrescripteurId ||
+        (client as unknown as { idUser?: string }).idUser === activePrescripteurId;
+      return matchesClinic && matchesPrescripteur;
+    });
+  }, [clients, activeClinicIds, activePrescripteurId]);
 
-  // 🔹 Préparation des données pour le graphique Statut des Clients
-  const groupedData: Record<string, { nouveau: number; ancien: number }> = {};
+  // Calcul des totaux pour la légende (memoizé)
+  const { totalNouveaux, totalAnciens, totalClients } = useMemo(() => ({
+    totalNouveaux: clientsFilteredByClinic.filter(
+      (client) => client.statusClient === "nouveau"
+    ).length,
+    totalAnciens: clientsFilteredByClinic.filter(
+      (client) => client.statusClient === "ancien"
+    ).length,
+    totalClients: clientsFilteredByClinic.length,
+  }), [clientsFilteredByClinic]);
 
-  const filteredClients = Array.isArray(clients)
-    ? clients.filter((client) => {
-        const clientDate = new Date(client.dateEnregistrement);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        return (
-          clientDate >= start &&
-          clientDate <= end &&
-          !isNaN(clientDate.getTime())
-        );
-      })
-    : [];
+  // 🔹 Préparation des données pour le graphique Statut des Clients (memoizé)
+  const statusChartData = useMemo(() => {
+    const groupedData: Record<string, { nouveau: number; ancien: number }> = {};
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-  filteredClients.forEach((client) => {
-    const dateKey = new Date(client.dateEnregistrement)
-      .toISOString()
-      .split("T")[0];
+    const filteredClients = clientsFilteredByClinic.filter((client) => {
+      const clientDate = new Date(client.dateEnregistrement);
+      return (
+        clientDate >= start &&
+        clientDate <= end &&
+        !isNaN(clientDate.getTime())
+      );
+    });
 
-    if (!groupedData[dateKey]) {
-      groupedData[dateKey] = { nouveau: 0, ancien: 0 };
-    }
+    filteredClients.forEach((client) => {
+      const clientDate = new Date(client.dateEnregistrement);
+      const dateKey = getGroupKey(clientDate, period);
 
-    if (client.statusClient === "nouveau") {
-      groupedData[dateKey].nouveau++;
-    } else if (client.statusClient === "ancien") {
-      groupedData[dateKey].ancien++;
-    }
-  });
+      if (!groupedData[dateKey]) {
+        groupedData[dateKey] = { nouveau: 0, ancien: 0 };
+      }
 
-  const statusChartData = Object.entries(groupedData)
-    .map(([date, statuses]) => ({
-      date,
-      nouveau: statuses.nouveau,
-      ancien: statuses.ancien,
-    }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      if (client.statusClient === "nouveau") {
+        groupedData[dateKey].nouveau++;
+      } else if (client.statusClient === "ancien") {
+        groupedData[dateKey].ancien++;
+      }
+    });
+
+    return Object.entries(groupedData)
+      .map(([date, statuses]) => ({
+        date,
+        nouveau: statuses.nouveau,
+        ancien: statuses.ancien,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [clientsFilteredByClinic, startDate, endDate, period]);
+
+  // 🔹 Filtrer les visites par clinique ET prescripteur sélectionnés (memoizé)
+  const visitesFilteredByClinic = useMemo(() => {
+    if (!Array.isArray(visites)) return [];
+    return visites.filter((visite) => {
+      const matchesClinic = activeClinicIds.includes(visite.idClinique);
+      // Filtrer par prescripteur si un est sélectionné (utilise idUser de la visite)
+      const matchesPrescripteur = !activePrescripteurId ||
+        (visite as unknown as { idUser?: string }).idUser === activePrescripteurId;
+      return matchesClinic && matchesPrescripteur;
+    });
+  }, [visites, activeClinicIds, activePrescripteurId]);
 
   // 🔹 Préparation des données pour les motifs de visite
   const motifVisiteData = () => {
-    if (!Array.isArray(visites)) return [];
+    if (visitesFilteredByClinic.length === 0) return [];
     const motifsCount: Record<string, number> = {};
-    visites.forEach((visite) => {
+    visitesFilteredByClinic.forEach((visite) => {
       const motif = visite.motifVisite || "Non spécifié";
       motifsCount[motif] = (motifsCount[motif] || 0) + 1;
     });
@@ -310,45 +439,87 @@ export default function DashboardChart({
       .slice(0, 6);
   };
 
-  // 🔹 Préparation des données pour les types de prestations
+  // 🔹 Préparation des données pour les types de prestations (FILTRÉES par clinique ET prescripteur)
   const prestationByType = () => {
     if (!Array.isArray(prestationData) || prestationData.length === 0)
       return [];
 
-    return prestationData.map((item, index) => ({
-      name: item.name,
-      total: Array.isArray(item.data) ? item.data.length : 0,
-      color: colors[index % colors.length],
-    }));
+    return prestationData.map((item, index) => {
+      // Filtrer les données par clinique ET prescripteur sélectionnés
+      const filteredData = Array.isArray(item.data)
+        ? item.data.filter((d) => {
+            // Vérifier les différents noms de champs idClinique selon le type
+            const clinicId =
+              d.idClinique ||
+              (d as Record<string, unknown>).infertIdClinique ||
+              (d as Record<string, unknown>).obstIdClinique ||
+              (d as Record<string, unknown>).accouchementIdClinique ||
+              (d as Record<string, unknown>).cponIdClinique ||
+              (d as Record<string, unknown>).saaIdClinique ||
+              (d as Record<string, unknown>).istIdClinique ||
+              (d as Record<string, unknown>).depistageVihIdClinique ||
+              (d as Record<string, unknown>).pecVihIdClinique ||
+              (d as Record<string, unknown>).mdgIdClinique ||
+              (d as Record<string, unknown>).vbgIdClinique ||
+              (d as Record<string, unknown>).testIdClinique;
+
+            // Vérifier le champ idUser (prescripteur)
+            const userId = d.idUser || (d as Record<string, unknown>).idUser;
+
+            // Filtrer par clinique ET prescripteur
+            const matchesClinic = !clinicId || activeClinicIds.includes(String(clinicId));
+            const matchesPrescripteur = !activePrescripteurId || userId === activePrescripteurId;
+
+            return matchesClinic && matchesPrescripteur;
+          })
+        : [];
+
+      return {
+        name: item.name,
+        total: filteredData.length,
+        color: colors[index % colors.length],
+      };
+    });
   };
+
+  // 🔹 Filtrer le planning par clinique ET prescripteur sélectionnés
+  const planningFilteredByClinic = Array.isArray(planning)
+    ? planning.filter((plan) => {
+        const matchesClinic = activeClinicIds.includes(plan.idClinique);
+        const matchesPrescripteur = !activePrescripteurId || plan.idUser === activePrescripteurId;
+        return matchesClinic && matchesPrescripteur;
+      })
+    : [];
 
   // 🔹 Préparation des données pour les Utilisateurs PF
   const pfDataByDate: Record<string, { nouveaux: number; anciens: number }> =
     {};
 
-  planning.forEach((plan) => {
-    const visite = visites.find((v) => v.id === plan.idVisite);
+  planningFilteredByClinic.forEach((plan) => {
+    const visite = visitesFilteredByClinic.find((v) => v.id === plan.idVisite);
     if (!visite) return;
 
     const rawDate = visite.dateVisite;
-    let dateString = "";
+    let dateObj: Date | null = null;
 
     if (typeof rawDate === "string") {
-      dateString = rawDate;
+      dateObj = new Date(rawDate);
     } else if (rawDate instanceof Date) {
-      dateString = rawDate.toISOString().split("T")[0];
+      dateObj = rawDate;
     }
 
-    if (!dateString) return;
+    if (!dateObj || isNaN(dateObj.getTime())) return;
 
-    if (!pfDataByDate[dateString]) {
-      pfDataByDate[dateString] = { nouveaux: 0, anciens: 0 };
+    const dateKey = getGroupKey(dateObj, period);
+
+    if (!pfDataByDate[dateKey]) {
+      pfDataByDate[dateKey] = { nouveaux: 0, anciens: 0 };
     }
 
     if (plan.statut === "nu") {
-      pfDataByDate[dateString].nouveaux++;
+      pfDataByDate[dateKey].nouveaux++;
     } else if (plan.statut === "au") {
-      pfDataByDate[dateString].anciens++;
+      pfDataByDate[dateKey].anciens++;
     }
   });
 
@@ -359,7 +530,7 @@ export default function DashboardChart({
       nouveaux: counts.nouveaux,
       anciens: counts.anciens,
     }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   // Configuration des chart
   const chartMotifConfig = {
@@ -437,7 +608,7 @@ export default function DashboardChart({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
         {chartData.map((data, idx) => (
           <Card
-            key={idx}
+            key={`revenue-${idx}-${filterKey}`}
             className="
         group relative overflow-hidden
         rounded-2xl 
@@ -583,7 +754,7 @@ export default function DashboardChart({
               ) : statusChartData.length === 0 ? (
                 <EmptyState />
               ) : (
-                <AreaChart data={statusChartData}>
+                <AreaChart key={`status-chart-${filterKey}`} data={statusChartData}>
                   <CartesianGrid
                     vertical={false}
                     stroke="#dbeafe"
@@ -596,13 +767,7 @@ export default function DashboardChart({
                     tickMargin={8}
                     minTickGap={32}
                     tick={{ fill: "#1d4ed8" }}
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return date.toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                      });
-                    }}
+                    tickFormatter={(value) => formatAxisLabel(value, period)}
                   />
                   <YAxis
                     tickLine={false}
@@ -613,13 +778,7 @@ export default function DashboardChart({
                     cursor={false}
                     content={
                       <ChartTooltipContent
-                        labelFormatter={(value) =>
-                          new Date(value).toLocaleDateString("fr-FR", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        }
+                        labelFormatter={(value) => formatAxisLabel(value, period)}
                         indicator="dot"
                       />
                     }
@@ -770,7 +929,7 @@ export default function DashboardChart({
         <CardContent className="relative z-10 px-2 h-45 sm:px-6">
           {loading ? (
             <LoadingState message="Chargement des motifs de visite..." />
-          ) : visites.length === 0 ? (
+          ) : visitesFilteredByClinic.length === 0 ? (
             <EmptyState message="Aucune visite enregistrée pour cette période." />
           ) : (
             <ChartContainer
@@ -778,6 +937,7 @@ export default function DashboardChart({
               className="aspect-auto h-full w-full"
             >
               <BarChart
+                key={`motif-chart-${filterKey}`}
                 data={motifData}
                 margin={{
                   top: 20,
@@ -863,7 +1023,7 @@ export default function DashboardChart({
             Analyse des motifs de visite <TrendingUp className="h-4 w-4" />
           </div>
           <div className="text-blue-600/80 leading-none">
-            {visites.length} visites analysées sur la période sélectionnée
+            {visitesFilteredByClinic.length} visites analysées sur la période sélectionnée
           </div>
         </CardFooter>
       </Card>
@@ -922,7 +1082,7 @@ export default function DashboardChart({
               ) : transformedDataStatusPF.length === 0 ? (
                 <EmptyState message="Aucune donnée utilisateur PF disponible pour cette période." />
               ) : (
-                <LineChart data={transformedDataStatusPF}>
+                <LineChart key={`pf-chart-${filterKey}`} data={transformedDataStatusPF}>
                   <CartesianGrid
                     vertical={false}
                     stroke="#dbeafe"
@@ -934,13 +1094,7 @@ export default function DashboardChart({
                     axisLine={false}
                     tickMargin={8}
                     tick={{ fill: "#1d4ed8" }}
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return date.toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                      });
-                    }}
+                    tickFormatter={(value) => formatAxisLabel(value, period)}
                   />
                   <YAxis
                     tickLine={false}
@@ -951,13 +1105,7 @@ export default function DashboardChart({
                     cursor={false}
                     content={
                       <ChartTooltipContent
-                        labelFormatter={(value) =>
-                          new Date(value).toLocaleDateString("fr-FR", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        }
+                        labelFormatter={(value) => formatAxisLabel(value, period)}
                         indicator="line"
                       />
                     }
@@ -1045,10 +1193,10 @@ export default function DashboardChart({
             Analyse des utilisateurs PF <TrendingUp className="h-4 w-4" />
           </div>
           <div className="text-blue-600/80 leading-none">
-            {planning.length} consultations de PF analysées :{" "}
-            {planning.filter((item) => item.statut === "nu").length} nouveaux
+            {planningFilteredByClinic.length} consultations de PF analysées :{" "}
+            {planningFilteredByClinic.filter((item) => item.statut === "nu").length} nouveaux
             utilisateurs et{" "}
-            {planning.filter((item) => item.statut === "au").length} anciens
+            {planningFilteredByClinic.filter((item) => item.statut === "au").length} anciens
             utilisateurs.
           </div>
         </CardFooter>
@@ -1108,6 +1256,7 @@ export default function DashboardChart({
               className="aspect-auto h-full w-full"
             >
               <BarChart
+                key={`prestation-chart-${filterKey}`}
                 data={prestationDataChart}
                 margin={{
                   top: 20,

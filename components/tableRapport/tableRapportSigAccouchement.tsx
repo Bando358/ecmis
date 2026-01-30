@@ -10,6 +10,10 @@ import {
   TableRow,
 } from "../ui/table";
 import { Separator } from "../ui/separator";
+import { Button } from "../ui/button";
+import { Spinner } from "../ui/spinner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // types.ts ou en haut du fichier
 // ageRanges removed: tables will show totals only
@@ -125,10 +129,17 @@ const tabComplications = [
 
 export default function TableRapportSigAccouchement({
   clientData,
+  dateDebut,
+  dateFin,
+  clinic,
 }: {
   clientData: ClientData[];
+  dateDebut?: string;
+  dateFin?: string;
+  clinic?: string;
 }) {
   const [converted, setConverted] = useState<convertedType[]>([]);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   useEffect(() => {
     if (!clientData || clientData.length === 0) {
@@ -222,8 +233,246 @@ export default function TableRapportSigAccouchement({
     depasseUnTrimestre(new Date("2025-01-01"), new Date("2025-03-30"))
   ); // false
 
+  // Export to PDF using jsPDF
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Charger le logo
+      let logoBase64 = "";
+      try {
+        const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+        const logoBlob = await logoResponse.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(logoBlob);
+        });
+      } catch (err) {
+        console.warn("Logo non trouvé:", err);
+      }
+
+      // Ajouter le logo (60% de la largeur, centré)
+      if (logoBase64) {
+        const logoWidth = pageWidth * 0.6;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoBase64, "PNG", logoX, 10, logoWidth, logoHeight);
+      }
+
+      // Détection du mois complet
+      let periodeText = "";
+      if (dateDebut && dateFin) {
+        const debut = new Date(dateDebut);
+        const fin = new Date(dateFin);
+        const isFullMonth =
+          debut.getDate() === 1 &&
+          fin.getDate() ===
+            new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate() &&
+          debut.getMonth() === fin.getMonth() &&
+          debut.getFullYear() === fin.getFullYear();
+
+        if (isFullMonth) {
+          const moisNoms = [
+            "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+            "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE",
+          ];
+          periodeText = `${moisNoms[debut.getMonth()]} ${debut.getFullYear()}`;
+        } else {
+          periodeText = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+        }
+      }
+
+      // Titre et période
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rapport SIG Accouchement${clinic ? ` - ${clinic}` : ""}`, pageWidth / 2, 35, {
+        align: "center",
+      });
+      if (periodeText) {
+        doc.setFontSize(11);
+        doc.text(`Période: ${periodeText}`, pageWidth / 2, 42, {
+          align: "center",
+        });
+      }
+
+      let currentY = periodeText ? 50 : 45;
+
+      // Tableau 1: Lieu d'accouchement
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 6 : Lieu d'accouchement", 14, currentY);
+      currentY += 5;
+
+      const lieuHeaders = [
+        ["Indicateurs", ...ageRanges.map((r) => r.max < 120 ? `${r.min}-${r.max} ans` : `${r.min} ans et +`), "Total"],
+      ];
+      const lieuRows = tabLieuAccouchement.map((item) => {
+        const row = [item.label];
+        ageRanges.forEach((range) => {
+          row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+        });
+        row.push(String(countClientBoolean(converted, 0, 200, item.value, true)));
+        return row;
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: lieuHeaders,
+        body: lieuRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 70 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 2: Vaccination
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 7 : Statut vaccinal au VAT à l'accouchement", 14, currentY);
+      currentY += 5;
+
+      const vaccHeaders = [["Indicateurs", "Total"]];
+      const vaccRows = tabVaccination.map((item) => [
+        item.label,
+        String(countClientBoolean(converted, 0, 200, item.value, true)),
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: vaccHeaders,
+        body: vaccRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 100 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 3: Issue de la grossesse
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 8 : Issue de la grossesse", 14, currentY);
+      currentY += 5;
+
+      const naissHeaders = [["Indicateurs", "Valeur"]];
+      const totals = computeNaissanceValues(converted);
+      const naissRows = [
+        ...tabNaissance.map((item) => {
+          let value = 0;
+          switch (item.value) {
+            case "naissanceVivante": value = totals.naissanceVivante; break;
+            case "mortNeFrais": value = totals.mortNeFrais; break;
+            case "mortNeMacere": value = totals.mortNeMacere; break;
+            case "enfantsNesVivantsPoidsInf2500": value = totals.enfantsNesVivantsPoidsInf2500; break;
+            case "prematures": value = totals.prematures; break;
+            case "nouveauNesProtegesTetanos": value = totals.nouveauNesProtegesTetanos; break;
+          }
+          return [item.label, String(value)];
+        }),
+        ...tabNaissanceAdditional.map((item) => [
+          item.label,
+          String(countClientBoolean(converted, 0, 200, item.value, true)),
+        ]),
+      ];
+
+      autoTable(doc, {
+        startY: currentY,
+        head: naissHeaders,
+        body: naissRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 120 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 4: Evacuation
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 9 : Evacuation de la mère et du nouveau-né", 14, currentY);
+      currentY += 5;
+
+      const evacHeaders = [["Indicateurs", "Valeur"]];
+      const evacRows = tabEvacuation.map((item) => [
+        item.label,
+        String(countClientBoolean(converted, 0, 200, item.value, true)),
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: evacHeaders,
+        body: evacRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 120 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 5: Complications
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Complications", 14, currentY);
+      currentY += 5;
+
+      const compHeaders = [["Indicateurs", "Valeur"]];
+      const compRows = tabComplications.map((item) => [
+        item.label,
+        String(countClientBoolean(converted, 0, 200, item.value, true)),
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: compHeaders,
+        body: compRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 150 } },
+      });
+
+      // Section signature (même page que le dernier tableau)
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Réalisé par: ____________________________", 14, currentY);
+      doc.text("Signature: ____________________________", pageWidth - 100, currentY);
+
+      doc.save(`Rapport_SIG_Accouchement_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    } catch (error) {
+      console.error("Erreur export PDF:", error);
+    } finally {
+      setSpinnerPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full">
+      <Button
+        onClick={exportToPdf}
+        type="button"
+        disabled={spinnerPdf}
+        className="bg-red-500 mx-auto text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+      >
+        <Spinner
+          show={spinnerPdf}
+          size={"small"}
+          className="text-white dark:text-slate-400"
+        />
+        Exporter PDF
+      </Button>
       <Separator className="bg-green-300"></Separator>
       {/* Nouveaux tableaux : Lieu d'accouchement, Vaccination, Naissances, Evacuations, Complications */}
       <h2 className="font-bold">Tableau 6 : {"Lieu d'accouchement"}</h2>

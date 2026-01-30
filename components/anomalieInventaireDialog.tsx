@@ -13,10 +13,19 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { useState } from "react";
 import { AnomalieInventaire } from "@prisma/client";
 import { Textarea } from "./ui/textarea";
+
+// Schéma de validation Zod
+const AnomalieSchema = z.object({
+  description: z.string().min(1, "Veuillez décrire l'anomalie"),
+});
+
+type AnomalieFormData = z.infer<typeof AnomalieSchema>;
 
 interface AnomalieInventaireDialogProps {
   children: React.ReactNode;
@@ -41,11 +50,17 @@ export function AnomalieInventaireDialog({
   produit,
   onCreateAnomalie,
 }: AnomalieInventaireDialogProps) {
-  const { register, handleSubmit, reset } =
-    useForm<Partial<AnomalieInventaire>>();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<AnomalieFormData>({
+    resolver: zodResolver(AnomalieSchema),
+  });
   const [open, setOpen] = useState(false);
 
-  const onSubmit = async (data: Partial<AnomalieInventaire>) => {
+  const onSubmit = async (data: AnomalieFormData) => {
     const newData = {
       id: "",
       idTarifProduit: idTarifProduit,
@@ -53,7 +68,7 @@ export function AnomalieInventaireDialog({
       idDetailInventaire: idDetailInventaire,
       quantiteManquante: ecart,
       dateAnomalie: new Date(),
-      description: data.description || null,
+      description: data.description,
     };
     try {
       const nouvelleAnomalie = await onCreateAnomalie(newData);
@@ -93,19 +108,25 @@ export function AnomalieInventaireDialog({
             </div>
 
             <div className="grid gap-3">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">
+                Description <span className="text-red-500">*</span>
+              </Label>
               <Textarea
                 id="description"
-                {...register("description", { required: true })}
+                {...register("description")}
                 placeholder="Description de l'anomalie"
+                className={errors.description ? "border-red-500" : ""}
               />
+              {errors.description && (
+                <span className="text-red-500 text-sm">{errors.description.message}</span>
+              )}
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Annuler</Button>
             </DialogClose>
-            <Button type="submit">Enregistrer {"l'anomalie"}</Button>
+            <Button type="submit" disabled={isSubmitting} >Enregistrer {"l'anomalie"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

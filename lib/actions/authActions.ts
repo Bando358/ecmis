@@ -72,14 +72,17 @@ export async function registerAdmin(user: RegisterInput) {
       [];
 
     // Vérifier si l'email correspond à un admin
-    const role = adminEmails.includes(email.toLowerCase()) && "ADMIN";
+    const isAdmin = adminEmails.includes(email.toLowerCase());
 
-    // Créer l'utilisateur
-    if (!role) {
+    // Créer l'utilisateur - Seuls les emails admin peuvent créer un compte admin
+    if (!isAdmin) {
       throw new Error("Seuls les emails admin peuvent créer un compte admin.");
-      return null;
-    } else {
-      const newUser = await prisma.user.create({
+    }
+
+    // Assigner le rôle admin (string, pas booléen)
+    const role = "ADMIN";
+
+    const newUser = await prisma.user.create({
         data: {
           ...rest,
           email,
@@ -96,7 +99,6 @@ export async function registerAdmin(user: RegisterInput) {
       });
 
       return newUser;
-    }
   } catch (error) {
     console.error("Error creating user:", error);
     throw error;

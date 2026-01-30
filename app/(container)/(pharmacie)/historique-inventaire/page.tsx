@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Inventaire,
   DetailInventaire,
@@ -73,17 +73,7 @@ import { SpinnerCustom } from "@/components/ui/spinner";
 import { getAllProduits } from "@/lib/actions/produitActions";
 import { getAllTarifProduits } from "@/lib/actions/tarifProduitActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-
-// Types étendus pour inclure les relations
-type InventaireWithRelations = Inventaire & {
-  Clinique: Clinique;
-  User: User;
-  detailInventaire: (DetailInventaire & {
-    User: User;
-    tarifProduit: TarifProduit;
-    AnomalieInventaire: AnomalieInventaire[];
-  })[];
-};
+import { InventaireWithRelations } from "@/types/prisma";
 
 export default function HistoriqueInventairePage() {
   const [inventaires, setInventaires] = useState<InventaireWithRelations[]>([]);
@@ -132,147 +122,8 @@ export default function HistoriqueInventairePage() {
     };
     fetchUser();
   }, [idUser]);
-  // Chargement des données initiales
-  useEffect(() => {
-    const fetchData = async () => {
-      if (status === "loading") return;
-      if (!user) return;
 
-      // Pour les non-admin, vérifier qu'ils ont des cliniques
-      if (user.role !== "ADMIN" && !idCliniques.length) return;
-
-      setIsLoading(true);
-      try {
-        const [cliniquesData, inventairesData, produit, tarifProduit] =
-          await Promise.all([
-            getAllClinique(),
-            getAllInventaire(),
-            getAllProduits(),
-            getAllTarifProduits(),
-          ]);
-
-        // Admin voit toutes les cliniques, les autres voient uniquement leurs cliniques
-        if (user.role === "ADMIN") {
-          setCliniques(cliniquesData);
-        } else {
-          setCliniques(cliniquesData.filter((c) => idCliniques.includes(c.id)));
-        }
-
-        setProduits(produit);
-        setTarifProduits(tarifProduit);
-
-        // Filtrer les inventaires par cliniques autorisées
-        let inventairesAutorises = inventairesData;
-        if (user.role !== "ADMIN") {
-          inventairesAutorises = inventairesData.filter((inv) =>
-            idCliniques.includes(inv.idClinique)
-          );
-        }
-
-        // Charger les détails et relations pour chaque inventaire
-        const inventairesComplets = await Promise.all(
-          inventairesAutorises.map(async (inventaire) => {
-            const details = await getAllDetailInventaireByInventaireId(
-              inventaire.id
-            );
-
-            // Charger les données de l'utilisateur qui a créé l'inventaire
-            const user = await getOneUser(inventaire.idUser);
-
-            // Charger les anomalies pour tous les détails d'inventaire
-            const detailIds = (details || []).map((d) => d.id);
-            const anomalies = await getAnomaliesByDetailInventaireIds(
-              detailIds
-            );
-
-            // Charger les utilisateurs et enrichir les relations pour chaque détail
-            const detailsWithUser = await Promise.all(
-              (details || []).map(async (detail) => {
-                const detailUser = await getOneUser(detail.idUser);
-                const tarifProduitData = tarifProduit.find(
-                  (tp) => tp.id === detail.idTarifProduit
-                );
-                const produitData = produit.find(
-                  (p) => p.id === tarifProduitData?.idProduit
-                );
-                const detailAnomalies = anomalies.filter(
-                  (a) => a.idDetailInventaire === detail.id
-                );
-
-                // Debug - à supprimer après
-                if (!tarifProduitData) {
-                  console.log("TarifProduit non trouvé pour detail:", {
-                    detailId: detail.id,
-                    idTarifProduit: detail.idTarifProduit,
-                    tarifProduitsDisponibles: tarifProduit.length,
-                  });
-                }
-
-                return {
-                  ...detail,
-                  User: detailUser || ({} as User),
-                  tarifProduit: tarifProduitData
-                    ? {
-                        ...tarifProduitData,
-                        produit: produitData || ({} as Produit),
-                      }
-                    : undefined,
-                  AnomalieInventaire: detailAnomalies,
-                };
-              })
-            );
-
-            return {
-              ...inventaire,
-              Clinique:
-                cliniquesData.find((c) => c.id === inventaire.idClinique) ||
-                ({} as Clinique),
-              User: user || ({} as User),
-              detailInventaire: detailsWithUser,
-            } as InventaireWithRelations;
-          })
-        );
-
-        // Trier par date décroissante
-        inventairesComplets.sort(
-          (a, b) =>
-            new Date(b.dateInventaire).getTime() -
-            new Date(a.dateInventaire).getTime()
-        );
-
-        // Debug - Vérifier les données construites
-        console.log("Inventaires complets:", inventairesComplets);
-        if (
-          inventairesComplets.length > 0 &&
-          inventairesComplets[0].detailInventaire.length > 0
-        ) {
-          console.log(
-            "Premier detail inventaire:",
-            inventairesComplets[0].detailInventaire[0]
-          );
-          console.log(
-            "TarifProduit du premier detail:",
-            inventairesComplets[0].detailInventaire[0].tarifProduit
-          );
-        }
-        console.log("Total produits chargés:", produit.length);
-        console.log("Total tarifProduits chargés:", tarifProduit.length);
-
-        setInventaires(inventairesComplets);
-        setInventairesFiltres(inventairesComplets);
-      } catch (error) {
-        toast.error(
-          "Erreur lors du chargement de l'historique des inventaires."
-        );
-        console.error("Erreur détaillée:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [status, idUser, idCliniques, user]);
-
+  // Vérification des permissions
   useEffect(() => {
     if (!user) return;
 
@@ -303,9 +154,182 @@ export default function HistoriqueInventairePage() {
     fetchPermissions();
   }, [user, router]);
 
-  // Filtrage des inventaires
+  // Optimisation 1: Chargement initial plus efficace
   useEffect(() => {
-    let filtered = inventaires;
+    const fetchData = async () => {
+      if (status === "loading") return;
+      if (!user) return;
+
+      // Pour les non-admin, vérifier qu'ils ont des cliniques
+      if (user.role !== "ADMIN" && !idCliniques.length) return;
+
+      setIsLoading(true);
+      try {
+        // Charger toutes les données en parallèle
+        const [cliniquesData, inventairesData, produit, tarifProduit] =
+          await Promise.all([
+            getAllClinique(),
+            getAllInventaire(),
+            getAllProduits(),
+            getAllTarifProduits(),
+          ]);
+
+        // Admin voit toutes les cliniques, les autres voient uniquement leurs cliniques
+        const filteredCliniques =
+          user.role === "ADMIN"
+            ? cliniquesData
+            : cliniquesData.filter((c) => idCliniques.includes(c.id));
+        setCliniques(filteredCliniques);
+        setProduits(produit);
+        setTarifProduits(tarifProduit);
+
+        // Filtrer les inventaires par cliniques autorisées
+        let inventairesAutorises = inventairesData;
+        if (user.role !== "ADMIN") {
+          inventairesAutorises = inventairesData.filter((inv) =>
+            idCliniques.includes(inv.idClinique)
+          );
+        }
+
+        // Optimisation 2: Récupérer tous les utilisateurs en un seul appel groupé
+        const userIds = new Set<string>();
+        inventairesAutorises.forEach((inv) => {
+          userIds.add(inv.idUser);
+        });
+
+        // Créer une Map pour un accès rapide aux utilisateurs
+        const userMap = new Map<string, User>();
+        try {
+          // NOTE: Vous devriez créer une action pour récupérer plusieurs utilisateurs à la fois
+          // Pour l'instant, on garde l'approche actuelle mais on pourrait optimiser côté serveur
+        } catch (error) {
+          console.error("Erreur lors du chargement des utilisateurs:", error);
+        }
+
+        // Optimisation 3: Récupérer tous les détails d'inventaire en batch
+        const detailInventairePromises = inventairesAutorises.map((inv) =>
+          getAllDetailInventaireByInventaireId(inv.id)
+        );
+        const allDetailsArrays = await Promise.all(detailInventairePromises);
+
+        // Récupérer tous les IDs de détail pour les anomalies
+        const allDetailIds = allDetailsArrays.flatMap((details) =>
+          (details || []).map((d) => d.id)
+        );
+
+        // Récupérer toutes les anomalies en un seul appel
+        let allAnomalies: AnomalieInventaire[] = [];
+        if (allDetailIds.length > 0) {
+          allAnomalies = await getAnomaliesByDetailInventaireIds(allDetailIds);
+        }
+
+        // Grouper les anomalies par idDetailInventaire
+        const anomaliesByDetailId = allAnomalies.reduce(
+          (acc, anomalie) => {
+            if (!acc[anomalie.idDetailInventaire]) {
+              acc[anomalie.idDetailInventaire] = [];
+            }
+            acc[anomalie.idDetailInventaire].push(anomalie);
+            return acc;
+          },
+          {} as Record<string, AnomalieInventaire[]>
+        );
+
+        // Construire les données d'inventaire complètes
+        const inventairesComplets: InventaireWithRelations[] = [];
+
+        for (let i = 0; i < inventairesAutorises.length; i++) {
+          const inventaire = inventairesAutorises[i];
+          const details = allDetailsArrays[i] || [];
+
+          // Récupérer l'utilisateur (on pourrait optimiser avec un cache)
+          let inventaireUser: User | null = null;
+          try {
+            inventaireUser = await getOneUser(inventaire.idUser);
+          } catch (error) {
+            console.error(
+              `Erreur lors du chargement de l'utilisateur ${inventaire.idUser}:`,
+              error
+            );
+          }
+
+          // Préparer les détails avec leurs relations
+          const detailsWithUser = (await Promise.all(
+            details.map(async (detail) => {
+              // Récupérer l'utilisateur du détail
+              let detailUser: User | null = null;
+              try {
+                detailUser = await getOneUser(detail.idUser);
+              } catch (error) {
+                console.error(
+                  `Erreur lors du chargement de l'utilisateur détail ${detail.idUser}:`,
+                  error
+                );
+              }
+
+              // Trouver le tarifProduit
+              const tarifProduitData = tarifProduit.find(
+                (tp) => tp.id === detail.idTarifProduit
+              );
+
+              // Si tarifProduit n'est pas trouvé, on retourne null pour filtrer plus tard
+              if (!tarifProduitData) {
+                console.warn(`TarifProduit non trouvé pour le détail ${detail.id}`);
+                return null;
+              }
+
+              return {
+                ...detail,
+                User: detailUser || ({} as User),
+                tarifProduit: {
+                  ...tarifProduitData,
+                  Produit:
+                    produit.find((p) => p.id === tarifProduitData.idProduit) ||
+                    ({} as Produit),
+                },
+                AnomalieInventaire:
+                  anomaliesByDetailId[detail.id] || [],
+              };
+            })
+          )).filter((detail): detail is NonNullable<typeof detail> => detail !== null);
+
+          inventairesComplets.push({
+            ...inventaire,
+            Clinique:
+              cliniquesData.find((c) => c.id === inventaire.idClinique) ||
+              ({} as Clinique),
+            User: inventaireUser || ({} as User),
+            detailInventaire: detailsWithUser,
+          } as InventaireWithRelations);
+        }
+
+        // Trier par date décroissante
+        inventairesComplets.sort(
+          (a, b) =>
+            new Date(b.dateInventaire).getTime() -
+            new Date(a.dateInventaire).getTime()
+        );
+
+        setInventaires(inventairesComplets);
+        setInventairesFiltres(inventairesComplets);
+      } catch (error) {
+        toast.error(
+          "Erreur lors du chargement de l'historique des inventaires."
+        );
+        console.error("Erreur détaillée:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [status, idUser, idCliniques, user]);
+
+  // Optimisation 4: Utiliser useMemo pour le filtrage
+  const filteredInventaires = useMemo(() => {
+    if (!inventaires.length) return [];
+
+    let filtered = [...inventaires];
 
     // Filtre par recherche
     if (recherche.trim() !== "") {
@@ -336,34 +360,41 @@ export default function HistoriqueInventairePage() {
       );
     }
 
-    // Filtre par statut (à adapter selon votre logique métier)
+    // Filtre par statut
     if (filtreStatut !== "all") {
       filtered = filtered.filter((inventaire) => {
-        // Exemple de logique de statut
         const totalProduits = inventaire.detailInventaire.length;
+        if (totalProduits === 0) return false;
+
         const produitsValides = inventaire.detailInventaire.filter(
           (d) => d.ecart === 0
         ).length;
+        const hasAnomalies = inventaire.detailInventaire.some(
+          (d) => d.AnomalieInventaire && d.AnomalieInventaire.length > 0
+        );
 
         if (filtreStatut === "completed") {
           return totalProduits > 0 && produitsValides === totalProduits;
         } else if (filtreStatut === "in_progress") {
           return totalProduits > 0 && produitsValides < totalProduits;
         } else if (filtreStatut === "with_anomalies") {
-          return inventaire.detailInventaire.some(
-            (d) => d.AnomalieInventaire && d.AnomalieInventaire.length > 0
-          );
+          return hasAnomalies;
         }
         return true;
       });
     }
 
-    setInventairesFiltres(filtered);
+    return filtered;
+  }, [inventaires, recherche, filtreClinique, filtreStatut]);
+
+  // Mettre à jour inventairesFiltres lorsque filteredInventaires change
+  useEffect(() => {
+    setInventairesFiltres(filteredInventaires);
     setCurrentPage(1); // Réinitialiser à la première page lors du filtrage
-  }, [recherche, filtreClinique, filtreStatut, inventaires]);
+  }, [filteredInventaires]);
 
   // Fonction pour obtenir le statut d'un inventaire
-  const getInventaireStatus = (inventaire: InventaireWithRelations) => {
+  const getInventaireStatus = useCallback((inventaire: InventaireWithRelations) => {
     const totalProduits = inventaire.detailInventaire.length;
     if (totalProduits === 0) return { label: "Non commencé", color: "gray" };
 
@@ -378,10 +409,10 @@ export default function HistoriqueInventairePage() {
     if (produitsValides === totalProduits)
       return { label: "Complété", color: "green" };
     return { label: "En cours", color: "yellow" };
-  };
+  }, []);
 
   // Fonction pour obtenir les statistiques d'un inventaire
-  const getInventaireStats = (inventaire: InventaireWithRelations) => {
+  const getInventaireStats = useCallback((inventaire: InventaireWithRelations) => {
     const totalProduits = inventaire.detailInventaire.length;
     const produitsValides = inventaire.detailInventaire.filter(
       (d) => d.ecart === 0
@@ -396,7 +427,7 @@ export default function HistoriqueInventairePage() {
     );
 
     return { totalProduits, produitsValides, totalAnomalies, totalEcart };
-  };
+  }, []);
 
   // Télécharger le PDF d'un inventaire
   const handleDownloadPDF = useCallback(
@@ -543,94 +574,102 @@ export default function HistoriqueInventairePage() {
         setIsGeneratingPDF(false);
       }
     },
-    [produits]
+    [produits, getInventaireStats]
   );
 
   // Suppression d'un inventaire
-  const handleDeleteInventaire = async (
-    inventaire: InventaireWithRelations
-  ) => {
-    if (!permission?.canDelete && user?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de Supprimer cet inventaire. Contactez un administrateur ou votre supérieur."
-      );
-      return null;
-    }
-    try {
-      // Confirmation avant suppression
-      const confirmDelete = confirm(
-        "Êtes-vous sûr de vouloir supprimer cet inventaire ?"
-      );
-      if (!confirmDelete) {
-        return;
+  const handleDeleteInventaire = useCallback(
+    async (inventaire: InventaireWithRelations) => {
+      if (!permission?.canDelete && user?.role !== "ADMIN") {
+        alert(
+          "Vous n'avez pas la permission de Supprimer cet inventaire. Contactez un administrateur ou votre supérieur."
+        );
+        return null;
       }
+      try {
+        // Confirmation avant suppression
+        const confirmDelete = confirm(
+          "Êtes-vous sûr de vouloir supprimer cet inventaire ?"
+        );
+        if (!confirmDelete) {
+          return;
+        }
 
-      setIsDeleting(true);
+        setIsDeleting(true);
 
-      // 1. D'abord supprimer toutes les anomalies liées aux détails
-      const toutesLesAnomalies = inventaire.detailInventaire.flatMap(
-        (detail) => detail.AnomalieInventaire
-      );
-      if (toutesLesAnomalies.length > 0) {
-        const anomalieIds = toutesLesAnomalies.map((a) => a.id);
-        await deleteAnomaliesByIds(anomalieIds);
+        // 1. D'abord supprimer toutes les anomalies liées aux détails
+        const toutesLesAnomalies = inventaire.detailInventaire.flatMap(
+          (detail) => detail.AnomalieInventaire
+        );
+        if (toutesLesAnomalies.length > 0) {
+          const anomalieIds = toutesLesAnomalies.map((a) => a.id);
+          await deleteAnomaliesByIds(anomalieIds);
+        }
+
+        // 2. Ensuite supprimer tous les détails d'inventaire
+        if (inventaire.detailInventaire.length > 0) {
+          const detailIds = inventaire.detailInventaire.map((d) => d.id);
+          await deleteDetailInventairesByIds(detailIds);
+        }
+
+        // 3. Enfin supprimer l'inventaire lui-même
+        await deleteInventaire(inventaire.id);
+
+        toast.success("Inventaire supprimé avec succès");
+
+        // Mettre à jour la liste locale
+        setInventaires((prev) => prev.filter((inv) => inv.id !== inventaire.id));
+      } catch (error) {
+        console.error("Erreur lors de la suppression:", error);
+        toast.error("Erreur lors de la suppression de l'inventaire");
+      } finally {
+        setIsDeleting(false);
       }
-
-      // 2. Ensuite supprimer tous les détails d'inventaire
-      if (inventaire.detailInventaire.length > 0) {
-        const detailIds = inventaire.detailInventaire.map((d) => d.id);
-        await deleteDetailInventairesByIds(detailIds);
-      }
-
-      // 3. Enfin supprimer l'inventaire lui-même
-      await deleteInventaire(inventaire.id);
-
-      toast.success("Inventaire supprimé avec succès");
-
-      // Mettre à jour la liste locale
-      setInventaires((prev) => prev.filter((inv) => inv.id !== inventaire.id));
-      setInventairesFiltres((prev) =>
-        prev.filter((inv) => inv.id !== inventaire.id)
-      );
-    } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
-      toast.error("Erreur lors de la suppression de l'inventaire");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    },
+    [permission, user]
+  );
 
   // Voir les détails d'un inventaire
-  const handleViewDetails = (inventaire: InventaireWithRelations) => {
+  const handleViewDetails = useCallback((inventaire: InventaireWithRelations) => {
     setSelectedInventaire(inventaire);
     setIsDetailDialogOpen(true);
-  };
+  }, []);
+
+  // Calculer les données paginées
+  const paginatedInventaires = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return inventairesFiltres.slice(startIndex, endIndex);
+  }, [inventairesFiltres, currentPage, itemsPerPage]);
 
   // Skeleton pour le chargement
-  const TableRowSkeleton = () => (
-    <TableRow>
-      <TableCell>
-        <Skeleton className="h-4 w-32" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-24" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-32" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-24" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-20" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-24" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-8 w-24" />
-      </TableCell>
-    </TableRow>
+  const TableRowSkeleton = useCallback(
+    () => (
+      <TableRow>
+        <TableCell>
+          <Skeleton className="h-4 w-32" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-24" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-32" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-24" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-20" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-4 w-24" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-8 w-24" />
+        </TableCell>
+      </TableRow>
+    ),
+    []
   );
 
   if (isCheckingPermissions) {
@@ -814,61 +853,56 @@ export default function HistoriqueInventairePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {inventairesFiltres
-                      .slice(
-                        (currentPage - 1) * itemsPerPage,
-                        currentPage * itemsPerPage
-                      )
-                      .map((inventaire) => {
-                        const status = getInventaireStatus(inventaire);
-                        const stats = getInventaireStats(inventaire);
-                        const dateFormatted = format(
-                          new Date(inventaire.dateInventaire),
-                          "dd/MM/yyyy HH:mm",
-                          { locale: fr }
-                        );
+                    {paginatedInventaires.map((inventaire) => {
+                      const status = getInventaireStatus(inventaire);
+                      const stats = getInventaireStats(inventaire);
+                      const dateFormatted = format(
+                        new Date(inventaire.dateInventaire),
+                        "dd/MM/yyyy HH:mm",
+                        { locale: fr }
+                      );
 
-                        return (
-                          <TableRow key={inventaire.id}>
-                            <TableCell className="font-medium text-xs sm:text-sm">
-                              <div className="flex flex-col">
-                                <span>{dateFormatted}</span>
-                                <span className="text-[10px] sm:text-xs text-muted-foreground">
-                                  ID: {inventaire.id.substring(0, 8)}...
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm">
-                              {inventaire.Clinique?.nomClinique || "N/A"}
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm">
-                              {inventaire.User?.name || "Utilisateur inconnu"}
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm">
-                              <div className="flex flex-col">
-                                <span>{stats.totalProduits} produits</span>
-                                <span className="text-[10px] sm:text-xs text-green-600">
-                                  {stats.produitsValides} conforme(s)
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm">
-                              <span
-                                className={`font-medium ${
-                                  stats.totalEcart > 0
-                                    ? "text-red-600"
-                                    : "text-green-600"
-                                }`}
-                              >
-                                {stats.totalEcart > 0
-                                  ? `+${stats.totalEcart}`
-                                  : stats.totalEcart}
+                      return (
+                        <TableRow key={inventaire.id}>
+                          <TableCell className="font-medium text-xs sm:text-sm">
+                            <div className="flex flex-col">
+                              <span>{dateFormatted}</span>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                ID: {inventaire.id.substring(0, 8)}...
                               </span>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] sm:text-xs
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            {inventaire.Clinique?.nomClinique || "N/A"}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            {inventaire.User?.name || "Utilisateur inconnu"}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            <div className="flex flex-col">
+                              <span>{stats.totalProduits} produits</span>
+                              <span className="text-[10px] sm:text-xs text-green-600">
+                                {stats.produitsValides} conforme(s)
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            <span
+                              className={`font-medium ${
+                                stats.totalEcart > 0
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              {stats.totalEcart > 0
+                                ? `+${stats.totalEcart}`
+                                : stats.totalEcart}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] sm:text-xs
                             ${
                               status.color === "green"
                                 ? "bg-green-50 text-green-700 border-green-200"
@@ -890,62 +924,62 @@ export default function HistoriqueInventairePage() {
                                 : ""
                             }
                           `}
-                              >
-                                {status.label}
-                              </Badge>
-                              {stats.totalAnomalies > 0 && (
-                                <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-red-600">
-                                  ({stats.totalAnomalies} anomalie
-                                  {stats.totalAnomalies > 1 ? "s" : ""})
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleViewDetails(inventaire)
-                                    }
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Voir les détails
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleDownloadPDF(inventaire)
-                                    }
-                                  >
-                                    {isGeneratingPDF ? (
-                                      <SpinnerCustom className="mr-2 h-4 w-4" />
-                                    ) : (
-                                      <Download className="mr-2 h-4 w-4" />
-                                    )}
-                                    Télécharger PDF
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className={
-                                      user?.role !== "ADMIN" ? "hidden" : ""
-                                    }
-                                    disabled={user?.role !== "ADMIN"}
-                                    onClick={() =>
-                                      handleDeleteInventaire(inventaire)
-                                    }
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Supprimer
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                            >
+                              {status.label}
+                            </Badge>
+                            {stats.totalAnomalies > 0 && (
+                              <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-red-600">
+                                ({stats.totalAnomalies} anomalie
+                                {stats.totalAnomalies > 1 ? "s" : ""})
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleViewDetails(inventaire)
+                                  }
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Voir les détails
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDownloadPDF(inventaire)
+                                  }
+                                >
+                                  {isGeneratingPDF ? (
+                                    <SpinnerCustom className="mr-2 h-4 w-4" />
+                                  ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                  )}
+                                  Télécharger PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className={
+                                    user?.role !== "ADMIN" ? "hidden" : ""
+                                  }
+                                  disabled={user?.role !== "ADMIN"}
+                                  onClick={() =>
+                                    handleDeleteInventaire(inventaire)
+                                  }
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Supprimer
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

@@ -24,15 +24,10 @@ import {
   TarifEchographie,
   DemandeEchographie,
 } from "@prisma/client";
-import { useState, useEffect } from "react";
-import { getAllClinique } from "@/lib/actions/cliniqueActions";
-import { getOneClient } from "@/lib/actions/clientActions";
+import { useState, useEffect, useMemo } from "react";
 import { Form, FormField } from "./ui/form";
 import { Input } from "./ui/input";
 import MultiSelectEchographie from "./multiSelectEchographie";
-import { getAllEchographies } from "@/lib/actions/echographieActions";
-import { getAllDemandeEchographiesByIdVisite } from "@/lib/actions/demandeEchographieActions";
-import { getAllTarifEchographieByClinique } from "@/lib/actions/tarifEchographieActions";
 
 type DemandeEchographieFormValues = {
   prixEchographie: number;
@@ -46,7 +41,7 @@ type DemandeEchographieFormValues = {
   idUser: string;
 };
 
-interface ExamensModalProps {
+interface EchographiesModalProps {
   idVisite: string;
   open: boolean;
   idClient: string;
@@ -55,6 +50,12 @@ interface ExamensModalProps {
     React.SetStateAction<DemandeEchographieFormValues[]>
   >;
   refreshExamens: () => void;
+  // Données pré-chargées
+  tabClinique: Clinique[];
+  allEchographies: Echographie[];
+  tarifEchographies: TarifEchographie[];
+  demandesEchographies: DemandeEchographie[];
+  excludedEchographieIds?: string[]; // IDs des échographies déjà ajoutées à exclure
 }
 
 type FormValues = {
@@ -68,65 +69,26 @@ export default function EchographiesModal({
   refreshExamens,
   idClient,
   setEchographiesSelectionnees,
-}: ExamensModalProps) {
-  const [allEchographies, setAllEchographies] = useState<Echographie[]>([]);
-  const [tabTarifEchographies, setTabTarifEchographies] = useState<
-    TarifEchographie[]
-  >([]);
-  const [tabClinique, setTabClinique] = useState<Clinique[]>([]);
-  const [selectedDemandes, setSelectedDemandes] = useState<
-    DemandeEchographie[]
-  >([]);
+  // Données pré-chargées
+  tabClinique,
+  allEchographies,
+  tarifEchographies,
+  demandesEchographies,
+  excludedEchographieIds = [], // IDs des échographies déjà ajoutées
+}: EchographiesModalProps) {
   const [selectedOptions, setSelectedOptions] = useState<DemandeEchographie[]>(
     []
   );
 
-  useEffect(() => {
-    if (open === false) {
-      // setTabTarifExamens([]);
-      setSelectedOptions([]);
-    }
-  }, [open]);
+  // Filtrer les échographies déjà ajoutées des options disponibles
+  const availableEchographies = useMemo(
+    () => demandesEchographies.filter((d) => !excludedEchographieIds.includes(d.id)),
+    [demandesEchographies, excludedEchographieIds]
+  );
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const cliniques = await getAllClinique();
-      setTabClinique(cliniques);
-      const echographies = await getAllEchographies();
-      setAllEchographies(echographies);
-    };
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    const fetchDemandes = async () => {
-      if (!idClient) return;
-      const client = await getOneClient(idClient);
-      try {
-        const demandes = await getAllDemandeEchographiesByIdVisite(idVisite);
-        const demandesClient = demandes.filter(
-          (d: { idClient: string; idClinique: string }) =>
-            d.idClient === idClient && d.idClinique === client?.idClinique
-        );
-        setSelectedDemandes(demandesClient);
-        if (client?.idClinique) {
-          const tarifs = await getAllTarifEchographieByClinique(
-            client.idClinique
-          );
-          setTabTarifEchographies(tarifs);
-        } else {
-          setTabTarifEchographies([]);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des demandes :", error);
-      }
-    };
-    fetchDemandes();
-  }, [idClient, idVisite]);
-
+  // Réinitialiser les options quand le modal se ferme
   useEffect(() => {
     if (!open) {
-      // Modal fermée => vider les options
       setSelectedOptions([]);
     }
   }, [open]);
@@ -155,7 +117,7 @@ export default function EchographiesModal({
   };
 
   const getNomEchographie = (demande: DemandeEchographie) => {
-    const tarif = tabTarifEchographies.find(
+    const tarif = tarifEchographies.find(
       (t) => t.id === demande.idTarifEchographie
     );
     return (
@@ -169,11 +131,11 @@ export default function EchographiesModal({
     form.reset({
       prixEchographie: selectedOptions.map(
         (demande) =>
-          tabTarifEchographies.find((t) => t.id === demande.idTarifEchographie)
+          tarifEchographies.find((t) => t.id === demande.idTarifEchographie)
             ?.prixEchographie || 0
       ),
     });
-  }, [selectedOptions, tabTarifEchographies, form]);
+  }, [selectedOptions, tarifEchographies, form]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -184,7 +146,7 @@ export default function EchographiesModal({
         <div className="flex flow-row gap-3">
           <MultiSelectEchographie
             idClinique={tabClinique[0]?.id ?? ""}
-            demandes={selectedDemandes}
+            demandes={availableEchographies}
             selectedOptions={selectedOptions}
             setSelectedOptions={setSelectedOptions}
           />

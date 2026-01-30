@@ -57,7 +57,6 @@ import { getOneUser } from "@/lib/actions/authActions";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import autoTable from "jspdf-autotable";
-import { includes } from "zod";
 
 // Déclarer l'interface pour jsPDF avec autoTable
 declare module "jspdf" {

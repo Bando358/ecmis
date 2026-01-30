@@ -17,6 +17,8 @@ import { Button } from "../ui/button";
 import { ClientLaboType } from "@/lib/actions/rapportLaboActions";
 import { Examen, TypeExamen } from "@prisma/client";
 import { getAllExamen } from "@/lib/actions/examenActions";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // types.ts ou en haut du fichier
 type AgeRange = {
@@ -158,6 +160,7 @@ export default function TableRapportLabo({
   const [gynecoLabo, setGynecoLabo] = useState<ClientLaboType[]>([]);
   const [obstetriqueLabo, setObstetriqueLabo] = useState<ClientLaboType[]>([]);
   const [spinner, setSpinner] = useState(false);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
   const [listeExamenVih, setListeExamenVih] = useState<Examen[]>([]);
   const [listeExamenObstetrique, setListeExamenObstetrique] = useState<
     Examen[]
@@ -847,21 +850,333 @@ export default function TableRapportLabo({
     });
   };
 
+  // Export to PDF using jsPDF
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Charger le logo
+      let logoBase64 = "";
+      try {
+        const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+        const logoBlob = await logoResponse.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(logoBlob);
+        });
+      } catch (err) {
+        console.warn("Logo non trouvé:", err);
+      }
+
+      // Ajouter le logo (60% de la largeur, centré)
+      if (logoBase64) {
+        const logoWidth = pageWidth * 0.6;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoBase64, "PNG", logoX, 10, logoWidth, logoHeight);
+      }
+
+      // Détection du mois complet
+      const debut = new Date(dateDebut);
+      const fin = new Date(dateFin);
+      const isFullMonth =
+        debut.getDate() === 1 &&
+        fin.getDate() ===
+          new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate() &&
+        debut.getMonth() === fin.getMonth() &&
+        debut.getFullYear() === fin.getFullYear();
+
+      let periodeText: string;
+      if (isFullMonth) {
+        const moisNoms = [
+          "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+          "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE",
+        ];
+        periodeText = `${moisNoms[debut.getMonth()]} ${debut.getFullYear()}`;
+      } else {
+        periodeText = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+      }
+
+      // Titre et période
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rapport Laboratoire - ${clinic}`, pageWidth / 2, 35, {
+        align: "center",
+      });
+      doc.setFontSize(11);
+      doc.text(`Période: ${periodeText}`, pageWidth / 2, 42, {
+        align: "center",
+      });
+
+      let currentY = 50;
+
+      // Génération des en-têtes pour les tableaux avec sexe
+      const generateHeaders = () => {
+        const headers = [
+          [
+            { content: "Indicateurs", rowSpan: 2 },
+            { content: "Masculin", colSpan: ageRanges.length },
+            { content: "Féminin", colSpan: ageRanges.length },
+            { content: "Total", rowSpan: 2 },
+          ],
+          [
+            ...ageRanges.map((r) =>
+              r.max < 120 ? `${r.min}-${r.max}` : `${r.min}+`
+            ),
+            ...ageRanges.map((r) =>
+              r.max < 120 ? `${r.min}-${r.max}` : `${r.min}+`
+            ),
+          ],
+        ];
+        return headers;
+      };
+
+      // Tableau 1: Types de laboratoire
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Rapport clients Laboratoire", 14, currentY);
+      currentY += 5;
+
+      const laboTypeRows = laboTypesConfig.map((laboType) => {
+        const data = laboDataMap[laboType.dataKey];
+        const row = [laboType.label];
+        // Masculin
+        ageRanges.forEach((range) => {
+          row.push(
+            String(countClientBySexe(data, range.min, range.max, "Masculin"))
+          );
+        });
+        // Féminin
+        ageRanges.forEach((range) => {
+          row.push(
+            String(countClientBySexe(data, range.min, range.max, "Féminin"))
+          );
+        });
+        // Total
+        row.push(String(calculateTotalByLaboType(data)));
+        return row;
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: generateHeaders(),
+        body: laboTypeRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 50 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau VIH avec indicateurs
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("VIH", 14, currentY);
+      currentY += 5;
+
+      const vihRows = dataLaboVih.map((item) => {
+        const row = [item.label];
+        // Masculin
+        ageRanges.forEach((range) => {
+          row.push(
+            String(countConvertedBySex(converted, range.min, range.max, item.value, "Masculin"))
+          );
+        });
+        // Féminin
+        ageRanges.forEach((range) => {
+          row.push(
+            String(countConvertedBySex(converted, range.min, range.max, item.value, "Féminin"))
+          );
+        });
+        // Total
+        const total = ageRanges.reduce(
+          (sum, range) =>
+            sum +
+            countConvertedBySex(converted, range.min, range.max, item.value, "Masculin") +
+            countConvertedBySex(converted, range.min, range.max, item.value, "Féminin"),
+          0
+        );
+        row.push(String(total));
+        return row;
+      });
+
+      // Ajouter les examens VIH détaillés
+      listeExamenVih.forEach((examen) => {
+        const row = [`SRV - LABO - VIH - ${examen.nomExamen}`];
+        ageRanges.forEach((range) => {
+          row.push(
+            String(countClientBySexeAndExamenName(
+              clientAllData as unknown as ClientLaboType[],
+              examen.nomExamen,
+              range.min,
+              range.max,
+              "Masculin"
+            ))
+          );
+        });
+        ageRanges.forEach((range) => {
+          row.push(
+            String(countClientBySexeAndExamenName(
+              clientAllData as unknown as ClientLaboType[],
+              examen.nomExamen,
+              range.min,
+              range.max,
+              "Féminin"
+            ))
+          );
+        });
+        const total = ageRanges.reduce(
+          (s, r) =>
+            s +
+            countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, r.min, r.max, "Masculin") +
+            countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, r.min, r.max, "Féminin"),
+          0
+        );
+        row.push(String(total));
+        vihRows.push(row);
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: generateHeaders(),
+        body: vihRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 50 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Helper pour générer les tableaux de service
+      const generateServiceTable = (
+        title: string,
+        data: ClientLaboType[],
+        examens: Examen[]
+      ) => {
+        if (currentY > 180) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(title, 14, currentY);
+        currentY += 5;
+
+        const rows: string[][] = [];
+
+        // Ligne principale du service
+        const mainRow = [`SRV - LABO - ${title}`];
+        ageRanges.forEach((range) => {
+          mainRow.push(String(countClientBySexe(data, range.min, range.max, "Masculin")));
+        });
+        ageRanges.forEach((range) => {
+          mainRow.push(String(countClientBySexe(data, range.min, range.max, "Féminin")));
+        });
+        mainRow.push(String(calculateTotal(data)));
+        rows.push(mainRow);
+
+        // Examens détaillés
+        examens.forEach((examen) => {
+          const row = [`SRV - LABO - ${title} - ${examen.nomExamen}`];
+          ageRanges.forEach((range) => {
+            row.push(
+              String(countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Masculin"))
+            );
+          });
+          ageRanges.forEach((range) => {
+            row.push(
+              String(countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Féminin"))
+            );
+          });
+          const total = ageRanges.reduce(
+            (s, r) =>
+              s +
+              countClientBySexeAndExamenName(data, examen.nomExamen, r.min, r.max, "Masculin") +
+              countClientBySexeAndExamenName(data, examen.nomExamen, r.min, r.max, "Féminin"),
+            0
+          );
+          row.push(String(total));
+          rows.push(row);
+        });
+
+        autoTable(doc, {
+          startY: currentY,
+          head: generateHeaders(),
+          body: rows,
+          theme: "grid",
+          styles: { fontSize: 7, cellPadding: 1 },
+          headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+          columnStyles: { 0: { cellWidth: 50 } },
+        });
+
+        currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+      };
+
+      // Générer les tableaux pour chaque service
+      generateServiceTable("IST", istLabo, listeExamenIst);
+      generateServiceTable("OBSTETRIQUE", obstetriqueLabo, listeExamenObstetrique);
+      generateServiceTable("GYNECOLOGIE", gynecoLabo, listeExamenGyneco);
+      generateServiceTable("MEDECINE", medecineLabo, listeExamenMedecine);
+
+      // Section signature (même page que le dernier tableau)
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+      if (currentY > 180) {
+        doc.addPage();
+        currentY = 30;
+      }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Réalisé par: ____________________________", 14, currentY);
+      doc.text("Signature: ____________________________", pageWidth - 100, currentY);
+
+      doc.save(`Rapport_Labo_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    } catch (error) {
+      console.error("Erreur export PDF:", error);
+    } finally {
+      setSpinnerPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full overflow-x-auto">
-      <Button
-        onClick={exportToExcel}
-        type="button"
-        disabled={spinner}
-        className="bg-blue-500 mx-auto text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-      >
-        <Spinner
-          show={spinner}
-          size={"small"}
-          className="text-white dark:text-slate-400"
-        />
-        Exporter
-      </Button>
+      <div className="flex gap-2 justify-center">
+        <Button
+          onClick={exportToExcel}
+          type="button"
+          disabled={spinner}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinner}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter Excel
+        </Button>
+        <Button
+          onClick={exportToPdf}
+          type="button"
+          disabled={spinnerPdf}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinnerPdf}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter PDF
+        </Button>
+      </div>
 
       <h2 className="font-bold">Rapport clients Laboratoire</h2>
 

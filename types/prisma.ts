@@ -11,7 +11,7 @@ export type InventaireWithRelations = Prisma.InventaireGetPayload<{
         User: true;
         tarifProduit: {
           include: {
-            produit: true;
+            Produit: true;
           };
         };
         AnomalieInventaire: true;
@@ -27,7 +27,7 @@ export type DetailInventaireWithRelations = Prisma.DetailInventaireGetPayload<{
     inventaire: true;
     tarifProduit: {
       include: {
-        produit: true;
+        Produit: true;
       };
     };
     AnomalieInventaire: true;
@@ -40,7 +40,7 @@ export type AnomalieInventaireWithRelations =
     include: {
       tarifProduit: {
         include: {
-          produit: true;
+          Produit: true;
         };
       };
       User: true;

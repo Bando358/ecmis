@@ -110,6 +110,7 @@ export default function PlanningPage({
   const [clients, setAllClients] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -130,56 +131,56 @@ export default function PlanningPage({
   // const tabIdClinique = session?.user.idCliniques as string[];
   const router = useRouter();
 
+  // Chargement optimisé : toutes les requêtes indépendantes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!idUser) return;
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
+      setIsLoading(true);
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
+        // Étape 1: Requêtes indépendantes en parallèle
+        const [user, resultPlanning, resultVisites, cliniqueClient] =
+          await Promise.all([
+            getOneUser(idUser),
+            getAllPlanningByIdClient(planningId),
+            getAllVisiteByIdClient(planningId),
+            getOneClient(planningId),
+          ]);
+
+        // Mise à jour des états avec les résultats
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setPrescripteur(user!);
+        setSelectedPlanning(resultPlanning as Planning[]);
+        setVisites(resultVisites as Visite[]);
+        setAllClients(cliniqueClient);
+
+        // Étape 2: Requêtes dépendantes en parallèle
+        const [permissions, allPrestataire] = await Promise.all([
+          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
+          cliniqueClient?.idClinique
+            ? getAllUserIncludedIdClinique(cliniqueClient.idClinique)
+            : Promise.resolve([]),
+        ]);
+
+        // Mise à jour des permissions
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.PLANNING
         );
         setPermission(perm || null);
+
+        // Filtrer les prescripteurs
+        setAllPrescripteur(
+          allPrestataire.filter((user: User) => user.prescripteur)
+        );
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const resultPlanning = await getAllPlanningByIdClient(planningId);
-      setSelectedPlanning(resultPlanning as Planning[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(planningId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-
-      const cliniqueClient = await getOneClient(planningId);
-      setAllClients(cliniqueClient);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
-      }
-      setAllPrescripteur(allPrestataire.filter((user) => user.prescripteur));
-    };
-    fetchData();
-  }, [planningId]);
+    fetchAllData();
+  }, [idUser, planningId]);
 
   // console.log(visites);
 
@@ -276,6 +277,18 @@ export default function PlanningPage({
   useEffect(() => {
     form.setValue("idClient", planningId);
   }, [planningId, form]);
+
+  // Affichage du loader pendant le chargement
+  if (isLoading) {
+    return (
+      <div className="w-full h-96 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-500">Chargement du formulaire...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full relative">

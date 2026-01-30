@@ -1,14 +1,13 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
-import { ClientProvider } from "@/components/ClientContext"; // Import the provider
+import { ClientProvider } from "@/components/ClientContext";
 import { ShowClient } from "@/components/showClient";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <ClientProvider>
-      {" "}
-      {/* Wrap everything with ClientProvider */}
       <SidebarProvider>
         <AppSidebar />
         <main className="w-full">
@@ -26,7 +25,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </SidebarProvider>
     </ClientProvider>

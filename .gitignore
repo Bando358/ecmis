@@ -1,4 +1,45 @@
-.next/
+# Dependencies
 node_modules/
-# Ajoutez cette ligne à votre .gitignore
+.pnp/
+.pnp.js
+
+# Build
+.next/
+out/
+build/
+dist/
+
+# Generated
 lib/generated/
+prisma/generated/
+
+# Environment variables - IMPORTANT: Ne jamais commiter ces fichiers
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.log
+*.tsbuildinfo

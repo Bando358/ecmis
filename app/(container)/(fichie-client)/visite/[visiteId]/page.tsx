@@ -76,20 +76,54 @@ export default function FormVisite({
   const [prescripteur, setPrescripteur] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
   const router = useRouter();
   const idUser = session?.user?.id || "";
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      // setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
+    if (!idUser || !visiteId) return;
+
+    const fetchAllData = async () => {
+      setIsLoading(true);
+      try {
+        // Étape 1: Requêtes indépendantes en parallèle
+        const [user, clientData, visites] = await Promise.all([
+          getOneUser(idUser),
+          getOneClient(visiteId),
+          getAllVisiteByIdClient(visiteId),
+        ]);
+
+        setPrescripteur(user);
+        setClient(clientData);
+        setAllVisite(visites);
+
+        // Étape 2: Requêtes dépendantes en parallèle
+        const [permissions, activites] = await Promise.all([
+          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
+          clientData?.idClinique
+            ? getAllActiviteByIdClinique(clientData.idClinique)
+            : Promise.resolve([]),
+        ]);
+
+        const perm = permissions.find(
+          (p: { table: string }) => p.table === TableName.VISITE
+        );
+        setPermission(perm || null);
+        setActivite(activites);
+      } catch (error) {
+        console.error("Erreur lors du chargement des données:", error);
+        toast.error("Erreur lors du chargement");
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetUser();
-  }, [idUser]);
+
+    fetchAllData();
+  }, [idUser, visiteId]);
 
   const form = useForm<VisiteFormValues>({
     defaultValues: {
@@ -119,58 +153,6 @@ export default function FormVisite({
   const dateVisite = form.watch("dateVisite");
   const idActivite = form.watch("idActivite");
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.VISITE
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur, router]);
-
-  // Charger le client d'abord
-  useEffect(() => {
-    const fetchClient = async () => {
-      try {
-        const clientData = await getOneClient(visiteId);
-        setClient(clientData);
-      } catch (error) {
-        console.error("Erreur lors du chargement du client:", error);
-        toast.error("Erreur de chargement du client");
-      }
-    };
-    fetchClient();
-  }, [visiteId]);
-
-  // Charger les activités une fois le client chargé
-  useEffect(() => {
-    const fetchActivites = async () => {
-      if (!client?.idClinique) return;
-
-      try {
-        const activites = await getAllActiviteByIdClinique(client.idClinique);
-        setActivite(activites);
-      } catch (error) {
-        console.error("Erreur lors du chargement des activités:", error);
-        toast.error("Erreur de chargement des activités");
-      }
-    };
-    fetchActivites();
-  }, [client?.idClinique]);
-
   // Charger les lieux quand l'activité change
   useEffect(() => {
     const fetchLieus = async () => {
@@ -190,20 +172,6 @@ export default function FormVisite({
     };
     fetchLieus();
   }, [idActivite]);
-
-  // Charger les visites existantes
-  useEffect(() => {
-    const fetchVisites = async () => {
-      try {
-        const visites = await getAllVisiteByIdClient(visiteId);
-        setAllVisite(visites);
-      } catch (error) {
-        console.error("Erreur lors du chargement des visites:", error);
-        toast.error("Erreur de chargement des visites");
-      }
-    };
-    fetchVisites();
-  }, [visiteId, dateVisite]);
 
   const onSubmit: SubmitHandler<VisiteFormValues> = async (data) => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
@@ -285,6 +253,18 @@ export default function FormVisite({
     { id: 11, name: "motif", libelle: "LABORATOIRE", value: "LABORATOIRE" },
     { id: 12, name: "motif", libelle: "ECHOGRAPHIE", value: "ECHOGRAPHIE" },
   ];
+
+  // Affichage du loader pendant le chargement
+  if (isLoading) {
+    return (
+      <div className="w-full h-96 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-500">Chargement du formulaire...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full justify-center p-4 relative">

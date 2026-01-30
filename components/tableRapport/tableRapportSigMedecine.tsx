@@ -14,6 +14,8 @@ import {
 import { Spinner } from "../ui/spinner";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // types.ts ou en haut du fichier
 type AgeRange = {
@@ -281,6 +283,7 @@ export default function TableRapportSigMedecine({
 }: TableRapportGynecoProps) {
   const [converted, setConverted] = useState<convertedType[]>([]);
   const [spinner, setSpinner] = useState(false);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   useEffect(() => {
     if (!clientData || clientData.length === 0) {
@@ -537,21 +540,293 @@ export default function TableRapportSigMedecine({
     setSpinner(false);
   };
 
+  // Export to PDF using jsPDF
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Charger le logo
+      let logoBase64 = "";
+      try {
+        const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+        const logoBlob = await logoResponse.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(logoBlob);
+        });
+      } catch (err) {
+        console.warn("Logo non trouvé:", err);
+      }
+
+      // Ajouter le logo (60% de la largeur, centré)
+      if (logoBase64) {
+        const logoWidth = pageWidth * 0.6;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoBase64, "PNG", logoX, 10, logoWidth, logoHeight);
+      }
+
+      // Détection du mois complet
+      const debut = new Date(dateDebut);
+      const fin = new Date(dateFin);
+      const isFullMonth =
+        debut.getDate() === 1 &&
+        fin.getDate() ===
+          new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate() &&
+        debut.getMonth() === fin.getMonth() &&
+        debut.getFullYear() === fin.getFullYear();
+
+      let periodeText: string;
+      if (isFullMonth) {
+        const moisNoms = [
+          "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+          "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE",
+        ];
+        periodeText = `${moisNoms[debut.getMonth()]} ${debut.getFullYear()}`;
+      } else {
+        periodeText = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+      }
+
+      // Titre et période
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rapport SIG Médecine - ${clinic}`, pageWidth / 2, 35, {
+        align: "center",
+      });
+      doc.setFontSize(11);
+      doc.text(`Période: ${periodeText}`, pageWidth / 2, 42, {
+        align: "center",
+      });
+
+      let currentY = 50;
+
+      // Générer les en-têtes pour les tableaux avec tranches d'âge
+      const generateHeaders = () => {
+        return [
+          [
+            "Indicateurs",
+            ...ageRanges.map((r) => r.max < 120 ? `${r.min}-${r.max}` : `${r.min}+`),
+            "Total",
+          ],
+        ];
+      };
+
+      // Tableau 1: Soins curatifs
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 1 : Activités de soins curatifs", 14, currentY);
+      currentY += 5;
+
+      const curatifRows = tabSoinsCuratif.map((item) => {
+        const row = [item.label];
+        ageRanges.forEach((range) => {
+          row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+        });
+        const total = ageRanges.reduce(
+          (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+          0
+        );
+        row.push(String(total));
+        return row;
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: generateHeaders(),
+        body: curatifRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 50 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 2: Soins infirmiers
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 2 : Activités de soins infirmiers et petite chirurgie", 14, currentY);
+      currentY += 5;
+
+      const infirmierRows = tabSoinsInfirmier.map((item) => {
+        const row = [item.label];
+        ageRanges.forEach((range) => {
+          row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+        });
+        const total = ageRanges.reduce(
+          (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+          0
+        );
+        row.push(String(total));
+        return row;
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: generateHeaders(),
+        body: infirmierRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 50 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 3: Maladies infectieuses
+      if (currentY > 180) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 31 : Maladies infectieuses", 14, currentY);
+      currentY += 5;
+
+      const infectRows = [
+        ...tabSuspicionsPaludisme.map((item) => {
+          const row = [item.label];
+          ageRanges.forEach((range) => {
+            row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+          });
+          const total = ageRanges.reduce(
+            (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+            0
+          );
+          row.push(String(total));
+          return row;
+        }),
+        ...tabDiagnosticOptions.map((item) => {
+          const row = [item.label];
+          ageRanges.forEach((range) => {
+            row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+          });
+          const total = ageRanges.reduce(
+            (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+            0
+          );
+          row.push(String(total));
+          return row;
+        }),
+      ];
+
+      autoTable(doc, {
+        startY: currentY,
+        head: generateHeaders(),
+        body: infectRows,
+        theme: "grid",
+        styles: { fontSize: 6, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 60 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 4: Autres maladies et traitement
+      if (currentY > 180) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 31.1 : Autres maladies infectieuses", 14, currentY);
+      currentY += 5;
+
+      const autresRows = [
+        ...tabMaladiesInfectieuses.map((item) => {
+          const row = [item.label];
+          ageRanges.forEach((range) => {
+            row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+          });
+          const total = ageRanges.reduce(
+            (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+            0
+          );
+          row.push(String(total));
+          return row;
+        }),
+        ...tabTraitementPaludisme.map((item) => {
+          const row = [typeof item.label === "string" ? item.label : "Paludisme"];
+          ageRanges.forEach((range) => {
+            row.push(String(countClientBoolean(converted, range.min, range.max, item.value, true)));
+          });
+          const total = ageRanges.reduce(
+            (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+            0
+          );
+          row.push(String(total));
+          return row;
+        }),
+      ];
+
+      autoTable(doc, {
+        startY: currentY,
+        head: generateHeaders(),
+        body: autresRows,
+        theme: "grid",
+        styles: { fontSize: 6, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 70 } },
+      });
+
+      // Section signature (même page que le dernier tableau)
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+      if (currentY > 190) {
+        doc.addPage();
+        currentY = 30;
+      }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Réalisé par: ____________________________", 14, currentY);
+      doc.text("Signature: ____________________________", pageWidth - 100, currentY);
+
+      doc.save(`Rapport_SIG_Medecine_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    } catch (error) {
+      console.error("Erreur export PDF:", error);
+    } finally {
+      setSpinnerPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full overflow-x-auto">
-      <Button
-        onClick={exportToExcel}
-        type="button"
-        disabled={spinner}
-        className="bg-blue-500 mx-auto text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-      >
-        <Spinner
-          show={spinner}
-          size={"small"}
-          className="text-white dark:text-slate-400"
-        />
-        Exporter
-      </Button>
+      <div className="flex gap-2 justify-center">
+        <Button
+          onClick={exportToExcel}
+          type="button"
+          disabled={spinner}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinner}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter Excel
+        </Button>
+        <Button
+          onClick={exportToPdf}
+          type="button"
+          disabled={spinnerPdf}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinnerPdf}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter PDF
+        </Button>
+      </div>
       <h2 className="font-bold">Tableau 1 : Activités de soins curatifs</h2>
       <Table className="border">
         <TableHeader className="bg-gray-200">

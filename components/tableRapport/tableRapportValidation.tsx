@@ -13,6 +13,8 @@ import ExcelJS from "exceljs";
 // tableExport previously used; replaced by direct export logic below
 import { Spinner } from "../ui/spinner";
 import { Button } from "../ui/button";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export type convertedType = clientDataProps & {
   pilule: boolean;
@@ -298,6 +300,7 @@ export default function TableRapportValidation({
 }) {
   const [converted, setConverted] = useState<convertedType[]>([]);
   const [spinner, setSpinner] = useState(false);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   if (dataPrescripteur) console.log("dataPrescripteur :", dataPrescripteur);
 
@@ -673,21 +676,243 @@ export default function TableRapportValidation({
     setSpinner(false);
   };
 
+  // Export to PDF using jsPDF
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Charger le logo
+      let logoBase64 = "";
+      try {
+        const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+        const logoBlob = await logoResponse.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(logoBlob);
+        });
+      } catch (err) {
+        console.warn("Logo non trouvé:", err);
+      }
+
+      // Ajouter le logo (60% de la largeur, centré)
+      if (logoBase64) {
+        const logoWidth = pageWidth * 0.6;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoBase64, "PNG", logoX, 10, logoWidth, logoHeight);
+      }
+
+      // Détection du mois complet
+      const debut = new Date(dateDebut);
+      const fin = new Date(dateFin);
+      const isFullMonth =
+        debut.getDate() === 1 &&
+        fin.getDate() ===
+          new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate() &&
+        debut.getMonth() === fin.getMonth() &&
+        debut.getFullYear() === fin.getFullYear();
+
+      let periodeText: string;
+      if (isFullMonth) {
+        const moisNoms = [
+          "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+          "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE",
+        ];
+        periodeText = `${moisNoms[debut.getMonth()]} ${debut.getFullYear()}`;
+      } else {
+        periodeText = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+      }
+
+      // Titre et période
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rapport Validation - ${clinic}`, pageWidth / 2, 35, {
+        align: "center",
+      });
+      doc.setFontSize(11);
+      doc.text(`Période: ${periodeText}`, pageWidth / 2, 42, {
+        align: "center",
+      });
+
+      let currentY = 50;
+
+      const prescripteurs = Array.isArray(dataPrescripteur) ? dataPrescripteur : [];
+
+      // Tableaux à exporter
+      const tablesToExport = [
+        { title: "Contraception", tab: tabContraception, minAge: 0, maxAge: 120 },
+        { title: "VIH", tab: tabVih, minAge: 0, maxAge: 120 },
+        { title: "SAA", tab: tabSaa, minAge: 0, maxAge: 120 },
+        { title: "Infertilité", tab: tabInfertilite, minAge: 0, maxAge: 120 },
+        { title: "IST", tab: tabIst, minAge: 0, maxAge: 120 },
+        { title: "Gynécologie", tab: tabGyneco, minAge: 0, maxAge: 120 },
+        { title: "CPN", tab: tabCpn, minAge: 0, maxAge: 120 },
+        { title: "Pédiatrie", tab: tabPediatrie, minAge: 0, maxAge: 9 },
+        { title: "Médecine générale", tab: tabMedecine, minAge: 10, maxAge: 120 },
+        { title: "Violence basée sur le genre", tab: tabViolence, minAge: 0, maxAge: 120 },
+      ];
+
+      for (const t of tablesToExport) {
+        // Vérifier s'il faut une nouvelle page
+        if (currentY > 180) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(t.title, 14, currentY);
+        currentY += 5;
+
+        // En-têtes
+        const headers = [
+          ["Types de consultation", ...prescripteurs.map((p) => p.name), "Total"],
+        ];
+
+        // Données
+        const rows = t.tab.map((item) => {
+          const row = [item.label];
+          // Valeurs par prescripteur
+          prescripteurs.forEach((pres) => {
+            row.push(
+              String(countClientByPrescripteur(converted, t.minAge, t.maxAge, item.value, true, pres.id))
+            );
+          });
+          // Total
+          row.push(String(countClientBoolean(converted, t.minAge, t.maxAge, item.value, true)));
+          return row;
+        });
+
+        autoTable(doc, {
+          startY: currentY,
+          head: headers,
+          body: rows,
+          theme: "grid",
+          styles: { fontSize: 7, cellPadding: 1 },
+          headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+          columnStyles: { 0: { cellWidth: 60 } },
+        });
+
+        currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+      }
+
+      // Tableau laboratoire
+      if (Array.isArray(tabExament) && tabExament.length > 0) {
+        if (currentY > 180) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Données laboratoire", 14, currentY);
+        currentY += 5;
+
+        const laboHeaders = [["Types d'examens", "Caisse", "Laboratoire"]];
+        const laboRows = tabExament.map((examen) => [
+          examen,
+          String(countExamenFacture(factureLaboratoire, examen)),
+          String(countExamenResultat(resultatLaboratoire, examen)),
+        ]);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: laboHeaders,
+          body: laboRows,
+          theme: "grid",
+          styles: { fontSize: 7, cellPadding: 1 },
+          headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        });
+
+        currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+      }
+
+      // Répartition des consultations par prescripteur
+      if (currentY > 180) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Répartition des consultations par prescripteur", 14, currentY);
+      currentY += 5;
+
+      const totalConsultations = converted.length;
+      const repartHeaders = [["Prescripteur", "Nombre de consultations", "Pourcentage"]];
+      const repartRows = prescripteurs.map((pres) => {
+        const countConsults = converted.filter((item) => item.nomPrescripteur === pres.name).length;
+        const percentage = totalConsultations > 0 ? ((countConsults / totalConsultations) * 100).toFixed(1) : "0.0";
+        return [pres.name, String(countConsults), `${percentage}%`];
+      });
+      // Ajouter ligne total
+      repartRows.push(["Total", String(totalConsultations), "100.0%"]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: repartHeaders,
+        body: repartRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+      });
+
+      // Section signature (même page que le dernier tableau)
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+      if (currentY > 190) {
+        doc.addPage();
+        currentY = 30;
+      }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Réalisé par: ____________________________", 14, currentY);
+      doc.text("Signature: ____________________________", pageWidth - 100, currentY);
+
+      doc.save(`Rapport_Validation_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    } catch (error) {
+      console.error("Erreur export PDF:", error);
+    } finally {
+      setSpinnerPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full overflow-x-auto">
-      <Button
-        onClick={exportToExcel}
-        type="button"
-        disabled={spinner}
-        className="bg-blue-500 mx-auto text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-      >
-        <Spinner
-          show={spinner}
-          size={"small"}
-          className="text-white dark:text-slate-400"
-        />
-        Exporter
-      </Button>
+      <div className="flex gap-2 justify-center">
+        <Button
+          onClick={exportToExcel}
+          type="button"
+          disabled={spinner}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinner}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter Excel
+        </Button>
+        <Button
+          onClick={exportToPdf}
+          type="button"
+          disabled={spinnerPdf}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinnerPdf}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter PDF
+        </Button>
+      </div>
       <div className="flex flex-row gap-3">
         {/* Tableau des consultations par prescripteur */}
         <div>

@@ -1,8 +1,7 @@
 "use server";
 // lib/actions/permissionActions.ts
-import { PrismaClient, TableName } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { TableName } from "@prisma/client";
+import prisma from "@/lib/prisma";
 
 export async function getUserPermissions(id: string) {
   try {

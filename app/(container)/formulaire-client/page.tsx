@@ -142,9 +142,9 @@ export default function FormulaireClient() {
         setClinique(
           adminClinique.filter((clin: CliniqueData) =>
             user.idCliniques.some((userClin: string | string[]) =>
-              userClin.includes(clin.id)
-            )
-          )
+              userClin.includes(clin.id),
+            ),
+          ),
         );
       }
 
@@ -162,7 +162,7 @@ export default function FormulaireClient() {
       try {
         const permissions = await getUserPermissionsById(oneUser.id);
         const perm = permissions.find(
-          (p: Permission) => p.table === TableName.CLIENT
+          (p: Permission) => p.table === TableName.CLIENT,
         );
         setPermission(perm || null);
 
@@ -174,7 +174,7 @@ export default function FormulaireClient() {
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
       }
     };
@@ -198,7 +198,7 @@ export default function FormulaireClient() {
     },
   });
 
-  const prenom = watch("prenom");
+  const prenom = watch("nom");
   const clinic = watch("cliniqueId");
   const idRegion = clinique.find((c) => c.id === clinic)?.idRegion || null;
   const selectedRegion = region.find((r) => r.id === idRegion);
@@ -207,13 +207,13 @@ export default function FormulaireClient() {
   const handleGenerateCode = async () => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de créer un client. Contactez un administrateur."
+        "Vous n'avez pas la permission de créer un client. Contactez un administrateur.",
       );
       return router.back();
     }
     if (!prenom || !selectedRegion || !selectedClinique) {
       alert(
-        "Veuillez remplir la région, la clinique et le prénom avant de générer un code."
+        "Veuillez remplir la région, la clinique et le prénom avant de générer un code.",
       );
       return;
     }
@@ -246,7 +246,7 @@ export default function FormulaireClient() {
   const onSubmit: SubmitHandler<Client> = async (data) => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de créer un client. Contactez un administrateur."
+        "Vous n'avez pas la permission de créer un client. Contactez un administrateur.",
       );
       return router.back();
     }

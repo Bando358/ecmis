@@ -8,6 +8,10 @@ import {
   TableRow,
 } from "../ui/table";
 import { weeksBetween } from "@/lib/dateUtils";
+import { Button } from "../ui/button";
+import { Spinner } from "../ui/spinner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export type convertedType = clientDataProps & {
   sp1: boolean;
@@ -214,10 +218,17 @@ const tabConseilDepistage = [
 
 export default function TableRapportSigObstetrique({
   clientData,
+  dateDebut,
+  dateFin,
+  clinic,
 }: {
   clientData: ClientData[];
+  dateDebut?: string;
+  dateFin?: string;
+  clinic?: string;
 }) {
   const [converted, setConverted] = useState<convertedType[]>([]);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   useEffect(() => {
     if (!clientData || clientData.length === 0) {
@@ -312,8 +323,225 @@ export default function TableRapportSigObstetrique({
     return <p className="text-center">Aucune donnée disponible.</p>;
   }
 
+  // Export to PDF using jsPDF
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Charger le logo
+      let logoBase64 = "";
+      try {
+        const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+        const logoBlob = await logoResponse.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(logoBlob);
+        });
+      } catch (err) {
+        console.warn("Logo non trouvé:", err);
+      }
+
+      // Ajouter le logo (60% de la largeur, centré)
+      if (logoBase64) {
+        const logoWidth = pageWidth * 0.6;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoBase64, "PNG", logoX, 10, logoWidth, logoHeight);
+      }
+
+      // Détection du mois complet
+      let periodeText = "";
+      if (dateDebut && dateFin) {
+        const debut = new Date(dateDebut);
+        const fin = new Date(dateFin);
+        const isFullMonth =
+          debut.getDate() === 1 &&
+          fin.getDate() ===
+            new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate() &&
+          debut.getMonth() === fin.getMonth() &&
+          debut.getFullYear() === fin.getFullYear();
+
+        if (isFullMonth) {
+          const moisNoms = [
+            "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+            "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE",
+          ];
+          periodeText = `${moisNoms[debut.getMonth()]} ${debut.getFullYear()}`;
+        } else {
+          periodeText = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+        }
+      }
+
+      // Titre et période
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rapport SIG Obstétrique${clinic ? ` - ${clinic}` : ""}`, pageWidth / 2, 35, {
+        align: "center",
+      });
+      if (periodeText) {
+        doc.setFontSize(11);
+        doc.text(`Période: ${periodeText}`, pageWidth / 2, 42, {
+          align: "center",
+        });
+      }
+
+      let currentY = periodeText ? 50 : 45;
+
+      // Tableau 1: Consultations prénatales
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 31.1 : Consultations prénatales", 14, currentY);
+      currentY += 5;
+
+      const cpnHeaders = [["Indicateurs", "Nombre"]];
+      const cpnRows = [
+        ...tabNumeroCpn1.map((item) => [
+          item.label,
+          String(countClientBoolean(converted, 0, 120, item.value, true)),
+        ]),
+        ...tabAutreCpn.map((item) => [
+          item.label,
+          String(countClientBoolean(converted, 0, 120, item.value, true)),
+        ]),
+      ];
+
+      autoTable(doc, {
+        startY: currentY,
+        head: cpnHeaders,
+        body: cpnRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 100 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 2: Dépistage pendant la grossesse
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 31.2 : Dépistage pendant la grossesse", 14, currentY);
+      currentY += 5;
+
+      const depistageHeaders = [["Indicateurs", "Nombre"]];
+      const depistageRows = tabDepistageGrossesse.map((item) => [
+        item.label,
+        String(countClientBoolean(converted, 0, 120, item.value, true)),
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: depistageHeaders,
+        body: depistageRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 100 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Tableau 3: Prévention en CPN
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 31.3 : Prévention en CPN", 14, currentY);
+      currentY += 5;
+
+      const preventionHeaders = [["Indicateurs", "Nombre"]];
+      const preventionRows = tabPreventionCpn.map((item) => [
+        item.label,
+        String(countClientBoolean(converted, 0, 120, item.value, true)),
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: preventionHeaders,
+        body: preventionRows,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 100 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+      // Vérifier si nouvelle page nécessaire
+      if (currentY > 160) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      // Tableau 4: Conseil et Dépistage VIH
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tableau 31.4 : Conseil et Dépistage VIH", 14, currentY);
+      currentY += 5;
+
+      const vihHeaders = [["Indicateurs", "CPN", "Maternité", "Post-Natal", "Total"]];
+      const vihRows = tabConseilDepistage.map((item) => {
+        const cpn = countClientBoolean(converted, 0, 120, item.valueCpn, true);
+        const maternite = countClientBoolean(converted, 0, 120, item.valueMaternite, true);
+        const postNatal = countClientBoolean(converted, 0, 120, item.valuePostNatal, true);
+        return [
+          item.label,
+          String(cpn),
+          String(maternite),
+          String(postNatal),
+          String(cpn + maternite + postNatal),
+        ];
+      });
+
+      autoTable(doc, {
+        startY: currentY,
+        head: vihHeaders,
+        body: vihRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 80 } },
+      });
+
+      // Section signature (même page que le dernier tableau)
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+      if (currentY > 190) {
+        doc.addPage();
+        currentY = 30;
+      }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Réalisé par: ____________________________", 14, currentY);
+      doc.text("Signature: ____________________________", pageWidth - 100, currentY);
+
+      doc.save(`Rapport_SIG_Obstetrique_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    } catch (error) {
+      console.error("Erreur export PDF:", error);
+    } finally {
+      setSpinnerPdf(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full overflow-x-auto">
+      <Button
+        onClick={exportToPdf}
+        type="button"
+        disabled={spinnerPdf}
+        className="bg-red-500 mx-auto text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+      >
+        <Spinner
+          show={spinnerPdf}
+          size={"small"}
+          className="text-white dark:text-slate-400"
+        />
+        Exporter PDF
+      </Button>
       <div className="flex flex-row gap-3">
         {/* Tableau 1: Numéro CPN1 */}
         <div>

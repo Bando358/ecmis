@@ -101,6 +101,58 @@ export const countClientPfInsertionAndControl = (
   return count;
 };
 
+// Fonction pour compter uniquement les insertions
+export const countClientPfInsertion = (
+  clientData: ClientData[],
+  minAge: number,
+  maxAge: number,
+  propriete: string,
+  statut: string
+): number => {
+  if (!Array.isArray(clientData) || clientData.length === 0) {
+    return 0;
+  }
+
+  return clientData.reduce((acc, client) => {
+    const ageCondition = client.age >= minAge && client.age <= maxAge;
+    const proprieteValue = client[propriete as keyof ClientData];
+    const proprieteCondition =
+      typeof proprieteValue === "string" &&
+      proprieteValue.trim().toLowerCase() === "insertion";
+    const statutCondition =
+      typeof client.statut === "string" &&
+      client.statut.trim().toLowerCase() === statut.trim().toLowerCase();
+
+    return ageCondition && proprieteCondition && statutCondition ? acc + 1 : acc;
+  }, 0);
+};
+
+// Fonction pour compter uniquement les contrôles
+export const countClientPfControle = (
+  clientData: ClientData[],
+  minAge: number,
+  maxAge: number,
+  propriete: string,
+  statut: string
+): number => {
+  if (!Array.isArray(clientData) || clientData.length === 0) {
+    return 0;
+  }
+
+  return clientData.reduce((acc, client) => {
+    const ageCondition = client.age >= minAge && client.age <= maxAge;
+    const proprieteValue = client[propriete as keyof ClientData];
+    const proprieteCondition =
+      typeof proprieteValue === "string" &&
+      proprieteValue.trim().toLowerCase() === "controle";
+    const statutCondition =
+      typeof client.statut === "string" &&
+      client.statut.trim().toLowerCase() === statut.trim().toLowerCase();
+
+    return ageCondition && proprieteCondition && statutCondition ? acc + 1 : acc;
+  }, 0);
+};
+
 export const countClientPfRetrait = (
   clientData: ClientData[],
   minAge: number,

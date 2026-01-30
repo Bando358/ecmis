@@ -18,6 +18,7 @@ import {
   FactureExamen,
   DemandeExamen,
   DemandeEchographie,
+  TarifPrestation,
 } from "@prisma/client";
 
 interface FichePharmacyServerData {
@@ -31,6 +32,7 @@ interface FichePharmacyServerData {
   tabClinique: Clinique[];
   tabEchographie: Echographie[];
   tabTarifEchographies: TarifEchographie[];
+  tabTarifPrestations: TarifPrestation[];
   tabProduitFactureClient: FactureProduit[];
   tabPrestationFactureClient: FacturePrestation[];
   tabEchographieFactureClient: FactureEchographie[];

@@ -135,7 +135,7 @@ model User {
   name          String
   email         String @unique
   username      String @unique
-  password      String @unique
+  password      String
   prescripteur  Boolean @default(false)
   emailVerified Boolean
   image         String?

@@ -59,6 +59,7 @@ export default function ConstantePage({
     prenom: string;
   } | null>(null);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { setSelectedClientId } = useClientContext();
   const { data: session } = useSession();
@@ -70,59 +71,50 @@ export default function ConstantePage({
     setSelectedClientId(constanteId);
   }, [constanteId, setSelectedClientId]);
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!idUser || !constanteId) return;
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
+      setIsLoading(true);
       try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CONSTANTE
-        );
-        setPermission(perm || null);
+        // Étape 1: Requêtes indépendantes en parallèle
+        const [user, resultConstante, resultVisites, clientData] = await Promise.all([
+          getOneUser(idUser),
+          getAllContanteByIdClient(constanteId),
+          getAllVisiteByIdClient(constanteId),
+          getOneClient(constanteId),
+        ]);
 
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'accéder à cette page.");
-        //   router.back();
-        // }
+        setOneUser(user);
+        setSelectedConstante(resultConstante as Constante[]);
+        setVisites(resultVisites as Visite[]);
+        if (clientData) {
+          setClient({
+            id: clientData.id,
+            nom: clientData.nom,
+            prenom: clientData.prenom,
+          });
+        }
+
+        // Étape 2: Requête dépendante (permissions basées sur user)
+        if (user) {
+          const permissions = await getUserPermissionsById(user.id);
+          const perm = permissions.find(
+            (p: { table: string }) => p.table === TableName.CONSTANTE
+          );
+          setPermission(perm || null);
+        }
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
+        toast.error("Erreur lors du chargement");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchPermissions();
-  }, [oneUser, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const resultConstante = await getAllContanteByIdClient(constanteId);
-      setSelectedConstante(resultConstante as Constante[]);
-      const result = await getAllVisiteByIdClient(constanteId);
-      setVisites(result as Visite[]);
-      const clientData = await getOneClient(constanteId);
-      if (clientData) {
-        setClient({
-          id: clientData.id,
-          nom: clientData.nom,
-          prenom: clientData.prenom,
-        });
-      }
-    };
-    fetchData();
-  }, [constanteId]);
+    fetchAllData();
+  }, [idUser, constanteId]);
 
   const form = useForm<Constante>({
     defaultValues: {
@@ -212,6 +204,18 @@ export default function ConstantePage({
       console.error("Erreur lors de la création de la constante :", error);
     }
   };
+
+  // Affichage du loader pendant le chargement
+  if (isLoading) {
+    return (
+      <div className="w-full h-96 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-500">Chargement du formulaire...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full justify-center relative">

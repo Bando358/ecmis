@@ -5,6 +5,7 @@ import { getAllTarifExamen } from "@/lib/actions/tarifExamenActions";
 import { getAllExamen } from "@/lib/actions/examenActions";
 import { getAllPrestation } from "@/lib/actions/prestationActions";
 import { getAllProduits } from "@/lib/actions/produitActions";
+import { getAllTarifPrestation } from "@/lib/actions/tarifPrestationActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { getAllEchographies } from "@/lib/actions/echographieActions";
 import { getAllTarifEchographie } from "@/lib/actions/tarifEchographieActions";
@@ -25,6 +26,7 @@ import {
   FactureExamen,
   DemandeExamen,
   DemandeEchographie,
+  TarifPrestation,
 } from "@prisma/client";
 import { getAllFactureProduitByIdClient } from "@/lib/actions/factureProduitActions";
 import { getAllFacturePrestationByIdClient } from "@/lib/actions/facturePrestationActions";
@@ -46,6 +48,7 @@ interface FichePharmacyServerProps {
     tabClinique: Clinique[];
     tabEchographie: Echographie[];
     tabTarifEchographies: TarifEchographie[];
+    tabTarifPrestations: TarifPrestation[];
     tabProduitFactureClient: FactureProduit[];
     tabPrestationFactureClient: FacturePrestation[];
     tabEchographieFactureClient: FactureEchographie[];
@@ -72,6 +75,7 @@ export default async function FichePharmacyServer({
       cliniquesResult,
       echographiesResult,
       tarifEchographiesResult,
+      tarifPrestationsResult,
       tabProduitFactureClient,
       tabPrestationFactureClient,
       tabEchographieFactureClient,
@@ -89,6 +93,7 @@ export default async function FichePharmacyServer({
       getAllClinique(),
       getAllEchographies(),
       getAllTarifEchographie(),
+      getAllTarifPrestation(),
       getAllFactureProduitByIdClient(pharmacyId),
       getAllFacturePrestationByIdClient(pharmacyId),
       getAllFactureEchographieByIdClient(pharmacyId),
@@ -109,6 +114,7 @@ export default async function FichePharmacyServer({
       tabClinique: cliniquesResult as Clinique[],
       tabEchographie: echographiesResult as Echographie[],
       tabTarifEchographies: tarifEchographiesResult as TarifEchographie[],
+      tabTarifPrestations: tarifPrestationsResult as TarifPrestation[],
       tabProduitFactureClient: tabProduitFactureClient as FactureProduit[],
       tabPrestationFactureClient:
         tabPrestationFactureClient as FacturePrestation[],
@@ -136,6 +142,7 @@ export default async function FichePharmacyServer({
       tabClinique: [],
       tabEchographie: [],
       tabTarifEchographies: [],
+      tabTarifPrestations: [],
       tabProduitFactureClient: [],
       tabPrestationFactureClient: [],
       tabEchographieFactureClient: [],

@@ -1,22 +1,36 @@
-// import type { NextConfig } from "next";
+import type { NextConfig } from "next";
 
-// const nextConfig: NextConfig = {
-//   /* config options here */
-// };
-
-// export default nextConfig;
-
-// next.config.js
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  eslint: {
-    // Désactive le linting pendant le build si nécessaire
-    ignoreDuringBuilds: true,
+const nextConfig: NextConfig = {
+  images: {
+    formats: ["image/webp", "image/avif"],
   },
-  typescript: {
-    // Ignore les erreurs de type pendant le build
-    ignoreBuildErrors: true,
+
+  // Security headers pour protéger contre les attaques courantes
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
+      },
+    ];
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

@@ -2,7 +2,7 @@
 // lib/actions/dashboardActions.ts
 import prisma from "@/lib/prisma";
 import { getAllClientIncludedInDate } from "./clientActions";
-import { Activite, Client, Planning, User, Visite } from "@prisma/client";
+import { Activite, Client, Planning, Prisma, User, Visite } from "@prisma/client";
 
 export type SaleType = "examen" | "produit" | "prestation" | "echographie";
 // export type DataPrestation = {
@@ -94,7 +94,8 @@ export const fetchDashboardData = async (
   allData: { name: string; data: unknown }[]; // Add this line for allData
 }> => {
   if (!clinicIds || clinicIds.length === 0) {
-    alert("Veuillez choisir au moins une clinique");
+    // Retourner des données vides si aucune clinique n'est sélectionnée
+    console.warn("fetchDashboardData: Aucune clinique sélectionnée");
     return {
       facturesExamens: [],
       facturesProduits: [],
@@ -128,7 +129,7 @@ export const fetchDashboardData = async (
 
   // récupérer les activités qui ont leur id dans visite
   // Construire dynamiquement le filtre dateVisite
-  const whereVisite: any = {
+  const whereVisite: Prisma.VisiteWhereInput = {
     idClinique: { in: clinicIds },
   };
 
@@ -152,31 +153,36 @@ export const fetchDashboardData = async (
   // 2️⃣ Extraire les IDs des visites
   const allVisiteIds = allVisiteByDateFromAndDateTo.map((visite) => visite.id);
 
-  // 3️⃣ Récupérer les récapitulatifs liés aux visites
-  const allDataRecap = await prisma.recapVisite.findMany({
-    where: {
-      idVisite: {
-        in: allVisiteIds.length > 0 ? allVisiteIds : undefined,
-      },
-    },
-  });
-
-  const activites = await prisma.activite.findMany({
-    where: {
-      Visites: {
-        some: {
-          id: { in: allVisiteByDateFromAndDateTo.map((visite) => visite.id) },
+  // 3️⃣ Récupérer les récapitulatifs liés aux visites (seulement si des visites existent)
+  const allDataRecap = allVisiteIds.length > 0
+    ? await prisma.recapVisite.findMany({
+        where: {
+          idVisite: {
+            in: allVisiteIds,
+          },
         },
-      },
-    },
-  });
+      })
+    : [];
+
+  // 4️⃣ Récupérer les activités (seulement si des visites existent)
+  const activites = allVisiteIds.length > 0
+    ? await prisma.activite.findMany({
+        where: {
+          Visites: {
+            some: {
+              id: { in: allVisiteIds },
+            },
+          },
+        },
+      })
+    : [];
 
   // Construire le filtre de date dynamiquement
-  const dateFilter: any = {};
+  const dateFilter: Prisma.DateTimeFilter = {};
   if (dateFrom) dateFilter.gte = dateFrom;
   if (dateTo) dateFilter.lte = dateTo;
 
-  const visiteWhere: any = {
+  const visiteWhere: Prisma.VisiteWhereInput = {
     ...(Object.keys(dateFilter).length > 0 && { dateVisite: dateFilter }),
   };
 

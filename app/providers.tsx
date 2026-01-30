@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { useInactivityGuard } from "@/hooks/useInactivityGuard";
 import { ClientProvider } from "@/components/ClientContext";
+import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 
 function InactivityGuard({ children }: { children: React.ReactNode }) {
   useInactivityGuard();
@@ -17,7 +18,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <ActivityTracker />
       <ClientProvider>
-        <InactivityGuard>{children}</InactivityGuard>
+        <ConfirmDialogProvider>
+          <InactivityGuard>{children}</InactivityGuard>
+        </ConfirmDialogProvider>
       </ClientProvider>
       <InactivityDebug />
       <Toaster position="top-right" richColors />

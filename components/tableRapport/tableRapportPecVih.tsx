@@ -14,6 +14,8 @@ import {
 import { Spinner } from "../ui/spinner";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // types.ts ou en haut du fichier
 type AgeRange = {
@@ -110,6 +112,7 @@ export default function TableRapportPecVih({
 }: TableRapportGynecoProps) {
   const [converted, setConverted] = useState<convertedType[]>([]);
   const [spinner, setSpinner] = useState(false);
+  const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   useEffect(() => {
     if (!clientData || clientData.length === 0) {
@@ -277,21 +280,169 @@ export default function TableRapportPecVih({
     setSpinner(false);
   };
 
+  const exportToPdf = async () => {
+    setSpinnerPdf(true);
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Charger le logo
+    const logoResponse = await fetch("/LOGO_AIBEF_IPPF.png");
+    const logoBlob = await logoResponse.blob();
+    const logoBase64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(logoBlob);
+    });
+
+    // Ajouter le logo centré (60% de la largeur)
+    const logoWidth = pageWidth * 0.6;
+    const logoHeight = 20;
+    const logoX = (pageWidth - logoWidth) / 2;
+    doc.addImage(logoBase64, "PNG", logoX, 10, logoWidth, logoHeight);
+
+    // Formater la période
+    const debut = new Date(dateDebut);
+    const fin = new Date(dateFin);
+    let periodeText = "";
+
+    // Vérifier si c'est un mois complet
+    const isFullMonth =
+      debut.getDate() === 1 &&
+      fin.getDate() === new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate() &&
+      debut.getMonth() === fin.getMonth() &&
+      debut.getFullYear() === fin.getFullYear();
+
+    if (isFullMonth) {
+      const moisNoms = [
+        "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+        "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE"
+      ];
+      periodeText = `${moisNoms[debut.getMonth()]} ${debut.getFullYear()}`;
+    } else {
+      periodeText = `${debut.toLocaleDateString("fr-FR")} - ${fin.toLocaleDateString("fr-FR")}`;
+    }
+
+    // En-tête période et clinique
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Période: ${periodeText}`, 14, 38);
+    doc.text(`Clinique: ${clinic}`, pageWidth - 14, 38, { align: "right" });
+
+    let currentY = 48;
+
+    // Définir les en-têtes pour les tableaux "Masculin/Féminin"
+    const ageHeaders = ["-10 ans", "10-14 ans", "15-19 ans", "20-24 ans", "25 ans et +"];
+    const headers = [
+      [
+        { content: "Indicateurs", rowSpan: 2 },
+        { content: "Masculin", colSpan: 5 },
+        { content: "Féminin", colSpan: 5 },
+        { content: "Total", rowSpan: 2 }
+      ],
+      [...ageHeaders, ...ageHeaders]
+    ];
+
+    // Tableau 1: Rapport clients PVVIH
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Rapport clients PVVIH", 14, currentY);
+    currentY += 5;
+
+    const bodyClientsPecVih = tabClientPecVih.map((item) => {
+      const masculinValues = ageRanges.map((range) =>
+        countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin")
+      );
+      const femininValues = ageRanges.map((range) =>
+        countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin")
+      );
+      const total = [...masculinValues, ...femininValues].reduce((a, b) => a + b, 0);
+      return [item.label, ...masculinValues.map(String), ...femininValues.map(String), total.toString()];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      head: headers,
+      body: bodyClientsPecVih,
+      theme: "grid",
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" },
+      columnStyles: {
+        0: { cellWidth: 60 },
+      },
+    });
+
+    currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+    // Tableau 2: Rapport services PVVIH
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Rapport services PVVIH", 14, currentY);
+    currentY += 5;
+
+    const bodyServicesPecVih = tabServicePecVih.map((item) => {
+      const masculinValues = ageRanges.map((range) =>
+        countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin")
+      );
+      const femininValues = ageRanges.map((range) =>
+        countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin")
+      );
+      const total = [...masculinValues, ...femininValues].reduce((a, b) => a + b, 0);
+      return [item.label, ...masculinValues.map(String), ...femininValues.map(String), total.toString()];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      head: headers,
+      body: bodyServicesPecVih,
+      theme: "grid",
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" },
+      columnStyles: {
+        0: { cellWidth: 60 },
+      },
+    });
+
+    // Section signature
+    currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Réalisé par: ____________________________", 14, currentY);
+    doc.text("Signature: ____________________________", pageWidth - 100, currentY);
+
+    doc.save(`Rapport_PEC_VIH_${new Date().toLocaleDateString("fr-FR")}.pdf`);
+    setSpinnerPdf(false);
+  };
+
   return (
     <div className="flex flex-col gap-4 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full overflow-x-auto">
-      <Button
-        onClick={exportToExcel}
-        type="button"
-        disabled={spinner}
-        className="bg-blue-500 mx-auto text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-      >
-        <Spinner
-          show={spinner}
-          size={"small"}
-          className="text-white dark:text-slate-400"
-        />
-        Exporter
-      </Button>
+      <div className="flex gap-2 mx-auto">
+        <Button
+          onClick={exportToExcel}
+          type="button"
+          disabled={spinner}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinner}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter Excel
+        </Button>
+        <Button
+          onClick={exportToPdf}
+          type="button"
+          disabled={spinnerPdf}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+        >
+          <Spinner
+            show={spinnerPdf}
+            size={"small"}
+            className="text-white dark:text-slate-400"
+          />
+          Exporter PDF
+        </Button>
+      </div>
       <h2 className="font-bold">Rapport clients PVVIH </h2>
       <Table className="border">
         <TableHeader className="bg-gray-200">

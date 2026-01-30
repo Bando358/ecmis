@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useRef, use, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import {
@@ -76,6 +76,7 @@ import {
   FactureEchographie,
   TableName,
   Permission,
+  TarifPrestation,
 } from "@prisma/client";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
@@ -156,6 +157,7 @@ export default function FichePharmacyClient({
     tabClinique: Clinique[];
     tabEchographie: Echographie[];
     tabTarifEchographies: TarifEchographie[];
+    tabTarifPrestations: TarifPrestation[];
     tabProduitFactureClient: FactureProduit[];
     tabPrestationFactureClient: FacturePrestation[];
     tabEchographieFactureClient: FactureEchographie[];
@@ -220,6 +222,27 @@ export default function FichePharmacyClient({
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+
+  // Mémorisation des filtres par clinique pour éviter les re-calculs inutiles
+  const filteredTarifProduits = useMemo(
+    () => tabTarifProduit.filter((t) => t.idClinique === client?.idClinique),
+    [tabTarifProduit, client?.idClinique]
+  );
+
+  const filteredTarifPrestations = useMemo(
+    () => serverData.tabTarifPrestations.filter((p) => p.idClinique === client?.idClinique),
+    [serverData.tabTarifPrestations, client?.idClinique]
+  );
+
+  const filteredTarifExamens = useMemo(
+    () => tabTarifExamens.filter((t) => t.idClinique === client?.idClinique),
+    [tabTarifExamens, client?.idClinique]
+  );
+
+  const filteredTarifEchographies = useMemo(
+    () => tabTarifEchographies.filter((t) => t.idClinique === client?.idClinique),
+    [tabTarifEchographies, client?.idClinique]
+  );
 
   // Les fonctions restent identiques...
   const handleDelete = (idProduit: string) => {
@@ -618,123 +641,117 @@ export default function FichePharmacyClient({
       };
       await createCouverture(couvertureData);
 
-      // Enregistrement des produits
-      for (const produit of factureProduit) {
-        const dataProduit = {
-          // ...produit,
-          idVisite: watchedIdVisite,
-          nomProduit: renameValue(produit.idTarifProduit),
-          montantProduit: produit.montantProduit || 0,
-          id: crypto.randomUUID(), // Génère un nouvel id unique à chaque création
-          idTarifProduit: produit.idTarifProduit,
-          idClient: produit.idClient,
-          idClinique: produit.idClinique,
-          quantite: Number(produit.quantite),
-          methode: produit.methode,
-          dateFacture: produit.dateFacture,
-          idUser: idUser,
-        };
-        try {
-          await createFactureProduit(dataProduit);
-          await updateProduitByFactureProduit(
-            produit.idTarifProduit,
-            Number(produit.quantite)
-          );
-        } catch (error) {
-          console.error("Erreur lors de l'enregistrement du produit:", error);
-          toast.error("Erreur lors de l'enregistrement du produit");
-          continue; // Passer au produit suivant en cas d'erreur
-        }
-      }
+      // Enregistrement parallèle de toutes les factures
+      const [produitsResults, prestationsResults, examensResults, echographiesResults] = await Promise.all([
+        // Enregistrement des produits (chaque produit a 2 appels séquentiels)
+        Promise.allSettled(
+          factureProduit.map(async (produit) => {
+            const dataProduit = {
+              idVisite: watchedIdVisite,
+              nomProduit: renameValue(produit.idTarifProduit),
+              montantProduit: produit.montantProduit || 0,
+              id: crypto.randomUUID(),
+              idTarifProduit: produit.idTarifProduit,
+              idClient: produit.idClient,
+              idClinique: produit.idClinique,
+              quantite: Number(produit.quantite),
+              methode: produit.methode,
+              dateFacture: produit.dateFacture,
+              idUser: idUser,
+            };
+            await createFactureProduit(dataProduit);
+            await updateProduitByFactureProduit(
+              produit.idTarifProduit,
+              Number(produit.quantite)
+            );
+          })
+        ),
+        // Enregistrement des prestations
+        Promise.allSettled(
+          facturePrestation.map(async (prestation) => {
+            const dataPrestation = {
+              idVisite: watchedIdVisite,
+              idClient: pharmacyId,
+              idClinique: client?.idClinique || "",
+              prixPrestation: Number(prestation.prixPrestation),
+              libellePrestation: nomPrestation(prestation.idPrestation),
+              id: prestation.id,
+              dateFacture: prestation.dateFacture,
+              idUser: idUser,
+              idPrestation: prestation.idPrestation,
+            };
+            await createFacturePrestation(dataPrestation);
+          })
+        ),
+        // Enregistrement des demandes d'examen
+        Promise.allSettled(
+          demandeExamens.map(async (demande) => {
+            const dataDemande = {
+              id: crypto.randomUUID(),
+              idVisite: watchedIdVisite,
+              idClient: pharmacyId,
+              idClinique: client?.idClinique || "",
+              remiseExamen: parseInt(String(watchedRemiseExamen || "0")),
+              soustraitanceExamen: Boolean(watchedSoustractionExamen),
+              idUser: idUser,
+              libelleExamen: renameExamen(demande.id),
+              prixExamen: Number(watchedRemiseExamen)
+                ? Math.round(
+                    demande.prixExamen * (1 - Number(watchedRemiseExamen) / 100)
+                  )
+                : demande.prixExamen,
+              idDemandeExamen: demande.id,
+            };
+            await createFactureExamen(dataDemande);
+          })
+        ),
+        // Enregistrement des demandes d'échographie
+        Promise.allSettled(
+          demandeEchographies.map(async (demande) => {
+            const dataDemande = {
+              id: crypto.randomUUID(),
+              idVisite: watchedIdVisite,
+              idClient: pharmacyId,
+              idClinique: client?.idClinique || "",
+              remiseEchographie: parseInt(String(watchedRemiseEchographie || "0")),
+              idUser: idUser,
+              libelleEchographie: renameEchographie(demande.id),
+              prixEchographie: Number(watchedRemiseEchographie)
+                ? Math.round(
+                    demande.prixEchographie *
+                      (1 - Number(watchedRemiseEchographie) / 100)
+                  )
+                : demande.prixEchographie,
+              idDemandeEchographie: demande.id,
+              serviceEchographieFacture:
+                getServiceEchographie(demande.idTarifEchographie) ?? "",
+            };
+            await createFactureEchographie(dataDemande);
+          })
+        ),
+      ]);
 
-      // Enregistrement des prestations
-      for (const prestation of facturePrestation) {
-        const dataPrestation = {
-          // ...prestation,
-          idVisite: watchedIdVisite,
-          idClient: pharmacyId,
-          idClinique: client?.idClinique || "",
-          prixPrestation: Number(prestation.prixPrestation),
-          libellePrestation: nomPrestation(prestation.idPrestation),
-          id: prestation.id,
-          dateFacture: prestation.dateFacture,
-          idUser: idUser,
-          idPrestation: prestation.idPrestation,
-        };
-        try {
-          await createFacturePrestation(dataPrestation);
-        } catch (error) {
-          console.error(
-            "Erreur lors de l'enregistrement de la prestation:",
-            error
-          );
-          toast.error("Erreur lors de l'enregistrement de la prestation");
-          continue; // Passer à la prestation suivante en cas d'erreur
-        }
+      // Gestion des erreurs individuelles
+      const produitErrors = produitsResults.filter((r) => r.status === "rejected");
+      const prestationErrors = prestationsResults.filter((r) => r.status === "rejected");
+      const examenErrors = examensResults.filter((r) => r.status === "rejected");
+      const echographieErrors = echographiesResults.filter((r) => r.status === "rejected");
+
+      if (produitErrors.length > 0) {
+        console.error("Erreurs produits:", produitErrors);
+        toast.error(`${produitErrors.length} erreur(s) lors de l'enregistrement des produits`);
       }
-      // Enregistrement des demandes d'examen
-      for (const demande of demandeExamens) {
-        const dataDemande = {
-          id: crypto.randomUUID(),
-          idVisite: watchedIdVisite,
-          idClient: pharmacyId,
-          idClinique: client?.idClinique || "",
-          remiseExamen: parseInt(String(watchedRemiseExamen || "0")),
-          soustraitanceExamen: Boolean(watchedSoustractionExamen),
-          idUser: idUser,
-          libelleExamen: renameExamen(demande.id),
-          // prixExamen: Number(watchedRemiseExamen)
-          //   ? demande.prixExamen *
-          //     (1 - Number(watchedRemiseExamen) / 100)
-          //   : demande.prixExamen,
-          prixExamen: Number(watchedRemiseExamen)
-            ? Math.round(
-                demande.prixExamen * (1 - Number(watchedRemiseExamen) / 100)
-              )
-            : demande.prixExamen,
-          idDemandeExamen: demande.id,
-        };
-        try {
-          await createFactureExamen(dataDemande);
-        } catch (error) {
-          console.error(
-            "Erreur lors de l'enregistrement de la demande d'examen:",
-            error
-          );
-          toast.error("Erreur lors de l'enregistrement de l'examen");
-          continue; // Passer à la prestation suivante en cas d'erreur
-        }
+      if (prestationErrors.length > 0) {
+        console.error("Erreurs prestations:", prestationErrors);
+        toast.error(`${prestationErrors.length} erreur(s) lors de l'enregistrement des prestations`);
       }
-      // Enregistrement des demandes d'échographie
-      for (const demande of demandeEchographies) {
-        const dataDemande = {
-          id: crypto.randomUUID(),
-          idVisite: watchedIdVisite,
-          idClient: pharmacyId,
-          idClinique: client?.idClinique || "",
-          remiseEchographie: parseInt(String(watchedRemiseEchographie || "0")),
-          idUser: idUser,
-          libelleEchographie: renameEchographie(demande.id),
-          prixEchographie: Number(watchedRemiseEchographie)
-            ? Math.round(
-                demande.prixEchographie *
-                  (1 - Number(watchedRemiseEchographie) / 100)
-              )
-            : demande.prixEchographie,
-          idDemandeEchographie: demande.id,
-          serviceEchographieFacture:
-            getServiceEchographie(demande.idTarifEchographie) ?? "",
-        };
-        try {
-          await createFactureEchographie(dataDemande);
-        } catch (error) {
-          console.error(
-            "Erreur lors de l'enregistrement de la demande d'échographie:",
-            error
-          );
-          toast.error("Erreur lors de l'enregistrement de l'échographie");
-          continue; // Passer à la prestation suivante en cas d'erreur
-        }
+      if (examenErrors.length > 0) {
+        console.error("Erreurs examens:", examenErrors);
+        toast.error(`${examenErrors.length} erreur(s) lors de l'enregistrement des examens`);
+      }
+      if (echographieErrors.length > 0) {
+        console.error("Erreurs échographies:", echographieErrors);
+        toast.error(`${echographieErrors.length} erreur(s) lors de l'enregistrement des échographies`);
       }
 
       // Réinitialisation et mise à jour des données
@@ -1585,6 +1602,11 @@ export default function FichePharmacyClient({
           setOpen={setOpen}
           refreshProduits={refreshProduits}
           setFactureProduit={setFactureProduit}
+          tarifProduits={filteredTarifProduits}
+          excludedProduitIds={[
+            ...factureProduit.map((p) => p.idTarifProduit),
+            ...produitFacture.map((p) => p.idTarifProduit),
+          ]}
         />
 
         <PrestationsModal
@@ -1593,6 +1615,11 @@ export default function FichePharmacyClient({
           setOpenPrestation={setOpenPrestation}
           refreshProduits={refreshProduits}
           setFacturePrestation={setFacturePrestation}
+          tarifPrestations={filteredTarifPrestations}
+          excludedPrestationIds={[
+            ...facturePrestation.map((p) => p.idPrestation),
+            ...prestationfacture.map((p) => p.idPrestation),
+          ]}
         />
         <ExamensModal
           open={openExamens}
@@ -1606,6 +1633,14 @@ export default function FichePharmacyClient({
             );
             setTabDemandeExamens(allDemandeExamens as DemandeExamen[]);
           }}
+          tabClinique={tabClinique}
+          allExamens={tabExamen}
+          tarifExamens={filteredTarifExamens}
+          demandesExamens={tabDemandeExamens}
+          excludedExamenIds={[
+            ...demandeExamens.map((e) => e.id),
+            ...examensFacture.map((e) => e.idDemandeExamen),
+          ]}
         />
         <EchographiesModal
           open={openEchographies}
@@ -1620,6 +1655,14 @@ export default function FichePharmacyClient({
               allDemandeEchographies as DemandeEchographie[]
             );
           }}
+          tabClinique={tabClinique}
+          allEchographies={tabEchographie}
+          tarifEchographies={filteredTarifEchographies}
+          demandesEchographies={tabDemandeEchographies}
+          excludedEchographieIds={[
+            ...demandeEchographies.map((e) => e.id),
+            ...echographiesFacture.map((e) => e.idDemandeEchographie),
+          ]}
         />
       </div>
     </div>

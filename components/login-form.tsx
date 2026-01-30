@@ -20,26 +20,14 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { getUserByUsername } from "@/lib/actions/authActions";
-
-const signUpSchema = z.object({
-  username: z.string().min(5, {
-    message: "Username must be at least 5 characters.",
-  }),
-  password: z
-    .string()
-    .min(6, "Le mot de passe doit contenir au moins 8 caractères.")
-    .regex(/[A-Za-z0-9]/, {
-      message: "Le mot de passe doit inclure des lettres et des chiffres.",
-    }),
-});
-
-type FormData = z.infer<typeof signUpSchema>;
+import { loginSchema, type LoginInput } from "@/lib/schemas";
+import { authLogger } from "@/lib/logger";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 export function LoginForm({
   className,
@@ -48,18 +36,19 @@ export function LoginForm({
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(signUpSchema),
+  const form = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
       password: "",
     },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: LoginInput) => {
     if (isPending) return;
 
     setIsPending(true);
+    authLogger.info("Tentative de connexion", { data: { username: data.username } });
 
     try {
       const res = await signIn("credentials", {
@@ -68,10 +57,11 @@ export function LoginForm({
         password: data.password,
       });
 
-      console.log("Response from signIn:", res);
-
       if (res?.error) {
-        toast.error("Nom d'utilisateur ou mot de passe incorrect");
+        authLogger.warn("Échec de connexion - identifiants invalides", {
+          data: { username: data.username },
+        });
+        toast.error(ERROR_MESSAGES.INVALID_CREDENTIALS);
         setIsPending(false);
         return;
       }
@@ -79,20 +69,26 @@ export function LoginForm({
       if (res?.ok) {
         const user = await getUser(data.username);
         if (user?.banned) {
-          toast.error(
-            `Votre compte a été désactivé! Veuillez contacter un administrateur.`
-          );
+          authLogger.warn("Connexion bloquée - compte banni", {
+            userId: user.id,
+            data: { username: data.username },
+          });
+          toast.error(ERROR_MESSAGES.ACCOUNT_BANNED);
           await signOut({ redirect: false });
           setIsPending(false);
           return;
         } else {
+          authLogger.info("Connexion réussie", {
+            userId: user?.id,
+            data: { username: data.username },
+          });
           toast.success("Connexion réussie !");
           router.replace("/");
         }
       }
     } catch (error) {
-      console.error("Erreur de connexion:", error);
-      toast.error("Erreur lors de la connexion");
+      authLogger.error("Erreur lors de la connexion", error);
+      toast.error(ERROR_MESSAGES.UNKNOWN_ERROR);
       setIsPending(false);
     }
   };

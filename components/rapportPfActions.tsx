@@ -783,90 +783,79 @@ export const fetchClientsData = async (
     Couverture?: CouvертureRecord[];
   }
 
-  clients.forEach((client: ClientWithRelations) => {
-    client.Visite.forEach((visite: VisiteWithRelations) => {
+  clients.forEach((client) => {
+    client.Visite.forEach((visite) => {
       if (
         visite.dateVisite >= dateVisite1 &&
         visite.dateVisite <= dateVisite2
       ) {
         // 🔑 Récupération par idVisite et non par index
-        const planning: PlanningRecord | undefined = client.Planning?.find(
-          (p: PlanningRecord) => p.idVisite === visite.id
+        const planning = client.Planning?.find(
+          (p) => p.idVisite === visite.id
         );
-        const gyneco: GynecologieRecord | undefined = client.Gynecologie?.find(
-          (g: GynecologieRecord) => g.idVisite === visite.id
+        const gyneco = client.Gynecologie?.find(
+          (g) => g.idVisite === visite.id
         );
-        const ist: IstRecord | undefined = client.Ist?.find(
-          (i: IstRecord) => i.istIdVisite === visite.id
+        const ist = client.Ist?.find(
+          (i) => i.istIdVisite === visite.id
         );
-        const infert: InfertiliteRecord | undefined = client.Infertilite?.find(
-          (f: InfertiliteRecord) => f.infertIdVisite === visite.id
+        const infert = client.Infertilite?.find(
+          (f) => f.infertIdVisite === visite.id
         );
-        const vbg: VbgRecord | undefined = client.Vbg?.find(
-          (v: VbgRecord) => v.vbgIdVisite === visite.id
+        const vbg = client.Vbg?.find(
+          (v) => v.vbgIdVisite === visite.id
         );
-        const medecine: MedecineRecord | undefined = client.Medecine?.find(
-          (m: MedecineRecord) => m.mdgIdVisite === visite.id
+        const medecine = client.Medecine?.find(
+          (m) => m.mdgIdVisite === visite.id
         );
-        const grossesse: GrossesseRecord | undefined = client.Grossesse?.find(
-          (g: GrossesseRecord) => g.grossesseIdVisite === visite.id
+        const grossesse = client.Grossesse?.find(
+          (g) => g.grossesseIdVisite === visite.id
         );
-        const obstetrique: ObstetriqueRecord | undefined =
-          client.Obstetrique?.find(
-            (o: ObstetriqueRecord) => o.obstIdVisite === visite.id
-          );
-        const cpon: CponRecord | undefined = client.Cpon?.find(
-          (c: CponRecord) => c.cponIdVisite === visite.id
+        const obstetrique = client.Obstetrique?.find(
+          (o) => o.obstIdVisite === visite.id
         );
-        const testGrossesse: TestGrossesseRecord | undefined =
-          client.TestGrossesse?.find(
-            (c: TestGrossesseRecord) => c.testIdVisite === visite.id
-          );
-        const accouchement: AccouchementRecord | undefined =
-          client.Accouchement?.find(
-            (c: AccouchementRecord) => c.accouchementIdVisite === visite.id
-          );
-        const saa: SaaRecord | undefined = client.Saa?.find(
-          (c: SaaRecord) => c.saaIdVisite === visite.id
+        const cpon = client.Cpon?.find(
+          (c) => c.cponIdVisite === visite.id
         );
-        const depistageVih: DepistageVihRecord | undefined =
-          client.DepistageVih?.find(
-            (d: DepistageVihRecord) => d.depistageVihIdVisite === visite.id
-          );
-        const pecVih: PecVihRecord | undefined = client.PecVih?.find(
-          (p: PecVihRecord) => p.pecVihIdVisite === visite.id
+        const testGrossesse = client.TestGrossesse?.find(
+          (c) => c.testIdVisite === visite.id
         );
-        const recapVisite: RecapVisiteRecord | undefined =
-          client.RecapVisite?.find(
-            (r: RecapVisiteRecord) => r.idVisite === visite.id
-          );
-        const examenPvVih: ExamenPvVihRecord | undefined =
-          client.ExamenPvVih?.find(
-            (e: ExamenPvVihRecord) => e.examenPvVihIdVisite === visite.id
-          );
+        const accouchement = client.Accouchement?.find(
+          (c) => c.accouchementIdVisite === visite.id
+        );
+        const saa = client.Saa?.find(
+          (c) => c.saaIdVisite === visite.id
+        );
+        const depistageVih = client.DepistageVih?.find(
+          (d) => d.depistageVihIdVisite === visite.id
+        );
+        const pecVih = client.PecVih?.find(
+          (p) => p.pecVihIdVisite === visite.id
+        );
+        const recapVisite = client.RecapVisite?.find(
+          (r) => r.idVisite === visite.id
+        );
+        const examenPvVih = client.ExamenPvVih?.find(
+          (e) => e.examenPvVihIdVisite === visite.id
+        );
 
-        const echographie: FactureEchographieRecord[] | undefined =
-          client.FactureEchographie?.filter(
-            (e: FactureEchographieRecord) => e.idVisite === visite.id
-          );
-        const examen: FactureExamenRecord[] | undefined =
-          client.FactureExamen?.filter(
-            (e: FactureExamenRecord) => e.idVisite === visite.id
-          );
+        const echographie = client.FactureEchographie?.filter(
+          (e) => e.idVisite === visite.id
+        );
+        const examen = client.FactureExamen?.filter(
+          (e) => e.idVisite === visite.id
+        );
 
-        const prestation: FacturePrestationRecord[] | undefined =
-          client.FacturePrestation?.filter(
-            (e: FacturePrestationRecord) => e.idVisite === visite.id
-          );
-        const produit: FactureProduitRecord[] | undefined =
-          client.FactureProduit?.filter(
-            (e: FactureProduitRecord) => e.idVisite === visite.id
-          );
+        const prestation = client.FacturePrestation?.filter(
+          (e) => e.idVisite === visite.id
+        );
+        const produit = client.FactureProduit?.filter(
+          (e) => e.idVisite === visite.id
+        );
         // let montantTotalPaiement = 0;
-        const couverture: CouvертureRecord | undefined =
-          client.Couverture?.find(
-            (c: CouvертureRecord) => c.couvertIdVisite === visite.id
-          );
+        const couverture = client.Couverture?.find(
+          (c) => c.couvertIdVisite === visite.id
+        );
 
         visitsData.push({
           id: client.id,

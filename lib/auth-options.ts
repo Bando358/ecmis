@@ -2,7 +2,7 @@
 import prisma from "@/lib/prisma";
 import { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import type { Adapter } from "next-auth/adapters";
+import { PrismaClient } from "@prisma/client";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 
@@ -16,13 +16,13 @@ interface ExtendedUser {
 }
 
 export const authOptions: NextAuthOptions = {
-  // Correction de l'adapter avec une approche plus sûre
-  adapter: PrismaAdapter(prisma),
+  // Cast nécessaire pour Prisma 6.x avec extensions ($extends)
+  adapter: PrismaAdapter(prisma as unknown as PrismaClient),
 
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 jours
-    updateAge: 24 * 60 * 60, // 24h
+    maxAge: 8 * 60 * 60, // 8 heures (journée de travail)
+    updateAge: 1 * 60 * 60, // Rafraîchir toutes les heures
   },
 
   pages: {
@@ -96,8 +96,8 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
-        (session.user as any).username = token.username as string;
-        (session.user as any).role = token.role as string;
+        session.user.username = token.username as string;
+        session.user.role = token.role as string;
       }
       return session;
     },

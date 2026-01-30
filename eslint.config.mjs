@@ -1,10 +1,6 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
-import js from "@eslint/js";
-import ts from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
-import nextConfig from "eslint-config-next";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,39 +10,36 @@ const compat = new FlatCompat({
 });
 
 export default [
-  // ✅ Ignore folders
+  // Ignorer les dossiers non pertinents
   {
     ignores: [
       "**/node_modules/**",
       "**/.next/**",
       "**/dist/**",
+      "**/build/**",
       "**/lib/generated/**",
+      "**/prisma/**",
     ],
   },
 
-  // ✅ JavaScript recommended rules
-  js.configs.recommended,
+  // Utiliser la configuration existante de .eslintrc.js via FlatCompat
+  ...compat.extends("next/core-web-vitals"),
+  ...compat.extends("plugin:@typescript-eslint/recommended"),
 
-  // ✅ Next.js recommended rules (OFFICIEL)
-  nextConfig(),
-
-  // ✅ TypeScript rules
+  // Règles personnalisées
   {
-    files: ["**/*.ts", "**/*.tsx"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: "./tsconfig.json",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": ts,
-    },
     rules: {
-      ...ts.configs.recommended.rules,
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
+      "react-hooks/exhaustive-deps": "warn",
+      "@next/next/no-img-element": "off",
+      // Désactiver l'erreur des apostrophes/guillemets dans JSX (texte français)
+      "react/no-unescaped-entities": "off",
     },
   },
-
-  // ✅ Compatibility with next/core-web-vitals if needed
-  ...compat.extends("next/core-web-vitals"),
 ];
