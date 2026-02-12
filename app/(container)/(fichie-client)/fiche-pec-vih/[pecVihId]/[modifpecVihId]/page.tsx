@@ -40,10 +40,19 @@ import { Input } from "@/components/ui/input";
 import ConstanteClient from "@/components/constanteClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { RefreshCw } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { motion, AnimatePresence } from "framer-motion";
+import Retour from "@/components/retour";
 
 const tabTypeClientPec = [
   { value: "initiale", label: "Consultation Initiale" },
@@ -101,13 +110,13 @@ export default function ModifPecVihPage({
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
         const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PEC_VIH
+          (p: { table: string }) => p.table === TableName.PEC_VIH,
         );
         setPermission(perm || null);
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
       }
     };
@@ -129,7 +138,7 @@ export default function ModifPecVihPage({
 
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
-              cliniqueClient.idClinique
+              cliniqueClient.idClinique,
             );
           }
         }
@@ -147,10 +156,10 @@ export default function ModifPecVihPage({
     const fetchData = async () => {
       if (selectedPecVih) {
         const result = await getAllVisiteByIdClient(
-          selectedPecVih.pecVihIdClient
+          selectedPecVih.pecVihIdClient,
         );
         const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite
+          (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite,
         );
 
         const nomPrescripteur = await getOneUser(selectedPecVih.pecVihIdUser);
@@ -159,8 +168,8 @@ export default function ModifPecVihPage({
 
         setVisites(
           result.filter(
-            (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite
-          )
+            (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite,
+          ),
         );
         setDateVisite(visiteDate?.dateVisite);
         setSelectedClientId(selectedPecVih.pecVihIdClient);
@@ -219,7 +228,7 @@ export default function ModifPecVihPage({
   const handleUpdatePecVih = async () => {
     if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier une PEC VIH. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier une PEC VIH. Contactez un administrateur.",
       );
       return router.back();
     }
@@ -238,7 +247,7 @@ export default function ModifPecVihPage({
       form.setValue("pecVihIoAutre", selectedPecVih.pecVihIoAutre);
       form.setValue(
         "pecVihSoutienPsychoSocial",
-        selectedPecVih.pecVihSoutienPsychoSocial
+        selectedPecVih.pecVihSoutienPsychoSocial,
       );
       form.setValue("pecDateRdvSuivi", selectedPecVih.pecDateRdvSuivi);
       setIsVisible(true);
@@ -246,569 +255,637 @@ export default function ModifPecVihPage({
   };
 
   return (
-    <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-      {selectedPecVih && (
-        <ConstanteClient idVisite={selectedPecVih.pecVihIdVisite} />
-      )}
-      {isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
-            Formulaire de modification de Prise en Charge VIH
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-            >
-              <FormField
-                control={form.control}
-                name="pecVihIdVisite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Selectionnez la visite
-                    </FormLabel>
-                    <Select
-                      required
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Visite à sélectionner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {visites.map((visite, index) => (
-                          <SelectItem key={index} value={visite.id}>
-                            {new Date(visite.dateVisite).toLocaleDateString(
-                              "fr-FR"
+    <div className="w-full relative">
+      <Retour />
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+        {selectedPecVih && (
+          <ConstanteClient idVisite={selectedPecVih.pecVihIdVisite} />
+        )}
+        <div className="max-w-md mx-auto">
+          <AnimatePresence mode="wait">
+            {isVisible ? (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+                  <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                    <CardTitle className="text-lg font-semibold text-blue-900 text-center">
+                      Modifier - Prise en Charge VIH
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
+                      >
+                        <FormField
+                          control={form.control}
+                          name="pecVihIdVisite"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">
+                                Selectionnez la visite
+                              </FormLabel>
+                              <Select
+                                required
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Visite à sélectionner" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {visites.map((visite, index) => (
+                                    <SelectItem key={index} value={visite.id}>
+                                      {new Date(
+                                        visite.dateVisite,
+                                      ).toLocaleDateString("fr-FR")}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="pecVihTypeclient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">
+                                Type de consultation
+                              </FormLabel>
+                              <Select
+                                required
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Sélectionnez le type de consultation" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {tabTypeClientPec.map((option, index) => (
+                                    <SelectItem
+                                      key={index}
+                                      value={option.value}
+                                    >
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="my-2 shadow-sm border-blue-200/50 rounded-md p-4 transition-all duration-300">
+                          <FormField
+                            control={form.control}
+                            name="pecVihCounselling"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Counselling
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
                             )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pecVihTypeclient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Type de consultation
-                    </FormLabel>
-                    <Select
-                      required
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Sélectionnez le type de consultation" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {tabTypeClientPec.map((option, index) => (
-                          <SelectItem key={index} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="my-2 shadow-md border rounded-md p-4 transition-all duration-300">
-                <FormField
-                  control={form.control}
-                  name="pecVihCounselling"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pecVihMoleculeArv"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="font-medium">
-                          Type de Molécule ARV
-                        </FormLabel>
-                        <RefreshCw
-                          onClick={() => {
-                            form.setValue("pecVihMoleculeArv", "");
-                          }}
-                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125 cursor-pointer"
-                        />
-                      </div>
-                      <Select
-                        required
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Sélectionnez la Molécule ARV" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tabTypeMoleculeArv.map((option, index) => (
-                            <SelectItem key={index} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pecVihAesArv"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">ARV / AES</FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pecVihCotrimo"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Prophylaxie au Cotrimoxazole
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pecVihSpdp"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">SPDP</FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="pt-4">
-                  <h3 className="font-medium mb-2">
-                    Infections opportunistes:
-                  </h3>
-
-                  <FormField
-                    control={form.control}
-                    name="pecVihIoPaludisme"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
                           />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="font-normal">
-                            Paludisme
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
 
-                  <FormField
-                    control={form.control}
-                    name="pecVihIoTuberculose"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
+                          <FormField
+                            control={form.control}
+                            name="pecVihMoleculeArv"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="text-xl font-bold flex justify-between items-center">
+                                  <FormLabel className="font-medium">
+                                    Type de Molécule ARV
+                                  </FormLabel>
+                                  <RefreshCw
+                                    onClick={() => {
+                                      form.setValue("pecVihMoleculeArv", "");
+                                    }}
+                                    className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125 cursor-pointer"
+                                  />
+                                </div>
+                                <Select
+                                  required
+                                  onValueChange={field.onChange}
+                                  value={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Sélectionnez la Molécule ARV" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {tabTypeMoleculeArv.map((option, index) => (
+                                      <SelectItem
+                                        key={index}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="font-normal">
-                            Tuberculose
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
 
-                  <FormField
-                    control={form.control}
-                    name="pecVihIoAutre"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
+                          <FormField
+                            control={form.control}
+                            name="pecVihAesArv"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    ARV / AES
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="font-normal">
-                            Autre infection opportuniste
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
-                <FormField
-                  control={form.control}
-                  name="pecVihSoutienPsychoSocial"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2 pt-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
+                          <FormField
+                            control={form.control}
+                            name="pecVihCotrimo"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Prophylaxie au Cotrimoxazole
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="pecVihSpdp"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    SPDP
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="pt-4">
+                            <h3 className="font-medium mb-2">
+                              Infections opportunistes:
+                            </h3>
+
+                            <FormField
+                              control={form.control}
+                              name="pecVihIoPaludisme"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value ?? false}
+                                      onCheckedChange={field.onChange}
+                                    />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                    <FormLabel className="font-normal">
+                                      Paludisme
+                                    </FormLabel>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="pecVihIoTuberculose"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value ?? false}
+                                      onCheckedChange={field.onChange}
+                                    />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                    <FormLabel className="font-normal">
+                                      Tuberculose
+                                    </FormLabel>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="pecVihIoAutre"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value ?? false}
+                                      onCheckedChange={field.onChange}
+                                    />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                    <FormLabel className="font-normal">
+                                      Autre infection opportuniste
+                                    </FormLabel>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="pecVihSoutienPsychoSocial"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2 pt-4">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Soutien psychosocial
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="pecDateRdvSuivi"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row justify-center items-center">
+                              <FormLabel className="font-normal flex-1">
+                                Date de RDV
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  className="flex-1"
+                                  type="date"
+                                  required
+                                  value={
+                                    field.value
+                                      ? new Date(field.value)
+                                          .toISOString()
+                                          .split("T")[0]
+                                      : ""
+                                  }
+                                  onChange={(e) =>
+                                    field.onChange(new Date(e.target.value))
+                                  }
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Soutien psychosocial
-                        </FormLabel>
+
+                        <FormField
+                          control={form.control}
+                          name="pecVihIdClient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input {...field} className="hidden" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        {isPrescripteur === true ? (
+                          <FormField
+                            control={form.control}
+                            name="pecVihIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={idUser}
+                                    className="hidden"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name="pecVihIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le prescripteur
+                                </FormLabel>
+                                <Select
+                                  required
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select Prescripteur ....." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {allPrescripteur.map(
+                                      (prescripteur, index) => (
+                                        <SelectItem
+                                          key={index}
+                                          value={prescripteur.id}
+                                        >
+                                          <span>{prescripteur.name}</span>
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                        <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsVisible(false)}
+                            disabled={form.formState.isSubmitting}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={form.formState.isSubmitting}
+                          >
+                            {form.formState.isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                En cours...
+                              </>
+                            ) : (
+                              "Appliquer"
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {!selectedPecVih ? (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardContent className="flex items-center justify-center py-16">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg font-semibold text-blue-900">
+                            Prise en Charge VIH
+                          </CardTitle>
+                          <CardDescription className="text-blue-700/60">
+                            Fiche de PEC VIH
+                          </CardDescription>
+                        </div>
                       </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="divide-y divide-blue-100/60">
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Date de visite
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {dateVisite &&
+                              new Date(dateVisite).toLocaleDateString("fr-FR")}
+                          </span>
+                        </div>
 
-              <FormField
-                control={form.control}
-                name="pecDateRdvSuivi"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row justify-center items-center">
-                    <FormLabel className="font-normal flex-1">
-                      Date de RDV
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        className="flex-1"
-                        type="date"
-                        required
-                        value={
-                          field.value
-                            ? new Date(field.value).toISOString().split("T")[0]
-                            : ""
-                        }
-                        onChange={(e) =>
-                          field.onChange(new Date(e.target.value))
-                        }
-                      />
-                    </FormControl>
-                  </FormItem>
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Type de consultation
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {renameTypeClient(
+                              selectedPecVih.pecVihTypeclient,
+                              tabTypeClientPec,
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Counselling
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihCounselling ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Molécule ARV
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {renameMoleculeArv(
+                              selectedPecVih.pecVihMoleculeArv,
+                              tabTypeMoleculeArv,
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            ARV / AES
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihAesArv ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Prophylaxie Cotrimoxazole
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihCotrimo ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            SPDP
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihSpdp ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            IO Paludisme
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihIoPaludisme ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            IO Tuberculose
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihIoTuberculose ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            IO Autre
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihIoAutre ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Soutien psychosocial
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedPecVih.pecVihSoutienPsychoSocial ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Date RDV suivi
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {formatDate(selectedPecVih.pecDateRdvSuivi)}
+                          </span>
+                        </div>
+
+                        {prescripteur && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Prescripteur
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700 italic">
+                              {prescripteur}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-center gap-4 border-t border-blue-100/60 pt-4">
+                      <Button variant="outline" onClick={() => router.back()}>
+                        Retour
+                      </Button>
+                      <Button onClick={handleUpdatePecVih}>
+                        <Pencil className="h-4 w-4 mr-2" /> Modifier
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pecVihIdClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} className="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {isPrescripteur === true ? (
-                <FormField
-                  control={form.control}
-                  name="pecVihIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={idUser} className="hidden" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="pecVihIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le prescripteur
-                      </FormLabel>
-                      <Select
-                        required
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((prescripteur, index) => (
-                            <SelectItem key={index} value={prescripteur.id}>
-                              <span>{prescripteur.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {!selectedPecVih ? (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-64" />
-                <Skeleton className="h-4 w-52" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>{selectedPecVih && <span>Date de visite : </span>}</div>
-              <div>
-                {dateVisite && new Date(dateVisite).toLocaleDateString("fr-FR")}
-              </div>
-
-              <div>
-                {selectedPecVih && <span>Type de consultation : </span>}
-              </div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {renameTypeClient(
-                      selectedPecVih.pecVihTypeclient,
-                      tabTypeClientPec
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>Counselling : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihCounselling ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>Molécule ARV : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {renameMoleculeArv(
-                      selectedPecVih.pecVihMoleculeArv,
-                      tabTypeMoleculeArv
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>ARV / AES : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihAesArv ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                {selectedPecVih && <span>Prophylaxie Cotrimoxazole : </span>}
-              </div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihCotrimo ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>SPDP : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihSpdp ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>IO Paludisme : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihIoPaludisme ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>IO Tuberculose : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihIoTuberculose ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>IO Autre : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihIoAutre ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                {selectedPecVih && <span>Soutien psychosocial : </span>}
-              </div>
-              <div>
-                {selectedPecVih && (
-                  <span>
-                    {selectedPecVih.pecVihSoutienPsychoSocial ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div>{selectedPecVih && <span>Date RDV suivi : </span>}</div>
-              <div>
-                {selectedPecVih && (
-                  <span>{formatDate(selectedPecVih.pecDateRdvSuivi)}</span>
-                )}
-              </div>
-
-              <div>
-                {prescripteur && (
-                  <small className="italic">Prescripteur :</small>
-                )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">{prescripteur}</small>
-                )}
-              </div>
-
-              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Retour
-                </Button>
-                <Button onClick={handleUpdatePecVih}>Modifier</Button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      </div>
     </div>
   );
 }

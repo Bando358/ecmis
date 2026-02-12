@@ -139,6 +139,7 @@ export default function CreateCliniqueForm() {
           numClinique: data.numClinique,
           codeClinique: data.codeClinique,
           idRegion: data.idRegion,
+          idDistrict: data.idDistrict ?? null,
         };
 
         await updateClinique(idClinique, CliniqueData);

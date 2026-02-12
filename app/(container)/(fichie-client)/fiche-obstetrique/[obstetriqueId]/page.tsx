@@ -281,17 +281,17 @@ export default function ObstetriquePage({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-        <ConstanteClient idVisite={form.getValues("obstIdVisite")} />
-        <h2 className="text-2xl text-gray-600 font-black text-center">
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md">
+        <ConstanteClient idVisite={form.watch("obstIdVisite")} />
+        <h2 className="text-2xl text-blue-900 font-black text-center">
           {`Formulaire de Consultation Obstétricale`}
         </h2>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+            className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
           >
-            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="obstIdVisite"
@@ -407,7 +407,7 @@ export default function ObstetriquePage({
                 </FormItem>
               )}
             />
-            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="obstTypeVisite"
@@ -522,7 +522,7 @@ export default function ObstetriquePage({
                 )}
               />
             </div>
-            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <Label className="flex justify-center">Prescriptions</Label>
               <div className="grid grid-cols-2">
                 <FormField
@@ -597,7 +597,7 @@ export default function ObstetriquePage({
                 />
               </div>
             </div>
-            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="obstInvestigations"
@@ -777,7 +777,7 @@ export default function ObstetriquePage({
               </div>
             </div>
 
-            <div className="my-2 px-4 py-2 flex flex-col shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 flex flex-col shadow-sm border-blue-200/50 rounded-md">
               <div className="mb-3 flex flex-row items-center">
                 <label className="block text-sm flex-1 font-medium">
                   Rendez-Vous :

@@ -236,14 +236,14 @@ export default function ConstantePage({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <h2 className="text-2xl text-gray-600 font-black text-center">
+      <h2 className="text-2xl text-blue-900 font-black text-center">
         Formulaire des constantes
       </h2>
 
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4 max-w-3xl mx-auto p-4 m-4 border rounded-md bg-gray-50 opacity-90"
+          className="space-y-4 max-w-3xl mx-auto p-4 m-4 border border-blue-200/60 rounded-md bg-blue-50/20 opacity-90"
         >
           <FormField
             control={form.control}

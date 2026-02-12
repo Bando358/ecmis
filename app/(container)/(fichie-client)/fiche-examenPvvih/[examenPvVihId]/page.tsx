@@ -219,7 +219,7 @@ export default function ExamenPvVihPage({
         </Tooltip>
       </TooltipProvider>
       <div className="flex flex-col w-full justify-center">
-        <h2 className="text-2xl text-gray-600 font-black text-center">
+        <h2 className="text-2xl text-blue-900 font-black text-center">
           Examen PV VIH -{" "}
           {client ? `${client.nom} ${client.prenom}` : "Chargement..."}
         </h2>

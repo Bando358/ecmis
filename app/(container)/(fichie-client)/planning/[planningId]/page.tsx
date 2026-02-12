@@ -110,7 +110,6 @@ export default function PlanningPage({
   const [clients, setAllClients] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [permission, setPermission] = useState<Permission | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -131,56 +130,56 @@ export default function PlanningPage({
   // const tabIdClinique = session?.user.idCliniques as string[];
   const router = useRouter();
 
-  // Chargement optimisé : toutes les requêtes indépendantes en parallèle
   useEffect(() => {
-    if (!idUser) return;
+    const fetUser = async () => {
+      const user = await getOneUser(idUser);
+      setIsPrescripteur(user?.prescripteur ? true : false);
+      setPrescripteur(user!);
+    };
+    fetUser();
+  }, [idUser]);
 
-    const fetchAllData = async () => {
-      setIsLoading(true);
+  useEffect(() => {
+    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
+    if (!prescripteur) return;
+
+    const fetchPermissions = async () => {
       try {
-        // Étape 1: Requêtes indépendantes en parallèle
-        const [user, resultPlanning, resultVisites, cliniqueClient] =
-          await Promise.all([
-            getOneUser(idUser),
-            getAllPlanningByIdClient(planningId),
-            getAllVisiteByIdClient(planningId),
-            getOneClient(planningId),
-          ]);
-
-        // Mise à jour des états avec les résultats
-        setIsPrescripteur(user?.prescripteur ? true : false);
-        setPrescripteur(user!);
-        setSelectedPlanning(resultPlanning as Planning[]);
-        setVisites(resultVisites as Visite[]);
-        setAllClients(cliniqueClient);
-
-        // Étape 2: Requêtes dépendantes en parallèle
-        const [permissions, allPrestataire] = await Promise.all([
-          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
-          cliniqueClient?.idClinique
-            ? getAllUserIncludedIdClinique(cliniqueClient.idClinique)
-            : Promise.resolve([]),
-        ]);
-
-        // Mise à jour des permissions
+        const permissions = await getUserPermissionsById(prescripteur.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.PLANNING
         );
         setPermission(perm || null);
-
-        // Filtrer les prescripteurs
-        setAllPrescripteur(
-          allPrestataire.filter((user: User) => user.prescripteur)
-        );
       } catch (error) {
-        console.error("Erreur lors du chargement des données:", error);
-      } finally {
-        setIsLoading(false);
+        console.error(
+          "Erreur lors de la vérification des permissions :",
+          error
+        );
       }
     };
 
-    fetchAllData();
-  }, [idUser, planningId]);
+    fetchPermissions();
+  }, [prescripteur]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const resultPlanning = await getAllPlanningByIdClient(planningId);
+      setSelectedPlanning(resultPlanning as Planning[]); // Assurez-vous que result est bien de type CliniqueData[]
+      const result = await getAllVisiteByIdClient(planningId);
+      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
+
+      const cliniqueClient = await getOneClient(planningId);
+      setAllClients(cliniqueClient);
+      let allPrestataire: User[] = [];
+      if (cliniqueClient?.idClinique) {
+        allPrestataire = await getAllUserIncludedIdClinique(
+          cliniqueClient.idClinique
+        );
+      }
+      setAllPrescripteur(allPrestataire.filter((user) => user.prescripteur));
+    };
+    fetchData();
+  }, [planningId]);
 
   // console.log(visites);
 
@@ -278,18 +277,6 @@ export default function PlanningPage({
     form.setValue("idClient", planningId);
   }, [planningId, form]);
 
-  // Affichage du loader pendant le chargement
-  if (isLoading) {
-    return (
-      <div className="w-full h-96 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-gray-500">Chargement du formulaire...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full relative">
       <TooltipProvider>
@@ -309,15 +296,15 @@ export default function PlanningPage({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md relative">
-        <ConstanteClient idVisite={form.getValues("idVisite")} />
-        <h2 className="text-2xl text-gray-600 font-black text-center">
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md relative">
+        <ConstanteClient idVisite={form.watch("idVisite")} />
+        <h2 className="text-2xl text-blue-900 font-black text-center">
           Formulaire de planification familiale
         </h2>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+            className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
           >
             <FormField
               control={form.control}
@@ -487,7 +474,7 @@ export default function PlanningPage({
                 )}
               />
             </div>
-            <div className="flex flex-col border rounded-md shadow-md p-2">
+            <div className="flex flex-col shadow-sm border-blue-200/50 rounded-md p-2">
               <div className="font-sans">
                 <div className="text-xl font-bold mb-4 flex justify-between items-center">
                   <Label>Méthode de courte durée</Label>
@@ -535,7 +522,7 @@ export default function PlanningPage({
                 </div>
               </div>
             </div>
-            <div className="flex flex-col border rounded-md shadow-md p-2">
+            <div className="flex flex-col shadow-sm border-blue-200/50 rounded-md p-2">
               <div className="flex justify-between">
                 <Label className="font-sans">Méthode de longue durée</Label>
                 <RefreshCw

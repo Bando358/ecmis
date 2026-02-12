@@ -198,8 +198,8 @@ export default function PecVihPage({
   return (
     <div className="w-full relative">
       <Retour />
-      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md transition-width duration-300">
-        <ConstanteClient idVisite={form.getValues("pecVihIdVisite")} />
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md transition-width duration-300">
+        <ConstanteClient idVisite={form.watch("pecVihIdVisite")} />
         {/* On va créer un bouton qui va afficher soit la partie upload soit le formulaire */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -209,13 +209,13 @@ export default function PecVihPage({
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.4 }}
           >
-            <h2 className="text-2xl text-gray-600 font-black text-center">
+            <h2 className="text-2xl text-blue-900 font-black text-center">
               Formulaire de Prise en Charge VIH
             </h2>
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-2 rounded-sm mx-auto px-4 py-2 bg-white shadow-md max-w-sm"
+                className="space-y-2 rounded-sm mx-auto px-4 py-2 bg-white shadow-md shadow-blue-100/30 border border-blue-200/50 max-w-sm"
               >
                 <FormField
                   control={form.control}
@@ -279,7 +279,7 @@ export default function PecVihPage({
                   )}
                 />
 
-                <div className="my-2 shadow-md border rounded-md p-4 transition-all duration-300">
+                <div className="my-2 shadow-sm border-blue-200/50 rounded-md p-4 transition-all duration-300">
                   <FormField
                     control={form.control}
                     name="pecVihCounselling"

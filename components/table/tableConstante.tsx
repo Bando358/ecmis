@@ -78,8 +78,8 @@ export function Table01({ id }: { id: string }) {
           <TableRow key={d.id}>
             <TableCell className=" flex">
               <Link
-                // target="_blank"
                 href={`/constante/${d.idClient}/${d.id}`}
+                prefetch={false}
                 className="block -pr-1"
               >
                 <NotebookPen

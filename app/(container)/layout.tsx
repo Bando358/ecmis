@@ -10,7 +10,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <ClientProvider>
       <SidebarProvider>
         <AppSidebar />
-        <main className="w-full">
+        <main className="w-full min-w-0 overflow-x-hidden">
           <header className="flex justify-between h-16 shrink-0 items-center border-b px-4 mb-2 shadow-sm">
             <div className="flex items-center">
               <SidebarTrigger />

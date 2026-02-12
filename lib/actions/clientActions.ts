@@ -28,7 +28,7 @@ export async function createClient(data: Client) {
   const client = await prisma.client.create({
     data,
   });
-  revalidatePath("/clients");
+  revalidatePath("/client");
   return client;
 }
 

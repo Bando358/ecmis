@@ -22,6 +22,7 @@ import {
   Examen,
   Prestation,
   Produit,
+  Prescripteur,
   TarifExamen,
   TarifPrestation,
   TarifProduit,
@@ -32,15 +33,33 @@ import { getAllPrestation } from "@/lib/actions/prestationActions";
 import { getAllTarifExamen } from "@/lib/actions/tarifExamenActions";
 import { getAllTarifProduits } from "@/lib/actions/tarifProduitActions";
 import { getAllTarifPrestation } from "@/lib/actions/tarifPrestationActions";
+import { getAllPrescripteurs } from "@/lib/actions/prescripteurActions";
+import {
+  getCommissionsExamenByDateRange,
+  getCommissionsEchographieByDateRange,
+} from "@/lib/actions/commissionActions";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+
+// ====================== COMPOSANTS RAPPORTS ======================
+import {
+  FicheVenteRapport,
+  CommissionExamenDetailRapport,
+  CommissionExamenTotalRapport,
+  CommissionEchographieDetailRapport,
+  CommissionEchographieTotalRapport,
+  GroupedExamen,
+  GroupedEchographie,
+  ProduitCalculations,
+  CommissionDetailRow,
+  CommissionTotal,
+} from "@/components/rapports";
 
 // ====================== INTERFACES ======================
 interface CliniqueOption {
@@ -48,29 +67,84 @@ interface CliniqueOption {
   label: string;
 }
 
-interface GroupedExamen {
-  libelle: string;
-  remise: number;
-  soustraitance: boolean;
-  prixUnitaire: number;
-  quantite: number;
-  montant: number;
+interface ReportTypeOption {
+  value: string;
+  label: string;
 }
 
-interface GroupedEchographie {
-  libelle: string;
-  remise: number;
-  prixUnitaire: number;
-  quantite: number;
-  montant: number;
+// Types pour les commissions
+interface CommissionExamenData {
+  id: string;
+  idFactureExamen: string;
+  idPrescripteur: string;
+  idVisite: string;
+  montantCommission: number;
+  paye: boolean;
+  datePaiement: Date | null;
+  FactureExamen: {
+    id: string;
+    idVisite: string;
+    prixExamen: number;
+    remise: number;
+  } | null;
+  Prescripteur: {
+    id: string;
+    nom: string;
+    prenom: string;
+    centre: string;
+    contact: string;
+  } | null;
+  Visite: {
+    id: string;
+    dateVisite: Date;
+    Client: {
+      id: string;
+      nom: string;
+      prenom: string;
+    } | null;
+  } | null;
 }
 
-interface ProduitCalculations {
-  prixUnitaire: number;
-  quantite: number;
-  montant: number;
-  stockFinal: number;
+interface CommissionEchographieData {
+  id: string;
+  idFactureEchographie: string;
+  idPrescripteur: string;
+  idVisite: string;
+  montantCommission: number;
+  paye: boolean;
+  datePaiement: Date | null;
+  FactureEchographie: {
+    id: string;
+    idVisite: string;
+    prixEchographie: number;
+    remise: number;
+  } | null;
+  Prescripteur: {
+    id: string;
+    nom: string;
+    prenom: string;
+    centre: string;
+    contact: string;
+  } | null;
+  Visite: {
+    id: string;
+    dateVisite: Date;
+    Client: {
+      id: string;
+      nom: string;
+      prenom: string;
+    } | null;
+  } | null;
 }
+
+// Options de types de rapport
+const REPORT_TYPES: ReportTypeOption[] = [
+  { value: "fiche_vente", label: "Fiche de vente journalière" },
+  { value: "commission_examen_detail", label: "Commission prescripteur - Détail client (Examen)" },
+  { value: "commission_examen_total", label: "Commission prescripteur - Total (Examen)" },
+  { value: "commission_echographie_detail", label: "Commission prescripteur - Détail client (Échographie)" },
+  { value: "commission_echographie_total", label: "Commission prescripteur - Total (Échographie)" },
+];
 
 // react-select importé seulement côté client
 const Select = dynamic(() => import("react-select"), { ssr: false });
@@ -120,6 +194,12 @@ export default function VentesPage() {
   >([]);
   const [cliniques, setCliniques] = useState<CliniqueOption[]>([]);
 
+  // États pour le type de rapport et les commissions
+  const [selectedReportType, setSelectedReportType] = useState<ReportTypeOption>(REPORT_TYPES[0]);
+  const [commissionsExamen, setCommissionsExamen] = useState<CommissionExamenData[]>([]);
+  const [commissionsEchographie, setCommissionsEchographie] = useState<CommissionEchographieData[]>([]);
+  const [allPrescripteurs, setAllPrescripteurs] = useState<Prescripteur[]>([]);
+
   const { data: session } = useSession();
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -153,6 +233,7 @@ export default function VentesPage() {
           tarifsExam,
           tarifsProd,
           tarifsPrest,
+          prescripteurs,
         ] = await Promise.all([
           getAllClinique(),
           getAllExamen(),
@@ -161,6 +242,7 @@ export default function VentesPage() {
           getAllTarifExamen(),
           getAllTarifProduits(),
           getAllTarifPrestation(),
+          getAllPrescripteurs(),
         ]);
 
         setCliniques(
@@ -176,6 +258,7 @@ export default function VentesPage() {
         setAllTarifExamens(tarifsExam);
         setAllTarifProduits(tarifsProd);
         setAllTarifPrestations(tarifsPrest);
+        setAllPrescripteurs(prescripteurs);
       } catch (err) {
         console.error("Erreur lors du chargement des données initiales:", err);
         setError(
@@ -200,6 +283,8 @@ export default function VentesPage() {
 
     const startDate = new Date(dateDebut);
     const endDate = new Date(dateFin);
+    // Ajuster endDate à la fin de la journée
+    endDate.setHours(23, 59, 59, 999);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       setError("Dates invalides");
@@ -217,16 +302,49 @@ export default function VentesPage() {
     setError(null);
 
     try {
-      const result = await fetchVentesData(selectedIds, startDate, endDate);
+      // Charger les données en fonction du type de rapport sélectionné
+      console.log("Type de rapport sélectionné:", selectedReportType.value);
 
-      setFacturesExamens(result.facturesExamens || []);
-      setFacturesProduits(result.facturesProduits || []);
-      setFacturesPrestations(result.facturesPrestations || []);
-      setFacturesEchographies(result.facturesEchographies || []);
+      if (selectedReportType.value === "fiche_vente") {
+        console.log("Chargement fiche de vente...", { selectedIds, startDate, endDate });
+        const result = await fetchVentesData(selectedIds, startDate, endDate);
+        console.log("Résultat fetchVentesData:", {
+          examens: result.facturesExamens?.length || 0,
+          produits: result.facturesProduits?.length || 0,
+          prestations: result.facturesPrestations?.length || 0,
+          echographies: result.facturesEchographies?.length || 0,
+        });
+        setFacturesExamens(result.facturesExamens || []);
+        setFacturesProduits(result.facturesProduits || []);
+        setFacturesPrestations(result.facturesPrestations || []);
+        setFacturesEchographies(result.facturesEchographies || []);
+        setCommissionsExamen([]);
+        setCommissionsEchographie([]);
+      } else if (selectedReportType.value.includes("examen")) {
+        // Charger les commissions d'examen
+        const commissions = await getCommissionsExamenByDateRange(startDate, endDate);
+        setCommissionsExamen(commissions as unknown as CommissionExamenData[]);
+        setCommissionsEchographie([]);
+        // Réinitialiser les données de vente
+        setFacturesExamens([]);
+        setFacturesProduits([]);
+        setFacturesPrestations([]);
+        setFacturesEchographies([]);
+      } else if (selectedReportType.value.includes("echographie")) {
+        // Charger les commissions d'échographie
+        const commissions = await getCommissionsEchographieByDateRange(startDate, endDate);
+        setCommissionsEchographie(commissions as unknown as CommissionEchographieData[]);
+        setCommissionsExamen([]);
+        // Réinitialiser les données de vente
+        setFacturesExamens([]);
+        setFacturesProduits([]);
+        setFacturesPrestations([]);
+        setFacturesEchographies([]);
+      }
     } catch (err) {
-      console.error("Erreur lors du chargement des ventes:", err);
+      console.error("Erreur lors du chargement des données:", err);
       setError(
-        "Échec du chargement des ventes. Veuillez vérifier vos paramètres et réessayer."
+        "Échec du chargement des données. Veuillez vérifier vos paramètres et réessayer."
       );
     } finally {
       setSpinner(false);
@@ -481,6 +599,159 @@ export default function VentesPage() {
     }, {} as Record<string, typeof allProduits>);
   }, [allProduits]);
 
+  // ================== Calculs pour les commissions ==================
+  // Commission Examen - Détail (Date visite, Prescripteur, Client, Commission)
+  const commissionsExamenDetail = useMemo((): CommissionDetailRow[] => {
+    // Grouper par client + prescripteur + date pour avoir le total par visite
+    const groupedData: Record<string, CommissionDetailRow> = {};
+
+    commissionsExamen.forEach((commission) => {
+      const clientNom = commission.Visite?.Client
+        ? `${commission.Visite.Client.nom} ${commission.Visite.Client.prenom}`
+        : "Inconnu";
+      const prescripteurNom = commission.Prescripteur
+        ? `${commission.Prescripteur.nom} ${commission.Prescripteur.prenom}`
+        : "Inconnu";
+      const dateVisite = commission.Visite?.dateVisite
+        ? format(new Date(commission.Visite.dateVisite), "dd/MM/yyyy", { locale: fr })
+        : "-";
+
+      // Clé unique pour regrouper les commissions du même client, même prescripteur, même date
+      const key = `${dateVisite}-${prescripteurNom}-${clientNom}`;
+
+      if (!groupedData[key]) {
+        groupedData[key] = {
+          dateVisite,
+          prescripteur: prescripteurNom,
+          client: clientNom,
+          commission: 0,
+        };
+      }
+      groupedData[key].commission += commission.montantCommission;
+    });
+
+    // Convertir en tableau et trier par date puis par prescripteur
+    return Object.values(groupedData).sort((a, b) => {
+      const dateCompare = a.dateVisite.localeCompare(b.dateVisite);
+      if (dateCompare !== 0) return dateCompare;
+      return a.prescripteur.localeCompare(b.prescripteur);
+    });
+  }, [commissionsExamen]);
+
+  // Commission Examen - Total par prescripteur
+  const commissionsExamenTotal = useMemo(() => {
+    const result: {
+      prescripteur: string;
+      prescripteurId: string;
+      contact: string;
+      nombreCommissions: number;
+      total: number;
+    }[] = [];
+
+    const groupedByPrescripteur = commissionsExamen.reduce((acc, commission) => {
+      const prescripteurId = commission.idPrescripteur;
+      if (!acc[prescripteurId]) {
+        acc[prescripteurId] = [];
+      }
+      acc[prescripteurId].push(commission);
+      return acc;
+    }, {} as Record<string, CommissionExamenData[]>);
+
+    Object.entries(groupedByPrescripteur).forEach(([prescripteurId, commissions]) => {
+      const prescripteur = commissions[0]?.Prescripteur;
+      const prescripteurNom = prescripteur
+        ? `${prescripteur.nom} ${prescripteur.prenom}`
+        : "Inconnu";
+      const prescripteurContact = prescripteur?.contact || "-";
+
+      result.push({
+        prescripteur: prescripteurNom,
+        prescripteurId,
+        contact: prescripteurContact,
+        nombreCommissions: commissions.length,
+        total: commissions.reduce((sum, c) => sum + c.montantCommission, 0),
+      });
+    });
+
+    return result.sort((a, b) => a.prescripteur.localeCompare(b.prescripteur));
+  }, [commissionsExamen]);
+
+  // Commission Echographie - Détail (Date visite, Prescripteur, Client, Commission)
+  const commissionsEchographieDetail = useMemo((): CommissionDetailRow[] => {
+    // Grouper par client + prescripteur + date pour avoir le total par visite
+    const groupedData: Record<string, CommissionDetailRow> = {};
+
+    commissionsEchographie.forEach((commission) => {
+      const clientNom = commission.Visite?.Client
+        ? `${commission.Visite.Client.nom} ${commission.Visite.Client.prenom}`
+        : "Inconnu";
+      const prescripteurNom = commission.Prescripteur
+        ? `${commission.Prescripteur.nom} ${commission.Prescripteur.prenom}`
+        : "Inconnu";
+      const dateVisite = commission.Visite?.dateVisite
+        ? format(new Date(commission.Visite.dateVisite), "dd/MM/yyyy", { locale: fr })
+        : "-";
+
+      // Clé unique pour regrouper les commissions du même client, même prescripteur, même date
+      const key = `${dateVisite}-${prescripteurNom}-${clientNom}`;
+
+      if (!groupedData[key]) {
+        groupedData[key] = {
+          dateVisite,
+          prescripteur: prescripteurNom,
+          client: clientNom,
+          commission: 0,
+        };
+      }
+      groupedData[key].commission += commission.montantCommission;
+    });
+
+    // Convertir en tableau et trier par date puis par prescripteur
+    return Object.values(groupedData).sort((a, b) => {
+      const dateCompare = a.dateVisite.localeCompare(b.dateVisite);
+      if (dateCompare !== 0) return dateCompare;
+      return a.prescripteur.localeCompare(b.prescripteur);
+    });
+  }, [commissionsEchographie]);
+
+  // Commission Echographie - Total par prescripteur
+  const commissionsEchographieTotal = useMemo(() => {
+    const result: {
+      prescripteur: string;
+      prescripteurId: string;
+      contact: string;
+      nombreCommissions: number;
+      total: number;
+    }[] = [];
+
+    const groupedByPrescripteur = commissionsEchographie.reduce((acc, commission) => {
+      const prescripteurId = commission.idPrescripteur;
+      if (!acc[prescripteurId]) {
+        acc[prescripteurId] = [];
+      }
+      acc[prescripteurId].push(commission);
+      return acc;
+    }, {} as Record<string, CommissionEchographieData[]>);
+
+    Object.entries(groupedByPrescripteur).forEach(([prescripteurId, commissions]) => {
+      const prescripteur = commissions[0]?.Prescripteur;
+      const prescripteurNom = prescripteur
+        ? `${prescripteur.nom} ${prescripteur.prenom}`
+        : "Inconnu";
+      const prescripteurContact = prescripteur?.contact || "-";
+
+      result.push({
+        prescripteur: prescripteurNom,
+        prescripteurId,
+        contact: prescripteurContact,
+        nombreCommissions: commissions.length,
+        total: commissions.reduce((sum, c) => sum + c.montantCommission, 0),
+      });
+    });
+
+    return result.sort((a, b) => a.prescripteur.localeCompare(b.prescripteur));
+  }, [commissionsEchographie]);
+
   // ================== Fonctions utilitaires ==================
   const formatExamenLibelle = useCallback((examen: GroupedExamen) => {
     let libelleFormate = examen.libelle;
@@ -571,200 +842,404 @@ export default function VentesPage() {
         console.warn("Logo non chargé");
       }
 
-      /* ================= TITRE ================= */
-      doc.setFontSize(18);
-      doc.setTextColor(40);
-      doc.text("RAPPORT DE VENTE JOURNALIÈRE", 105, 35, { align: "center" });
-
-      /* ================= INFOS ================= */
-      doc.setFontSize(11);
-      doc.setTextColor(80);
-
-      doc.text(`Caissière : ${session?.user?.name || "Non spécifiée"}`, 14, 48);
-      doc.text(
-        `Clinique(s) : ${getAllCliniqueNameById(selectedCliniqueIds)}`,
-        14,
-        55
-      );
-      doc.text(
-        `Période : ${format(new Date(watch("dateDebut")), "dd/MM/yyyy", {
-          locale: fr,
-        })}`,
-        14,
-        62
-      );
-
-      doc.text(
-        `Total Recette : ${formatNumberForPDF(totalRecette)} FCFA`,
-        14,
-        72
-      );
-
       let startY = 80;
 
-      /* ================= PRODUITS ================= */
-      const totalProduitsQuantite = Object.values(produitsCalculations).reduce(
-        (sum, calc) => sum + calc.quantite,
-        0
-      );
-      const totalProduitsMontant = Object.values(produitsCalculations).reduce(
-        (sum, calc) => sum + calc.montant,
-        0
-      );
+      /* ================= FONCTION FORMAT PERIODE ================= */
+      const formatPeriode = () => {
+        const debut = format(new Date(watch("dateDebut")), "dd/MM/yyyy", { locale: fr });
+        const fin = format(new Date(watch("dateFin")), "dd/MM/yyyy", { locale: fr });
+        return debut === fin ? `Période : ${fin}` : `Période : ${debut} - ${fin}`;
+      };
 
-      autoTable(doc, {
-        startY,
-        head: [["Produit", "PU", "Qté", "Montant", "Stock Final"]],
-        body: Object.entries(produitsCalculations).map(([libelle, calc]) => [
-          libelle,
-          formatNumberForPDF(calc.prixUnitaire),
-          calc.quantite.toString(),
-          formatNumberForPDF(calc.montant),
-          calc.stockFinal.toString(),
-        ]),
-        foot: [
-          [
-            "TOTAL PRODUITS",
-            "",
-            totalProduitsQuantite.toString(),
-            formatNumberForPDF(totalProduitsMontant),
-            "",
-          ],
-        ],
-        headStyles: {
-          fillColor: [59, 130, 246],
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        footStyles: {
-          fillColor: [240, 240, 240],
-          textColor: 0,
-          fontStyle: "bold",
-        },
-        styles: { fontSize: 9 },
-        didDrawPage: () => {
-          addFooter(doc);
-        },
-      });
+      /* ================= FONCTION SIGNATURES ================= */
+      const addSignatures = (doc: jsPDF) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const finalY = (doc as any).lastAutoTable?.finalY || 100;
+        const signatureHeight = 35; // Hauteur nécessaire pour les signatures
 
-      startY = (doc as any).lastAutoTable.finalY + 10;
+        let signatureY = finalY + 20;
 
-      /* ================= PRESTATIONS ================= */
-      const totalPrestationsQuantite = Object.values(
-        prestationsCalculations
-      ).reduce((sum, calc) => sum + calc.quantite, 0);
-      const totalPrestationsMontant = Object.values(
-        prestationsCalculations
-      ).reduce((sum, calc) => sum + calc.montant, 0);
+        // Vérifier s'il y a assez de place, sinon ajouter une nouvelle page
+        if (signatureY + signatureHeight > pageHeight - 20) {
+          doc.addPage();
+          signatureY = 40;
+        }
 
-      autoTable(doc, {
-        startY,
-        head: [["Prestation", "PU", "Qté", "Montant"]],
-        body: Object.entries(prestationsCalculations).map(([libelle, calc]) => [
-          libelle,
-          formatNumberForPDF(calc.prixUnitaire),
-          calc.quantite.toString(),
-          formatNumberForPDF(calc.montant),
-        ]),
-        foot: [
-          [
-            "TOTAL PRESTATIONS",
-            "",
-            totalPrestationsQuantite.toString(),
-            formatNumberForPDF(totalPrestationsMontant),
-          ],
-        ],
-        headStyles: {
-          fillColor: [34, 197, 94],
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        footStyles: {
-          fillColor: [240, 240, 240],
-          textColor: 0,
-          fontStyle: "bold",
-        },
-        styles: { fontSize: 9 },
-        didDrawPage: () => {
-          addFooter(doc);
-        },
-      });
+        doc.setFontSize(11);
+        doc.setTextColor(0);
 
-      startY = (doc as any).lastAutoTable.finalY + 10;
+        // Signature Caissière (à gauche)
+        doc.text("Signature Caissière", 30, signatureY);
+        doc.line(20, signatureY + 20, 80, signatureY + 20); // Ligne pour signature
 
-      /* ================= EXAMENS ================= */
-      const totalExamensQuantite = groupedExamens.reduce(
-        (sum, ex) => sum + ex.quantite,
-        0
-      );
-      const totalExamensMontant = groupedExamens.reduce(
-        (sum, ex) => sum + ex.montant,
-        0
-      );
+        // Signature Comptable (à droite)
+        doc.text("Signature Comptable", pageWidth - 60, signatureY);
+        doc.line(pageWidth - 80, signatureY + 20, pageWidth - 20, signatureY + 20); // Ligne pour signature
+      };
 
-      autoTable(doc, {
-        startY,
-        head: [["Examen", "PU", "Qté", "Montant"]],
-        body: groupedExamens.map((ex) => [
-          formatExamenLibelle(ex),
-          formatNumberForPDF(ex.prixUnitaire),
-          ex.quantite.toString(),
-          formatNumberForPDF(ex.montant),
-        ]),
-        foot: [
-          [
-            "TOTAL EXAMENS",
-            "",
-            totalExamensQuantite.toString(),
-            formatNumberForPDF(totalExamensMontant),
-          ],
-        ],
-        headStyles: {
-          fillColor: [168, 85, 247],
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        footStyles: {
-          fillColor: [240, 240, 240],
-          textColor: 0,
-          fontStyle: "bold",
-        },
-        styles: { fontSize: 9 },
-        didDrawPage: () => {
-          addFooter(doc);
-        },
-      });
+      // ============== PDF FICHE DE VENTE ==============
+      if (selectedReportType.value === "fiche_vente") {
+        /* ================= TITRE ================= */
+        doc.setFontSize(18);
+        doc.setTextColor(40);
+        doc.text("RAPPORT DE VENTE JOURNALIÈRE", 105, 35, { align: "center" });
 
-      /* ================= ÉCHOGRAPHIES (si présentes) ================= */
-      if (groupedEchographies.length > 0) {
-        startY = (doc as any).lastAutoTable.finalY + 10;
+        /* ================= INFOS ================= */
+        doc.setFontSize(11);
+        doc.setTextColor(80);
 
-        const totalEchographiesQuantite = groupedEchographies.reduce(
-          (sum, echo) => sum + echo.quantite,
+        doc.text(`Caissière : ${session?.user?.name || "Non spécifiée"}`, 14, 48);
+        doc.text(
+          `Clinique(s) : ${getAllCliniqueNameById(selectedCliniqueIds)}`,
+          14,
+          55
+        );
+        doc.text(
+          formatPeriode(),
+          14,
+          62
+        );
+
+        doc.text(
+          `Total Recette : ${formatNumberForPDF(totalRecette)} FCFA`,
+          14,
+          72
+        );
+
+        /* ================= PRODUITS ================= */
+        const totalProduitsQte = Object.values(produitsCalculations).reduce(
+          (sum, calc) => sum + calc.quantite,
           0
         );
-        const totalEchographiesMontant = groupedEchographies.reduce(
-          (sum, echo) => sum + echo.montant,
+        const totalProduitsMontant = Object.values(produitsCalculations).reduce(
+          (sum, calc) => sum + calc.montant,
           0
         );
 
         autoTable(doc, {
           startY,
-          head: [["Échographie", "PU", "Qté", "Montant"]],
-          body: groupedEchographies.map((echo) => [
-            echo.remise > 0
-              ? `${echo.libelle} (${echo.remise}%)`
-              : echo.libelle,
-            formatNumberForPDF(echo.prixUnitaire),
-            echo.quantite.toString(),
-            formatNumberForPDF(echo.montant),
+          head: [["Produit", "PU", "Qté", "Montant", "Stock Final"]],
+          body: Object.entries(produitsCalculations).map(([libelle, calc]) => [
+            libelle,
+            formatNumberForPDF(calc.prixUnitaire),
+            calc.quantite.toString(),
+            formatNumberForPDF(calc.montant),
+            calc.stockFinal.toString(),
           ]),
           foot: [
             [
-              "TOTAL ÉCHOGRAPHIES",
+              "TOTAL PRODUITS",
               "",
-              totalEchographiesQuantite.toString(),
-              formatNumberForPDF(totalEchographiesMontant),
+              totalProduitsQte.toString(),
+              formatNumberForPDF(totalProduitsMontant),
+              "",
+            ],
+          ],
+          headStyles: {
+            fillColor: [59, 130, 246],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          footStyles: {
+            fillColor: [240, 240, 240],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+          styles: { fontSize: 9 },
+          didDrawPage: () => {
+            addFooter(doc);
+          },
+        });
+
+        startY = (doc as any).lastAutoTable.finalY + 10;
+
+        /* ================= PRESTATIONS ================= */
+        const totalPrestationsQuantite = Object.values(
+          prestationsCalculations
+        ).reduce((sum, calc) => sum + calc.quantite, 0);
+        const totalPrestationsMontant = Object.values(
+          prestationsCalculations
+        ).reduce((sum, calc) => sum + calc.montant, 0);
+
+        autoTable(doc, {
+          startY,
+          head: [["Prestation", "PU", "Qté", "Montant"]],
+          body: Object.entries(prestationsCalculations).map(([libelle, calc]) => [
+            libelle,
+            formatNumberForPDF(calc.prixUnitaire),
+            calc.quantite.toString(),
+            formatNumberForPDF(calc.montant),
+          ]),
+          foot: [
+            [
+              "TOTAL PRESTATIONS",
+              "",
+              totalPrestationsQuantite.toString(),
+              formatNumberForPDF(totalPrestationsMontant),
+            ],
+          ],
+          headStyles: {
+            fillColor: [34, 197, 94],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          footStyles: {
+            fillColor: [240, 240, 240],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+          styles: { fontSize: 9 },
+          didDrawPage: () => {
+            addFooter(doc);
+          },
+        });
+
+        startY = (doc as any).lastAutoTable.finalY + 10;
+
+        /* ================= EXAMENS ================= */
+        const totalExamensQuantite = groupedExamens.reduce(
+          (sum, ex) => sum + ex.quantite,
+          0
+        );
+        const totalExamensMontant = groupedExamens.reduce(
+          (sum, ex) => sum + ex.montant,
+          0
+        );
+
+        autoTable(doc, {
+          startY,
+          head: [["Examen", "PU", "Qté", "Montant"]],
+          body: groupedExamens.map((ex) => [
+            formatExamenLibelle(ex),
+            formatNumberForPDF(ex.prixUnitaire),
+            ex.quantite.toString(),
+            formatNumberForPDF(ex.montant),
+          ]),
+          foot: [
+            [
+              "TOTAL EXAMENS",
+              "",
+              totalExamensQuantite.toString(),
+              formatNumberForPDF(totalExamensMontant),
+            ],
+          ],
+          headStyles: {
+            fillColor: [168, 85, 247],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          footStyles: {
+            fillColor: [240, 240, 240],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+          styles: { fontSize: 9 },
+          didDrawPage: () => {
+            addFooter(doc);
+          },
+        });
+
+        /* ================= ÉCHOGRAPHIES (si présentes) ================= */
+        if (groupedEchographies.length > 0) {
+          startY = (doc as any).lastAutoTable.finalY + 10;
+
+          const totalEchographiesQuantite = groupedEchographies.reduce(
+            (sum, echo) => sum + echo.quantite,
+            0
+          );
+          const totalEchographiesMontant = groupedEchographies.reduce(
+            (sum, echo) => sum + echo.montant,
+            0
+          );
+
+          autoTable(doc, {
+            startY,
+            head: [["Échographie", "PU", "Qté", "Montant"]],
+            body: groupedEchographies.map((echo) => [
+              echo.remise > 0
+                ? `${echo.libelle} (${echo.remise}%)`
+                : echo.libelle,
+              formatNumberForPDF(echo.prixUnitaire),
+              echo.quantite.toString(),
+              formatNumberForPDF(echo.montant),
+            ]),
+            foot: [
+              [
+                "TOTAL ÉCHOGRAPHIES",
+                "",
+                totalEchographiesQuantite.toString(),
+                formatNumberForPDF(totalEchographiesMontant),
+              ],
+            ],
+            headStyles: {
+              fillColor: [234, 88, 12],
+              textColor: 255,
+              fontStyle: "bold",
+            },
+            footStyles: {
+              fillColor: [240, 240, 240],
+              textColor: 0,
+              fontStyle: "bold",
+            },
+            styles: { fontSize: 9 },
+            didDrawPage: () => {
+              addFooter(doc);
+            },
+          });
+        }
+
+        // Ajouter les signatures
+        addSignatures(doc);
+      }
+
+      // ============== PDF COMMISSION EXAMEN DETAIL ==============
+      else if (selectedReportType.value === "commission_examen_detail") {
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text("COMMISSION PRESCRIPTEUR - DÉTAIL CLIENT", 105, 35, { align: "center" });
+        doc.setFontSize(14);
+        doc.text("(EXAMEN)", 105, 42, { align: "center" });
+
+        doc.setFontSize(11);
+        doc.setTextColor(80);
+        doc.text(
+          formatPeriode(),
+          14,
+          55
+        );
+
+        startY = 65;
+
+        const totalGlobalExamen = commissionsExamenDetail.reduce((sum, row) => sum + row.commission, 0);
+
+        autoTable(doc, {
+          startY,
+          head: [["Date visite", "Prescripteur", "Client", "Commission (FCFA)"]],
+          body: commissionsExamenDetail.map((row) => [
+            row.dateVisite,
+            row.prescripteur,
+            row.client,
+            formatNumberForPDF(row.commission),
+          ]),
+          foot: [
+            [
+              "TOTAL COMMISSIONS EXAMEN",
+              "",
+              "",
+              formatNumberForPDF(totalGlobalExamen),
+            ],
+          ],
+          headStyles: {
+            fillColor: [168, 85, 247],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          footStyles: {
+            fillColor: [240, 240, 240],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+          styles: { fontSize: 9 },
+          didDrawPage: () => {
+            addFooter(doc);
+          },
+        });
+
+        // Ajouter les signatures
+        addSignatures(doc);
+      }
+
+      // ============== PDF COMMISSION EXAMEN TOTAL ==============
+      else if (selectedReportType.value === "commission_examen_total") {
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text("COMMISSION PRESCRIPTEUR - TOTAL", 105, 35, { align: "center" });
+        doc.setFontSize(14);
+        doc.text("(EXAMEN)", 105, 42, { align: "center" });
+
+        doc.setFontSize(11);
+        doc.setTextColor(80);
+        doc.text(
+          formatPeriode(),
+          14,
+          55
+        );
+
+        startY = 65;
+
+        autoTable(doc, {
+          startY,
+          head: [["Prescripteur", "Contact", "Nombre de commissions", "Total (FCFA)"]],
+          body: commissionsExamenTotal.map((data) => [
+            data.prescripteur,
+            data.contact,
+            data.nombreCommissions.toString(),
+            formatNumberForPDF(data.total),
+          ]),
+          foot: [
+            [
+              "TOTAL",
+              "",
+              commissionsExamenTotal.reduce((sum, d) => sum + d.nombreCommissions, 0).toString(),
+              formatNumberForPDF(commissionsExamenTotal.reduce((sum, d) => sum + d.total, 0)),
+            ],
+          ],
+          headStyles: {
+            fillColor: [168, 85, 247],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          footStyles: {
+            fillColor: [240, 240, 240],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+          styles: { fontSize: 9 },
+          didDrawPage: () => {
+            addFooter(doc);
+          },
+        });
+
+        // Ajouter les signatures
+        addSignatures(doc);
+      }
+
+      // ============== PDF COMMISSION ECHOGRAPHIE DETAIL ==============
+      else if (selectedReportType.value === "commission_echographie_detail") {
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text("COMMISSION PRESCRIPTEUR - DÉTAIL CLIENT", 105, 35, { align: "center" });
+        doc.setFontSize(14);
+        doc.text("(ÉCHOGRAPHIE)", 105, 42, { align: "center" });
+
+        doc.setFontSize(11);
+        doc.setTextColor(80);
+        doc.text(
+          formatPeriode(),
+          14,
+          55
+        );
+
+        startY = 65;
+
+        const totalGlobalEcho = commissionsEchographieDetail.reduce((sum, row) => sum + row.commission, 0);
+
+        autoTable(doc, {
+          startY,
+          head: [["Date visite", "Prescripteur", "Client", "Commission (FCFA)"]],
+          body: commissionsEchographieDetail.map((row) => [
+            row.dateVisite,
+            row.prescripteur,
+            row.client,
+            formatNumberForPDF(row.commission),
+          ]),
+          foot: [
+            [
+              "TOTAL COMMISSIONS ÉCHOGRAPHIE",
+              "",
+              "",
+              formatNumberForPDF(totalGlobalEcho),
             ],
           ],
           headStyles: {
@@ -782,10 +1257,75 @@ export default function VentesPage() {
             addFooter(doc);
           },
         });
+
+        // Ajouter les signatures
+        addSignatures(doc);
+      }
+
+      // ============== PDF COMMISSION ECHOGRAPHIE TOTAL ==============
+      else if (selectedReportType.value === "commission_echographie_total") {
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text("COMMISSION PRESCRIPTEUR - TOTAL", 105, 35, { align: "center" });
+        doc.setFontSize(14);
+        doc.text("(ÉCHOGRAPHIE)", 105, 42, { align: "center" });
+
+        doc.setFontSize(11);
+        doc.setTextColor(80);
+        doc.text(
+          formatPeriode(),
+          14,
+          55
+        );
+
+        startY = 65;
+
+        autoTable(doc, {
+          startY,
+          head: [["Prescripteur", "Contact", "Nombre de commissions", "Total (FCFA)"]],
+          body: commissionsEchographieTotal.map((data) => [
+            data.prescripteur,
+            data.contact,
+            data.nombreCommissions.toString(),
+            formatNumberForPDF(data.total),
+          ]),
+          foot: [
+            [
+              "TOTAL",
+              "",
+              commissionsEchographieTotal.reduce((sum, d) => sum + d.nombreCommissions, 0).toString(),
+              formatNumberForPDF(commissionsEchographieTotal.reduce((sum, d) => sum + d.total, 0)),
+            ],
+          ],
+          headStyles: {
+            fillColor: [234, 88, 12],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          footStyles: {
+            fillColor: [240, 240, 240],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+          styles: { fontSize: 9 },
+          didDrawPage: () => {
+            addFooter(doc);
+          },
+        });
+
+        // Ajouter les signatures
+        addSignatures(doc);
       }
 
       /* ================= NOM FICHIER ================= */
-      const filename = `vente_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`;
+      const reportTypeNames: Record<string, string> = {
+        fiche_vente: "vente",
+        commission_examen_detail: "commission_examen_detail",
+        commission_examen_total: "commission_examen_total",
+        commission_echographie_detail: "commission_echographie_detail",
+        commission_echographie_total: "commission_echographie_total",
+      };
+      const filename = `${reportTypeNames[selectedReportType.value] || "rapport"}_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`;
       doc.save(filename);
 
       toast.success("PDF généré avec succès !");
@@ -996,6 +1536,35 @@ export default function VentesPage() {
               )}
             </div>
 
+            {/* Sélection du type de rapport */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Type de rapport
+              </label>
+              <Select
+                options={REPORT_TYPES}
+                classNamePrefix="select"
+                placeholder="Sélectionnez le type de rapport..."
+                value={selectedReportType}
+                onChange={(selected) => {
+                  if (selected) {
+                    setSelectedReportType(selected as ReportTypeOption);
+                  }
+                }}
+                className="border border-gray-300 rounded-lg"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    padding: "4px",
+                    borderColor: "#d1d5db",
+                    "&:hover": {
+                      borderColor: "#9ca3af",
+                    },
+                  }),
+                }}
+              />
+            </div>
+
             {/* Bouton de soumission */}
             <button
               type="submit"
@@ -1026,7 +1595,7 @@ export default function VentesPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-xl font-semibold text-gray-800">
-                  Rapport de Ventes
+                  {selectedReportType.label}
                 </h2>
                 <p className="text-gray-600">
                   {new Date(watch("dateDebut")).toLocaleDateString("fr-FR")}
@@ -1069,379 +1638,65 @@ export default function VentesPage() {
 
             {/* Contenu du rapport */}
             <div ref={contentRef} className="space-y-8">
-              {/* En-tête du rapport */}
-              <div className="text-center border-b pb-6">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  FICHE DE VENTE JOURNALIÈRE
-                </h1>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                  <div className="text-left">
-                    <p>
-                      <strong>Caissière :</strong>{" "}
-                      {session?.user?.name || "Non spécifié"}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p>
-                      <strong>Clinique(s) :</strong>{" "}
-                      {getAllCliniqueNameById(selectedCliniqueIds)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p>
-                      <strong>Période :</strong>{" "}
-                      {new Date(watch("dateDebut")).toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Produits */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                  PRODUITS VENDUS
-                </h3>
-
-                {Object.entries(produitsGroupedByType).map(
-                  ([type, produits]) => (
-                    <div key={type} className="mb-6">
-                      <h4 className="font-medium text-gray-700 mb-3 bg-gray-50 p-3 rounded-lg">
-                        {type === "CONTRACEPTIF" && "Contraceptifs"}
-                        {type === "MEDICAMENTS" && "Médicaments"}
-                        {type === "CONSOMMABLES" && "Consommables"}
-                      </h4>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full border border-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                Libellé
-                              </th>
-                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                Prix Unitaire (FCFA)
-                              </th>
-                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                Quantité
-                              </th>
-                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                Montant (FCFA)
-                              </th>
-                              <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                                Stock Final
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {produits.map((produit) => {
-                              const calc = produitsCalculations[
-                                produit.nomProduit
-                              ] || {
-                                prixUnitaire: 0,
-                                quantite: 0,
-                                montant: 0,
-                                stockFinal: 0,
-                              };
-                              return (
-                                <tr
-                                  key={produit.id}
-                                  className="hover:bg-gray-50"
-                                >
-                                  <td className="border border-gray-300 px-4 py-3 text-sm">
-                                    {produit.nomProduit}
-                                  </td>
-                                  <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                                    {calc.prixUnitaire.toLocaleString("fr-FR")}
-                                  </td>
-                                  <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                                    {calc.quantite}
-                                  </td>
-                                  <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
-                                    {calc.montant.toLocaleString("fr-FR")}
-                                  </td>
-                                  <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                                    {calc.stockFinal}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                          <tfoot className="bg-gray-50">
-                            <tr>
-                              <td
-                                colSpan={2}
-                                className="border border-gray-300 px-4 py-3 text-sm font-medium"
-                              >
-                                Total Produits
-                              </td>
-                              <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                                {totalProduitsQuantite}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                                {facturesProduits
-                                  .reduce(
-                                    (sum, f) => sum + f.prodMontantTotal,
-                                    0
-                                  )
-                                  .toLocaleString("fr-FR")}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-3"></td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-
-              {/* Prestations */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                  PRESTATIONS
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Libellé
-                        </th>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Prix Unitaire (FCFA)
-                        </th>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Quantité
-                        </th>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Montant (FCFA)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {allPrestations.map((prestation) => {
-                        const calc = prestationsCalculations[
-                          prestation.nomPrestation
-                        ] || {
-                          prixUnitaire: 0,
-                          quantite: 0,
-                          montant: 0,
-                        };
-                        return (
-                          <tr key={prestation.id} className="hover:bg-gray-50">
-                            <td className="border border-gray-300 px-4 py-3 text-sm">
-                              {prestation.nomPrestation}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                              {calc.prixUnitaire.toLocaleString("fr-FR")}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                              {calc.quantite}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
-                              {calc.montant.toLocaleString("fr-FR")}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot className="bg-gray-50">
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="border border-gray-300 px-4 py-3 text-sm font-medium"
-                        >
-                          Total Prestations
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                          {facturesPrestations.length}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                          {facturesPrestations
-                            .reduce((sum, f) => sum + f.prestPrixTotal, 0)
-                            .toLocaleString("fr-FR")}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-
-              {/* Examens */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                  EXAMENS
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Libellé
-                        </th>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Prix Unitaire (FCFA)
-                        </th>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Quantité
-                        </th>
-                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Montant (FCFA)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {groupedExamens.map((examen, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="border border-gray-300 px-4 py-3 text-sm">
-                            {formatExamenLibelle(examen)}
-                          </td>
-                          <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                            {examen.prixUnitaire.toLocaleString("fr-FR")}
-                          </td>
-                          <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                            {examen.quantite}
-                          </td>
-                          <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
-                            {examen.montant.toLocaleString("fr-FR")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50">
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="border border-gray-300 px-4 py-3 text-sm font-medium"
-                        >
-                          Total Examens
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                          {facturesExamens.length}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                          {facturesExamens
-                            .reduce((sum, f) => sum + f.examPrixTotal, 0)
-                            .toLocaleString("fr-FR")}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-
-              {/* Échographies */}
-              {groupedEchographies.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                    ÉCHOGRAPHIES
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                            Libellé
-                          </th>
-                          <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                            Prix Unitaire (FCFA)
-                          </th>
-                          <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                            Quantité
-                          </th>
-                          <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                            Montant (FCFA)
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {groupedEchographies.map((echographie, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="border border-gray-300 px-4 py-3 text-sm">
-                              {echographie.remise > 0
-                                ? `${echographie.libelle} (${echographie.remise}%)`
-                                : echographie.libelle}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                              {echographie.prixUnitaire.toLocaleString("fr-FR")}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-3 text-sm text-right">
-                              {echographie.quantite}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
-                              {echographie.montant.toLocaleString("fr-FR")}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot className="bg-gray-50">
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="border border-gray-300 px-4 py-3 text-sm font-medium"
-                          >
-                            Total Échographies
-                          </td>
-                          <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                            {facturesEchographies.length}
-                          </td>
-                          <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                            {facturesEchographies
-                              .reduce((sum, f) => sum + f.echoPrixTotal, 0)
-                              .toLocaleString("fr-FR")}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
+              {/* ================== FICHE DE VENTE ================== */}
+              {selectedReportType.value === "fiche_vente" && (
+                <FicheVenteRapport
+                  session={session}
+                  selectedCliniqueIds={selectedCliniqueIds}
+                  getAllCliniqueNameById={getAllCliniqueNameById}
+                  dateDebut={watch("dateDebut")}
+                  dateFin={watch("dateFin")}
+                  produitsGroupedByType={produitsGroupedByType}
+                  produitsCalculations={produitsCalculations}
+                  totalProduitsQuantite={totalProduitsQuantite}
+                  facturesProduits={facturesProduits}
+                  allPrestations={allPrestations}
+                  prestationsCalculations={prestationsCalculations}
+                  facturesPrestations={facturesPrestations}
+                  groupedExamens={groupedExamens}
+                  formatExamenLibelle={formatExamenLibelle}
+                  facturesExamens={facturesExamens}
+                  groupedEchographies={groupedEchographies}
+                  facturesEchographies={facturesEchographies}
+                  totalRecette={totalRecette}
+                />
               )}
 
-              {/* Résumé global */}
-              <div className="mt-8 pt-6 border-t">
-                <div className="max-w-md ml-auto">
-                  <div className="bg-blue-50 rounded-lg p-6">
-                    <h4 className="text-lg font-semibold text-blue-900 mb-4">
-                      RÉCAPITULATIF
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Caissière :</span>
-                        <span className="font-medium">
-                          {session?.user?.name || "Non spécifié"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Clinique(s) :</span>
-                        <span className="font-medium text-right max-w-xs">
-                          {getAllCliniqueNameById(selectedCliniqueIds)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Période :</span>
-                        <span className="font-medium">
-                          {new Date(watch("dateDebut")).toLocaleDateString(
-                            "fr-FR"
-                          )}
-                          {watch("dateDebut") !== watch("dateFin") &&
-                            ` - ${new Date(watch("dateFin")).toLocaleDateString(
-                              "fr-FR"
-                            )}`}
-                        </span>
-                      </div>
-                      <div className="pt-3 border-t mt-3">
-                        <div className="flex justify-between">
-                          <span className="text-lg font-bold text-gray-900">
-                            RECETTE TOTALE :
-                          </span>
-                          <span className="text-lg font-bold text-blue-700">
-                            {totalRecette.toLocaleString("fr-FR")} FCFA
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* ================== COMMISSION EXAMEN DETAIL ================== */}
+              {selectedReportType.value === "commission_examen_detail" && (
+                <CommissionExamenDetailRapport
+                  dateDebut={watch("dateDebut")}
+                  dateFin={watch("dateFin")}
+                  commissionsExamenDetail={commissionsExamenDetail}
+                />
+              )}
+
+              {/* ================== COMMISSION EXAMEN TOTAL ================== */}
+              {selectedReportType.value === "commission_examen_total" && (
+                <CommissionExamenTotalRapport
+                  dateDebut={watch("dateDebut")}
+                  dateFin={watch("dateFin")}
+                  commissionsExamenTotal={commissionsExamenTotal}
+                />
+              )}
+
+              {/* ================== COMMISSION ECHOGRAPHIE DETAIL ================== */}
+              {selectedReportType.value === "commission_echographie_detail" && (
+                <CommissionEchographieDetailRapport
+                  dateDebut={watch("dateDebut")}
+                  dateFin={watch("dateFin")}
+                  commissionsEchographieDetail={commissionsEchographieDetail}
+                />
+              )}
+
+              {/* ================== COMMISSION ECHOGRAPHIE TOTAL ================== */}
+              {selectedReportType.value === "commission_echographie_total" && (
+                <CommissionEchographieTotalRapport
+                  dateDebut={watch("dateDebut")}
+                  dateFin={watch("dateFin")}
+                  commissionsEchographieTotal={commissionsEchographieTotal}
+                />
+              )}
 
               {/* Boutons d'action (seront cachés dans le PDF) */}
               <div className="no-print-buttons flex justify-center gap-4 mt-8 pt-8 border-t">

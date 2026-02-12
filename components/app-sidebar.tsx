@@ -14,6 +14,7 @@ import {
   HeartPulse,
   Stethoscope,
   Microscope,
+  BarChart3,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -117,6 +118,10 @@ const data = {
           title: "Rapports",
           url: "/rapports",
         },
+        {
+          title: "Analyser & Visualiser",
+          url: "/analyser",
+        },
       ],
     },
     {
@@ -215,6 +220,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton className="mx-2" tooltip={data.dashboard.name}>
               <Link
                 href={data.dashboard.url}
+                prefetch={false}
                 className="flex gap-2 items-center"
               >
                 <Gauge size={17} strokeWidth={2.3} className=" text-gray-600" />

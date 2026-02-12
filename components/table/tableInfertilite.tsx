@@ -94,8 +94,8 @@ export function Table12({ id }: { id: string }) {
           <TableRow key={d.id}>
             <TableCell className=" flex">
               <Link
-                // target="_blank"
                 href={`/fiche-infertilite/${d.infertIdClient}/${d.id}`}
+                prefetch={false}
                 className="block -pr-1"
               >
                 <NotebookPen

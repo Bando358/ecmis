@@ -42,11 +42,20 @@ import { Input } from "@/components/ui/input";
 import ConstanteClient from "@/components/constanteClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { RefreshCw } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { motion, AnimatePresence } from "framer-motion";
+import Retour from "@/components/retour";
 
 const tabTypeClient = [
   { value: "cdip", label: "CDIP" },
@@ -247,13 +256,13 @@ export default function ModifDepistageVihPage({
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
         const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.DEPISTAGE_VIH
+          (p: { table: string }) => p.table === TableName.DEPISTAGE_VIH,
         );
         setPermission(perm || null);
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
       }
     };
@@ -271,12 +280,12 @@ export default function ModifDepistageVihPage({
 
         if (oneDepistageVih?.depistageVihIdClient) {
           const cliniqueClient = await getOneClient(
-            oneDepistageVih.depistageVihIdClient
+            oneDepistageVih.depistageVihIdClient,
           );
 
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
-              cliniqueClient.idClinique
+              cliniqueClient.idClinique,
             );
           }
         }
@@ -294,15 +303,15 @@ export default function ModifDepistageVihPage({
     const fetchData = async () => {
       if (selectedDepistageVih) {
         const result = await getAllVisiteByIdClient(
-          selectedDepistageVih.depistageVihIdClient
+          selectedDepistageVih.depistageVihIdClient,
         );
         const visiteDate = result.find(
           (r: { id: string }) =>
-            r.id === selectedDepistageVih.depistageVihIdVisite
+            r.id === selectedDepistageVih.depistageVihIdVisite,
         );
 
         const nomPrescripteur = await getOneUser(
-          selectedDepistageVih.depistageVihIdUser
+          selectedDepistageVih.depistageVihIdUser,
         );
         const nomP = nomPrescripteur?.name;
         setPrescripteur(nomP);
@@ -310,8 +319,8 @@ export default function ModifDepistageVihPage({
         setVisites(
           result.filter(
             (r: { id: string }) =>
-              r.id === selectedDepistageVih.depistageVihIdVisite
-          )
+              r.id === selectedDepistageVih.depistageVihIdVisite,
+          ),
         );
         setDateVisite(visiteDate?.dateVisite);
         setSelectedClientId(selectedDepistageVih.depistageVihIdClient);
@@ -364,448 +373,496 @@ export default function ModifDepistageVihPage({
   const handleUpdateVisite = async () => {
     if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier un dépistage VIH. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier un dépistage VIH. Contactez un administrateur.",
       );
       return router.back();
     }
     if (selectedDepistageVih) {
       form.setValue(
         "depistageVihIdVisite",
-        selectedDepistageVih.depistageVihIdVisite
+        selectedDepistageVih.depistageVihIdVisite,
       );
       form.setValue(
         "depistageVihIdUser",
-        selectedDepistageVih.depistageVihIdUser
+        selectedDepistageVih.depistageVihIdUser,
       );
       form.setValue(
         "depistageVihIdClient",
-        selectedDepistageVih.depistageVihIdClient
+        selectedDepistageVih.depistageVihIdClient,
       );
       form.setValue(
         "depistageVihTypeClient",
-        selectedDepistageVih.depistageVihTypeClient
+        selectedDepistageVih.depistageVihTypeClient,
       );
       form.setValue(
         "depistageVihConsultation",
-        selectedDepistageVih.depistageVihConsultation
+        selectedDepistageVih.depistageVihConsultation,
       );
       form.setValue(
         "depistageVihCounsellingPreTest",
-        selectedDepistageVih.depistageVihCounsellingPreTest
+        selectedDepistageVih.depistageVihCounsellingPreTest,
       );
       form.setValue(
         "depistageVihInvestigationTestRapide",
-        selectedDepistageVih.depistageVihInvestigationTestRapide
+        selectedDepistageVih.depistageVihInvestigationTestRapide,
       );
       form.setValue(
         "depistageVihResultat",
-        selectedDepistageVih.depistageVihResultat
+        selectedDepistageVih.depistageVihResultat,
       );
       form.setValue(
         "depistageVihCounsellingPostTest",
-        selectedDepistageVih.depistageVihCounsellingPostTest
+        selectedDepistageVih.depistageVihCounsellingPostTest,
       );
       form.setValue(
         "depistageVihCounsellingReductionRisque",
-        selectedDepistageVih.depistageVihCounsellingReductionRisque
+        selectedDepistageVih.depistageVihCounsellingReductionRisque,
       );
       form.setValue(
         "depistageVihCounsellingSoutienPsychoSocial",
-        selectedDepistageVih.depistageVihCounsellingSoutienPsychoSocial
+        selectedDepistageVih.depistageVihCounsellingSoutienPsychoSocial,
       );
       setIsVisible(true);
     }
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-      {selectedDepistageVih && (
-        <ConstanteClient idVisite={selectedDepistageVih.depistageVihIdVisite} />
-      )}
-      {isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
-            Formulaire de modification de Dépistage VIH
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-            >
-              <FormField
-                control={form.control}
-                name="depistageVihIdVisite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Selectionnez la visite
-                    </FormLabel>
-                    <Select
-                      required
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Visite à sélectionner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {visites.map((visite, index) => (
-                          <SelectItem key={index} value={visite.id}>
-                            {new Date(visite.dateVisite).toLocaleDateString(
-                              "fr-FR"
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="depistageVihTypeClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Type de client
-                    </FormLabel>
-                    <Select
-                      required
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Sélectionnez le type de client" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {tabTypeClient.map((option, index) => (
-                          <SelectItem key={index} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="my-2 shadow-md border rounded-md p-4 transition-all duration-300">
-                <FormField
-                  control={form.control}
-                  name="depistageVihConsultation"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Consultation
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="depistageVihCounsellingPreTest"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling pré-test
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="depistageVihInvestigationTestRapide"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Investigation par test rapide
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                {/* Champs conditionnels de résultat avec transition */}
-                <ConditionalResultFields form={form} />
-
-                {/* Champs conditionnels de counselling supplémentaire avec transition */}
-                <ConditionalCounsellingFields form={form} />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="depistageVihIdClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} className="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {isPrescripteur === true ? (
-                <FormField
-                  control={form.control}
-                  name="depistageVihIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={idUser} className="hidden" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="depistageVihIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le prescripteur
-                      </FormLabel>
-                      <Select
-                        required
-                        value={field.value}
-                        onValueChange={field.onChange}
+    <div className="w-full relative">
+      <Retour />
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+        {selectedDepistageVih && (
+          <ConstanteClient
+            idVisite={selectedDepistageVih.depistageVihIdVisite}
+          />
+        )}
+        <div className="max-w-md mx-auto">
+          <AnimatePresence mode="wait">
+            {isVisible ? (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+                  <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                    <CardTitle className="text-lg font-semibold text-blue-900 text-center">
+                      Modifier - Dépistage VIH
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
                       >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((prescripteur, index) => (
-                            <SelectItem key={index} value={prescripteur.id}>
-                              <span>{prescripteur.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {!selectedDepistageVih ? (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-62.5" />
-                <Skeleton className="h-4 w-50" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                {selectedDepistageVih && <span>Date de visite : </span>}
-              </div>
-              <div>
-                {dateVisite && new Date(dateVisite).toLocaleDateString("fr-FR")}
-              </div>
+                        <FormField
+                          control={form.control}
+                          name="depistageVihIdVisite"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">
+                                Selectionnez la visite
+                              </FormLabel>
+                              <Select
+                                required
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Visite à sélectionner" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {visites.map((visite, index) => (
+                                    <SelectItem key={index} value={visite.id}>
+                                      {new Date(
+                                        visite.dateVisite,
+                                      ).toLocaleDateString("fr-FR")}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-              <div>
-                {selectedDepistageVih && <span>Type de client : </span>}
-              </div>
-              <div>
-                {selectedDepistageVih && (
-                  <span>
-                    {renameTypeClient(
-                      selectedDepistageVih.depistageVihTypeClient,
-                      tabTypeClient
-                    )}
-                  </span>
-                )}
-              </div>
+                        <FormField
+                          control={form.control}
+                          name="depistageVihTypeClient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">
+                                Type de client
+                              </FormLabel>
+                              <Select
+                                required
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Sélectionnez le type de client" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {tabTypeClient.map((option, index) => (
+                                    <SelectItem
+                                      key={index}
+                                      value={option.value}
+                                    >
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-              <div>{selectedDepistageVih && <span>Consultation : </span>}</div>
-              <div>
-                {selectedDepistageVih && (
-                  <span>
-                    {selectedDepistageVih.depistageVihConsultation ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
+                        <div className="my-2 shadow-sm border-blue-200/50 rounded-md p-4 transition-all duration-300">
+                          <FormField
+                            control={form.control}
+                            name="depistageVihConsultation"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Consultation
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
 
-              <div>
-                {selectedDepistageVih && <span>Counselling pré-test : </span>}
-              </div>
-              <div>
-                {selectedDepistageVih && (
-                  <span>
-                    {selectedDepistageVih.depistageVihCounsellingPreTest ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
+                          <FormField
+                            control={form.control}
+                            name="depistageVihCounsellingPreTest"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Counselling pré-test
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
 
-              <div>{selectedDepistageVih && <span>Test rapide : </span>}</div>
-              <div>
-                {selectedDepistageVih && (
-                  <span>
-                    {selectedDepistageVih.depistageVihInvestigationTestRapide ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
+                          <FormField
+                            control={form.control}
+                            name="depistageVihInvestigationTestRapide"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Investigation par test rapide
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
 
-              {selectedDepistageVih.depistageVihInvestigationTestRapide && (
-                <>
-                  <div>{selectedDepistageVih && <span>Résultat : </span>}</div>
-                  <div>
-                    {selectedDepistageVih && (
-                      <span>
-                        {renameResultat(
-                          selectedDepistageVih.depistageVihResultat,
-                          TabResultatVih
-                        )}
-                      </span>
-                    )}
-                  </div>
+                          {/* Champs conditionnels de résultat avec transition */}
+                          <ConditionalResultFields form={form} />
 
-                  <div>
-                    {selectedDepistageVih && (
-                      <span>Counselling post-test : </span>
-                    )}
-                  </div>
-                  <div>
-                    {selectedDepistageVih && (
-                      <span>
-                        {selectedDepistageVih.depistageVihCounsellingPostTest ? (
-                          <CheckedTrue />
+                          {/* Champs conditionnels de counselling supplémentaire avec transition */}
+                          <ConditionalCounsellingFields form={form} />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="depistageVihIdClient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input {...field} className="hidden" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        {isPrescripteur === true ? (
+                          <FormField
+                            control={form.control}
+                            name="depistageVihIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={idUser}
+                                    className="hidden"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
                         ) : (
-                          <CheckedFalse />
+                          <FormField
+                            control={form.control}
+                            name="depistageVihIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le prescripteur
+                                </FormLabel>
+                                <Select
+                                  required
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select Prescripteur ....." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {allPrescripteur.map(
+                                      (prescripteur, index) => (
+                                        <SelectItem
+                                          key={index}
+                                          value={prescripteur.id}
+                                        >
+                                          <span>{prescripteur.name}</span>
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
-                      </span>
-                    )}
-                  </div>
-
-                  {selectedDepistageVih.depistageVihResultat === "positif" && (
-                    <>
-                      <div>
-                        {selectedDepistageVih && (
-                          <span>Réduction risques : </span>
-                        )}
+                        <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsVisible(false)}
+                            disabled={form.formState.isSubmitting}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={form.formState.isSubmitting}
+                          >
+                            {form.formState.isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                En cours...
+                              </>
+                            ) : (
+                              "Appliquer"
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {!selectedDepistageVih ? (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardContent className="flex items-center justify-center py-16">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg font-semibold text-blue-900">
+                            Dépistage VIH
+                          </CardTitle>
+                          <CardDescription className="text-blue-700/60">
+                            Fiche de dépistage VIH
+                          </CardDescription>
+                        </div>
                       </div>
-                      <div>
-                        {selectedDepistageVih && (
-                          <span>
-                            {selectedDepistageVih.depistageVihCounsellingReductionRisque ? (
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="divide-y divide-blue-100/60">
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Date de visite
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {dateVisite &&
+                              new Date(dateVisite).toLocaleDateString("fr-FR")}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Type de client
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {renameTypeClient(
+                              selectedDepistageVih.depistageVihTypeClient,
+                              tabTypeClient,
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Consultation
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedDepistageVih.depistageVihConsultation ? (
                               <CheckedTrue />
                             ) : (
                               <CheckedFalse />
                             )}
                           </span>
-                        )}
-                      </div>
+                        </div>
 
-                      <div>
-                        {selectedDepistageVih && (
-                          <span>Soutien psychosocial : </span>
-                        )}
-                      </div>
-                      <div>
-                        {selectedDepistageVih && (
-                          <span>
-                            {selectedDepistageVih.depistageVihCounsellingSoutienPsychoSocial ? (
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Counselling pré-test
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedDepistageVih.depistageVihCounsellingPreTest ? (
                               <CheckedTrue />
                             ) : (
                               <CheckedFalse />
                             )}
                           </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Test rapide
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedDepistageVih.depistageVihInvestigationTestRapide ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        {selectedDepistageVih.depistageVihInvestigationTestRapide && (
+                          <>
+                            <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                              <span className="text-sm font-medium text-blue-800">
+                                Résultat
+                              </span>
+                              <span className="col-span-2 text-sm text-gray-700">
+                                {renameResultat(
+                                  selectedDepistageVih.depistageVihResultat,
+                                  TabResultatVih,
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                              <span className="text-sm font-medium text-blue-800">
+                                Counselling post-test
+                              </span>
+                              <span className="col-span-2 text-sm text-gray-700">
+                                {selectedDepistageVih.depistageVihCounsellingPostTest ? (
+                                  <CheckedTrue />
+                                ) : (
+                                  <CheckedFalse />
+                                )}
+                              </span>
+                            </div>
+
+                            {selectedDepistageVih.depistageVihResultat ===
+                              "positif" && (
+                              <>
+                                <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                                  <span className="text-sm font-medium text-blue-800">
+                                    Réduction risques
+                                  </span>
+                                  <span className="col-span-2 text-sm text-gray-700">
+                                    {selectedDepistageVih.depistageVihCounsellingReductionRisque ? (
+                                      <CheckedTrue />
+                                    ) : (
+                                      <CheckedFalse />
+                                    )}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                                  <span className="text-sm font-medium text-blue-800">
+                                    Soutien psychosocial
+                                  </span>
+                                  <span className="col-span-2 text-sm text-gray-700">
+                                    {selectedDepistageVih.depistageVihCounsellingSoutienPsychoSocial ? (
+                                      <CheckedTrue />
+                                    ) : (
+                                      <CheckedFalse />
+                                    )}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )}
+
+                        {prescripteur && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Prescripteur
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700 italic">
+                              {prescripteur}
+                            </span>
+                          </div>
                         )}
                       </div>
-                    </>
-                  )}
-                </>
-              )}
-
-              <div>
-                {prescripteur && (
-                  <small className="italic">Prescripteur :</small>
+                    </CardContent>
+                    <CardFooter className="flex justify-center gap-4 border-t border-blue-100/60 pt-4">
+                      <Button variant="outline" onClick={() => router.back()}>
+                        Retour
+                      </Button>
+                      <Button onClick={handleUpdateVisite}>
+                        <Pencil className="h-4 w-4 mr-2" /> Modifier
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">{prescripteur}</small>
-                )}
-              </div>
-
-              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Retour
-                </Button>
-                <Button onClick={handleUpdateVisite}>Modifier</Button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      </div>
     </div>
   );
 }

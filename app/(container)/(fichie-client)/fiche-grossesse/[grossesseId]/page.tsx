@@ -203,15 +203,15 @@ export default function GrossessePage({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-        <ConstanteClient idVisite={form.getValues("grossesseIdVisite")} />
-        <h2 className="text-2xl text-gray-600 font-black text-center">
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md">
+        <ConstanteClient idVisite={form.watch("grossesseIdVisite")} />
+        <h2 className="text-2xl text-blue-900 font-black text-center">
           {`Formulaire de Création de Grossesse`}
         </h2>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 max-w-3xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+            className="space-y-2 max-w-3xl rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
           >
             <FormField
               control={form.control}
@@ -253,7 +253,7 @@ export default function GrossessePage({
             />
 
             {/* ************************* */}
-            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <Label>Patologies Antécédentes</Label>
               <div className="flex flex-row justify-between">
                 <FormField
@@ -328,7 +328,7 @@ export default function GrossessePage({
                 />
               </div>
             </div>
-            <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="grossesseGestite"
@@ -369,7 +369,7 @@ export default function GrossessePage({
               />
             </div>
 
-            <div className="my-2 px-4 py-2 flex flex-col shadow-md border rounded-md ">
+            <div className="my-2 px-4 py-2 flex flex-col shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="grossesseAge"

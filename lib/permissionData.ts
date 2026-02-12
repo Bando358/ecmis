@@ -381,4 +381,25 @@ export const dataPermission = [
     canUpdate: false,
     canDelete: false,
   },
+  {
+    table: TableName.DISTRICT,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
+  {
+    table: TableName.SAVED_ANALYSIS,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
+  {
+    table: TableName.ANALYSE_VISUALISER,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
 ];

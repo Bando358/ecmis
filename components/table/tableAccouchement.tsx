@@ -132,8 +132,8 @@ export function Table08({ id }: { id: string }) {
           <TableRow key={d.id}>
             <TableCell className=" flex" onClick={handleUpdateAccouchement}>
               <Link
-                // target="_blank"
                 href={`/fiche-accouchement/${d.accouchementIdClient}/${d.id}`}
+                prefetch={false}
                 className="block -pr-1"
               >
                 <NotebookPen

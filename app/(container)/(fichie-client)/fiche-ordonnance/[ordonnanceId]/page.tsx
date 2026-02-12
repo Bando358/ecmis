@@ -309,7 +309,7 @@ export default function OrdonnancePage({
   return (
     <div className="w-full relative">
       <Retour />
-      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md">
         <div className="flex flex-justify-start items-center gap-2 pt-2">
           <div className="flex flex-col space-y-2 items-center gap-2 mx-auto">
             <Select value={selectedVisite} onValueChange={setSelectedVisite}>
@@ -353,7 +353,7 @@ export default function OrdonnancePage({
                 <ConstanteClient idVisite={selectedVisite} />
 
                 <div className="flex justify-center items-center mb-4">
-                  <h2 className="text-2xl text-gray-600 font-black text-center">
+                  <h2 className="text-2xl text-blue-900 font-black text-center">
                     {"Formulaire d'Ordonnance"}
                   </h2>
                 </div>
@@ -361,10 +361,10 @@ export default function OrdonnancePage({
                 <Form {...form}>
                   <form
                     onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-2 max-w-112.5 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+                    className="space-y-2 max-w-112.5 rounded-sm mx-auto px-4 py-2 bg-white shadow-md shadow-blue-100/30 border border-blue-200/50"
                   >
                     {/* Liste des médicaments */}
-                    <div className="my-2 px-4 py-2 shadow-md border rounded-md">
+                    <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
                       <Label className="flex justify-center text-lg font-bold text-gray-800 mb-4">
                         Liste des Médicaments
                       </Label>
@@ -421,7 +421,7 @@ export default function OrdonnancePage({
                     </div>
 
                     {/* Informations du prescripteur */}
-                    <div className="my-2 px-4 py-2 shadow-md border rounded-md">
+                    <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
                       <Label className="flex justify-center text-lg font-bold text-gray-800 mb-4">
                         Informations du Prescripteur
                       </Label>
@@ -535,7 +535,7 @@ export default function OrdonnancePage({
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4 }}
               >
-                <div className="flex flex-col gap-4 p-6 border rounded-md shadow-md bg-white my-4 mx-auto">
+                <div className="flex flex-col gap-4 p-6 border border-blue-200/50 rounded-md shadow-md shadow-blue-100/30 bg-white my-4 mx-auto">
                   {selectedOrdonnance !== null && (
                     <Table className="max-w-md p-6 m-4" ref={contentRef}>
                       <TableHeader>

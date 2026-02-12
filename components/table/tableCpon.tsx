@@ -83,8 +83,8 @@ export function Table09({ id }: { id: string }) {
           <TableRow key={d.id}>
             <TableCell className=" flex">
               <Link
-                // target="_blank"
                 href={`/fiche-cpon/${d.cponIdClient}/${d.id}`}
+                prefetch={false}
                 className="block -pr-1"
               >
                 <NotebookPen

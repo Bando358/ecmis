@@ -261,13 +261,9 @@ export default function FormulaireClient() {
     console.log("formattedData : ", formattedData);
     try {
       await createClient(formattedData as Client);
-      // setBtnSubmit(true);
+      router.push("/client");
     } catch (error) {
       console.error("Erreur lors de la création du client:", error);
-    } finally {
-      // setBtnSubmit(false);
-      // router.refresh();
-      router.push("/client");
     }
   };
 

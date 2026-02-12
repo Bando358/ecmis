@@ -105,6 +105,7 @@ export default function Administrator() {
                 <li key={index} className="relative">
                   <Link
                     href={row.href}
+                    prefetch={false}
                     className="group relative block p-2 bg-white rounded-2xl
           overflow-hidden
           transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]

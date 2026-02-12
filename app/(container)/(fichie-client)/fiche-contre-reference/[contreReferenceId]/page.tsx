@@ -415,7 +415,7 @@ export default function ContreReferencePage({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="flex flex-col  justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
+      <div className="flex flex-col  justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md">
         <div className="flex flex-justify-start items-center gap-2 pt-2">
           <div className="flex flex-col space-y-2 items-center gap-2 mx-auto">
             <Select value={selectedVisite} onValueChange={setSelectedVisite}>
@@ -459,7 +459,7 @@ export default function ContreReferencePage({
                 <ConstanteClient idVisite={selectedVisite} />
 
                 <div className="flex justify-center items-center mb-4">
-                  <h2 className="text-2xl text-gray-600 font-black text-center">
+                  <h2 className="text-2xl text-blue-900 font-black text-center">
                     Formulaire de Contre-Référence
                   </h2>
                 </div>
@@ -467,7 +467,7 @@ export default function ContreReferencePage({
                 <Form {...form}>
                   <form
                     onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-2 max-w-md rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+                    className="space-y-2 max-w-md rounded-sm mx-auto px-4 py-2 bg-white shadow-md shadow-blue-100/30 border border-blue-200/50"
                   >
                     {/* Consultation hidden */}
                     <FormField
@@ -486,7 +486,7 @@ export default function ContreReferencePage({
                     />
 
                     {/* Informations de réception */}
-                    <div className="my-2 px-4 py-2 shadow-md border rounded-md">
+                    <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
                       <Label className="flex justify-center text-lg font-bold text-gray-800 mb-4">
                         Informations de Réception
                       </Label>
@@ -538,7 +538,7 @@ export default function ContreReferencePage({
                     </div>
 
                     {/* Informations médicales */}
-                    <div className="my-2 px-4 py-2 shadow-md border rounded-md">
+                    <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
                       <Label className="flex justify-center text-lg font-bold text-gray-800 mb-4">
                         Informations Médicales
                       </Label>
@@ -622,7 +622,7 @@ export default function ContreReferencePage({
                     {allReference.find(
                       (ref) => ref.refIdVisite === selectedVisite
                     )?.motifReference === "Suspicion cancer col" && (
-                      <div className="my-2 px-4 py-2 shadow-md border rounded-md">
+                      <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
                         <Label className="flex justify-center text-lg font-bold text-gray-800 mb-4">
                           Bilan IVA
                         </Label>
@@ -661,7 +661,7 @@ export default function ContreReferencePage({
                     )}
 
                     {/* Informations du prestataire */}
-                    <div className="my-2 px-4 py-2 shadow-md border rounded-md">
+                    <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -869,7 +869,7 @@ export default function ContreReferencePage({
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4 }}
               >
-                <div className="flex flex-col gap-4 p-6 border rounded-md shadow-md bg-white my-4">
+                <div className="flex flex-col gap-4 p-6 border border-blue-200/50 rounded-md shadow-md shadow-blue-100/30 bg-white my-4">
                   {selectedContreReference !== null && (
                     <Table className="mx-auto max-w-md" ref={contentRef}>
                       <TableHeader>

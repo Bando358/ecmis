@@ -125,8 +125,8 @@ export function Table07({ id }: { id: string }) {
           <TableRow key={d.id}>
             <TableCell className=" flex">
               <Link
-                // target="_blank"
                 href={`/fiche-obstetrique/${d.obstIdClient}/${d.id}`}
+                prefetch={false}
                 className="block -pr-1"
               >
                 <NotebookPen

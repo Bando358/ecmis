@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +43,16 @@ import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import Retour from "@/components/retour";
 
 type Option = {
   value: string;
@@ -176,13 +186,13 @@ export default function MdgPage({
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
         const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.MEDECINE
+          (p: { table: string }) => p.table === TableName.MEDECINE,
         );
         setPermission(perm || null);
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
       }
     };
@@ -210,13 +220,13 @@ export default function MdgPage({
           // setAllMedecine(resultMedecine as Medecine[]);
           setVisites(
             result.filter(
-              (r: { id: string }) => r.id === oneMedecine.mdgIdVisite
-            )
+              (r: { id: string }) => r.id === oneMedecine.mdgIdVisite,
+            ),
           );
 
           // 4. Trouver la visite spécifique associée à cette médecine
           const visiteDate = result.find(
-            (r: { id: string }) => r.id === oneMedecine.mdgIdVisite
+            (r: { id: string }) => r.id === oneMedecine.mdgIdVisite,
           );
           console.log("Visite trouvée:", visiteDate);
           setDateVisite(visiteDate?.dateVisite);
@@ -228,7 +238,7 @@ export default function MdgPage({
           setAllPrescripteur(allUser);
 
           const nomPrescripteur = await getOneUser(
-            oneMedecine.mdgIdUser ?? null
+            oneMedecine.mdgIdUser ?? null,
           );
           setPrescripteur(nomPrescripteur?.name);
 
@@ -302,7 +312,7 @@ export default function MdgPage({
   const handleUpdateVisite = async () => {
     if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier une médecine. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier une médecine. Contactez un administrateur.",
       );
       return router.back();
     }
@@ -315,7 +325,7 @@ export default function MdgPage({
       form.setValue("mdgDiagnostic", selectedMedecine.mdgDiagnostic);
       form.setValue(
         "mdgDureeObservation",
-        selectedMedecine.mdgDureeObservation
+        selectedMedecine.mdgDureeObservation,
       );
       form.setValue("mdgEtatFemme", selectedMedecine.mdgEtatFemme);
       form.setValue("mdgExamenPhysique", selectedMedecine.mdgExamenPhysique);
@@ -323,11 +333,11 @@ export default function MdgPage({
       form.setValue("mdgIdUser", selectedMedecine.mdgIdUser);
       form.setValue(
         "mdgMiseEnObservation",
-        selectedMedecine.mdgMiseEnObservation
+        selectedMedecine.mdgMiseEnObservation,
       );
       form.setValue(
         "mdgMotifConsultation",
-        selectedMedecine.mdgMotifConsultation
+        selectedMedecine.mdgMotifConsultation,
       );
       form.setValue("mdgPecAffection", selectedMedecine.mdgPecAffection);
       form.setValue("mdgSoins", selectedMedecine.mdgSoins);
@@ -345,388 +355,56 @@ export default function MdgPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-3xl mx-auto px-4 py-2 border rounded-md">
-      {selectedMedecine && (
-        <ConstanteClient idVisite={selectedMedecine.mdgIdVisite} />
-      )}
-      {isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
-            Modification du Formulaire de Médecine Générale
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-2 max-w-3xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-            >
-              <FormField
-                control={form.control}
-                name="mdgIdVisite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Selectionnez la visite
-                    </FormLabel>
-                    <Select required onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Visite à sélectionner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {visites.map((visite, index) => (
-                          <SelectItem key={index} value={visite.id}>
-                            {new Date(visite.dateVisite).toLocaleDateString(
-                              "fr-FR"
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="mdgConsultation"
-                render={({ field }) => (
-                  <FormItem className="hidden">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value ?? true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal">
-                        Consultation
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="mdgCounselling"
-                render={({ field }) => (
-                  <FormItem className="hidden">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value ?? true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="font-normal ">
-                        Counselling
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="mdgEtatFemme"
-                  render={({ field }) => (
-                    <FormItem className="  pb-4">
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="ml-4">
-                          Femme enceinte: :
-                        </FormLabel>
-                        <RefreshCw
-                          onClick={() => {
-                            form.setValue("mdgEtatFemme", "");
-                          }}
-                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                        />
-                      </div>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          className="flex gap-x-5 items-center"
-                        >
-                          {TabTypeFemme.map((option) => (
-                            <FormItem
-                              key={option.value}
-                              className="flex items-center space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <RadioGroupItem value={option.value} />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {option.label}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Separator className="mb-3" />
-
-                <FormField
-                  control={form.control}
-                  name="mdgMotifConsultation"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Motif de la consultation
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Motif de la consultation"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="my-2 px-4 py-2 shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="mdgExamenPhysique"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Examen Physique
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <Separator className="my-3" />
-                <FormField
-                  control={form.control}
-                  name="mdgTypeVisite"
-                  render={({ field }) => (
-                    <FormItem className="  pb-4">
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="ml-4">
-                          Le client a t il été :
-                        </FormLabel>
-                        <RefreshCw
-                          onClick={() => {
-                            form.setValue("mdgTypeVisite", "");
-                          }}
-                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                        />
-                      </div>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          className="flex gap-x-5 items-center"
-                        >
-                          {TabTypeVisite.map((option) => (
-                            <FormItem
-                              key={option.value}
-                              className="flex items-center space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <RadioGroupItem value={option.value} />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {option.label}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Separator className="mt-3" />
-                <FormField
-                  control={form.control}
-                  name="mdgSoins"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Soins infirmier :
-                      </FormLabel>
-                      <Select onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Type à sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tabSoinsInfirmier.map((option, index) => (
-                            <SelectItem
-                              key={index}
-                              value={option.value}
-                              className="text-blue-600"
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Separator className="my-3" />
-                <AnimatePresence mode="wait" initial={false}>
-                  {form.watch("mdgTypeVisite") === "traite" && (
-                    <motion.div
-                      key="traite-content"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="overflow-visible" // Important pour l'animation de height
-                    >
-                      <div>
+    <div className="w-full relative">
+      <Retour />
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+        {selectedMedecine && (
+          <ConstanteClient idVisite={selectedMedecine.mdgIdVisite} />
+        )}
+        <div className="max-w-md mx-auto">
+          <AnimatePresence mode="wait">
+            {isVisible ? (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+                  <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                    <CardTitle className="text-lg font-semibold text-blue-900 text-center">
+                      Modifier - Médecine Générale
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
+                      >
                         <FormField
                           control={form.control}
-                          name="mdgSuspicionPalu"
+                          name="mdgIdVisite"
                           render={({ field }) => (
-                            <FormItem className=" pb-4">
-                              <div className="text-xl font-bold flex justify-between items-center">
-                                <FormLabel className="ml-4">
-                                  Suspiçion Paludisme:
-                                </FormLabel>
-                                <RefreshCw
-                                  onClick={() => {
-                                    form.setValue("mdgSuspicionPalu", "");
-                                  }}
-                                  className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                                />
-                              </div>
-                              <FormControl>
-                                <RadioGroup
-                                  onValueChange={field.onChange}
-                                  value={field.value ?? ""}
-                                  className="flex gap-x-5 items-center"
-                                >
-                                  {TabSuspicion.map((option) => (
-                                    <FormItem
-                                      key={option.value}
-                                      className="flex items-center space-x-3 space-y-0"
-                                    >
-                                      <FormControl>
-                                        <RadioGroupItem value={option.value} />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {option.label}
-                                      </FormLabel>
-                                    </FormItem>
-                                  ))}
-                                </RadioGroup>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <AnimatePresence mode="wait" initial={false}>
-                          {(form.watch("mdgSuspicionPalu") === "simple" ||
-                            form.watch("mdgSuspicionPalu") === "grave") && (
-                            <motion.div
-                              key="traite-content-inner"
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.3 }}
-                              style={{ overflow: "hidden" }} // Important pour l'animation de height
-                            >
-                              <FormField
-                                control={form.control}
-                                name="mdgTestRapidePalu"
-                                render={({ field }) => (
-                                  <FormItem className=" flex flex-row items-center  space-y-0 rounded-md py-2">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value ?? false}
-                                        onCheckedChange={field.onChange}
-                                      />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                      <FormLabel className="font-normal ">
-                                        Test Rapide Paludisme réalisé ?
-                                      </FormLabel>
-                                    </div>
-                                  </FormItem>
-                                )}
-                              />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        <Separator className="mb-3" />
-                        <FormField
-                          control={form.control}
-                          name="mdgDiagnostic"
-                          render={() => (
                             <FormItem>
-                              <FormControl>
-                                <MultiSelectField
-                                  name="Diagnostic :"
-                                  options={[...selectedDiagnostic].reverse()}
-                                  placeholder="Sélectionnez les diagnostics"
-                                  onChange={(values) =>
-                                    form.setValue("mdgDiagnostic", values) ?? ""
-                                  } // Gère les mises à jour manuellement
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormItem>
-                          <FormLabel className="font-medium">
-                            Autre Diagnostic
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...form.register("mdgAutreDiagnostic")}
-                              placeholder="Saisissez un autre diagnostic"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-
-                        <FormField
-                          control={form.control}
-                          name="mdgTypeAffection"
-                          render={({ field }) => (
-                            <FormItem className=" mt-4">
                               <FormLabel className="font-medium">
-                                Selectionnez le type d affection :
+                                Selectionnez la visite
                               </FormLabel>
-                              <Select onValueChange={field.onChange}>
+                              <Select required onValueChange={field.onChange}>
                                 <FormControl>
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Type à sélectionner" />
+                                    <SelectValue placeholder="Visite à sélectionner" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {tabTypeAffectionOptions.map(
-                                    (option, index) => (
-                                      <SelectItem
-                                        key={index}
-                                        value={option.value}
-                                        className="text-blue-600"
-                                      >
-                                        {option.label}
-                                      </SelectItem>
-                                    )
-                                  )}
+                                  {visites.map((visite, index) => (
+                                    <SelectItem key={index} value={visite.id}>
+                                      {new Date(
+                                        visite.dateVisite,
+                                      ).toLocaleDateString("fr-FR")}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -735,341 +413,788 @@ export default function MdgPage({
                         />
                         <FormField
                           control={form.control}
-                          name="mdgTraitement"
-                          render={() => (
-                            <FormItem className=" mt-4">
+                          name="mdgConsultation"
+                          render={({ field }) => (
+                            <FormItem className="hidden">
                               <FormControl>
-                                <MultiSelectField
-                                  name="Traitement :"
-                                  options={tabTraitement}
-                                  placeholder="Type de traitement"
-                                  onChange={(values) =>
-                                    form.setValue("mdgTraitement", values) ?? ""
-                                  } // Gère les mises à jour manuellement
+                                <Checkbox
+                                  checked={field.value ?? true}
+                                  onCheckedChange={field.onChange}
                                 />
                               </FormControl>
-                              <FormMessage />
+                              <div className="space-y-1 leading-none">
+                                <FormLabel className="font-normal">
+                                  Consultation
+                                </FormLabel>
+                              </div>
                             </FormItem>
                           )}
                         />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <div className="my-2 py-2 shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="mdgMiseEnObservation"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Client mis en observation ?
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                {form.watch("mdgMiseEnObservation") === true && (
-                  <FormField
-                    control={form.control}
-                    name="mdgDureeObservation"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center px-4">
-                        <FormLabel className="text-red-500 flex-1">
-                          Durée(en heure) :
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            className="flex-1 border border-red-500"
-                            placeholder="4h"
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
-              <FormField
-                control={form.control}
-                name="mdgIdClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        className="hidden"
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {isPrescripteur === true ? (
-                <FormField
-                  control={form.control}
-                  name="mdgIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={idUser ?? ""}
-                          onChange={field.onChange}
-                          className="hidden"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="mdgIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le precripteur
-                      </FormLabel>
-                      <Select
-                        required
-                        // value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((prescipteur) => (
-                            <SelectItem
-                              key={prescipteur.id}
-                              value={prescipteur.id}
-                            >
-                              <span>{prescipteur.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "En cours ..." : "Appliquer"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {!selectedMedecine ? (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-62.5" />
-                <Skeleton className="h-4 w-50" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>{selectedMedecine && <span>Date de visite : </span>}</div>
-              <div>
-                {dateVisite ? (
-                  new Date(dateVisite).toLocaleDateString("fr-FR")
-                ) : (
-                  <div className="space-x-2 flex flex-row">
-                    <Skeleton className="h-4 w-4 bg-slate-600" />
-                    <Skeleton className="h-4 w-25 bg-slate-600" />
-                  </div>
-                )}
-              </div>
-              <div>{selectedMedecine && <span>Femme Enceinte : </span>}</div>
-              <div>
-                {selectedMedecine.mdgEtatFemme &&
-                selectedMedecine.mdgEtatFemme === "oui" ? (
-                  <span>Oui</span>
-                ) : (
-                  <span>Non</span>
-                )}
-              </div>
-              <div>
-                {selectedMedecine && <span>Motif de consultation : </span>}
-              </div>
-              <div>
-                {selectedMedecine.mdgMotifConsultation && (
-                  <span>{selectedMedecine.mdgMotifConsultation}</span>
-                )}
-              </div>
-              <div>{selectedMedecine && <span>Examen Physique : </span>}</div>
-              <div>
-                {selectedMedecine.mdgExamenPhysique ? (
-                  <CheckedTrue />
-                ) : (
-                  <CheckedFalse />
-                )}
-              </div>
-              <div>{selectedMedecine && <span>Client Traité? : </span>}</div>
-              <div>
-                {selectedMedecine.mdgTypeVisite &&
-                selectedMedecine.mdgTypeVisite === "traite" ? (
-                  <CheckedTrue />
-                ) : (
-                  <span>Non mais {selectedMedecine.mdgTypeVisite} </span>
-                )}
-              </div>
-              <div>{selectedMedecine && <span>Soins Infirmier : </span>}</div>
-              <div>
-                {selectedMedecine.mdgSoins && (
-                  <span>
-                    {renameDiagnostic(
-                      selectedMedecine.mdgSoins,
-                      tabSoinsInfirmier
-                    )}
-                  </span>
-                )}
-              </div>
-              {selectedMedecine.mdgTypeVisite &&
-                selectedMedecine.mdgTypeVisite === "traite" && (
-                  <>
-                    <div>
-                      {selectedMedecine && <span>Suspiçion Paludisme : </span>}
-                    </div>
-                    <div>
-                      {selectedMedecine.mdgSuspicionPalu && (
-                        <span>
-                          {renameDiagnostic(
-                            selectedMedecine.mdgSuspicionPalu,
-                            TabSuspicion
+                        <FormField
+                          control={form.control}
+                          name="mdgCounselling"
+                          render={({ field }) => (
+                            <FormItem className="hidden">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value ?? true}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel className="font-normal ">
+                                  Counselling
+                                </FormLabel>
+                              </div>
+                            </FormItem>
                           )}
-                        </span>
-                      )}
-                    </div>
-                    <div>{selectedMedecine && <span>Diagnostic : </span>}</div>
-                    <div>
-                      {selectedMedecine.mdgDiagnostic.length > 0 && (
-                        <ul>
-                          {selectedMedecine.mdgDiagnostic.map((d, index) => (
-                            <li key={index}>
-                              {renameDiagnostic(d, tabDiagnosticOptions)}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    <div>
-                      {selectedMedecine &&
-                        selectedMedecine.mdgAutreDiagnostic !== null && (
-                          <span>Autre Diagnostic : </span>
+                        />
+                        <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md ">
+                          <FormField
+                            control={form.control}
+                            name="mdgEtatFemme"
+                            render={({ field }) => (
+                              <FormItem className="  pb-4">
+                                <div className="text-xl font-bold flex justify-between items-center">
+                                  <FormLabel className="ml-4">
+                                    Femme enceinte: :
+                                  </FormLabel>
+                                  <RefreshCw
+                                    onClick={() => {
+                                      form.setValue("mdgEtatFemme", "");
+                                    }}
+                                    className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                                  />
+                                </div>
+                                <FormControl>
+                                  <RadioGroup
+                                    onValueChange={field.onChange}
+                                    value={field.value ?? ""}
+                                    className="flex gap-x-5 items-center"
+                                  >
+                                    {TabTypeFemme.map((option) => (
+                                      <FormItem
+                                        key={option.value}
+                                        className="flex items-center space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <RadioGroupItem
+                                            value={option.value}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          {option.label}
+                                        </FormLabel>
+                                      </FormItem>
+                                    ))}
+                                  </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className="mb-3" />
+
+                          <FormField
+                            control={form.control}
+                            name="mdgMotifConsultation"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Motif de la consultation
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    {...field}
+                                    placeholder="Motif de la consultation"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md ">
+                          <FormField
+                            control={form.control}
+                            name="mdgExamenPhysique"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Examen Physique
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className="my-3" />
+                          <FormField
+                            control={form.control}
+                            name="mdgTypeVisite"
+                            render={({ field }) => (
+                              <FormItem className="  pb-4">
+                                <div className="text-xl font-bold flex justify-between items-center">
+                                  <FormLabel className="ml-4">
+                                    Le client a t il été :
+                                  </FormLabel>
+                                  <RefreshCw
+                                    onClick={() => {
+                                      form.setValue("mdgTypeVisite", "");
+                                    }}
+                                    className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                                  />
+                                </div>
+                                <FormControl>
+                                  <RadioGroup
+                                    onValueChange={field.onChange}
+                                    value={field.value ?? ""}
+                                    className="flex gap-x-5 items-center"
+                                  >
+                                    {TabTypeVisite.map((option) => (
+                                      <FormItem
+                                        key={option.value}
+                                        className="flex items-center space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <RadioGroupItem
+                                            value={option.value}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          {option.label}
+                                        </FormLabel>
+                                      </FormItem>
+                                    ))}
+                                  </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className="mt-3" />
+                          <FormField
+                            control={form.control}
+                            name="mdgSoins"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Soins infirmier :
+                                </FormLabel>
+                                <Select onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Type à sélectionner" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {tabSoinsInfirmier.map((option, index) => (
+                                      <SelectItem
+                                        key={index}
+                                        value={option.value}
+                                        className="text-blue-600"
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className="my-3" />
+                          <AnimatePresence mode="wait" initial={false}>
+                            {form.watch("mdgTypeVisite") === "traite" && (
+                              <motion.div
+                                key="traite-content"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="overflow-visible" // Important pour l'animation de height
+                              >
+                                <div>
+                                  <FormField
+                                    control={form.control}
+                                    name="mdgSuspicionPalu"
+                                    render={({ field }) => (
+                                      <FormItem className=" pb-4">
+                                        <div className="text-xl font-bold flex justify-between items-center">
+                                          <FormLabel className="ml-4">
+                                            Suspiçion Paludisme:
+                                          </FormLabel>
+                                          <RefreshCw
+                                            onClick={() => {
+                                              form.setValue(
+                                                "mdgSuspicionPalu",
+                                                "",
+                                              );
+                                            }}
+                                            className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                                          />
+                                        </div>
+                                        <FormControl>
+                                          <RadioGroup
+                                            onValueChange={field.onChange}
+                                            value={field.value ?? ""}
+                                            className="flex gap-x-5 items-center"
+                                          >
+                                            {TabSuspicion.map((option) => (
+                                              <FormItem
+                                                key={option.value}
+                                                className="flex items-center space-x-3 space-y-0"
+                                              >
+                                                <FormControl>
+                                                  <RadioGroupItem
+                                                    value={option.value}
+                                                  />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">
+                                                  {option.label}
+                                                </FormLabel>
+                                              </FormItem>
+                                            ))}
+                                          </RadioGroup>
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <AnimatePresence mode="wait" initial={false}>
+                                    {(form.watch("mdgSuspicionPalu") ===
+                                      "simple" ||
+                                      form.watch("mdgSuspicionPalu") ===
+                                        "grave") && (
+                                      <motion.div
+                                        key="traite-content-inner"
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        style={{ overflow: "hidden" }} // Important pour l'animation de height
+                                      >
+                                        <FormField
+                                          control={form.control}
+                                          name="mdgTestRapidePalu"
+                                          render={({ field }) => (
+                                            <FormItem className=" flex flex-row items-center  space-y-0 rounded-md py-2">
+                                              <FormControl>
+                                                <Checkbox
+                                                  checked={field.value ?? false}
+                                                  onCheckedChange={
+                                                    field.onChange
+                                                  }
+                                                />
+                                              </FormControl>
+                                              <div className="space-y-1 leading-none">
+                                                <FormLabel className="font-normal ">
+                                                  Test Rapide Paludisme réalisé
+                                                  ?
+                                                </FormLabel>
+                                              </div>
+                                            </FormItem>
+                                          )}
+                                        />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+
+                                  <Separator className="mb-3" />
+                                  <FormField
+                                    control={form.control}
+                                    name="mdgDiagnostic"
+                                    render={() => (
+                                      <FormItem>
+                                        <FormControl>
+                                          <MultiSelectField
+                                            name="Diagnostic :"
+                                            options={[
+                                              ...selectedDiagnostic,
+                                            ].reverse()}
+                                            placeholder="Sélectionnez les diagnostics"
+                                            onChange={(values) =>
+                                              form.setValue(
+                                                "mdgDiagnostic",
+                                                values,
+                                              ) ?? ""
+                                            } // Gère les mises à jour manuellement
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormItem>
+                                    <FormLabel className="font-medium">
+                                      Autre Diagnostic
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Textarea
+                                        {...form.register("mdgAutreDiagnostic")}
+                                        placeholder="Saisissez un autre diagnostic"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+
+                                  <FormField
+                                    control={form.control}
+                                    name="mdgTypeAffection"
+                                    render={({ field }) => (
+                                      <FormItem className=" mt-4">
+                                        <FormLabel className="font-medium">
+                                          Selectionnez le type d affection :
+                                        </FormLabel>
+                                        <Select onValueChange={field.onChange}>
+                                          <FormControl>
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue placeholder="Type à sélectionner" />
+                                            </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                            {tabTypeAffectionOptions.map(
+                                              (option, index) => (
+                                                <SelectItem
+                                                  key={index}
+                                                  value={option.value}
+                                                  className="text-blue-600"
+                                                >
+                                                  {option.label}
+                                                </SelectItem>
+                                              ),
+                                            )}
+                                          </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={form.control}
+                                    name="mdgTraitement"
+                                    render={() => (
+                                      <FormItem className=" mt-4">
+                                        <FormControl>
+                                          <MultiSelectField
+                                            name="Traitement :"
+                                            options={tabTraitement}
+                                            placeholder="Type de traitement"
+                                            onChange={(values) =>
+                                              form.setValue(
+                                                "mdgTraitement",
+                                                values,
+                                              ) ?? ""
+                                            } // Gère les mises à jour manuellement
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                        <div className="my-2 py-2 shadow-sm border-blue-200/50 rounded-md ">
+                          <FormField
+                            control={form.control}
+                            name="mdgMiseEnObservation"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Client mis en observation ?
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                          {form.watch("mdgMiseEnObservation") === true && (
+                            <FormField
+                              control={form.control}
+                              name="mdgDureeObservation"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center px-4">
+                                  <FormLabel className="text-red-500 flex-1">
+                                    Durée(en heure) :
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      {...field}
+                                      value={field.value ?? ""}
+                                      onChange={field.onChange}
+                                      className="flex-1 border border-red-500"
+                                      placeholder="4h"
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="mdgIdClient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  className="hidden"
+                                  value={field.value ?? ""}
+                                  onChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        {isPrescripteur === true ? (
+                          <FormField
+                            control={form.control}
+                            name="mdgIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={idUser ?? ""}
+                                    onChange={field.onChange}
+                                    className="hidden"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name="mdgIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le precripteur
+                                </FormLabel>
+                                <Select
+                                  required
+                                  // value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select Prescripteur ....." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {allPrescripteur.map((prescipteur) => (
+                                      <SelectItem
+                                        key={prescipteur.id}
+                                        value={prescipteur.id}
+                                      >
+                                        <span>{prescipteur.name}</span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
-                    </div>
-                    <div>
-                      {selectedMedecine.mdgAutreDiagnostic &&
-                      selectedMedecine.mdgAutreDiagnostic !== null ? (
-                        <span>{selectedMedecine.mdgAutreDiagnostic}</span>
-                      ) : (
-                        <span>Aucun</span>
-                      )}
-                    </div>
-                  </>
-                )}
-              <div>
-                {selectedMedecine && selectedMedecine.mdgTypeAffection && (
-                  <span>Type Affection : </span>
-                )}
-              </div>
-              <div>
-                {selectedMedecine.mdgTypeAffection && (
-                  <span>
-                    {renameDiagnostic(
-                      selectedMedecine.mdgTypeAffection,
-                      tabTypeAffectionOptions
-                    )}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedMedecine && selectedMedecine.mdgTraitement && (
-                  <span>Traitement : </span>
-                )}
-              </div>
-              <div>
-                {selectedMedecine.mdgTraitement && (
-                  <span className="flex flex-row gap-x-6">
-                    {selectedMedecine.mdgTraitement.map((t) => (
-                      <span key={t}>{renameDiagnostic(t, tabTraitement)} </span>
-                    ))}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedMedecine && selectedMedecine.mdgMiseEnObservation && (
-                  <span>Mis en Observation : </span>
-                )}
-              </div>
-              <div>
-                {selectedMedecine.mdgMiseEnObservation ? (
-                  <CheckedTrue />
+
+                        <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsVisible(false)}
+                            disabled={form.formState.isSubmitting}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={form.formState.isSubmitting}
+                          >
+                            {form.formState.isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                En cours ...
+                              </>
+                            ) : (
+                              "Appliquer"
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {!selectedMedecine ? (
+                  <Card className="max-w-3xl mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardContent className="flex items-center justify-center py-16">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <CheckedFalse />
+                  <Card className="max-w-3xl mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg font-semibold text-blue-900">
+                            Médecine Générale
+                          </CardTitle>
+                          <CardDescription className="text-blue-700/60">
+                            Fiche de consultation MDG
+                          </CardDescription>
+                        </div>
+                        {prescripteur && (
+                          <Badge
+                            variant="outline"
+                            className="text-blue-700 border-blue-300"
+                          >
+                            {prescripteur}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="divide-y divide-blue-100/60">
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Date de visite
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {dateVisite ? (
+                              new Date(dateVisite).toLocaleDateString("fr-FR")
+                            ) : (
+                              <div className="space-x-2 flex flex-row">
+                                <Skeleton className="h-4 w-4 bg-slate-600" />
+                                <Skeleton className="h-4 w-25 bg-slate-600" />
+                              </div>
+                            )}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Femme Enceinte
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedMedecine.mdgEtatFemme &&
+                            selectedMedecine.mdgEtatFemme === "oui" ? (
+                              <span>Oui</span>
+                            ) : (
+                              <span>Non</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Motif de consultation
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedMedecine.mdgMotifConsultation && (
+                              <span>
+                                {selectedMedecine.mdgMotifConsultation}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Examen Physique
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedMedecine.mdgExamenPhysique ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Client Traité?
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedMedecine.mdgTypeVisite &&
+                            selectedMedecine.mdgTypeVisite === "traite" ? (
+                              <CheckedTrue />
+                            ) : (
+                              <span>
+                                Non mais {selectedMedecine.mdgTypeVisite}{" "}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Soins Infirmier
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedMedecine.mdgSoins && (
+                              <span>
+                                {renameDiagnostic(
+                                  selectedMedecine.mdgSoins,
+                                  tabSoinsInfirmier,
+                                )}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        {selectedMedecine.mdgTypeVisite &&
+                          selectedMedecine.mdgTypeVisite === "traite" && (
+                            <>
+                              <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                                <span className="text-sm font-medium text-blue-800">
+                                  Suspicion Paludisme
+                                </span>
+                                <span className="col-span-2 text-sm text-gray-700">
+                                  {selectedMedecine.mdgSuspicionPalu && (
+                                    <span>
+                                      {renameDiagnostic(
+                                        selectedMedecine.mdgSuspicionPalu,
+                                        TabSuspicion,
+                                      )}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                                <span className="text-sm font-medium text-blue-800">
+                                  Diagnostic
+                                </span>
+                                <span className="col-span-2 text-sm text-gray-700">
+                                  {selectedMedecine.mdgDiagnostic.length >
+                                    0 && (
+                                    <ul>
+                                      {selectedMedecine.mdgDiagnostic.map(
+                                        (d, index) => (
+                                          <li key={index}>
+                                            {renameDiagnostic(
+                                              d,
+                                              tabDiagnosticOptions,
+                                            )}
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  )}
+                                </span>
+                              </div>
+                              {selectedMedecine.mdgAutreDiagnostic !== null && (
+                                <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                                  <span className="text-sm font-medium text-blue-800">
+                                    Autre Diagnostic
+                                  </span>
+                                  <span className="col-span-2 text-sm text-gray-700">
+                                    {selectedMedecine.mdgAutreDiagnostic ? (
+                                      <span>
+                                        {selectedMedecine.mdgAutreDiagnostic}
+                                      </span>
+                                    ) : (
+                                      <span>Aucun</span>
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        {selectedMedecine.mdgTypeAffection && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Type Affection
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {renameDiagnostic(
+                                selectedMedecine.mdgTypeAffection,
+                                tabTypeAffectionOptions,
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedMedecine.mdgTraitement && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Traitement
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              <span className="flex flex-row gap-x-6">
+                                {selectedMedecine.mdgTraitement.map((t) => (
+                                  <span key={t}>
+                                    {renameDiagnostic(t, tabTraitement)}{" "}
+                                  </span>
+                                ))}
+                              </span>
+                            </span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Mis en Observation
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedMedecine.mdgMiseEnObservation ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+                        {selectedMedecine.mdgDureeObservation && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Durée de Mise en Observation
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {selectedMedecine.mdgDureeObservation} Heure(s)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-center gap-4 border-t border-blue-100/60 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => router.back()}
+                      >
+                        Retour
+                      </Button>
+                      <Button onClick={handleUpdateVisite}>
+                        <Pencil className="h-4 w-4 mr-2" /> Modifier
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 )}
-              </div>
-              <div>
-                {selectedMedecine && selectedMedecine.mdgDureeObservation && (
-                  <span>Durée de Mis en Observation : </span>
-                )}
-              </div>
-              <div>{selectedMedecine.mdgDureeObservation} Heure(s)</div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">Prescripteur :</small>
-                )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">{prescripteur}</small>
-                )}
-              </div>
-              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Retour
-                </Button>
-                <Button onClick={handleUpdateVisite}>Modifier</Button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      </div>
     </div>
   );
 }

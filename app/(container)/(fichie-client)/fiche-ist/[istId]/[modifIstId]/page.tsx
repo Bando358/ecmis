@@ -34,13 +34,23 @@ import { Input } from "@/components/ui/input";
 import ConstanteClient from "@/components/constanteClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
+import Retour from "@/components/retour";
 // import { Separator } from "@/components/ui/separator";
 
 const tabTypePec = [
@@ -121,13 +131,13 @@ export default function IstPage({
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
         const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.IST
+          (p: { table: string }) => p.table === TableName.IST,
         );
         setPermission(perm || null);
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
       }
     };
@@ -147,7 +157,7 @@ export default function IstPage({
 
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
-              cliniqueClient.idClinique
+              cliniqueClient.idClinique,
             );
           }
         }
@@ -167,14 +177,16 @@ export default function IstPage({
       if (selectedIst) {
         const result = await getAllVisiteByIdClient(selectedIst.istIdClient);
         const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedIst.istIdVisite
+          (r: { id: string }) => r.id === selectedIst.istIdVisite,
         );
 
         const nomPrescripteur = await getOneUser(selectedIst.istIdUser);
         setPrescripteur(nomPrescripteur?.name);
 
         setVisites(
-          result.filter((r: { id: string }) => r.id === selectedIst.istIdVisite)
+          result.filter(
+            (r: { id: string }) => r.id === selectedIst.istIdVisite,
+          ),
         ); // Assurez-vous que result est bien de type CliniqueData[]
         setDateVisite(visiteDate?.dateVisite);
         // const clientData = await getOneClient(selectedGyneco.idClient);
@@ -189,7 +201,7 @@ export default function IstPage({
   const onSubmit: SubmitHandler<Ist> = async (data) => {
     if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier une IST. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier une IST. Contactez un administrateur.",
       );
       return router.back();
     }
@@ -229,7 +241,7 @@ export default function IstPage({
   const handleUpdateVisite = async () => {
     if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier une IST. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier une IST. Contactez un administrateur.",
       );
       return router.back();
     }
@@ -239,15 +251,15 @@ export default function IstPage({
       form.setValue("istIdUser", selectedIst.istIdUser);
       form.setValue(
         "istCounselingReductionRisque",
-        selectedIst.istCounselingReductionRisque
+        selectedIst.istCounselingReductionRisque,
       );
       form.setValue(
         "istCounsellingApresDepitage",
-        selectedIst.istCounsellingApresDepitage
+        selectedIst.istCounsellingApresDepitage,
       );
       form.setValue(
         "istCounsellingAvantDepitage",
-        selectedIst.istCounsellingAvantDepitage
+        selectedIst.istCounsellingAvantDepitage,
       );
       // form.setValue("pecEtiologique", selectedIst.pecEtiologique);
       form.setValue("istExamenPhysique", selectedIst.istExamenPhysique);
@@ -259,482 +271,549 @@ export default function IstPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-3xl mx-auto px-4 py-2 border rounded-md">
-      {selectedIst && <ConstanteClient idVisite={selectedIst.istIdVisite} />}
-      {isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
-            {"Formulaire de Modification d'Ist"}
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-            >
-              <FormField
-                control={form.control}
-                name="istIdVisite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Selectionnez la visite
-                    </FormLabel>
-                    <Select
-                      required
-                      // value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Visite à sélectionner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {visites.map((visite, index) => (
-                          <SelectItem key={index} value={visite.id}>
-                            {new Date(visite.dateVisite).toLocaleDateString(
-                              "fr-FR"
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* ************************* */}
-              <div className="my-2 p-3 shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="istTypeClient"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le type de client
-                      </FormLabel>
-                      <Select required onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Type à sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {TabTypeClient.map((option, index) => (
-                            <SelectItem key={index} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Separator className="my-3" />
-                <FormField
-                  control={form.control}
-                  name="istType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le type de Ist
-                      </FormLabel>
-                      <Select required onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Type à sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {TabTypeIst.map((option, index) => (
-                            <SelectItem key={index} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="my-2 shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="istCounsellingAvantDepitage"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling Avant dépistage ist
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="istExamenPhysique"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Exament Physique
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="istCounsellingApresDepitage"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling Après dépistage ist
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                {/* <Separator /> */}
-                <FormField
-                  control={form.control}
-                  name="istCounselingReductionRisque"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counseling Réduction du risque
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="istTypePec"
-                  render={({ field }) => (
-                    <FormItem className=" px-4 pb-4">
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="ml-4">
-                          Type de traitement IST:
-                        </FormLabel>
-                        <RefreshCw
-                          onClick={() => {
-                            form.setValue("istTypePec", "");
-                          }}
-                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                        />
-                      </div>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          className="flex gap-x-5 items-center"
-                        >
-                          {TabTypePec.map((option) => (
-                            <FormItem
-                              key={option.value}
-                              className="flex items-center space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <RadioGroupItem value={option.value} />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {option.label}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {form.watch("istTypePec") === "etiologique" && (
-                  <FormField
-                    control={form.control}
-                    name="istPecEtiologique"
-                    render={({ field }) => (
-                      <FormItem className="mx-6 mb-3 outline-red-500">
-                        <FormLabel className="font-medium">
-                          Selectionnez le type de PEC
-                        </FormLabel>
-                        <Select onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Traitement à sélectionner ....." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {tabTypePec.map((option, index) => (
-                              <SelectItem key={index} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
-              <FormField
-                control={form.control}
-                name="istIdClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} className="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {isPrescripteur === true ? (
-                <FormField
-                  control={form.control}
-                  name="istIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={idUser} className="hidden" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="istIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le precripteur
-                      </FormLabel>
-                      <Select
-                        required
-                        // value={field.value}
-                        onValueChange={field.onChange}
+    <div className="w-full relative">
+      <Retour />
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+        {selectedIst && <ConstanteClient idVisite={selectedIst.istIdVisite} />}
+        <div className="max-w-md mx-auto">
+          <AnimatePresence mode="wait">
+            {isVisible ? (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+                  <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                    <CardTitle className="text-lg font-semibold text-blue-900 text-center">
+                      Modifier - IST
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
                       >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((prescipteur, index) => (
-                            <SelectItem key={index} value={prescipteur.id}>
-                              <span>{prescipteur.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+                        <FormField
+                          control={form.control}
+                          name="istIdVisite"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">
+                                Selectionnez la visite
+                              </FormLabel>
+                              <Select
+                                required
+                                // value={field.value}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Visite à sélectionner" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {visites.map((visite, index) => (
+                                    <SelectItem key={index} value={visite.id}>
+                                      {new Date(
+                                        visite.dateVisite,
+                                      ).toLocaleDateString("fr-FR")}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {!selectedIst ? (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-62.5" />
-                <Skeleton className="h-4 w-50" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>{selectedIst && <span>Date de visite : </span>}</div>
-              <div>
-                {dateVisite && new Date(dateVisite).toLocaleDateString("fr-FR")}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istTypeClient !== null && (
-                  <span>Type Client : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istTypeClient !== null && (
-                  <span>
-                    {renameValue(selectedIst.istTypeClient, TabTypeClient)}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istType !== null && (
-                  <span>Type Ist : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istType !== null && (
-                  <span>{renameValue(selectedIst.istType, TabTypeIst)}</span>
-                )}
-              </div>
+                        {/* ************************* */}
+                        <div className="my-2 p-3 shadow-sm border-blue-200/50 rounded-md ">
+                          <FormField
+                            control={form.control}
+                            name="istTypeClient"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le type de client
+                                </FormLabel>
+                                <Select required onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Type à sélectionner" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {TabTypeClient.map((option, index) => (
+                                      <SelectItem
+                                        key={index}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className="my-3" />
+                          <FormField
+                            control={form.control}
+                            name="istType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le type de Ist
+                                </FormLabel>
+                                <Select required onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Type à sélectionner" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {TabTypeIst.map((option, index) => (
+                                      <SelectItem
+                                        key={index}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="my-2 shadow-sm border-blue-200/50 rounded-md ">
+                          <FormField
+                            control={form.control}
+                            name="istCounsellingAvantDepitage"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Counselling Avant dépistage ist
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="istExamenPhysique"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Exament Physique
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="istCounsellingApresDepitage"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Counselling Après dépistage ist
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
 
-              <div>
-                {selectedIst && selectedIst.istCounsellingAvantDepitage && (
-                  <span>Counselling Avant dépistage : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istCounsellingAvantDepitage && (
-                  <span>
-                    {selectedIst.istCounsellingAvantDepitage ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istExamenPhysique && (
-                  <span>Examen Physique : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istExamenPhysique && (
-                  <span>
-                    {selectedIst.istExamenPhysique ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istCounsellingApresDepitage && (
-                  <span>Counselling Après dépistage : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istCounsellingApresDepitage && (
-                  <span>
-                    {selectedIst.istCounsellingApresDepitage ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istCounselingReductionRisque && (
-                  <span>Counseling Reduction de Risque : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istCounselingReductionRisque && (
-                  <span>
-                    {selectedIst.istCounselingReductionRisque ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istTypePec !== null && (
-                  <span>Type de PEC : </span>
-                )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istTypePec !== null && (
-                  <span>{renameValue(selectedIst.istTypePec, TabTypePec)}</span>
-                )}
-              </div>
-              <div>
-                {selectedIst.istTypePec &&
-                  selectedIst.istTypePec === "etiologique" && (
-                    <div>Pec Ethiologique</div>
-                  )}
-              </div>
-              <div>
-                {selectedIst && selectedIst.istPecEtiologique !== null && (
-                  <div>
-                    {renameValue(selectedIst.istPecEtiologique, tabTypePec)}
-                  </div>
-                )}
-              </div>
+                          {/* <Separator /> */}
+                          <FormField
+                            control={form.control}
+                            name="istCounselingReductionRisque"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Counseling Réduction du risque
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
 
-              <div>
-                {prescripteur && (
-                  <small className="italic">Prescripteur :</small>
+                          <FormField
+                            control={form.control}
+                            name="istTypePec"
+                            render={({ field }) => (
+                              <FormItem className=" px-4 pb-4">
+                                <div className="text-xl font-bold flex justify-between items-center">
+                                  <FormLabel className="ml-4">
+                                    Type de traitement IST:
+                                  </FormLabel>
+                                  <RefreshCw
+                                    onClick={() => {
+                                      form.setValue("istTypePec", "");
+                                    }}
+                                    className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                                  />
+                                </div>
+                                <FormControl>
+                                  <RadioGroup
+                                    onValueChange={field.onChange}
+                                    value={field.value ?? ""}
+                                    className="flex gap-x-5 items-center"
+                                  >
+                                    {TabTypePec.map((option) => (
+                                      <FormItem
+                                        key={option.value}
+                                        className="flex items-center space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <RadioGroupItem
+                                            value={option.value}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          {option.label}
+                                        </FormLabel>
+                                      </FormItem>
+                                    ))}
+                                  </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          {form.watch("istTypePec") === "etiologique" && (
+                            <FormField
+                              control={form.control}
+                              name="istPecEtiologique"
+                              render={({ field }) => (
+                                <FormItem className="mx-6 mb-3 outline-red-500">
+                                  <FormLabel className="font-medium">
+                                    Selectionnez le type de PEC
+                                  </FormLabel>
+                                  <Select onValueChange={field.onChange}>
+                                    <FormControl>
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Traitement à sélectionner ....." />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {tabTypePec.map((option, index) => (
+                                        <SelectItem
+                                          key={index}
+                                          value={option.value}
+                                        >
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="istIdClient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input {...field} className="hidden" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        {isPrescripteur === true ? (
+                          <FormField
+                            control={form.control}
+                            name="istIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={idUser}
+                                    className="hidden"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name="istIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le precripteur
+                                </FormLabel>
+                                <Select
+                                  required
+                                  // value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select Prescripteur ....." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {allPrescripteur.map(
+                                      (prescipteur, index) => (
+                                        <SelectItem
+                                          key={index}
+                                          value={prescipteur.id}
+                                        >
+                                          <span>{prescipteur.name}</span>
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsVisible(false)}
+                            disabled={form.formState.isSubmitting}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={form.formState.isSubmitting}
+                          >
+                            {form.formState.isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                En cours...
+                              </>
+                            ) : (
+                              "Appliquer"
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {!selectedIst ? (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardContent className="flex items-center justify-center py-16">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg font-semibold text-blue-900">
+                            IST
+                          </CardTitle>
+                          <CardDescription className="text-blue-700/60">
+                            Fiche de consultation IST
+                          </CardDescription>
+                        </div>
+                        {prescripteur && (
+                          <Badge
+                            variant="outline"
+                            className="text-blue-700 border-blue-300"
+                          >
+                            {prescripteur}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="divide-y divide-blue-100/60">
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Date de visite
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {dateVisite &&
+                              new Date(dateVisite).toLocaleDateString("fr-FR")}
+                          </span>
+                        </div>
+                        {selectedIst.istTypeClient !== null && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Type Client
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {renameValue(
+                                selectedIst.istTypeClient,
+                                TabTypeClient,
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istType !== null && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Type Ist
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {renameValue(selectedIst.istType, TabTypeIst)}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istCounsellingAvantDepitage && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Counselling Avant dépistage
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {selectedIst.istCounsellingAvantDepitage ? (
+                                <CheckedTrue />
+                              ) : (
+                                <CheckedFalse />
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istExamenPhysique && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Examen Physique
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {selectedIst.istExamenPhysique ? (
+                                <CheckedTrue />
+                              ) : (
+                                <CheckedFalse />
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istCounsellingApresDepitage && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Counselling Après dépistage
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {selectedIst.istCounsellingApresDepitage ? (
+                                <CheckedTrue />
+                              ) : (
+                                <CheckedFalse />
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istCounselingReductionRisque && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Counseling Reduction de Risque
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {selectedIst.istCounselingReductionRisque ? (
+                                <CheckedTrue />
+                              ) : (
+                                <CheckedFalse />
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istTypePec !== null && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Type de PEC
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {renameValue(selectedIst.istTypePec, TabTypePec)}
+                            </span>
+                          </div>
+                        )}
+                        {selectedIst.istTypePec &&
+                          selectedIst.istTypePec === "etiologique" &&
+                          selectedIst.istPecEtiologique !== null && (
+                            <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                              <span className="text-sm font-medium text-blue-800">
+                                Pec Etiologique
+                              </span>
+                              <span className="col-span-2 text-sm text-gray-700">
+                                {renameValue(
+                                  selectedIst.istPecEtiologique,
+                                  tabTypePec,
+                                )}
+                              </span>
+                            </div>
+                          )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-center gap-4 border-t border-blue-100/60 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => router.back()}
+                      >
+                        Retour
+                      </Button>
+                      <Button onClick={handleUpdateVisite}>
+                        <Pencil className="h-4 w-4 mr-2" /> Modifier
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">{prescripteur}</small>
-                )}
-              </div>
-              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Retour
-                </Button>
-                <Button onClick={handleUpdateVisite}>Modifier</Button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      </div>
     </div>
   );
 }

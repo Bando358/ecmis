@@ -231,15 +231,15 @@ export default function GynecoPage({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border rounded-md">
-        <ConstanteClient idVisite={form.getValues("idVisite")} />
-        <h2 className="text-2xl text-gray-600 font-black text-center">
+      <div className="flex flex-col justify-center max-w-4xl mx-auto px-4 py-2 border border-blue-200/60 rounded-md">
+        <ConstanteClient idVisite={form.watch("idVisite")} />
+        <h2 className="text-2xl text-blue-900 font-black text-center">
           Formulaire de Gynécologie
         </h2>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 max-w-6xl rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
+            className="space-y-2 max-w-6xl rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
           >
             <FormField
               control={form.control}
@@ -325,7 +325,7 @@ export default function GynecoPage({
                 </FormItem>
               )}
             />
-            <div className="my-2 shadow-md border rounded-md ">
+            <div className="my-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="counsellingAvantDepitage"
@@ -566,7 +566,7 @@ export default function GynecoPage({
                 </div>
               )}
             </div>
-            <div className="my-2 shadow-md border rounded-md ">
+            <div className="my-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
                 control={form.control}
                 name="counselingAutreProbleme"

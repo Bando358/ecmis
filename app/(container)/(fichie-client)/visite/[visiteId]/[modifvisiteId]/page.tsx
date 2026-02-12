@@ -31,11 +31,22 @@ import {
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getAllActiviteByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { getOneUser } from "@/lib/actions/authActions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
+import Retour from "@/components/retour";
 
 type FormValues = {
   dateVisite: string;
@@ -126,13 +137,13 @@ export default function FormVisiteModification({
         if (oneVisiteData?.idClient) {
           setSelectedClientId(oneVisiteData.idClient);
           const allVisiteByClient = await getAllVisiteByIdClient(
-            oneVisiteData.idClient
+            oneVisiteData.idClient,
           );
           setAllVisite(allVisiteByClient);
 
           setLoadingActivite(true);
           const allActivite = await getAllActiviteByIdClinique(
-            oneVisiteData.idClinique
+            oneVisiteData.idClinique,
           );
           setActivite(allActivite as Activite[]);
           setLoadingActivite(false);
@@ -177,13 +188,13 @@ export default function FormVisiteModification({
       try {
         const permissions = await getUserPermissionsById(prescripteur.id);
         const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.VISITE
+          (p: { table: string }) => p.table === TableName.VISITE,
         );
         setPermission(perm || null);
       } catch (error: any) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
 
         // Vérifier si c'est une erreur d'authentification
@@ -304,7 +315,7 @@ export default function FormVisiteModification({
       const isDateExist = allVisite.some(
         (v) =>
           v.id !== modifvisiteId && // Exclure la visite actuelle
-          format(new Date(v.dateVisite), "yyyy-MM-dd") === data.dateVisite
+          format(new Date(v.dateVisite), "yyyy-MM-dd") === data.dateVisite,
       );
 
       if (isDateExist) {
@@ -370,7 +381,7 @@ export default function FormVisiteModification({
 
     if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier une visite. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier une visite. Contactez un administrateur.",
       );
       return router.back();
     }
@@ -378,7 +389,7 @@ export default function FormVisiteModification({
     if (oneVisite) {
       form.setValue(
         "dateVisite",
-        format(new Date(oneVisite.dateVisite), "yyyy-MM-dd")
+        format(new Date(oneVisite.dateVisite), "yyyy-MM-dd"),
       );
       form.setValue("motifVisite", oneVisite.motifVisite);
       form.setValue("idActivite", oneVisite.idActivite);
@@ -453,8 +464,15 @@ export default function FormVisiteModification({
   // Si la session est en cours de chargement
   if (status === "loading") {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="w-full relative">
+        <Retour />
+        <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+          <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+            <CardContent className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -462,281 +480,367 @@ export default function FormVisiteModification({
   // Si erreur d'authentification
   if (authError) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <h2 className="text-xl font-bold text-red-700 mb-2">
-            Erreur d'authentification
-          </h2>
-          <p className="text-red-600 mb-4">{authError}</p>
-          <Button onClick={() => router.push("/api/auth/signin")}>
-            Se reconnecter
-          </Button>
+      <div className="w-full relative">
+        <Retour />
+        <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+          <Card className="border-red-200/60 shadow-sm shadow-red-100/30">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <h2 className="text-xl font-bold text-red-700 mb-2">
+                Erreur d&apos;authentification
+              </h2>
+              <p className="text-red-600 mb-4">{authError}</p>
+              <Button onClick={() => router.push("/api/auth/signin")}>
+                Se reconnecter
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col justify-center max-w-120 mx-auto px-4 py-2 rounded-md">
-      {isLoadingInitialData ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center mb-6">
-            Formulaire de modification de visite
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4 w-full rounded-sm mx-auto px-4 py-6 bg-white shadow-md"
+    <div className="w-full relative">
+      <Retour />
+      <div className="max-w-md mx-auto px-4 py-4 space-y-4">
+        <AnimatePresence mode="wait">
+          {isLoadingInitialData ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
             >
-              <FormField
-                control={form.control}
-                name="dateVisite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Date de visite
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} className="w-full" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="motifVisite"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <div className="text-xl font-bold flex justify-between items-center">
-                      <FormLabel className="ml-4">
-                        Motif de la visite:
-                      </FormLabel>
-                      <RefreshCw
-                        onClick={handleReset}
-                        className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125 cursor-pointer"
-                      />
-                    </div>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="grid grid-cols-2 gap-2"
-                      >
-                        {tabPrestation.map((prestation) => (
-                          <FormItem
-                            key={prestation.id}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={prestation.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {prestation.libelle}
+              <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                <CardContent className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : isVisible ? (
+            <motion.div
+              key="edit"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+                <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                  <CardTitle className="text-lg font-semibold text-blue-900 text-center">
+                    Modifier - Visite
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <Form {...form}>
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-4 max-w-4xl mx-auto px-4 py-4"
+                    >
+                      <FormField
+                        control={form.control}
+                        name="dateVisite"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">
+                              Date de visite
                             </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                {...field}
+                                className="w-full"
+                              />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        )}
+                      />
 
-              <FormField
-                control={form.control}
-                name="idActivite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">Activité</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className="w-full p-2 border rounded-md"
-                        onChange={(e) => {
-                          const value = e.target.value || null;
-                          handleActiviteChange(value);
-                        }}
-                        value={field.value || ""}
-                      >
-                        <option value="">Sélectionnez une activité</option>
-                        {activite.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.libelle}
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormField
+                        control={form.control}
+                        name="motifVisite"
+                        render={({ field }) => (
+                          <FormItem className="space-y-3">
+                            <div className="text-xl font-bold flex justify-between items-center">
+                              <FormLabel className="ml-4">
+                                Motif de la visite:
+                              </FormLabel>
+                              <RefreshCw
+                                onClick={handleReset}
+                                className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125 cursor-pointer"
+                              />
+                            </div>
+                            <FormControl>
+                              <RadioGroup
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                className="grid grid-cols-2 gap-2"
+                              >
+                                {tabPrestation.map((prestation) => (
+                                  <FormItem
+                                    key={prestation.id}
+                                    className="flex items-center space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <RadioGroupItem
+                                        value={prestation.value}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                      {prestation.libelle}
+                                    </FormLabel>
+                                  </FormItem>
+                                ))}
+                              </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-              <FormField
-                control={form.control}
-                name="idLieu"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Lieu{" "}
-                      {idActivite && <span className="text-red-500">*</span>}
-                      {!idActivite && (
-                        <span className="text-gray-500 text-sm">
-                          {" "}
-                          (optionnel)
-                        </span>
+                      <FormField
+                        control={form.control}
+                        name="idActivite"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">
+                              Activité
+                            </FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full p-2 border rounded-md"
+                                onChange={(e) => {
+                                  const value = e.target.value || null;
+                                  handleActiviteChange(value);
+                                }}
+                                value={field.value || ""}
+                              >
+                                <option value="">
+                                  Sélectionnez une activité
+                                </option>
+                                {activite.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.libelle}
+                                  </option>
+                                ))}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="idLieu"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">
+                              Lieu{" "}
+                              {idActivite && (
+                                <span className="text-red-500">*</span>
+                              )}
+                              {!idActivite && (
+                                <span className="text-gray-500 text-sm">
+                                  {" "}
+                                  (optionnel)
+                                </span>
+                              )}
+                            </FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className={`w-full p-2 border rounded-md ${
+                                  form.formState.errors.idLieu
+                                    ? "border-red-500"
+                                    : ""
+                                }`}
+                                disabled={!idActivite || loadingLieu}
+                                onChange={(e) => {
+                                  const value = e.target.value || null;
+                                  field.onChange(value);
+                                  // Déclencher la validation immédiatement
+                                  setTimeout(() => {
+                                    form.trigger("idLieu");
+                                  }, 0);
+                                }}
+                                value={field.value || ""}
+                              >
+                                <option value="">
+                                  {loadingLieu
+                                    ? "Chargement des lieux..."
+                                    : idActivite
+                                      ? "Sélectionnez un lieu"
+                                      : "Non spécifié"}
+                                </option>
+                                {!loadingLieu &&
+                                  lieus.map((lieu) => (
+                                    <option key={lieu.id} value={lieu.id}>
+                                      {lieu.lieu}
+                                    </option>
+                                  ))}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                            {idActivite &&
+                              lieus.length === 0 &&
+                              !loadingLieu && (
+                                <p className="text-sm text-amber-600">
+                                  Aucun lieu disponible pour cette activité
+                                </p>
+                              )}
+                          </FormItem>
+                        )}
+                        rules={{ validate: validateLieu }}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="idPrestataire"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input {...field} type="hidden" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="idClient"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input {...field} type="hidden" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsVisible(false)}
+                          disabled={form.formState.isSubmitting}
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={
+                            form.formState.isSubmitting || !isFormValid()
+                          }
+                        >
+                          {form.formState.isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              En cours...
+                            </>
+                          ) : (
+                            "Modifier la visite"
+                          )}
+                        </Button>
+                      </div>
+
+                      {idActivite && !idLieu && (
+                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                          <p className="text-sm text-amber-800">
+                            <strong>Note :</strong> Le champ &quot;Lieu&quot;
+                            est obligatoire lorsque vous sélectionnez une
+                            activité.
+                          </p>
+                        </div>
                       )}
-                    </FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className={`w-full p-2 border rounded-md ${
-                          form.formState.errors.idLieu ? "border-red-500" : ""
-                        }`}
-                        disabled={!idActivite || loadingLieu}
-                        onChange={(e) => {
-                          const value = e.target.value || null;
-                          field.onChange(value);
-                          // Déclencher la validation immédiatement
-                          setTimeout(() => {
-                            form.trigger("idLieu");
-                          }, 0);
-                        }}
-                        value={field.value || ""}
-                      >
-                        <option value="">
-                          {loadingLieu
-                            ? "Chargement des lieux..."
-                            : idActivite
-                            ? "Sélectionnez un lieu"
-                            : "Non spécifié"}
-                        </option>
-                        {!loadingLieu &&
-                          lieus.map((lieu) => (
-                            <option key={lieu.id} value={lieu.id}>
-                              {lieu.lieu}
-                            </option>
-                          ))}
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                    {idActivite && lieus.length === 0 && !loadingLieu && (
-                      <p className="text-sm text-amber-600">
-                        Aucun lieu disponible pour cette activité
-                      </p>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg font-semibold text-blue-900">
+                        Visite
+                      </CardTitle>
+                      <CardDescription className="text-blue-700/60">
+                        Détails de la visite
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="divide-y divide-blue-100/60">
+                    <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                      <span className="text-sm font-medium text-blue-800">
+                        Date de visite
+                      </span>
+                      <span className="col-span-2 text-sm text-gray-700">
+                        {oneVisite &&
+                          new Date(oneVisite.dateVisite).toLocaleDateString(
+                            "fr-FR",
+                          )}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                      <span className="text-sm font-medium text-blue-800">
+                        Motif de la visite
+                      </span>
+                      <span className="col-span-2 text-sm text-gray-700">
+                        {oneVisite?.motifVisite}
+                      </span>
+                    </div>
+
+                    {oneVisite?.idActivite && (
+                      <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                        <span className="text-sm font-medium text-blue-800">
+                          Activité
+                        </span>
+                        <span className="col-span-2 text-sm text-gray-700">
+                          {handleReturnActivite(oneVisite.idActivite)}
+                        </span>
+                      </div>
                     )}
-                  </FormItem>
-                )}
-                rules={{ validate: validateLieu }}
-              />
 
-              <FormField
-                control={form.control}
-                name="idPrestataire"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} type="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="idClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} type="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={form.formState.isSubmitting || !isFormValid()}
-                >
-                  {form.formState.isSubmitting
-                    ? "Modification..."
-                    : "Modifier la visite"}
-                </Button>
-              </div>
-
-              {idActivite && !idLieu && (
-                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                  <p className="text-sm text-amber-800">
-                    ⚠️ <strong>Note :</strong> Le champ "Lieu" est obligatoire
-                    lorsque vous sélectionnez une activité.
-                  </p>
-                </div>
-              )}
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-4 max-w-md mx-auto p-6 bg-white shadow-md rounded-lg">
-          <h2 className="text-xl font-bold text-gray-700 text-center mb-4">
-            Détails de la visite
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="font-medium text-gray-600">Date de visite :</div>
-            <div className="text-gray-800">
-              {oneVisite &&
-                new Date(oneVisite.dateVisite).toLocaleDateString("fr-FR")}
-            </div>
-
-            <div className="font-medium text-gray-600">
-              Motif de la visite :
-            </div>
-            <div className="text-gray-800">{oneVisite?.motifVisite}</div>
-
-            {oneVisite?.idActivite && (
-              <>
-                <div className="font-medium text-gray-600">Activité :</div>
-                <div className="text-gray-800">
-                  {handleReturnActivite(oneVisite.idActivite)}
-                </div>
-              </>
-            )}
-
-            {oneVisite?.idLieu && (
-              <>
-                <div className="font-medium text-gray-600">Lieu :</div>
-                <div className="text-gray-800">
-                  {handleReturnLieu(oneVisite.idLieu)}
-                </div>
-              </>
-            )}
-
-            <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-              >
-                Retour
-              </Button>
-              <Button onClick={handleUpdateVisite}>Modifier</Button>
-            </div>
-          </div>
-        </div>
-      )}
+                    {oneVisite?.idLieu && (
+                      <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                        <span className="text-sm font-medium text-blue-800">
+                          Lieu
+                        </span>
+                        <span className="col-span-2 text-sm text-gray-700">
+                          {handleReturnLieu(oneVisite.idLieu)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-center gap-4 border-t border-blue-100/60 pt-4">
+                  <Button variant="outline" onClick={() => router.back()}>
+                    Retour
+                  </Button>
+                  <Button onClick={handleUpdateVisite}>
+                    <Pencil className="h-4 w-4 mr-2" /> Modifier
+                  </Button>
+                </CardFooter>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

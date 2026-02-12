@@ -285,14 +285,14 @@ export default function FormVisite({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <h2 className="text-2xl text-gray-600 font-black text-center mb-6">
+      <h2 className="text-2xl text-blue-900 font-black text-center mb-6">
         Fiche de création de visite
       </h2>
 
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col border rounded-lg p-6 gap-4 max-w-md mx-auto bg-white shadow-md"
+          className="flex flex-col border border-blue-200/50 rounded-lg p-6 gap-4 max-w-md mx-auto bg-white shadow-md shadow-blue-100/30"
         >
           <FormField
             control={form.control}

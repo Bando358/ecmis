@@ -99,8 +99,8 @@ export function Table16({ id }: { id: string }) {
           <TableRow key={d.id}>
             <TableCell className=" flex">
               <Link
-                // target="_blank"
                 href={`/fiche-mdg/${d.mdgIdClient}/${d.id}`}
+                prefetch={false}
                 className="block -pr-1"
               >
                 <NotebookPen

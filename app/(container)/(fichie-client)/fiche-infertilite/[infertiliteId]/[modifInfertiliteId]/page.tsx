@@ -42,12 +42,21 @@ import { Input } from "@/components/ui/input";
 import ConstanteClient from "@/components/constanteClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { RefreshCw } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { motion, AnimatePresence } from "framer-motion";
+import Retour from "@/components/retour";
 
 type Option = {
   value: string;
@@ -98,13 +107,13 @@ export default function IstPage({
       try {
         const permissions = await getUserPermissionsById(onePrescripteur.id);
         const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.INFERTILITE
+          (p: { table: string }) => p.table === TableName.INFERTILITE,
         );
         setPermission(perm || null);
       } catch (error) {
         console.error(
           "Erreur lors de la vérification des permissions :",
-          error
+          error,
         );
       }
     };
@@ -122,12 +131,12 @@ export default function IstPage({
 
         if (oneInfertilite?.infertIdClient) {
           const cliniqueClient = await getOneClient(
-            oneInfertilite.infertIdClient
+            oneInfertilite.infertIdClient,
           );
 
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
-              cliniqueClient.idClinique
+              cliniqueClient.idClinique,
             );
           }
         }
@@ -146,22 +155,22 @@ export default function IstPage({
     const fetchData = async () => {
       if (selectedInfertilite) {
         const result = await getAllVisiteByIdClient(
-          selectedInfertilite.infertIdClient
+          selectedInfertilite.infertIdClient,
         );
         const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite
+          (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite,
         );
 
         const nomPrescripteur = await getOneUser(
-          selectedInfertilite.infertIdUser
+          selectedInfertilite.infertIdUser,
         );
         const nomP = nomPrescripteur?.name;
         setPrescripteur(nomP);
 
         setVisites(
           result.filter(
-            (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite
-          )
+            (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite,
+          ),
         ); // Assurez-vous que result est bien de type CliniqueData[]
         setDateVisite(visiteDate?.dateVisite);
         // const clientData = await getOneClient(selectedGyneco.idClient);
@@ -209,7 +218,7 @@ export default function IstPage({
   const handleUpdateVisite = async () => {
     if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de modifier une infertilité. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier une infertilité. Contactez un administrateur.",
       );
       return router.back();
     }
@@ -218,12 +227,12 @@ export default function IstPage({
       form.setValue("infertIdUser", selectedInfertilite.infertIdUser);
       form.setValue(
         "infertConsultation",
-        selectedInfertilite.infertConsultation
+        selectedInfertilite.infertConsultation,
       );
       form.setValue("infertCounselling", selectedInfertilite.infertCounselling);
       form.setValue(
         "infertExamenPhysique",
-        selectedInfertilite.infertExamenPhysique
+        selectedInfertilite.infertExamenPhysique,
       );
       form.setValue("infertTraitement", selectedInfertilite.infertTraitement);
       setIsVisible(true);
@@ -231,331 +240,390 @@ export default function IstPage({
   };
 
   return (
-    <div className="flex flex-col w-full justify-center max-w-225 mx-auto px-4 py-2 border rounded-md">
-      {selectedInfertilite && (
-        <ConstanteClient idVisite={selectedInfertilite.infertIdVisite} />
-      )}
-      {isVisible ? (
-        <>
-          <h2 className="text-2xl text-gray-600 font-black text-center">
-            {"Formulaire de modification d'Infertilité"}
-          </h2>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-2 max-w-225 rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-            >
-              <FormField
-                control={form.control}
-                name="infertIdVisite"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-medium">
-                      Selectionnez la visite
-                    </FormLabel>
-                    <Select
-                      required
-                      // value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Visite à sélectionner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {visites.map((visite, index) => (
-                          <SelectItem key={index} value={visite.id}>
-                            {new Date(visite.dateVisite).toLocaleDateString(
-                              "fr-FR"
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* ************************* */}
-
-              <div className="my-2 shadow-md border rounded-md ">
-                <FormField
-                  control={form.control}
-                  name="infertConsultation"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Consulation
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="infertCounselling"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Counselling
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                {/* <Separator /> */}
-                <FormField
-                  control={form.control}
-                  name="infertExamenPhysique"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Investigation - Examen Physique
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="infertTraitement"
-                  render={({ field }) => (
-                    <FormItem className=" px-4 pb-4">
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="ml-4">
-                          Type de traitement:
-                        </FormLabel>
-                        <RefreshCw
-                          onClick={() => {
-                            form.setValue("infertTraitement", "");
-                          }}
-                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                        />
-                      </div>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          className="flex gap-x-5 items-center"
-                        >
-                          {TabTraitement.map((option) => (
-                            <FormItem
-                              key={option.value}
-                              className="flex items-center space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <RadioGroupItem value={option.value} />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {option.label}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="infertIdClient"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input {...field} className="hidden" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {isPrescripteur === true ? (
-                <FormField
-                  control={form.control}
-                  name="infertIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={idUser} className="hidden" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="infertIdUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le precripteur
-                      </FormLabel>
-                      <Select
-                        required
-                        value={field.value} // ⚡ ici
-                        onValueChange={field.onChange}
+    <div className="w-full relative">
+      <Retour />
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+        {selectedInfertilite && (
+          <ConstanteClient idVisite={selectedInfertilite.infertIdVisite} />
+        )}
+        <div className="max-w-md mx-auto">
+          <AnimatePresence mode="wait">
+            {isVisible ? (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <Card className="border-blue-200/60 shadow-sm shadow-blue-100/30">
+                  <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                    <CardTitle className="text-lg font-semibold text-blue-900 text-center">
+                      Modifier - Infertilité
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
                       >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((prescripteur, index) => (
-                            <SelectItem key={index} value={prescripteur.id}>
-                              <span>{prescripteur.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              <div className="flex flex-row  justify-center items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsVisible(false)}
-                  disabled={form.formState.isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "En cours..." : "Appliquer"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {!selectedInfertilite ? (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-62.5" />
-                <Skeleton className="h-4 w-50" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div>{selectedInfertilite && <span>Date de visite : </span>}</div>
-              <div>
-                {dateVisite && new Date(dateVisite).toLocaleDateString("fr-FR")}
-              </div>
+                        <FormField
+                          control={form.control}
+                          name="infertIdVisite"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">
+                                Selectionnez la visite
+                              </FormLabel>
+                              <Select
+                                required
+                                // value={field.value}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Visite à sélectionner" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {visites.map((visite, index) => (
+                                    <SelectItem key={index} value={visite.id}>
+                                      {new Date(
+                                        visite.dateVisite,
+                                      ).toLocaleDateString("fr-FR")}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-              <div>{selectedInfertilite && <span>Consultation : </span>}</div>
-              <div>
-                {selectedInfertilite && (
-                  <span>
-                    {selectedInfertilite.infertConsultation ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
+                        {/* ************************* */}
+
+                        <div className="my-2 shadow-sm border-blue-200/50 rounded-md ">
+                          <FormField
+                            control={form.control}
+                            name="infertConsultation"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Consulation
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="infertCounselling"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Counselling
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          {/* <Separator /> */}
+                          <FormField
+                            control={form.control}
+                            name="infertExamenPhysique"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value ?? false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="font-normal">
+                                    Investigation - Examen Physique
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="infertTraitement"
+                            render={({ field }) => (
+                              <FormItem className=" px-4 pb-4">
+                                <div className="text-xl font-bold flex justify-between items-center">
+                                  <FormLabel className="ml-4">
+                                    Type de traitement:
+                                  </FormLabel>
+                                  <RefreshCw
+                                    onClick={() => {
+                                      form.setValue("infertTraitement", "");
+                                    }}
+                                    className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                                  />
+                                </div>
+                                <FormControl>
+                                  <RadioGroup
+                                    onValueChange={field.onChange}
+                                    value={field.value ?? ""}
+                                    className="flex gap-x-5 items-center"
+                                  >
+                                    {TabTraitement.map((option) => (
+                                      <FormItem
+                                        key={option.value}
+                                        className="flex items-center space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <RadioGroupItem
+                                            value={option.value}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          {option.label}
+                                        </FormLabel>
+                                      </FormItem>
+                                    ))}
+                                  </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="infertIdClient"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input {...field} className="hidden" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        {isPrescripteur === true ? (
+                          <FormField
+                            control={form.control}
+                            name="infertIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={idUser}
+                                    className="hidden"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name="infertIdUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-medium">
+                                  Selectionnez le precripteur
+                                </FormLabel>
+                                <Select
+                                  required
+                                  value={field.value} // ⚡ ici
+                                  onValueChange={field.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select Prescripteur ....." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {allPrescripteur.map(
+                                      (prescripteur, index) => (
+                                        <SelectItem
+                                          key={index}
+                                          value={prescripteur.id}
+                                        >
+                                          <span>{prescripteur.name}</span>
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                        <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsVisible(false)}
+                            disabled={form.formState.isSubmitting}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={form.formState.isSubmitting}
+                          >
+                            {form.formState.isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                En cours...
+                              </>
+                            ) : (
+                              "Appliquer"
+                            )}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {!selectedInfertilite ? (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardContent className="flex items-center justify-center py-16">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className=" mx-auto border-blue-200/60 shadow-sm shadow-blue-100/30">
+                    <CardHeader className="bg-blue-50/40 rounded-t-xl border-b border-blue-100/60 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg font-semibold text-blue-900">
+                            Infertilité
+                          </CardTitle>
+                          <CardDescription className="text-blue-700/60">
+                            Fiche de consultation infertilité
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="divide-y divide-blue-100/60">
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Date de visite
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {dateVisite &&
+                              new Date(dateVisite).toLocaleDateString("fr-FR")}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Consultation
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedInfertilite.infertConsultation ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                          <span className="text-sm font-medium text-blue-800">
+                            Counselling
+                          </span>
+                          <span className="col-span-2 text-sm text-gray-700">
+                            {selectedInfertilite.infertCounselling ? (
+                              <CheckedTrue />
+                            ) : (
+                              <CheckedFalse />
+                            )}
+                          </span>
+                        </div>
+
+                        {selectedInfertilite.infertExamenPhysique && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Investigation Physique
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {selectedInfertilite.infertExamenPhysique ? (
+                                <CheckedTrue />
+                              ) : (
+                                <CheckedFalse />
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {selectedInfertilite.infertTraitement !== null && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Traitement
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700">
+                              {renameTraitement(
+                                selectedInfertilite.infertTraitement,
+                                TabTraitement,
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {prescripteur && (
+                          <div className="grid grid-cols-3 gap-x-4 py-2.5">
+                            <span className="text-sm font-medium text-blue-800">
+                              Prescripteur
+                            </span>
+                            <span className="col-span-2 text-sm text-gray-700 italic">
+                              {prescripteur}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-center gap-4 border-t border-blue-100/60 pt-4">
+                      <Button variant="outline" onClick={() => router.back()}>
+                        Retour
+                      </Button>
+                      <Button onClick={handleUpdateVisite}>
+                        <Pencil className="h-4 w-4 mr-2" /> Modifier
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 )}
-              </div>
-              <div>{selectedInfertilite && <span>Counselling : </span>}</div>
-              <div>
-                {selectedInfertilite && (
-                  <span>
-                    {selectedInfertilite.infertCounselling ? (
-                      <CheckedTrue />
-                    ) : (
-                      <CheckedFalse />
-                    )}
-                  </span>
-                )}
-              </div>
-              <div>
-                {selectedInfertilite &&
-                  selectedInfertilite.infertExamenPhysique && (
-                    <span>Investigation Physique : </span>
-                  )}
-              </div>
-              <div>
-                {selectedInfertilite &&
-                  selectedInfertilite.infertExamenPhysique && (
-                    <span>
-                      {selectedInfertilite.infertExamenPhysique ? (
-                        <CheckedTrue />
-                      ) : (
-                        <CheckedFalse />
-                      )}
-                    </span>
-                  )}
-              </div>
-              <div>
-                {selectedInfertilite &&
-                  selectedInfertilite.infertTraitement !== null && (
-                    <span>Traitement : </span>
-                  )}
-              </div>
-              <div>
-                {selectedInfertilite &&
-                  selectedInfertilite.infertTraitement !== null && (
-                    <span>
-                      {renameTraitement(
-                        selectedInfertilite.infertTraitement,
-                        TabTraitement
-                      )}
-                    </span>
-                  )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">Prescripteur :</small>
-                )}
-              </div>
-              <div>
-                {prescripteur && (
-                  <small className="italic">{prescripteur}</small>
-                )}
-              </div>
-              <div className="col-span-2 flex flex-row justify-center mt-6 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Retour
-                </Button>
-                <Button onClick={handleUpdateVisite}>Modifier</Button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      </div>
     </div>
   );
 }

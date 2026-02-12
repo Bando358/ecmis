@@ -75,6 +75,13 @@ enum TableName {
   DETAIL_INVENTAIRE
   AJUSTEMENT_STOCK
   ADMINISTRATION
+  PRESCRIPTEUR
+  COMMISSION_EXAMEN
+  COMMISSION_ECHOGRAPHIE
+  DISTRICT
+  SAVED_ANALYSIS
+  ANALYSE_VISUALISER
+  ANALYTICS_SETTINGS
 }
 
 model Permission {
@@ -193,6 +200,7 @@ model User {
   Inventaire              Inventaire[]
   AnomalieInventaire      AnomalieInventaire[]
   DetailInventaire        DetailInventaire[]
+  SavedAnalyses           SavedAnalysis[]     @relation("AnalysisCreator")
 
   @@map("user")
 }
@@ -246,6 +254,43 @@ model Region {
   nomRegion   String
   codeRegion  String
   Cliniques   Clinique[]
+  Districts   District[]
+}
+
+model District {
+  id            String     @id @default(uuid())
+  nomDistrict   String
+  codeDistrict  String
+  idRegion      String
+  Region        Region     @relation(fields: [idRegion], references: [id])
+  Cliniques     Clinique[]
+
+  @@map("districts")
+}
+
+model SavedAnalysis {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  configuration   Json
+  createdByUserId String
+  createdBy       User     @relation("AnalysisCreator", fields: [createdByUserId], references: [id])
+  isShared        Boolean  @default(false)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("saved_analyses")
+  @@index([createdByUserId])
+}
+
+model AnalyticsSettings {
+  id            String   @id @default("singleton")
+  configuration Json     @default("{}")
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+
+  @@map("analytics_settings")
 }
 
 model Clinique {
@@ -254,7 +299,9 @@ model Clinique {
   codeClinique         String
   numClinique          String
   idRegion             String
+  idDistrict           String?
   Region               Region                 @relation(fields: [idRegion], references: [id])
+  District             District?              @relation(fields: [idDistrict], references: [id])
   users                User[]     @relation("UserCliniques") // Relation Many-to-Many
   clients              Client[]   // 1 Clinique → plusieurs Clients
   incrementCounter     IncrementCounter[]
@@ -294,6 +341,7 @@ model Clinique {
   Reference           Reference[]
   ExamenPvVih        ExamenPvVih[]
   Inventaire         Inventaire[]
+  Prescripteur       Prescripteur[]
 }
 
 model UserClinique {
@@ -477,6 +525,8 @@ model Visite {
   ContreReference  ContreReference[]
   Ordonnance  Ordonnance[]
   ExamenPvVih   ExamenPvVih[]
+  CommissionExamen      CommissionExamen[]
+  CommissionEchographie CommissionEchographie[]
 
   User     User @relation("UserVisites", fields: [idUser], references: [id])
   updatedAt       DateTime    @updatedAt
@@ -533,6 +583,9 @@ model Constante {
   User           User? @relation(fields: [idUser], references: [id], onDelete: Cascade)
   Client         Client @relation(fields: [idClient], references: [id], onDelete: Cascade)
   Visite                Visite      @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+
+  @@index([idVisite])
+  @@index([idClient])
 }
 
 model Planning {
@@ -1240,6 +1293,7 @@ model FactureExamen {
   DemandeExamen            DemandeExamen   @relation(fields: [idDemandeExamen], references: [id], onDelete: Cascade)
   User                      User   @relation(fields: [idUser], references: [id], onDelete: Cascade)
   ResultatExamen           ResultatExamen[]
+  CommissionExamen         CommissionExamen[]
 
 }
 // Model Echographie
@@ -1345,6 +1399,7 @@ model FactureEchographie {
   DemandeEchographie       DemandeEchographie   @relation(fields: [idDemandeEchographie], references: [id], onDelete: Cascade)
   User                      User   @relation(fields: [idUser], references: [id], onDelete: Cascade)
   ResultatEchographie      ResultatEchographie[]
+  CommissionEchographie    CommissionEchographie[]
 
 }
 
@@ -1504,6 +1559,54 @@ enum TypeBilan {
   BUCCO_DENTAIRE
   PRENUPTIAL
   AUTRES
+}
+
+// Model Prescripteur pour gérer les commissions
+model Prescripteur {
+  id              String    @id @default(uuid())
+  nom             String
+  prenom          String
+  centre          String
+  contact         String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  idClinique      String
+
+  Clinique              Clinique    @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  CommissionExamen      CommissionExamen[]
+  CommissionEchographie CommissionEchographie[]
+}
+
+model CommissionExamen {
+  id                String    @id @default(uuid())
+  idFactureExamen   String
+  idPrescripteur    String
+  idVisite          String
+  montantCommission Int
+  paye              Boolean   @default(false)
+  datePaiement      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  FactureExamen     FactureExamen   @relation(fields: [idFactureExamen], references: [id], onDelete: Cascade)
+  Prescripteur      Prescripteur    @relation(fields: [idPrescripteur], references: [id], onDelete: Cascade)
+  Visite            Visite          @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+}
+
+model CommissionEchographie {
+  id                    String    @id @default(uuid())
+  idFactureEchographie  String
+  idPrescripteur        String
+  idVisite              String
+  montantCommission     Int
+  paye                  Boolean   @default(false)
+  datePaiement          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  FactureEchographie    FactureEchographie   @relation(fields: [idFactureEchographie], references: [id], onDelete: Cascade)
+  Prescripteur          Prescripteur         @relation(fields: [idPrescripteur], references: [id], onDelete: Cascade)
+  Visite                Visite               @relation(fields: [idVisite], references: [id], onDelete: Cascade)
 }
 
 
