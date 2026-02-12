@@ -120,7 +120,8 @@ const data = {
         },
         {
           title: "Analyser & Visualiser",
-          url: "/analyser",
+          // url: "/analyser",
+          url: "#",
         },
       ],
     },
