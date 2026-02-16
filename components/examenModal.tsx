@@ -18,7 +18,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-import { DemandeExamen, Examen, Clinique, TarifExamen } from "@prisma/client";
+import { DemandeExamen, Examen, TarifExamen } from "@prisma/client";
 import { useState, useEffect, useMemo } from "react";
 import { Form, FormField } from "./ui/form";
 import { Input } from "./ui/input";
@@ -45,7 +45,6 @@ interface ExamensModalProps {
   >;
   refreshExamens: () => void;
   // Données pré-chargées
-  tabClinique: Clinique[];
   allExamens: Examen[];
   tarifExamens: TarifExamen[];
   demandesExamens: DemandeExamen[];
@@ -64,7 +63,6 @@ export default function ExamensModal({
   idClient,
   setExamensSelectionnes,
   // Données pré-chargées
-  tabClinique,
   allExamens,
   tarifExamens,
   demandesExamens,
@@ -134,10 +132,11 @@ export default function ExamensModal({
         </DialogHeader>
         <div className="flex flow-row gap-3">
           <MultiSelectExamen
-            idClinique={tabClinique[0]?.id ?? ""}
             demandes={availableExamens}
             selectedOptions={selectedOptions}
             setSelectedOptions={setSelectedOptions}
+            tarifExamens={tarifExamens}
+            allExamens={allExamens}
           />
         </div>
         <Form {...form}>

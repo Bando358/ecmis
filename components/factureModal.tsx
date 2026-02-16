@@ -173,7 +173,7 @@ export function FactureModal({
       idTarifProduit: produit.id,
       idClient,
       quantite: data.quantite,
-      montantProduit: data.quantite * produit.prixUnitaire,
+      montantProduit: data.montantProduit,
       dateFacture: new Date(),
       methode: form.watch("methode"),
     };
@@ -284,9 +284,13 @@ export function FactureModal({
                             <FormControl>
                               <Input
                                 type="number"
-                                {...field}
+                                min={0}
+                                value={field.value ?? 0}
                                 className="w-24 font-semibold"
-                                readOnly
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value, 10) || 0;
+                                  field.onChange(value);
+                                }}
                               />
                             </FormControl>
                             <FormMessage />

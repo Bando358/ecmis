@@ -1,42 +1,24 @@
 // MultiSelectExamen.tsx
-import { getAllExamen } from "@/lib/actions/examenActions";
-import { getAllTarifExamenByClinique } from "@/lib/actions/tarifExamenActions";
 import { DemandeExamen, Examen, TarifExamen } from "@prisma/client";
 import React from "react";
 import Select from "react-select";
 import { SingleValue } from "react-select";
 
 interface MultiSelectProps {
-  idClinique: string;
   demandes: DemandeExamen[];
   selectedOptions: DemandeExamen[];
   setSelectedOptions: React.Dispatch<React.SetStateAction<DemandeExamen[]>>;
+  tarifExamens: TarifExamen[];
+  allExamens: Examen[];
 }
 
 const MultiSelectExamen: React.FC<MultiSelectProps> = ({
-  idClinique,
   demandes,
   selectedOptions,
   setSelectedOptions,
+  tarifExamens,
+  allExamens,
 }) => {
-  const [tabExamen, setTabExamen] = React.useState<Examen[]>([]);
-  const [tabTarif, setTabTarif] = React.useState<TarifExamen[]>([]);
-  const [isLoading, setIsLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      const [Examen, Tarif] = await Promise.all([
-        getAllExamen(),
-        getAllTarifExamenByClinique(idClinique),
-      ]);
-      setTabExamen(Examen);
-      setTabTarif(Tarif);
-      setIsLoading(false);
-    };
-    fetchData();
-  }, [idClinique]);
-
   // Mode single select : accepte SingleValue
   const handleChange = (selected: SingleValue<DemandeExamen>) => {
     if (selected) {
@@ -48,9 +30,9 @@ const MultiSelectExamen: React.FC<MultiSelectProps> = ({
 
   const getNameExamen = (id: string) => {
     const demand = demandes.find((e) => e.id === id);
-    const tarif = tabTarif.find((t) => t.id === demand?.idTarifExamen);
-    const examen = tabExamen.find((e) => e.id === tarif?.idExamen);
-    return examen ? examen.nomExamen : "";
+    const tarif = tarifExamens.find((t) => t.id === demand?.idTarifExamen);
+    const examen = allExamens.find((e) => e.id === tarif?.idExamen);
+    return examen ? examen.nomExamen : "Inconnu";
   };
 
   const options = demandes.map((demande) => ({
@@ -68,8 +50,8 @@ const MultiSelectExamen: React.FC<MultiSelectProps> = ({
       value={selectedOptions[0] ?? null}
       onChange={handleChange}
       className="w-full"
-      isLoading={isLoading}
-      loadingMessage={() => "Chargement des examens..."}
+      placeholder="Sélectionner un examen..."
+      noOptionsMessage={() => "Aucun examen disponible"}
     />
   );
 };

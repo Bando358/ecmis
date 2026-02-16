@@ -889,7 +889,7 @@ export default function FichePharmacyClient({
         <div className="px-4 sm:px-6 pb-8 space-y-5">
           {/* ===== HEADER : Client info + Gradient Banner ===== */}
           <Card className="overflow-hidden border-blue-200 shadow-md shadow-blue-100/40">
-            <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-5 py-4 text-white">
+            <div className="bg-linear-to-r from-blue-900 to-blue-700 px-5 py-4 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
@@ -1256,11 +1256,19 @@ export default function FichePharmacyClient({
                 <Table>
                   <TableHeader className="bg-blue-50/60">
                     <TableRow>
-                      <TableHead className="text-blue-900">Designation</TableHead>
+                      <TableHead className="text-blue-900">
+                        Designation
+                      </TableHead>
                       <TableHead className="text-blue-900">Type</TableHead>
-                      <TableHead className="text-right text-blue-900">P.U.</TableHead>
-                      <TableHead className="text-center text-blue-900">Qte</TableHead>
-                      <TableHead className="text-right text-blue-900">Montant</TableHead>
+                      <TableHead className="text-right text-blue-900">
+                        P.U.
+                      </TableHead>
+                      <TableHead className="text-center text-blue-900">
+                        Qte
+                      </TableHead>
+                      <TableHead className="text-right text-blue-900">
+                        Montant
+                      </TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1547,10 +1555,18 @@ export default function FichePharmacyClient({
                             </TableCell>
                           </TableRow>
                           <TableRow className="bg-blue-50/60">
-                            <TableHead className="text-blue-900">Designation</TableHead>
-                            <TableHead className="text-blue-900">Type</TableHead>
-                            <TableHead className="text-right text-blue-900">P.U.</TableHead>
-                            <TableHead className="text-center text-blue-900">Qte</TableHead>
+                            <TableHead className="text-blue-900">
+                              Designation
+                            </TableHead>
+                            <TableHead className="text-blue-900">
+                              Type
+                            </TableHead>
+                            <TableHead className="text-right text-blue-900">
+                              P.U.
+                            </TableHead>
+                            <TableHead className="text-center text-blue-900">
+                              Qte
+                            </TableHead>
                             <TableHead className="text-right text-blue-900">
                               Montant
                             </TableHead>
@@ -2046,7 +2062,6 @@ export default function FichePharmacyClient({
               );
               setTabDemandeExamens(allDemandeExamens as DemandeExamen[]);
             }}
-            tabClinique={tabClinique}
             allExamens={tabExamen}
             tarifExamens={filteredTarifExamens}
             demandesExamens={tabDemandeExamens}
