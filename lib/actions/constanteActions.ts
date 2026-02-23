@@ -43,7 +43,7 @@ export async function getConstantesByClientId(idClient: string) {
 export async function getAllContanteByIdClient(id: string) {
   return await prisma.constante.findMany({
     where: { idClient: id },
-    orderBy: {},
+    orderBy: { createdAt: "desc" },
   });
 }
 

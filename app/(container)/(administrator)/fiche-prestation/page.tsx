@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,9 +28,11 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState, useMemo } from "react";
 import { Permission, Prestation, TableName } from "@prisma/client";
 import {
   createPrestation,
@@ -39,7 +40,15 @@ import {
   getAllPrestation,
   updatePrestation,
 } from "@/lib/actions/prestationActions";
-import { Pencil, Trash2 } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  X,
+  Search,
+  ClipboardList,
+  Stethoscope,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { useRouter } from "next/navigation";
@@ -51,6 +60,8 @@ export default function PrestationPage() {
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [permission, setPermission] = useState<Permission | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -63,8 +74,14 @@ export default function PrestationPage() {
     },
   });
 
+  // Filtrage par recherche
+  const filteredPrestations = useMemo(() => {
+    return listePrestation.filter((p) =>
+      p.nomPrestation.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [listePrestation, searchTerm]);
+
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
     if (!session?.user) return;
 
     const fetchPermissions = async () => {
@@ -94,7 +111,6 @@ export default function PrestationPage() {
     fetchPermissions();
   }, [session?.user, router]);
 
-  // Initialiser la liste des prestations
   useEffect(() => {
     const fetchData = async () => {
       const prestation = await getAllPrestation();
@@ -103,7 +119,6 @@ export default function PrestationPage() {
     fetchData();
   }, []);
 
-  // Mettre à jour le champ idUser quand la session est disponible
   useEffect(() => {
     if (idUser) {
       form.setValue("idUser", idUser);
@@ -145,6 +160,7 @@ export default function PrestationPage() {
       const updatedList = await getAllPrestation();
       setListePrestation(updatedList);
       form.setValue("nomPrestation", "");
+      setShowForm(false);
     } catch (error) {
       toast.error("Une erreur est survenue lors de l'opération.");
       console.error(error);
@@ -178,115 +194,230 @@ export default function PrestationPage() {
     const prestation = listePrestation.find((p) => p.id === id);
     if (prestation) {
       setIsUpdating(true);
+      setShowForm(true);
       form.setValue("id", prestation.id ?? "");
       form.setValue("nomPrestation", prestation.nomPrestation ?? "");
     }
   };
 
+  const handleCancel = () => {
+    setShowForm(false);
+    setIsUpdating(false);
+    form.setValue("nomPrestation", "");
+  };
+
   return (
-    <div className="space-y-4 max-w-3xl p-4 flex flex-col mx-auto">
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="w-3/4 flex flex-row mx-auto p-4 rounded-sm items-end gap-4 relative bg-gray-50 opacity-90"
-        >
-          <FormField
-            control={form.control}
-            name="nomPrestation"
-            rules={{
-              required: "Le nom de la prestation est obligatoire",
-              minLength: {
-                value: 3,
-                message: "Le nom doit contenir au moins 3 caractères",
-              },
-            }}
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Nom Prestation :</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: Consultation ..." {...field} />
-                </FormControl>
-                <FormDescription>Ex: Consultation Pédiatrique</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Champ caché pour idUser */}
-          <FormField
-            control={form.control}
-            name="idUser"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} type="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <Button type="submit" className="relative -top-7">
-            {form.formState.isSubmitting
-              ? isUpdating
-                ? "Modifier"
-                : "Ajouter..."
-              : "Ajouter"}
+    <div className="space-y-4 max-w-4xl p-4 flex flex-col mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-teal-100 rounded-lg">
+            <Stethoscope className="h-6 w-6 text-teal-700" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Prestations</h1>
+            <p className="text-sm text-gray-500">
+              {listePrestation.length} prestation{listePrestation.length > 1 ? "s" : ""} enregistrée{listePrestation.length > 1 ? "s" : ""}
+            </p>
+          </div>
+        </div>
+        {!showForm && (
+          <Button
+            onClick={() => setShowForm(true)}
+            className="gap-2 bg-teal-600 hover:bg-teal-700"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle prestation
           </Button>
-        </form>
-      </Form>
+        )}
+      </div>
 
-      {/* Tableau des prestations */}
-      <Table className="bg-gray-50 opacity-90 p-4 rounded-sm">
-        <TableHeader>
-          <TableRow>
-            <TableCell>N°</TableCell>
-            <TableCell>Nom Prestation</TableCell>
-            <TableCell>Actions</TableCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {listePrestation.map((item, index) => (
-            <TableRow key={item.id}>
-              <TableCell>{index + 1}</TableCell>
-              <TableCell>{item.nomPrestation.toUpperCase()}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Pencil
-                    size={16}
-                    onClick={() => handleUpdatePrestation(item.id)}
-                    className="text-blue-600 cursor-pointer hover:scale-125 transition-transform"
-                  />
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Trash2 className="text-red-600 cursor-pointer hover:scale-125 transition-transform" />
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Supprimer cette prestation ?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Cette action est irréversible. Voulez-vous vraiment
-                          supprimer cette prestation ?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-red-600 text-white"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          Supprimer
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+      {/* Formulaire */}
+      {showForm && (
+        <Card className="border-teal-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">
+              {isUpdating ? "Modifier la prestation" : "Nouvelle prestation"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={form.control}
+                  name="nomPrestation"
+                  rules={{
+                    required: "Le nom de la prestation est obligatoire",
+                    minLength: {
+                      value: 3,
+                      message: "Le nom doit contenir au moins 3 caractères",
+                    },
+                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom de la prestation</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: Consultation Pédiatrique"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="idUser"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input {...field} type="hidden" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancel}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-teal-600 hover:bg-teal-700"
+                    disabled={form.formState.isSubmitting}
+                  >
+                    {form.formState.isSubmitting
+                      ? "En cours..."
+                      : isUpdating
+                        ? "Mettre à jour"
+                        : "Ajouter"}
+                  </Button>
                 </div>
-              </TableCell>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Barre de recherche */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Input
+          placeholder="Rechercher une prestation..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 pr-10"
+        />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Tableau */}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead className="w-16 text-center">N°</TableHead>
+              <TableHead>Nom de la prestation</TableHead>
+              <TableHead className="w-24 text-center">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {filteredPrestations.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="h-32 text-center">
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <ClipboardList className="h-10 w-10" />
+                    <p className="text-sm">
+                      {searchTerm
+                        ? "Aucune prestation trouvée"
+                        : "Aucune prestation enregistrée"}
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredPrestations.map((item, index) => (
+                <TableRow
+                  key={item.id}
+                  className="group hover:bg-teal-50/50 transition-colors"
+                >
+                  <TableCell className="text-center text-gray-500 font-mono text-sm">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {item.nomPrestation}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => handleUpdatePrestation(item.id)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Supprimer cette prestation ?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action est irréversible. Voulez-vous
+                              vraiment supprimer la prestation &quot;{item.nomPrestation}&quot; ?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 text-white hover:bg-red-700"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              Supprimer
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        {filteredPrestations.length > 0 && (
+          <div className="px-4 py-3 border-t text-sm text-gray-500 text-center">
+            {filteredPrestations.length} résultat{filteredPrestations.length > 1 ? "s" : ""}
+            {searchTerm && ` pour "${searchTerm}"`}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

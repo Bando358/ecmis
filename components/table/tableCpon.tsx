@@ -2,6 +2,7 @@
 
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { deleteCpon, getAllCponByIdClient } from "@/lib/actions/cponActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -58,8 +59,13 @@ export function Table09({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataCpon.find((d) => d.id === id);
       await deleteCpon(id);
-      setDataCpon(dataCpon.filter((d) => d.id !== id));
+      const remaining = dataCpon.filter((d) => d.id !== id);
+      setDataCpon(remaining);
+      if (record && !remaining.some((d) => d.cponIdVisite === record.cponIdVisite)) {
+        await removeFormulaireFromRecap(record.cponIdVisite, "10 Fiche CPoN");
+      }
     }
   };
 

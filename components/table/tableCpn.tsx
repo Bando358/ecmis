@@ -5,6 +5,7 @@ import {
   deleteObstetrique,
   getAllObstetriqueByIdClient,
 } from "@/lib/actions/obstetriqueActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -89,8 +90,13 @@ export function Table07({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer ce client ?"
     );
     if (confirmed) {
+      const record = dataObstetrique.find((d) => d.id === id);
       await deleteObstetrique(id);
-      setDataObstetrique(dataObstetrique.filter((d) => d.id !== id));
+      const remaining = dataObstetrique.filter((d) => d.id !== id);
+      setDataObstetrique(remaining);
+      if (record && !remaining.some((d) => d.obstIdVisite === record.obstIdVisite)) {
+        await removeFormulaireFromRecap(record.obstIdVisite, "08 Fiche CPN");
+      }
     }
   };
   const renameVal = (

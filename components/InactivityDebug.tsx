@@ -17,7 +17,7 @@ export default function InactivityDebug() {
   useEffect(() => {
     if (!isClient) return;
 
-    const INACTIVITY_LIMIT = 15 * 60 * 1000;
+    const INACTIVITY_LIMIT = 30 * 60 * 1000;
 
     const updateDebugInfo = () => {
       const cookie = document.cookie

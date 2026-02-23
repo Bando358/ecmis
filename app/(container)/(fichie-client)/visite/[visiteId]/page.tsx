@@ -41,7 +41,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { v4 as uuid } from "uuid";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getAllActiviteByIdClinique } from "@/lib/actions/activiteActions";
+import { getActiveActivitesByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { ArrowBigLeftDash } from "lucide-react";
 import { getOneUser } from "@/lib/actions/authActions";
@@ -105,7 +105,7 @@ export default function FormVisite({
         const [permissions, activites] = await Promise.all([
           user ? getUserPermissionsById(user.id) : Promise.resolve([]),
           clientData?.idClinique
-            ? getAllActiviteByIdClinique(clientData.idClinique)
+            ? getActiveActivitesByIdClinique(clientData.idClinique)
             : Promise.resolve([]),
         ]);
 
@@ -175,7 +175,7 @@ export default function FormVisite({
 
   const onSubmit: SubmitHandler<VisiteFormValues> = async (data) => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
+      toast.error(
         "Vous n'avez pas la permission de créer une visite. Contactez un administrateur."
       );
       return router.back();
@@ -206,7 +206,7 @@ export default function FormVisite({
         return;
       }
       if (data.idActivite && !data.idLieu) {
-        alert("Le lieu est obligatoire lorsque une activité est sélectionnée");
+        toast.error("Le lieu est obligatoire lorsqu'une activité est sélectionnée");
         return;
       }
 
@@ -314,9 +314,6 @@ export default function FormVisite({
               </FormItem>
             )}
           />
-          {/* <div className="grid grid-cols-2"></div> */}
-          {/* motifVisite est obligatoire */}
-
           <FormField
             control={form.control}
             name="motifVisite"
@@ -377,8 +374,8 @@ export default function FormVisite({
                     {activite.map((act) => (
                       <option key={act.id} value={act.id} className="text-sm">
                         {act.libelle}{" "}
-                        {act.dateDebut.toLocaleDateString("fr-FR")} {`-`}
-                        {act.dateFin.toLocaleDateString("fr-FR")}
+                        {new Date(act.dateDebut).toLocaleDateString("fr-FR")} -{" "}
+                        {new Date(act.dateFin).toLocaleDateString("fr-FR")}
                       </option>
                     ))}
                   </select>

@@ -11,6 +11,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -456,30 +457,29 @@ export default function TableRapportGyneco({
       </div>
       <h2 className="font-bold">Rapport clients Gynécologie</h2>
       <Table className="table-auto w-full">
-        <TableHeader className="bg-gray-200  border border-gray-400">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell
+            <TableHead
               rowSpan={2}
-              className="font-bold"
-              style={{ width: "500px", minWidth: "400px", maxWidth: "400px" }}
+              className="w-[500px] min-w-[400px] max-w-[400px]"
             >
               Indicateurs
-            </TableCell>
-            <TableCell colSpan={5} className="font-bold text-center">
+            </TableHead>
+            <TableHead colSpan={5} className="font-semibold text-center">
               Femmes
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2}>
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center ">
-            <TableCell className="border border-l-gray-400">-10 ans</TableCell>
-            <TableCell>10-14 ans</TableCell>
-            <TableCell>15-19 ans</TableCell>
-            <TableCell>20-24 ans</TableCell>
-            <TableCell className="border border-r-gray-400">
+          <TableRow className="bg-slate-200 text-center">
+            <TableHead className="border border-gray-300">-10 ans</TableHead>
+            <TableHead>10-14 ans</TableHead>
+            <TableHead>15-19 ans</TableHead>
+            <TableHead>20-24 ans</TableHead>
+            <TableHead className="border border-gray-300">
               25 ans et +
-            </TableCell>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -527,30 +527,29 @@ export default function TableRapportGyneco({
 
       <h2 className="font-bold">Rapport services gynécologiques offerts</h2>
       <Table className="table-auto w-full">
-        <TableHeader className="bg-gray-200  border border-gray-400">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell
+            <TableHead
               rowSpan={2}
-              className="font-bold"
-              style={{ width: "500px", minWidth: "400px", maxWidth: "400px" }}
+              className="w-[500px] min-w-[400px] max-w-[400px]"
             >
               Indicateurs
-            </TableCell>
-            <TableCell colSpan={5} className="font-bold text-center">
+            </TableHead>
+            <TableHead colSpan={5} className="font-semibold text-center">
               Femmes
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2}>
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center ">
-            <TableCell className="border border-l-gray-400">-10 ans</TableCell>
-            <TableCell>10-14 ans</TableCell>
-            <TableCell>15-19 ans</TableCell>
-            <TableCell>20-24 ans</TableCell>
-            <TableCell className="border border-r-gray-400">
+          <TableRow className="bg-slate-200 text-center">
+            <TableHead className="border border-gray-300">-10 ans</TableHead>
+            <TableHead>10-14 ans</TableHead>
+            <TableHead>15-19 ans</TableHead>
+            <TableHead>20-24 ans</TableHead>
+            <TableHead className="border border-gray-300">
               25 ans et +
-            </TableCell>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

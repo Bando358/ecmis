@@ -55,6 +55,7 @@ import { useRouter } from "next/navigation";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import Retour from "@/components/retour";
 
 export default function PageResultatExamen({
@@ -237,7 +238,11 @@ export default function PageResultatExamen({
     } else {
       try {
         const result = await deleteResultatExamen(id);
-        setTabResultatExamens((prev) => prev.filter((r) => r.id !== result.id));
+        const remaining = tabResultatExamens.filter((r) => r.id !== result.id);
+        setTabResultatExamens(remaining);
+        if (!remaining.some((r) => r.idVisite === selectedVisite)) {
+          await removeFormulaireFromRecap(selectedVisite, "22 Fiche Résultat examen");
+        }
         toast.warning("Résultat supprimé avec succès");
       } catch (error) {
         console.error("Erreur lors de la suppression :", error);
@@ -295,6 +300,12 @@ export default function PageResultatExamen({
         toast.error("Erreur lors de l'ajout du résultat d'examen");
       }
     }
+    await createRecapVisite({
+      idVisite: selectedVisite,
+      idClient: resultatExamId,
+      prescripteurs: [],
+      formulaires: ["22 Fiche Résultat examen"],
+    });
     setIsSubmitting(false);
   };
 

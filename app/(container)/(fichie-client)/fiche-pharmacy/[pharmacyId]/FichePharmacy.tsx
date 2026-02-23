@@ -57,18 +57,15 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { updateProduitByFactureProduit } from "@/lib/actions/factureProduitActions";
-import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { updateQuantiteStockTarifProduit } from "@/lib/actions/tarifProduitActions";
+import { batchFacturation, updateRecapVisiteAfterDelete } from "@/lib/actions/facturationBatchActions";
 
 import { FactureModal } from "@/components/factureModal";
 import {
-  createFactureProduit,
   deleteFactureProduit,
   getAllFactureProduitByIdVisite,
 } from "@/lib/actions/factureProduitActions";
 import {
-  createFacturePrestation,
   deleteFacturePrestation,
   getAllFacturePrestationByIdVisite,
 } from "@/lib/actions/facturePrestationActions";
@@ -96,6 +93,7 @@ import {
   TableName,
   Permission,
   TarifPrestation,
+  TypeEchographie,
 } from "@prisma/client";
 import { toast } from "sonner";
 import { useReactToPrint } from "react-to-print";
@@ -119,7 +117,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import {
-  createFactureExamen,
   deleteFactureExamen,
   getAllFactureExamenByIdVisite,
 } from "@/lib/actions/factureExamenActions";
@@ -130,15 +127,30 @@ import { getAllDemandeExamensByIdVisite } from "@/lib/actions/demandeExamenActio
 import { getAllDemandeEchographiesByIdVisite } from "@/lib/actions/demandeEchographieActions";
 import EchographiesModal from "@/components/echographieModal";
 import {
-  createFactureEchographie,
   deleteFactureEchographie,
   getAllFactureEchographieByIdVisite,
 } from "@/lib/actions/factureEchographieActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { AnimatePresence, motion } from "framer-motion";
-import { createCouverture } from "@/lib/actions/couvertureActions";
+
+
 import Retour from "@/components/retour";
 import CommissionsDialog from "@/components/CommissionsDialog";
+
+const typeEchographieLabels: Record<TypeEchographie, string> = {
+  OBST: "Obstétrique",
+  GYN: "Gynécologie",
+  INF: "Infertilité",
+  MDG: "Médecine Gén.",
+  CAR: "Cardiologie",
+};
+
+const typeEchographieColors: Record<TypeEchographie, string> = {
+  OBST: "bg-pink-100 text-pink-800 border-pink-200",
+  GYN: "bg-purple-100 text-purple-800 border-purple-200",
+  INF: "bg-blue-100 text-blue-800 border-blue-200",
+  MDG: "bg-green-100 text-green-800 border-green-200",
+  CAR: "bg-red-100 text-red-800 border-red-200",
+};
 
 type DemandeExamenFormValues = {
   prixExamen: number;
@@ -337,6 +349,7 @@ export default function FichePharmacyClient({
       await deleteFactureProduit(idFacture);
       toast.info("Produit supprimé avec succès !");
       setProduitFacture(produitFacture.filter((p) => p.id !== idFacture));
+      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
     } catch (error) {
       toast.error("Erreur lors de la suppression du produit");
       console.error(error);
@@ -354,6 +367,7 @@ export default function FichePharmacyClient({
       await deleteFacturePrestation(id);
       toast.info("Prestation supprimée avec succès !");
       setPrestationFacture(prestationfacture.filter((p) => p.id !== id));
+      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
     } catch (error) {
       toast.error("Erreur lors de la suppression de la prestation");
       console.error(error);
@@ -371,6 +385,7 @@ export default function FichePharmacyClient({
       await deleteFactureExamen(id);
       toast.info("Examen supprimé avec succès !");
       setExamensFacture(examensFacture.filter((e) => e.id !== id));
+      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
     } catch (error) {
       toast.error("Erreur lors de la suppression de l'examen");
       console.error(error);
@@ -388,6 +403,7 @@ export default function FichePharmacyClient({
       await deleteFactureEchographie(id);
       toast.info("Echographie supprimée avec succès !");
       setEchographiesFacture(echographiesFacture.filter((e) => e.id !== id));
+      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
     } catch (error) {
       toast.error("Erreur lors de la suppression de l'echographie");
       console.error(error);
@@ -467,6 +483,24 @@ export default function FichePharmacyClient({
       (d) => d.idTarifEchographie === idTarifEchographie,
     );
     return demandeService?.serviceEchographie || "";
+  };
+
+  const getTypeEchographieFromDemande = (idDemandeEchographie: string): TypeEchographie | undefined => {
+    const demande = demandeEchographies.find((d) => d.id === idDemandeEchographie);
+    if (!demande) return undefined;
+    const tarif = tabTarifEchographies.find((t) => t.id === demande.idTarifEchographie);
+    if (!tarif) return undefined;
+    const echographie = tabEchographie.find((e) => e.id === tarif.idEchographie);
+    return echographie?.typeEchographie;
+  };
+
+  const getTypeEchographieFromSaved = (idDemandeEchographie: string): TypeEchographie | undefined => {
+    const demande = tabDemandeEchographies.find((d) => d.id === idDemandeEchographie);
+    if (!demande) return undefined;
+    const tarif = tabTarifEchographies.find((t) => t.id === demande.idTarifEchographie);
+    if (!tarif) return undefined;
+    const echographie = tabEchographie.find((e) => e.id === tarif.idEchographie);
+    return echographie?.typeEchographie;
   };
 
   const montantProduits = (produits: FactureProduit[]) => {
@@ -583,253 +617,247 @@ export default function FichePharmacyClient({
       return;
     }
 
+    let cancelled = false;
     setIsLoadingFacture(true);
 
-    setProduitFacture(
-      serverData.tabProduitFactureClient.filter(
-        (tab) => tab.idVisite === selectedIdVisite,
-      ) as FactureProduit[],
-    );
-    setPrestationFacture(
-      serverData.tabPrestationFactureClient.filter(
-        (tab) => tab.idVisite === selectedIdVisite,
-      ) as FacturePrestation[],
-    );
-    setExamensFacture(
-      serverData.tabExamenFactureClient.filter(
-        (tab) => tab.idVisite === selectedIdVisite,
-      ) as FactureExamen[],
-    );
-    setTabDemandeExamens(
-      serverData.tabDemandeExamensClient.filter(
-        (tab) => tab.idVisite === selectedIdVisite,
-      ) as DemandeExamen[],
-    );
-    setTabDemandeEchographies(
-      serverData.tabDemandeEchographiesClient.filter(
-        (tab) => tab.idVisite === selectedIdVisite,
-      ) as DemandeEchographie[],
-    );
-    setEchographiesFacture(
-      serverData.tabEchographieFactureClient.filter(
-        (tab) => tab.idVisite === selectedIdVisite,
-      ) as FactureEchographie[],
-    );
+    const loadFactures = async () => {
+      try {
+        const [
+          produits,
+          prestations,
+          examens,
+          demandesExamens,
+          demandesEchographies,
+          echographies,
+        ] = await Promise.all([
+          getAllFactureProduitByIdVisite(selectedIdVisite),
+          getAllFacturePrestationByIdVisite(selectedIdVisite),
+          getAllFactureExamenByIdVisite(selectedIdVisite),
+          getAllDemandeExamensByIdVisite(selectedIdVisite),
+          getAllDemandeEchographiesByIdVisite(selectedIdVisite),
+          getAllFactureEchographieByIdVisite(selectedIdVisite),
+        ]);
 
-    setIsLoadingFacture(false);
-  }, [selectedIdVisite, serverData]);
+        if (cancelled) return;
+
+        setProduitFacture((produits || []) as FactureProduit[]);
+        setPrestationFacture((prestations || []) as FacturePrestation[]);
+        setExamensFacture((examens || []) as FactureExamen[]);
+        setTabDemandeExamens((demandesExamens || []) as DemandeExamen[]);
+        setTabDemandeEchographies(
+          (demandesEchographies || []) as DemandeEchographie[],
+        );
+        setEchographiesFacture((echographies || []) as FactureEchographie[]);
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement des factures:",
+          error,
+        );
+      } finally {
+        if (!cancelled) setIsLoadingFacture(false);
+      }
+    };
+
+    loadFactures();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedIdVisite]);
+
+  // Helper : vérifie si un produit est de type CONTRACEPTIF
+  const isContraceptifProduit = (idTarifProduit: string): boolean => {
+    const tarifProduit = tabTarifProduit.find((p) => p.id === idTarifProduit);
+    if (!tarifProduit) return false;
+    const produit = tabProduit.find((p) => p.id === tarifProduit.idProduit);
+    return produit?.typeProduit === "CONTRACEPTIF";
+  };
 
   const handleFacturation = async () => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
+      toast.error(
         "Vous n'avez pas la permission de facturer un client. Contactez un administrateur.",
       );
       return router.back();
     }
     if (!idUser) return;
+
     if (factureProduit.length > 0) {
-      // Récupérer les IDs des factureProduit dont methode est égale true
+      // Vérification : max 1 produit avec methode = true
       const idsToMark = factureProduit
         .filter((produit) => produit.methode === true)
         .map((produit) => produit.id);
       if (idsToMark.length > 1) {
         setSelectedProduits(idsToMark);
-        // Logique de facturation
-        alert("Plusieurs produit contraceptifs sélectionnés en tant  méthodes");
+        toast.error(
+          "Plusieurs produits contraceptifs sélectionnés en tant que méthodes. Un seul est autorisé.",
+        );
         return;
       }
+
+      // Vérification des doublons par idTarifProduit
+      const grouped = new Map<string, FactureProduit[]>();
+      for (const p of factureProduit) {
+        const key = p.idTarifProduit;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(p);
+      }
+      for (const [idTarif, items] of grouped) {
+        if (items.length <= 1) continue;
+        if (!isContraceptifProduit(idTarif)) {
+          toast.error(
+            `Le produit "${renameValue(idTarif)}" est en doublon. Seuls les contraceptifs peuvent être facturés deux fois.`,
+          );
+          return;
+        }
+        if (items.length > 2) {
+          toast.error(
+            `Le produit "${renameValue(idTarif)}" ne peut apparaître que 2 fois (1 méthode + 1 achat).`,
+          );
+          return;
+        }
+        const hasMethode = items.some((i) => i.methode === true);
+        const hasAchat = items.some((i) => i.methode === false);
+        if (!hasMethode || !hasAchat) {
+          toast.error(
+            `Le produit "${renameValue(idTarif)}" est en doublon. L'un doit être coché comme méthode et l'autre décoché (achat).`,
+          );
+          return;
+        }
+      }
+    }
+
+    // Validations avant l'appel DB
+    if (demandeExamens.length > 0 && isNaN(Number(watchedRemiseExamen))) {
+      toast.error("La remise pour les examens doit être un nombre valide");
+      return;
+    }
+    if (
+      demandeEchographies.length > 0 &&
+      isNaN(Number(watchedRemiseEchographie))
+    ) {
+      toast.error(
+        "La remise pour les échographies doit être un nombre valide",
+      );
+      return;
     }
 
     try {
       setIsLoading(true);
 
-      // On va vérifier si data.remiseExamen N'est pas un nombre
-      if (demandeExamens.length > 0 && isNaN(Number(watchedRemiseExamen))) {
-        toast.error("La remise pour les examens doit être un nombre valide");
-        return;
-      }
-      if (
-        demandeEchographies.length > 0 &&
-        isNaN(Number(watchedRemiseEchographie))
-      ) {
-        toast.error(
-          "La remise pour les échographies doit être un nombre valide",
-        );
-        return;
-      }
-
-      // const couverture = form.watch("couverture");
-      const couvertureData = {
+      // Préparer toutes les données AVANT l'appel DB
+      const produitsData = factureProduit.map((produit) => ({
         id: crypto.randomUUID(),
-        couvertIdClient: pharmacyId,
-        couvertType: watchedCouverture as TypeCouverture,
-        couvertIdVisite: watchedIdVisite,
-      };
-      await createCouverture(couvertureData);
+        idVisite: watchedIdVisite,
+        nomProduit: renameValue(produit.idTarifProduit),
+        montantProduit: produit.montantProduit || 0,
+        idTarifProduit: produit.idTarifProduit,
+        idClient: produit.idClient,
+        idClinique: produit.idClinique,
+        quantite: Number(produit.quantite),
+        methode: produit.methode,
+        dateFacture: produit.dateFacture || new Date(),
+        idUser: idUser,
+        quantiteToDecrement: Number(produit.quantite),
+      }));
 
-      // Enregistrement parallèle de toutes les factures
-      const [
-        produitsResults,
-        prestationsResults,
-        examensResults,
-        echographiesResults,
-      ] = await Promise.all([
-        // Enregistrement des produits (chaque produit a 2 appels séquentiels)
-        Promise.allSettled(
-          factureProduit.map(async (produit) => {
-            const dataProduit = {
-              idVisite: watchedIdVisite,
-              nomProduit: renameValue(produit.idTarifProduit),
-              montantProduit: produit.montantProduit || 0,
-              id: crypto.randomUUID(),
-              idTarifProduit: produit.idTarifProduit,
-              idClient: produit.idClient,
-              idClinique: produit.idClinique,
-              quantite: Number(produit.quantite),
-              methode: produit.methode,
-              dateFacture: produit.dateFacture,
-              idUser: idUser,
-            };
-            await createFactureProduit(dataProduit);
-            await updateProduitByFactureProduit(
-              produit.idTarifProduit,
-              Number(produit.quantite),
-            );
-          }),
+      const prestationsData = facturePrestation.map((prestation) => ({
+        id: prestation.id || crypto.randomUUID(),
+        idVisite: watchedIdVisite,
+        idClient: pharmacyId,
+        idClinique: client?.idClinique || "",
+        prixPrestation: Number(prestation.prixPrestation),
+        libellePrestation: nomPrestation(prestation.idPrestation),
+        dateFacture: prestation.dateFacture || new Date(),
+        idUser: idUser,
+        idPrestation: prestation.idPrestation,
+      }));
+
+      const examensData = demandeExamens.map((demande) => ({
+        id: crypto.randomUUID(),
+        idVisite: watchedIdVisite,
+        idClient: pharmacyId,
+        idClinique: client?.idClinique || "",
+        remiseExamen: parseInt(String(watchedRemiseExamen || "0")),
+        soustraitanceExamen: Boolean(watchedSoustractionExamen),
+        idUser: idUser,
+        libelleExamen: renameExamen(demande.id),
+        prixExamen: Number(watchedRemiseExamen)
+          ? Math.round(
+              demande.prixExamen *
+                (1 - Number(watchedRemiseExamen) / 100),
+            )
+          : demande.prixExamen,
+        idDemandeExamen: demande.id,
+      }));
+
+      const echographiesData = demandeEchographies.map((demande) => ({
+        id: crypto.randomUUID(),
+        idVisite: watchedIdVisite,
+        idClient: pharmacyId,
+        idClinique: client?.idClinique || "",
+        remiseEchographie: parseInt(
+          String(watchedRemiseEchographie || "0"),
         ),
-        // Enregistrement des prestations
-        Promise.allSettled(
-          facturePrestation.map(async (prestation) => {
-            const dataPrestation = {
-              idVisite: watchedIdVisite,
-              idClient: pharmacyId,
-              idClinique: client?.idClinique || "",
-              prixPrestation: Number(prestation.prixPrestation),
-              libellePrestation: nomPrestation(prestation.idPrestation),
-              id: prestation.id,
-              dateFacture: prestation.dateFacture,
-              idUser: idUser,
-              idPrestation: prestation.idPrestation,
-            };
-            await createFacturePrestation(dataPrestation);
-          }),
-        ),
-        // Enregistrement des demandes d'examen
-        Promise.allSettled(
-          demandeExamens.map(async (demande) => {
-            const dataDemande = {
-              id: crypto.randomUUID(),
-              idVisite: watchedIdVisite,
-              idClient: pharmacyId,
-              idClinique: client?.idClinique || "",
-              remiseExamen: parseInt(String(watchedRemiseExamen || "0")),
-              soustraitanceExamen: Boolean(watchedSoustractionExamen),
-              idUser: idUser,
-              libelleExamen: renameExamen(demande.id),
-              prixExamen: Number(watchedRemiseExamen)
-                ? Math.round(
-                    demande.prixExamen *
-                      (1 - Number(watchedRemiseExamen) / 100),
-                  )
-                : demande.prixExamen,
-              idDemandeExamen: demande.id,
-            };
-            await createFactureExamen(dataDemande);
-          }),
-        ),
-        // Enregistrement des demandes d'échographie
-        Promise.allSettled(
-          demandeEchographies.map(async (demande) => {
-            const dataDemande = {
-              id: crypto.randomUUID(),
-              idVisite: watchedIdVisite,
-              idClient: pharmacyId,
-              idClinique: client?.idClinique || "",
-              remiseEchographie: parseInt(
-                String(watchedRemiseEchographie || "0"),
-              ),
-              idUser: idUser,
-              libelleEchographie: renameEchographie(demande.id),
-              prixEchographie: Number(watchedRemiseEchographie)
-                ? Math.round(
-                    demande.prixEchographie *
-                      (1 - Number(watchedRemiseEchographie) / 100),
-                  )
-                : demande.prixEchographie,
-              idDemandeEchographie: demande.id,
-              serviceEchographieFacture:
-                getServiceEchographie(demande.idTarifEchographie) ?? "",
-            };
-            await createFactureEchographie(dataDemande);
-          }),
-        ),
+        idUser: idUser,
+        libelleEchographie: renameEchographie(demande.id),
+        prixEchographie: Number(watchedRemiseEchographie)
+          ? Math.round(
+              demande.prixEchographie *
+                (1 - Number(watchedRemiseEchographie) / 100),
+            )
+          : demande.prixEchographie,
+        idDemandeEchographie: demande.id,
+        serviceEchographieFacture:
+          getServiceEchographie(demande.idTarifEchographie) ?? "",
+      }));
+
+      // UN SEUL appel serveur (transaction atomique)
+      await batchFacturation({
+        couverture: {
+          id: crypto.randomUUID(),
+          couvertIdClient: pharmacyId,
+          couvertType: watchedCouverture as TypeCouverture,
+          couvertIdVisite: watchedIdVisite,
+        },
+        produits: produitsData as (FactureProduit & {
+          quantiteToDecrement: number;
+        })[],
+        prestations: prestationsData as FacturePrestation[],
+        examens: examensData as FactureExamen[],
+        echographies: echographiesData as FactureEchographie[],
+        recapVisite: {
+          idVisite: watchedIdVisite,
+          idUser: idUser,
+          formulaire: "05 Fiche facturation",
+        },
+      });
+
+      // Mise à jour optimiste : affichage immédiat sans refetch
+      setProduitFacture((prev) => [
+        ...prev,
+        ...(produitsData.map(({ quantiteToDecrement: _, ...p }) => p) as FactureProduit[]),
+      ]);
+      setPrestationFacture((prev) => [
+        ...prev,
+        ...(prestationsData as FacturePrestation[]),
+      ]);
+      setExamensFacture((prev) => [
+        ...prev,
+        ...(examensData as FactureExamen[]),
+      ]);
+      setEchographiesFacture((prev) => [
+        ...prev,
+        ...(echographiesData as FactureEchographie[]),
       ]);
 
-      // Gestion des erreurs individuelles
-      const produitErrors = produitsResults.filter(
-        (r) => r.status === "rejected",
-      );
-      const prestationErrors = prestationsResults.filter(
-        (r) => r.status === "rejected",
-      );
-      const examenErrors = examensResults.filter(
-        (r) => r.status === "rejected",
-      );
-      const echographieErrors = echographiesResults.filter(
-        (r) => r.status === "rejected",
-      );
-
-      if (produitErrors.length > 0) {
-        console.error("Erreurs produits:", produitErrors);
-        toast.error(
-          `${produitErrors.length} erreur(s) lors de l'enregistrement des produits`,
-        );
-      }
-      if (prestationErrors.length > 0) {
-        console.error("Erreurs prestations:", prestationErrors);
-        toast.error(
-          `${prestationErrors.length} erreur(s) lors de l'enregistrement des prestations`,
-        );
-      }
-      if (examenErrors.length > 0) {
-        console.error("Erreurs examens:", examenErrors);
-        toast.error(
-          `${examenErrors.length} erreur(s) lors de l'enregistrement des examens`,
-        );
-      }
-      if (echographieErrors.length > 0) {
-        console.error("Erreurs échographies:", echographieErrors);
-        toast.error(
-          `${echographieErrors.length} erreur(s) lors de l'enregistrement des échographies`,
-        );
-      }
-
-      // Réinitialisation et mise à jour des données
+      // Vider les brouillons
       setFactureProduit([]);
       setFacturePrestation([]);
       setDemandeExamens([]);
       setDemandeEchographies([]);
 
-      const [
-        updatedProduits,
-        updatedPrestations,
-        updatedExamens,
-        updatedEchographies,
-      ] = await Promise.all([
-        getAllFactureProduitByIdVisite(watchedIdVisite),
-        getAllFacturePrestationByIdVisite(watchedIdVisite),
-        getAllFactureExamenByIdVisite(watchedIdVisite),
-        getAllFactureEchographieByIdVisite(watchedIdVisite),
-      ]);
-
-      setProduitFacture(updatedProduits as FactureProduit[]);
-      setPrestationFacture(updatedPrestations as FacturePrestation[]);
-      setExamensFacture(updatedExamens as FactureExamen[]);
-      setEchographiesFacture(updatedEchographies as FactureEchographie[]);
-
-      await updateRecapVisite(watchedIdVisite, idUser, "05 Fiche facturation");
-
-      toast.success("Client facturé avec succès! 🎉");
+      toast.success("Client facturé avec succès!");
     } catch (error) {
       console.error("Erreur lors de la facturation", error);
       toast.error("Erreur lors de la facturation");
@@ -856,25 +884,13 @@ export default function FichePharmacyClient({
   const hasSaved = savedCount > 0;
 
   // Calcul du total brouillon
-  const totalBrouillon = Number(watchedRemiseExamen)
-    ? Math.round(
-        montantPrestations(facturePrestation) +
-          montantExamen(demandeExamens) -
-          montantExamen(demandeExamens) * (Number(watchedRemiseExamen) / 100) +
-          montantEchographie(
-            demandeEchographies,
-            watchedRemiseEchographie || 0,
-          ),
-      )
-    : Math.round(
-        montantProduits(factureProduit) +
-          montantPrestations(facturePrestation) +
-          montantExamen(demandeExamens) +
-          montantEchographie(
-            demandeEchographies,
-            watchedRemiseEchographie || 0,
-          ),
-      );
+  const remiseExamenPct = Number(watchedRemiseExamen) || 0;
+  const totalBrouillon = Math.round(
+    montantProduits(factureProduit) +
+      montantPrestations(facturePrestation) +
+      montantExamen(demandeExamens) * (1 - remiseExamenPct / 100) +
+      montantEchographie(demandeEchographies, watchedRemiseEchographie || 0),
+  );
 
   const totalSaved =
     montantProduits(produitFacture) +
@@ -1296,7 +1312,10 @@ export default function FichePharmacyClient({
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {produit.montantProduit?.toLocaleString("fr-FR")}
+                          {Math.round(
+                            (produit.montantProduit || 0) /
+                              (produit.quantite || 1),
+                          ).toLocaleString("fr-FR")}
                         </TableCell>
                         <TableCell className="text-center tabular-nums">
                           {produit.quantite}
@@ -1416,7 +1435,9 @@ export default function FichePharmacyClient({
                       </TableRow>
                     ))}
 
-                    {demandeEchographies.map((echographie, index) => (
+                    {demandeEchographies.map((echographie, index) => {
+                      const echoType = getTypeEchographieFromDemande(echographie.id);
+                      return (
                       <TableRow
                         key={
                           echographie.id && echographie.id !== ""
@@ -1431,9 +1452,9 @@ export default function FichePharmacyClient({
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className="bg-purple-50 text-purple-700 border-purple-200 text-[11px]"
+                            className={`text-[11px] ${echoType ? typeEchographieColors[echoType] : "bg-purple-50 text-purple-700 border-purple-200"}`}
                           >
-                            Echo
+                            {echoType ? typeEchographieLabels[echoType] : "Echo"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
@@ -1470,7 +1491,8 @@ export default function FichePharmacyClient({
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1493,7 +1515,9 @@ export default function FichePharmacyClient({
                   className="gap-1.5"
                 >
                   {isLoading ? (
-                    <Spinner />
+                    <>
+                      <Spinner size="small" /> Facturation...
+                    </>
                   ) : (
                     <>
                       <ClipboardCheck className="h-4 w-4" /> Facturer
@@ -1511,17 +1535,9 @@ export default function FichePharmacyClient({
             </div>
           )}
 
-          <AnimatePresence initial={false} mode="wait">
-            <motion.div
-              key={`facture-${produitFacture.length}-${prestationfacture.length}-${examensFacture.length}-${echographiesFacture.length}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-            >
-              <div className="w-full" ref={contentRef}>
-                {hasSaved && (
-                  <Card className="overflow-hidden border-blue-200/60 shadow-sm shadow-blue-100/30">
+          {hasSaved && (
+            <div className="w-full" ref={contentRef}>
+              <Card className="overflow-hidden border-blue-200/60 shadow-sm shadow-blue-100/30">
                     <CardHeader className="pb-2 print:hidden">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1595,9 +1611,10 @@ export default function FichePharmacyClient({
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right tabular-nums">
-                                {produit.montantProduit?.toLocaleString(
-                                  "fr-FR",
-                                )}
+                                {Math.round(
+                                  (produit.montantProduit || 0) /
+                                    (produit.quantite || 1),
+                                ).toLocaleString("fr-FR")}
                               </TableCell>
                               <TableCell className="text-center tabular-nums">
                                 {produit.quantite}
@@ -1807,7 +1824,9 @@ export default function FichePharmacyClient({
                             </TableRow>
                           ))}
 
-                          {echographiesFacture.map((echographie, index) => (
+                          {echographiesFacture.map((echographie, index) => {
+                            const savedEchoType = getTypeEchographieFromSaved(echographie.idDemandeEchographie);
+                            return (
                             <TableRow
                               key={
                                 echographie.id && echographie.id !== ""
@@ -1822,9 +1841,9 @@ export default function FichePharmacyClient({
                               <TableCell>
                                 <Badge
                                   variant="secondary"
-                                  className="bg-purple-50 text-purple-700 border-purple-200 text-[11px]"
+                                  className={`text-[11px] ${savedEchoType ? typeEchographieColors[savedEchoType] : "bg-purple-50 text-purple-700 border-purple-200"}`}
                                 >
-                                  Echo
+                                  {savedEchoType ? typeEchographieLabels[savedEchoType] : "Echo"}
                                   {echographie.remiseEchographie > 0
                                     ? ` (-${echographie.remiseEchographie}%)`
                                     : ""}
@@ -1887,7 +1906,8 @@ export default function FichePharmacyClient({
                                 </AlertDialog>
                               </TableCell>
                             </TableRow>
-                          ))}
+                            );
+                          })}
                         </TableBody>
 
                         <TableFooter>
@@ -1971,11 +1991,9 @@ export default function FichePharmacyClient({
                         </div>
                       </div>
                     </CardFooter>
-                  </Card>
-                )}
-              </div>
-            </motion.div>
-          </AnimatePresence>
+              </Card>
+            </div>
+          )}
 
           {/* ===== EMPTY STATE ===== */}
           {form.watch("idVisite") &&

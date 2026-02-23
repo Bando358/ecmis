@@ -187,24 +187,12 @@ export const fetchDashboardData = async (
   };
 
   // Requête parallèle pour chaque type de facture
+  // Batch 1 : Factures (4 requêtes)
   const [
     facturesExamens,
     facturesProduits,
     facturesPrestations,
     facturesEchographies,
-    planning,
-    gynecoData,
-    infertiliteData,
-    obsteriqueData,
-    accouchementData,
-    cponData,
-    saaData,
-    istData,
-    depistageVihData,
-    pecVihData,
-    medecineData,
-    vbgData,
-    testData,
   ] = await Promise.all([
     prisma.factureExamen.findMany({
       where: {
@@ -219,7 +207,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-
     prisma.factureProduit.findMany({
       where: {
         idClinique: { in: clinicIds },
@@ -233,7 +220,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-
     prisma.facturePrestation.findMany({
       where: {
         idClinique: { in: clinicIds },
@@ -260,7 +246,16 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // Planning
+  ]);
+
+  // Batch 2 : Planning + données cliniques 1 (5 requêtes)
+  const [
+    planning,
+    gynecoData,
+    infertiliteData,
+    obsteriqueData,
+    accouchementData,
+  ] = await Promise.all([
     prisma.planning.findMany({
       where: {
         idClinique: { in: clinicIds },
@@ -273,8 +268,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-
-    // Gynecologie
     prisma.gynecologie.findMany({
       where: {
         idClinique: { in: clinicIds },
@@ -287,7 +280,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // Infertilité
     prisma.infertilite.findMany({
       where: {
         infertIdClinique: { in: clinicIds },
@@ -300,8 +292,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-
-    // Obsterique
     prisma.obstetrique.findMany({
       where: {
         obstIdClinique: { in: clinicIds },
@@ -314,7 +304,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // Accouchement
     prisma.accouchement.findMany({
       where: {
         accouchementIdClinique: { in: clinicIds },
@@ -327,7 +316,16 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // Cpon
+  ]);
+
+  // Batch 3 : Données cliniques 2 (5 requêtes)
+  const [
+    cponData,
+    saaData,
+    istData,
+    depistageVihData,
+    pecVihData,
+  ] = await Promise.all([
     prisma.cpon.findMany({
       where: {
         cponIdClinique: { in: clinicIds },
@@ -340,7 +338,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // SAA
     prisma.saa.findMany({
       where: {
         saaIdClinique: { in: clinicIds },
@@ -353,7 +350,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // IST
     prisma.ist.findMany({
       where: {
         istIdClinique: { in: clinicIds },
@@ -366,7 +362,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // Dépistage VIH
     prisma.depistageVih.findMany({
       where: {
         depistageVihIdClinique: { in: clinicIds },
@@ -379,7 +374,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // PEC VIH
     prisma.pecVih.findMany({
       where: {
         pecVihIdClinique: { in: clinicIds },
@@ -392,7 +386,14 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // Médecine
+  ]);
+
+  // Batch 4 : Données cliniques 3 (3 requêtes)
+  const [
+    medecineData,
+    vbgData,
+    testData,
+  ] = await Promise.all([
     prisma.medecine.findMany({
       where: {
         mdgIdClinique: { in: clinicIds },
@@ -405,7 +406,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // VBG
     prisma.vbg.findMany({
       where: {
         vbgIdClinique: { in: clinicIds },
@@ -418,7 +418,6 @@ export const fetchDashboardData = async (
         User: true,
       },
     }),
-    // test
     prisma.testGrossesse.findMany({
       where: {
         testIdClinique: { in: clinicIds },

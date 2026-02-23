@@ -30,7 +30,9 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { TeamSwitcher } from "./team-switcher";
+import { cn } from "@/lib/utils";
 
 const data = {
   user: {
@@ -72,6 +74,10 @@ const data = {
       icon: Pill,
       items: [
         {
+          title: "Rapport financier",
+          url: "/rapport-financier",
+        },
+        {
           title: "Produits",
           url: "/produits",
         },
@@ -84,10 +90,6 @@ const data = {
           url: "/stock-produit",
         },
         {
-          title: "Fiche de vente",
-          url: "/fiche-de-vente",
-        },
-        {
           title: "Inventaire",
           url: "/inventaire",
         },
@@ -98,6 +100,14 @@ const data = {
         {
           title: "Historique Inventaire",
           url: "/historique-inventaire",
+        },
+        {
+          title: "Tableau financier",
+          url: "/tableau-financier",
+        },
+        {
+          title: "Journal des actions",
+          url: "/journal-pharmacy",
         },
       ],
     },
@@ -210,6 +220,9 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
+  const isDashboardActive = pathname === data.dashboard.url;
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -218,13 +231,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="mx-2" tooltip={data.dashboard.name}>
+            <SidebarMenuButton
+              className={cn(
+                "mx-2",
+                isDashboardActive && "bg-blue-100 text-blue-800 font-semibold",
+              )}
+              tooltip={data.dashboard.name}
+            >
               <Link
                 href={data.dashboard.url}
                 prefetch={false}
                 className="flex gap-2 items-center"
               >
-                <Gauge size={17} strokeWidth={2.3} className=" text-gray-600" />
+                <Gauge
+                  size={17}
+                  strokeWidth={2.3}
+                  className={cn(
+                    "text-gray-600",
+                    isDashboardActive && "text-blue-600",
+                  )}
+                />
                 {data.dashboard.name}
               </Link>
             </SidebarMenuButton>

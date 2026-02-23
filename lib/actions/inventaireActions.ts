@@ -2,6 +2,7 @@
 
 import { Inventaire } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche Inventaire
 export async function createInventaire(data: Inventaire) {
@@ -30,9 +31,16 @@ export async function createInventaire(data: Inventaire) {
     );
   }
 
-  return await prisma.inventaire.create({
-    data,
+  const result = await prisma.inventaire.create({ data });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "Inventaire",
+    entiteId: result.id,
+    idClinique: data.idClinique,
+    description: `Creation inventaire du ${dateInventaire.toLocaleDateString("fr-FR")}`,
   });
+  return result;
 }
 
 // ************* Fiche Inventaire **************
@@ -57,10 +65,21 @@ export const getRecentInventaires = async () => {
 
 // Suppression d'une Fiche Inventaire. Toutefois, les détails associés doivent être supprimés au préalable.
 export async function deleteInventaire(id: string) {
+  const existing = await prisma.inventaire.findUnique({ where: { id } });
   await prisma.detailInventaire.deleteMany({
     where: { idInventaire: id },
   });
   await prisma.inventaire.delete({
     where: { id },
   });
+  if (existing) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "Inventaire",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression inventaire du ${existing.dateInventaire.toLocaleDateString("fr-FR")}`,
+    });
+  }
 }

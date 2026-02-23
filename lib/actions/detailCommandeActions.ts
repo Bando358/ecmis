@@ -3,12 +3,21 @@
 import { DetailCommande } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { logAction } from "./journalPharmacyActions";
 
 // Création de DetailCommande
 export async function createDetailCommande(data: DetailCommande) {
-  return await prisma.detailCommande.create({
-    data,
+  const result = await prisma.detailCommande.create({ data });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "DetailCommande",
+    entiteId: result.id,
+    idClinique: data.idClinique,
+    description: `Detail commande: ${data.quantiteCommandee} unites commandees (stock initial: ${data.quantiteInitiale})`,
+    nouvellesDonnees: { quantiteCommandee: data.quantiteCommandee, quantiteInitiale: data.quantiteInitiale },
   });
+  return result;
 }
 
 // Récupérer toutes les DetailCommande
@@ -73,6 +82,17 @@ export async function deleteDetailCommandesByIds(ids: string[]) {
     const result = await prisma.detailCommande.deleteMany({
       where: { id: { in: ids } },
     });
+
+    if (detailsToDelete.length > 0) {
+      await logAction({
+        idUser: detailsToDelete[0].idUser,
+        action: "SUPPRESSION",
+        entite: "DetailCommande",
+        entiteId: ids.join(","),
+        idClinique: detailsToDelete[0].idClinique,
+        description: `Suppression de ${detailsToDelete.length} details commande`,
+      });
+    }
 
     revalidatePath("/commandes");
     return result;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useRef } from "react";
+import { useState, useEffect, use, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -8,6 +8,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
   TableFooter,
 } from "@/components/ui/table";
 import {
@@ -21,9 +22,37 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2 } from "lucide-react";
-// import { useSession } from "next-auth/react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Plus,
+  Trash2,
+  FlaskConical,
+  Printer,
+  ArrowLeft,
+  CalendarDays,
+  Building2,
+  User2,
+  ClipboardCheck,
+  ShoppingCart,
+  CircleDollarSign,
+  FileWarning,
+} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
@@ -31,7 +60,6 @@ import { getAllTarifExamenByClinique } from "@/lib/actions/tarifExamenActions";
 import {
   createDemandeExamen,
   deleteDemandeExamen,
-  getAllDemandeExamens,
   getAllDemandeExamensByIdVisite,
 } from "@/lib/actions/demandeExamenActions";
 import DemandeExamenModal from "@/components/DemandeExamenDialog";
@@ -46,13 +74,12 @@ import {
   Clinique,
   Permission,
   TableName,
+  TypeExamen,
 } from "@prisma/client";
 import { getAllExamen } from "@/lib/actions/examenActions";
 import { toast } from "sonner";
-import Image from "next/image";
 import { useSession } from "next-auth/react";
 import {
-  getAllUser,
   getAllUserIncludedIdClinique,
   getOneUser,
 } from "@/lib/actions/authActions";
@@ -60,7 +87,27 @@ import { useReactToPrint } from "react-to-print";
 import { useRouter } from "next/navigation";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import {
+  createRecapVisite,
+  removeFormulaireFromRecap,
+} from "@/lib/actions/recapActions";
 import Retour from "@/components/retour";
+
+const typeExamenLabels: Record<TypeExamen, string> = {
+  MEDECIN: "Médecine",
+  GYNECOLOGIE: "Gynécologie",
+  OBSTETRIQUE: "Obstétrique",
+  VIH: "VIH",
+  IST: "IST",
+};
+
+const typeExamenColors: Record<TypeExamen, string> = {
+  MEDECIN: "bg-green-100 text-green-800 border-green-200",
+  GYNECOLOGIE: "bg-purple-100 text-purple-800 border-purple-200",
+  OBSTETRIQUE: "bg-pink-100 text-pink-800 border-pink-200",
+  VIH: "bg-red-100 text-red-800 border-red-200",
+  IST: "bg-orange-100 text-orange-800 border-orange-200",
+};
 
 export default function PageDemandeExamen({
   params,
@@ -74,14 +121,14 @@ export default function PageDemandeExamen({
   const [demandes, setDemandes] = useState<DemandeExamen[]>([]);
   const [tabExamens, setTabExamens] = useState<Examen[]>([]);
   const [tabClinique, setTabClinique] = useState<Clinique[]>([]);
-  const [tabUser, setTabUser] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User | null>(null);
+  const [prescripteur, setPrescripteur] = useState<User>();
+  const [prescripteurs, setPrescripteurs] = useState<User | null>(null);
   const [tabPrescripteurs, setTabPrescripteurs] = useState<User[]>([]);
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [selectedPrescripteur, setSelectedPrescripteur] = useState<string>("");
-  const [client, setClient] = useState<Client | null>(null);
   const [permission, setPermission] = useState<Permission | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
 
@@ -92,7 +139,6 @@ export default function PageDemandeExamen({
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
-      // setIsPrescripteur(user?.prescripteur ? true : false);
       setPrescripteur(user!);
     };
     fetUser();
@@ -101,44 +147,33 @@ export default function PageDemandeExamen({
   useEffect(() => {
     if (prescripteur && client) {
       const fetchPrescripteurs = async () => {
-        const allUser = await getAllUser();
-        setTabUser(allUser as User[]);
         const prescripteursData = await getAllUserIncludedIdClinique(
           client.cliniqueId
         );
-
         setTabPrescripteurs([...prescripteursData]);
       };
-
       fetchPrescripteurs();
     }
   }, [prescripteur, client]);
 
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
+    if (!session?.user) return;
     const fetchPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
+        const permissions = await getUserPermissionsById(session.user.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.DEMANDE_EXAMEN
         );
         setPermission(perm || null);
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors de la vérification des permissions :", error);
       }
     };
-
     fetchPermissions();
-  }, [prescripteur, router]);
+  }, [session?.user, router]);
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log("demandeId:", demandeId);
       try {
         const [clientData, visitesData, examensData, clinique] =
           await Promise.all([
@@ -148,17 +183,11 @@ export default function PageDemandeExamen({
             getAllClinique(),
           ]);
 
-        if (!clientData) {
-          console.warn("Aucun client trouvé pour l'ID :", demandeId);
-          return;
-        } else {
-          console.log("Client trouvé :", clientData);
-        }
+        if (!clientData) return;
         setClient(clientData as Client);
         const tarifExam = await getAllTarifExamenByClinique(
           clientData.cliniqueId
         );
-
         setVisites(visitesData as Visite[]);
         setTabTarifExamens(tarifExam as TarifExamen[]);
         setTabExamens(examensData as Examen[]);
@@ -167,11 +196,9 @@ export default function PageDemandeExamen({
         console.error("Erreur lors du chargement des données :", error);
       }
     };
-
     fetchData();
   }, [demandeId]);
 
-  // Charger les demandes quand la visite sélectionnée change
   useEffect(() => {
     const fetchDemandes = async () => {
       try {
@@ -187,49 +214,49 @@ export default function PageDemandeExamen({
         console.error("Erreur lors du chargement des demandes :", error);
       }
     };
-
     fetchDemandes();
   }, [selectedVisite]);
 
   const refreshDemandes = async () => {
     if (selectedVisite) {
-      const demandesData = await getAllDemandeExamens();
+      const demandesData = await getAllDemandeExamensByIdVisite(selectedVisite);
       setDemandes(demandesData as DemandeExamen[]);
     }
   };
 
   const getPrixExamen = (idTarifExamen: string) => {
-    return tabTarifExamens.find((e) => e.id === idTarifExamen)?.prixExamen || 0;
+    return (
+      tabTarifExamens.find((e) => e.id === idTarifExamen)?.prixExamen || 0
+    );
   };
-  if (demandeExamens.length > 0) {
-    console.log("demandeExamens : ", demandeExamens);
-  }
 
-  // Handler for deleting a demande
-  const handleDeleteDemande = async (demandeId: string) => {
-    // TODO: Replace with your actual delete logic, e.g. call an API
+  const handleDeleteDemande = (demandeId: string) => {
     setDemandeExamens((prev) =>
       prev.filter((demande) => demande.id !== demandeId)
     );
-    // Optionally, refreshDemandes();
   };
-  // Handler for deleting a demande
+
   const handleDeleteDemandeInBD = async (demandeId: string) => {
     if (!permission?.canDelete && prescripteur?.role !== "ADMIN") {
       alert(
         "Vous n'avez pas la permission de supprimer une demande d'examen. Contactez un administrateur."
       );
       return router.back();
-    } else {
-      if (confirm("Es-tu sûr de vouloir supprimer cette demande ?")) {
-        // TODO: Replace with your actual delete logic, e.g. call an
-        await deleteDemandeExamen(demandeId);
-        setDemandes((prev) =>
-          prev.filter((demande) => demande.id !== demandeId)
+    }
+    try {
+      await deleteDemandeExamen(demandeId);
+      const remaining = demandes.filter((d) => d.id !== demandeId);
+      setDemandes(remaining);
+      if (!remaining.some((d) => d.idVisite === selectedVisite)) {
+        await removeFormulaireFromRecap(
+          selectedVisite,
+          "21 Fiche Demande examen"
         );
-        // Optionally, refreshDemandes();
-        toast.error("Demande supprimée avec succès ✅");
       }
+      toast.success("Demande supprimée avec succès");
+    } catch (error) {
+      console.error("Erreur lors de la suppression :", error);
+      toast.error("Erreur lors de la suppression de la demande");
     }
   };
 
@@ -244,19 +271,18 @@ export default function PageDemandeExamen({
       toast.error("Aucune demande à soumettre.");
       return;
     }
-    if (!selectedPrescripteur) {
-      toast.warning("Aucun prescripteur sélectionné.");
+    if (!selectedPrescripteur && !prescripteur?.prescripteur) {
+      toast.warning("Veuillez sélectionner un prescripteur.");
       return;
     }
 
     setIsPending(true);
-
     try {
-      if (prescripteur) {
+      if (prescripteurs || prescripteur?.prescripteur) {
         for (const demande of demandeExamens) {
           const newDemande = {
             id: demande.id,
-            idUser: prescripteur.prescripteur
+            idUser: prescripteur?.prescripteur
               ? prescripteur.id
               : selectedPrescripteur,
             idClient: demande.idClient,
@@ -273,16 +299,17 @@ export default function PageDemandeExamen({
         return;
       }
 
-      // On vide la liste des demandes après soumission réussie
+      await createRecapVisite({
+        idVisite: selectedVisite,
+        idClient: demandeId,
+        prescripteurs: [],
+        formulaires: ["21 Fiche Demande examen"],
+      });
+
       setDemandeExamens([]);
       const newDemandes = await getAllDemandeExamensByIdVisite(selectedVisite);
-      setDemandes(
-        newDemandes.filter(
-          (d: { idVisite: string }) => d.idVisite === selectedVisite
-        )
-      );
-
-      toast.success("Toutes les demandes ont été soumises avec succès ✅");
+      setDemandes(newDemandes as DemandeExamen[]);
+      toast.success("Toutes les demandes ont été soumises avec succès");
     } catch (error) {
       console.error("Erreur lors de la soumission :", error);
       toast.error("Une ou plusieurs demandes n'ont pas pu être soumises.");
@@ -291,297 +318,520 @@ export default function PageDemandeExamen({
     }
   };
 
-  const getNomExamen = (demande: DemandeExamen) => {
+  const getExamenInfo = (demande: DemandeExamen) => {
     const tarif = tabTarifExamens.find((t) => t.id === demande.idTarifExamen);
-    return (
-      tabExamens.find((e) => e.id === tarif?.idExamen)?.nomExamen || "Inconnu"
-    );
+    return tabExamens.find((e) => e.id === tarif?.idExamen);
   };
 
-  const dateVisiteByidVisite = (idVisite: string) => {
-    return (
-      visites
-        .find((v) => v.id === idVisite)
-        ?.dateVisite.toLocaleDateString("fr-FR") || "Date introuvable"
-    );
+  const getNomExamen = (demande: DemandeExamen) => {
+    return getExamenInfo(demande)?.nomExamen || "Inconnu";
   };
 
-  const getAllCliniqueNameById = (idClinique: string) => {
+  const getTypeExamen = (
+    demande: DemandeExamen
+  ): TypeExamen | undefined => {
+    return getExamenInfo(demande)?.typeExamen;
+  };
+
+  const nomClinique = (idClinique: string) => {
     return (
-      tabClinique.find((clinique) => clinique.id === idClinique)?.nomClinique ||
+      tabClinique.find((c) => c.id === idClinique)?.nomClinique ||
       "Clinique inconnue"
     );
   };
 
   const getUserNameById = (idUser: string) => {
-    return tabUser.find((user) => user.id === idUser)?.name || "Inconnu";
+    return (
+      tabPrescripteurs.find((u) => u.id === idUser)?.name ||
+      prescripteur?.name ||
+      "Inconnu"
+    );
   };
 
-  // ================== Impression ==================
+  // Totaux
+  const totalBrouillon = useMemo(
+    () =>
+      demandeExamens.reduce(
+        (total, d) => total + getPrixExamen(d.idTarifExamen),
+        0
+      ),
+    [demandeExamens, tabTarifExamens]
+  );
+
+  const demandesFiltrees = useMemo(
+    () => demandes.filter((d) => d.idVisite === selectedVisite),
+    [demandes, selectedVisite]
+  );
+
+  const totalSaved = useMemo(
+    () =>
+      demandesFiltrees.reduce(
+        (total, d) => total + getPrixExamen(d.idTarifExamen),
+        0
+      ),
+    [demandesFiltrees, tabTarifExamens]
+  );
+
   const contentRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
+
+  // Exclure les examens déjà ajoutés (brouillon + enregistrés)
+  const examensDisponiblesFiltres = useMemo(() => {
+    const usedTarifIds = new Set([
+      ...demandeExamens.map((d) => d.idTarifExamen),
+      ...demandesFiltrees.map((d) => d.idTarifExamen),
+    ]);
+    return tabTarifExamens.filter((t) => !usedTarifIds.has(t.id));
+  }, [tabTarifExamens, demandeExamens, demandesFiltrees]);
+
+  const hasDraft = demandeExamens.length > 0;
+  const hasSaved = demandesFiltrees.length > 0;
 
   return (
     <div className="w-full relative">
       <Retour />
-      <div className="px-6 pb-6">
-        <h1 className="text-2xl font-bold mb-6">{"Demandes d'examens"}</h1>
+      <div className="px-4 sm:px-6 pb-8 space-y-5">
+        {/* ===== HEADER ===== */}
+        <Card className="overflow-hidden border-amber-200 shadow-md shadow-amber-100/40">
+          <div className="bg-linear-to-r from-amber-900 to-amber-700 px-5 py-4 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                  <FlaskConical className="h-5 w-5" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold tracking-tight">
+                    Demandes d&apos;examens
+                  </h1>
+                  <p className="text-sm text-amber-100">
+                    {client?.nom?.toUpperCase()} {client?.prenom} &mdash;{" "}
+                    {nomClinique(client?.cliniqueId as string)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30">
+                  <CalendarDays className="h-3 w-3 mr-1" />
+                  {visites.length} visite(s)
+                </Badge>
+                {client?.code && (
+                  <Badge
+                    variant="outline"
+                    className="border-white/30 text-white text-xs font-mono"
+                  >
+                    {client.code}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
 
-        <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex flex-justify-start items-center gap-2">
-              <select
-                value={selectedVisite}
-                onChange={(e) => setSelectedVisite(e.target.value)}
-                className="border rounded-md px-4 py-2"
-              >
-                <option value="">Sélectionner une visite</option>
-                {visites.map((visite) => (
-                  <option key={visite.id} value={visite.id}>
-                    {new Date(visite.dateVisite).toLocaleDateString("fr-FR")}
-                  </option>
-                ))}
-              </select>
-              {selectedVisite && prescripteur && !prescripteur.prescripteur && (
-                <select
-                  value={selectedPrescripteur}
-                  onChange={(e) => setSelectedPrescripteur(e.target.value)}
-                  className="border rounded-md px-4 py-2 max-w-50"
+          {/* Formulaire selects */}
+          <CardContent className="pt-4 pb-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Visite
+                </label>
+                <Select
+                  value={selectedVisite}
+                  onValueChange={setSelectedVisite}
                 >
-                  <option value="">Sélectionner un prescripteur</option>
-                  {tabPrescripteurs.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Choisir..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visites.map((visite) => (
+                      <SelectItem key={visite.id} value={visite.id}>
+                        {new Date(visite.dateVisite).toLocaleDateString(
+                          "fr-FR"
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedVisite && !prescripteur?.prescripteur && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Prescripteur
+                  </label>
+                  <Select
+                    value={selectedPrescripteur}
+                    onValueChange={(val) => {
+                      setSelectedPrescripteur(val);
+                      const user = tabPrescripteurs.find((u) => u.id === val);
+                      setPrescripteurs(user || null);
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Choisir..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tabPrescripteurs.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
+          </CardContent>
 
+          <Separator />
+
+          {/* Toolbar */}
+          <div className="px-5 py-3 flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground mr-1">
+              Ajouter :
+            </span>
             <Button
+              size="sm"
+              variant={selectedVisite ? "default" : "outline"}
               onClick={() => setModalOpen(true)}
               disabled={!selectedVisite}
+              className="h-8 text-xs gap-1.5"
             >
-              <Plus className="mr-2" size={16} /> Nouvelle demande
+              <Plus className="h-3.5 w-3.5" /> Examen
             </Button>
           </div>
+        </Card>
 
-          <Separator className="my-4" />
+        {/* ===== SUMMARY STAT ===== */}
+        {hasDraft && (
+          <div className="flex items-center gap-3 rounded-lg border border-amber-200/60 bg-amber-50/30 p-3 max-w-xs">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-amber-100">
+              <FlaskConical className="h-4 w-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Brouillon</p>
+              <p className="text-sm font-bold text-amber-900">
+                {totalBrouillon.toLocaleString("fr-FR")}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  CFA
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
 
-          {selectedVisite && demandeExamens.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Examen</TableCell>
-                  <TableCell>Prix</TableCell>
-                  <TableCell className="max-w-37.5 text-center">
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {demandeExamens.length > 0 ? (
-                  demandeExamens.map((demande) => (
-                    <TableRow key={demande.id}>
-                      <TableCell>
-                        {dateVisiteByidVisite(selectedVisite)}
-                      </TableCell>
-                      <TableCell>{getNomExamen(demande)}</TableCell>
-                      <TableCell>
-                        {getPrixExamen(demande.idTarifExamen)} CFA
-                      </TableCell>
-                      <TableCell className="max-w-37.5 text-center">
-                        <Button
-                          className="mx-auto"
-                          variant="destructive"
-                          onClick={() => handleDeleteDemande(demande.id)}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
+        {/* ===== BROUILLON ===== */}
+        {hasDraft && selectedVisite && (
+          <Card className="border-amber-200/60 shadow-sm shadow-amber-100/30">
+            <CardHeader className="pb-3 bg-amber-50/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Brouillon</CardTitle>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {demandeExamens.length} demande(s)
+                  </Badge>
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs font-bold">
+                    <CircleDollarSign className="h-3 w-3 mr-1" />
+                    {totalBrouillon.toLocaleString("fr-FR")} CFA
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-0 pb-0">
+              <Table>
+                <TableHeader className="bg-amber-50/60">
+                  <TableRow>
+                    <TableHead className="text-amber-900">Examen</TableHead>
+                    <TableHead className="text-amber-900 w-28">
+                      Spécialité
+                    </TableHead>
+                    <TableHead className="text-right text-amber-900 w-28">
+                      Prix
+                    </TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {demandeExamens.map((demande) => {
+                    const examType = getTypeExamen(demande);
+                    return (
+                      <TableRow
+                        key={demande.id}
+                        className="group hover:bg-muted/30 transition-colors"
+                      >
+                        <TableCell className="font-medium">
+                          {getNomExamen(demande)}
+                        </TableCell>
+                        <TableCell>
+                          {examType && (
+                            <Badge
+                              variant="secondary"
+                              className={`text-[11px] ${typeExamenColors[examType]}`}
+                            >
+                              {typeExamenLabels[examType]}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {getPrixExamen(
+                            demande.idTarifExamen
+                          ).toLocaleString("fr-FR")}{" "}
+                          CFA
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleDeleteDemande(demande.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+            <CardFooter className="border-t border-amber-200/60 bg-amber-50/30 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CircleDollarSign className="h-4 w-4 text-amber-700" />
+                <span className="text-sm font-semibold">Total :</span>
+                <span className="text-lg font-bold text-amber-800 tabular-nums">
+                  {totalBrouillon.toLocaleString("fr-FR")} CFA
+                </span>
+              </div>
+              <Button
+                onClick={handleDemandeExamen}
+                disabled={
+                  isPending ||
+                  (!selectedPrescripteur && !prescripteur?.prescripteur)
+                }
+                className="gap-1.5"
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                {isPending ? "Soumission..." : "Soumettre"}
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+
+        {/* ===== DEMANDES ENREGISTREES ===== */}
+        {hasSaved && (
+          <div className="w-full" ref={contentRef}>
+            <Card className="overflow-hidden border-amber-200/60 shadow-sm shadow-amber-100/30">
+              <CardHeader className="pb-2 print:hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+                    <CardTitle className="text-base">
+                      Demandes enregistrées
+                    </CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {demandesFiltrees.length} demande(s)
+                    </Badge>
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">
+                      {totalSaved.toLocaleString("fr-FR")} CFA
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b-0">
+                      <TableCell colSpan={4} className="text-center py-4">
+                        <Image
+                          src="/LOGO_AIBEF_IPPF.png"
+                          alt="Logo"
+                          width={400}
+                          height={10}
+                          style={{ margin: "auto" }}
+                        />
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4">
-                      Aucune demande pour cette visite
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={2} className="text-right py-4 font-bold">
-                    Total :
-                  </TableCell>
-                  <TableCell>
-                    {demandeExamens.reduce(
-                      (total, demande) =>
-                        total + getPrixExamen(demande.idTarifExamen),
-                      0
-                    )}{" "}
-                    CFA
-                  </TableCell>
-                  <TableCell className="max-w-37.5 text-center">
-                    <Button disabled={isPending} onClick={handleDemandeExamen}>
-                      Soumettre
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          )}
-        </div>
-        <Separator className="my-4" />
-
-        {demandes.filter((d) => d.idVisite === selectedVisite).length > 0 && (
-          <div className="p-4 flex flex-col" ref={contentRef}>
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-100 opacity-95">
-                  <TableCell colSpan={4} className="text-center px-auto">
-                    <Image
-                      src="/LOGO_AIBEF_IPPF.png"
-                      alt="Logo"
-                      width={400}
-                      height={10}
-                      // layout="responsive"
-                      style={{ margin: "auto" }}
-                    />
-                  </TableCell>
-                </TableRow>
-                <TableRow className="font-bold">
-                  <TableCell>Date</TableCell>
-                  <TableCell>Examen</TableCell>
-                  <TableCell>Prix</TableCell>
-                  <TableCell className="max-w-37.5 text-center">
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {demandes.length > 0 ? (
-                  demandes.map((demande) => (
-                    <TableRow key={demande.id}>
-                      <TableCell>
-                        {dateVisiteByidVisite(demande.idVisite)}
-                      </TableCell>
-                      <TableCell>{getNomExamen(demande)}</TableCell>
-                      <TableCell>
-                        {getPrixExamen(demande.idTarifExamen)} CFA
-                      </TableCell>
-                      <TableCell className="max-w-37.5 text-center">
-                        {/* <Button
-                          className="mx-auto"
-                          variant="destructive"
-                          onClick={() => handleDeleteDemandeInBD(demande.id)}
+                    <TableRow className="bg-amber-50/60">
+                      <TableHead className="text-amber-900">Examen</TableHead>
+                      <TableHead className="text-amber-900 w-28">
+                        Spécialité
+                      </TableHead>
+                      <TableHead className="text-right text-amber-900 w-28">
+                        Prix
+                      </TableHead>
+                      <TableHead className="w-12 print:hidden"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {demandesFiltrees.map((demande) => {
+                      const examType = getTypeExamen(demande);
+                      return (
+                        <TableRow
+                          key={demande.id}
+                          className="group hover:bg-muted/30 transition-colors"
                         >
-                          <Trash2 size={16} />
-                        </Button> */}
-                        <AlertDialog>
-                          {/* 📌 Ton bouton destructif déclenche le dialog */}
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              🗑
-                            </Button>
-                          </AlertDialogTrigger>
-
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Es-tu sûr ?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Cette action est irréversible. {"L'examen"} sera
-                                définitivement supprimé.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              {/* 📌 Action de confirmation qui supprime réellement */}
-                              <AlertDialogAction
-                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                                onClick={() =>
-                                  handleDeleteDemandeInBD(demande.id)
-                                }
+                          <TableCell className="font-medium">
+                            {getNomExamen(demande)}
+                          </TableCell>
+                          <TableCell>
+                            {examType && (
+                              <Badge
+                                variant="secondary"
+                                className={`text-[11px] ${typeExamenColors[examType]}`}
                               >
-                                Supprimer
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                {typeExamenLabels[examType]}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {getPrixExamen(
+                              demande.idTarifExamen
+                            ).toLocaleString("fr-FR")}{" "}
+                            CFA
+                          </TableCell>
+                          <TableCell className="print:hidden">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Confirmer la suppression
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Cette action est irréversible.
+                                    L&apos;examen sera définitivement supprimé.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-600 hover:bg-red-700"
+                                    onClick={() =>
+                                      handleDeleteDemandeInBD(demande.id)
+                                    }
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow className="bg-amber-50/50 border-t-2 border-amber-300/40">
+                      <TableCell
+                        colSpan={2}
+                        className="text-right text-sm font-bold"
+                      >
+                        Total :
                       </TableCell>
+                      <TableCell className="text-right text-base font-bold text-amber-800 tabular-nums">
+                        {totalSaved.toLocaleString("fr-FR")} CFA
+                      </TableCell>
+                      <TableCell className="print:hidden"></TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4">
-                      Aucune demande pour cette visite
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={2} className="text-right py-4 font-bold">
-                    Total :
-                  </TableCell>
-                  <TableCell>
-                    {demandes.reduce(
-                      (total, demande) =>
-                        total + getPrixExamen(demande.idTarifExamen),
-                      0
-                    )}{" "}
-                    CFA
-                  </TableCell>
-                  <TableCell className="max-w-37.5 text-center">
-                    {/* <Button disabled={isPending} onClick={handleDemandeExamen}>
-                  Soumettre
-                </Button> */}
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-            <table className="max-w-md mt-4 " style={{ float: "left" }}>
-              <tbody>
-                <tr>
-                  <td className=" font-bold px-2 py-1">Prescripteur :</td>
-                  <td className=" font-bold px-2 py-1">
-                    {demandes.length > 0
-                      ? getUserNameById(demandes[0]?.idUser as string)
-                      : "Inconnu"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className=" font-bold px-2 py-1">Clinique :</td>
-                  <td className=" font-bold px-2 py-1">
-                    {getAllCliniqueNameById(client?.cliniqueId as string)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className=" font-bold px-2 py-1">Date :</td>
-                  <td className=" font-bold px-2 py-1">
-                    {new Date().toLocaleDateString("fr-FR")}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </TableFooter>
+                </Table>
+              </CardContent>
+
+              {/* Receipt footer */}
+              <CardFooter className="flex flex-col gap-3 border-t pt-4 pb-5">
+                <Separator className="print:hidden" />
+                <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Clinique :</span>
+                    <span className="font-medium">
+                      {nomClinique(client?.cliniqueId as string)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">
+                      Prescripteur :
+                    </span>
+                    <span className="font-medium">
+                      {demandesFiltrees.length > 0
+                        ? getUserNameById(
+                            demandesFiltrees[0]?.idUser as string
+                          )
+                        : "Inconnu"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Date :</span>
+                    <span className="font-medium">
+                      {new Date().toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </CardFooter>
+            </Card>
           </div>
         )}
-        {demandes.filter((d) => d.idVisite === selectedVisite).length > 0 && (
-          <div className="flex justify-center my-4 gap-4">
+
+        {/* ===== EMPTY STATE ===== */}
+        {selectedVisite && !hasDraft && !hasSaved && (
+          <Card className="border-dashed border-2 border-amber-200/70">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 mb-4">
+                <FileWarning className="h-8 w-8 text-amber-400" />
+              </div>
+              <p className="text-base font-semibold text-muted-foreground">
+                Aucune demande pour cette visite
+              </p>
+              <p className="text-sm text-muted-foreground/70 mt-1 max-w-sm">
+                Utilisez le bouton ci-dessus pour ajouter un examen
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ===== ACTION BUTTONS ===== */}
+        {selectedVisite && hasSaved && (
+          <div className="flex justify-center gap-3 print:hidden">
             <Button
-              onClick={() => {
-                // setIsHidden(true);
-                reactToPrintFn();
-              }}
+              variant="outline"
+              size="lg"
+              onClick={() => reactToPrintFn()}
+              className="gap-2"
             >
-              Imprimer la facture
+              <Printer className="h-4 w-4" />
+              Imprimer
             </Button>
-            <Button onClick={() => router.push(`/fiches/${demandeId}`)}>
-              Retour
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => router.push(`/fiches/${demandeId}`)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour au dossier
             </Button>
           </div>
         )}
+
+        {/* ===== MODAL ===== */}
         {selectedVisite && (
           <DemandeExamenModal
             open={modalOpen}
@@ -589,8 +839,9 @@ export default function PageDemandeExamen({
             refreshDemandes={refreshDemandes}
             idClient={demandeId}
             idVisite={selectedVisite}
-            examensDisponibles={tabTarifExamens}
+            examensDisponibles={examensDisponiblesFiltres}
             setDemandeExamens={setDemandeExamens}
+            allExamens={tabExamens}
           />
         )}
       </div>

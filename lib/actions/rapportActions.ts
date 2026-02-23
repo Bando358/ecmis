@@ -644,38 +644,34 @@ export const fetchClientsData = async (
     };
   });
 
-  // filtrage par activité si activiteIds fournis
-  let visitsFilteredByActivite = visitsAllDataWithCliniqueName;
-  let visitsFilteredByActiviteLieu = visitsAllDataWithCliniqueName;
-
-  //oprération permettant de récupérer les idActivite et idLieu séparément depuis le tableau activiteIds
-  const [tabIdactivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
-    ([left, right], str) => {
-      const [l = "", r = ""] = str.split(">");
-      return [
-        [...left, l],
-        [...right, r],
-      ];
+  // Parsing activiteIds : séparer les idActivite et idLieu (seules les valeurs non-vides)
+  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
+    ([a, l], v) => {
+      const [act, lieu] = v.split(">").map((s) => s?.trim());
+      if (act) a.push(act);
+      if (lieu) l.push(lieu);
+      return [a, l];
     },
-    [[], []] as [string[], string[]]
+    [[], []]
   );
 
-  if (activiteIds.length > 0) {
-    visitsFilteredByActivite = visitsAllDataWithCliniqueName.filter((visit) =>
-      tabIdactivite.includes(visit.idActiviteVisite)
-    );
-    visitsFilteredByActiviteLieu = visitsFilteredByActivite.filter((visit) =>
-      tabIdLieu.includes(visit.idLieu)
-    );
-  } else {
-    visitsFilteredByActivite = visitsAllDataWithCliniqueName.filter(
-      (visit) =>
-        visit.idActiviteVisite === null || visit.idActiviteVisite === ""
-    ); // tous les clients avec des visites
-    visitsFilteredByActiviteLieu = visitsFilteredByActivite;
-  }
+  // Sentinel "*" → pas de filtre (toutes les visites)
+  const noFilter = activiteIds.includes("*");
 
-  return visitsFilteredByActiviteLieu;
+  const visitsFiltered = noFilter
+    ? visitsAllDataWithCliniqueName
+    : visitsAllDataWithCliniqueName.filter((visit) => {
+        if (!tabIdActivite.length) {
+          // Aucune activité sélectionnée → routine uniquement (sans activité)
+          return !visit.idActiviteVisite;
+        }
+        const okActivite = tabIdActivite.includes(visit.idActiviteVisite);
+        const okLieu =
+          !tabIdLieu.length || tabIdLieu.includes(visit.idLieu);
+        return okActivite && okLieu;
+      });
+
+  return visitsFiltered;
 };
 
 const visiteDataCpnUpdate = async (clients: ClientData[]) => {
@@ -1289,14 +1285,22 @@ export const fetchClientsStatusProteges = async (
   // -----------------------------
   // Filtrage activité / lieu
   // -----------------------------
-  const filteredClients = clients.filter((client) =>
-    client.Visite.some((v) => {
-      const okActivite =
-        !tabIdActivite.length || tabIdActivite.includes(v.idActivite ?? "");
-      const okLieu = !tabIdLieu.length || tabIdLieu.includes(v.idLieu ?? "");
-      return okActivite && okLieu;
-    })
-  );
+  const noFilter = activiteIds.includes("*");
+
+  const filteredClients = noFilter
+    ? clients
+    : clients.filter((client) =>
+        client.Visite.some((v) => {
+          if (!tabIdActivite.length) {
+            // Aucune activité sélectionnée → routine uniquement (sans activité)
+            return !v.idActivite;
+          }
+          const okActivite = tabIdActivite.includes(v.idActivite ?? "");
+          const okLieu =
+            !tabIdLieu.length || tabIdLieu.includes(v.idLieu ?? "");
+          return okActivite && okLieu;
+        })
+      );
 
   const resultMap = new Map<string, ClientStatusInfo>();
 
@@ -1428,14 +1432,6 @@ export const fetchClientsDataLaboratoire = async (
     return [];
   }
 
-  // Marque les paramètres comme utilisés pour éviter les erreurs TS si la fonction
-  // n'est pas encore implémentée complètement.
-  void dateVisite1;
-  void dateVisite2;
-
-  // TODO: implémenter la récupération réelle des factures/résultats et joindre
-  // le `libelleExamen` depuis la table des libellés si nécessaire.
-
   const [facture, resultat] = await Promise.all([
     prisma.factureExamen.findMany({
       where: {
@@ -1469,10 +1465,39 @@ export const fetchClientsDataLaboratoire = async (
     }),
   ]);
 
-  const newResultat = resultat.map((res) => ({
+  // Parsing activiteIds : séparer les idActivite et idLieu
+  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
+    ([a, l], v) => {
+      const [act, lieu] = v.split(">").map((s) => s?.trim());
+      if (act) a.push(act);
+      if (lieu) l.push(lieu);
+      return [a, l];
+    },
+    [[], []]
+  );
+
+  // Sentinel "*" → pas de filtre (toutes les visites)
+  const noFilter = activiteIds.includes("*");
+
+  const matchesActivityFilter = (visite: { idActivite: string | null; idLieu: string | null } | null) => {
+    if (!visite) return false;
+    if (noFilter) return true;
+    if (!tabIdActivite.length) {
+      // Aucune activité sélectionnée → routine uniquement (sans activité)
+      return !visite.idActivite;
+    }
+    const okActivite = tabIdActivite.includes(visite.idActivite ?? "");
+    const okLieu = !tabIdLieu.length || tabIdLieu.includes(visite.idLieu ?? "");
+    return okActivite && okLieu;
+  };
+
+  const filteredFacture = facture.filter((f) => matchesActivityFilter(f.Visite));
+  const filteredResultat = resultat.filter((r) => matchesActivityFilter(r.Visite));
+
+  const newResultat = filteredResultat.map((res) => ({
     ...res,
-    libelleExamen: facture.find((f) => f.id === res.idFactureExamen)
-      ?.libelleExamen, // TODO: récupérer le libellé réel si nécessaire
+    libelleExamen: filteredFacture.find((f) => f.id === res.idFactureExamen)
+      ?.libelleExamen,
   }));
 
   const tabExamen = newResultat
@@ -1481,17 +1506,16 @@ export const fetchClientsDataLaboratoire = async (
 
   const uniqueExamen = Array.from(new Set(tabExamen));
   uniqueExamen.sort();
-  // ajouter à uniqueExamen tous les examens de facture qui ne sont pas dans resultat
-  facture.forEach((fact) => {
+  filteredFacture.forEach((fact) => {
     if (fact.libelleExamen && !uniqueExamen.includes(fact.libelleExamen)) {
       uniqueExamen.push(fact.libelleExamen);
     }
   });
 
-  if (facture && resultat) {
+  if (filteredFacture.length > 0 || filteredResultat.length > 0) {
     return [
       {
-        factureExamen: facture,
+        factureExamen: filteredFacture,
         resultatExamen: newResultat,
         tabExamen: uniqueExamen,
       },

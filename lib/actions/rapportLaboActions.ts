@@ -1,282 +1,6 @@
-// "use server";
-// // lib/actions/dashboardActions.ts
-// import prisma from "@/lib/prisma";
-// import { ResultatExamen, Visite, Client, Clinique } from "../generated/prisma";
-
-// export type ClientLaboType = {
-//   nomClient: string;
-//   prenomClient: string;
-//   sexeClient: string;
-//   dateNaissanceClient: Date | null;
-//   ageClient: number | null;
-//   visites: Visite[];
-//   resultatsExamens: (ResultatExamen & {
-//     typeExamen: string;
-//     libelleExamen: string;
-//   })[];
-// };
-
-// // Type pour les visites avec relations incluses
-// type VisiteWithRelations = Visite & {
-//   Client: Client | null;
-//   Clinique: Clinique | null;
-//   ResultatExamen: ResultatExamen[];
-// };
-
-// const calculerAge = (dateNaissance: Date): number => {
-//   const diffTemps = Date.now() - new Date(dateNaissance).getTime();
-//   const ageDate = new Date(diffTemps);
-//   return Math.abs(ageDate.getUTCFullYear() - 1970);
-// };
-
-// export const fetchLaboData = async (
-//   clinicIds: string[],
-//   date1: Date,
-//   date2: Date
-// ): Promise<{
-//   clientLabo: ClientLaboType[];
-// }> => {
-//   if (!clinicIds || clinicIds.length === 0) {
-//     alert("Veuillez choisir au moins une clinique");
-//     return {
-//       clientLabo: [],
-//     };
-//   }
-//   if (!date1 || !date2) {
-//     alert("Veuillez choisir une date de début et une date de fin");
-//     return {
-//       clientLabo: [],
-//     };
-//   }
-
-//   const factureExamen = await prisma.factureExamen.findMany({
-//     where: {
-//       idClinique: { in: clinicIds },
-//       Visite: {
-//         dateVisite: {
-//           gte: date1,
-//           lte: date2,
-//         },
-//       },
-//     },
-//   });
-
-//   const allExamens = await prisma.examen.findMany();
-
-//   // Typage explicite du résultat
-//   const allVisites = (await prisma.visite.findMany({
-//     where: {
-//       idClinique: { in: clinicIds },
-//       dateVisite: {
-//         gte: date1,
-//         lte: date2,
-//       },
-//     },
-//     include: {
-//       Client: true,
-//       Clinique: true,
-//       ResultatExamen: true,
-//     },
-//   })) as VisiteWithRelations[];
-
-//   // Grouper les visites par client
-//   const visitesParClient = new Map<string, VisiteWithRelations[]>();
-
-//   allVisites.forEach((visite) => {
-//     // Utiliser idClient au lieu de Client.id
-//     const clientId = visite.idClient || "unknown";
-//     if (!visitesParClient.has(clientId)) {
-//       visitesParClient.set(clientId, []);
-//     }
-//     visitesParClient.get(clientId)!.push(visite);
-//   });
-
-//   // Créer un ClientLaboType pour chaque client
-//   const clientLabo: ClientLaboType[] = Array.from(
-//     visitesParClient.entries()
-//   ).map(([clientId, visites]) => {
-//     const premiereVisite = visites[0];
-//     const client = premiereVisite.Client;
-
-//     // Récupérer tous les résultats d'examens pour ce client
-//     const resultatsExamensClient = visites.flatMap((visite) =>
-//       visite.ResultatExamen.map((resultat: ResultatExamen) => ({
-//         ...resultat,
-//         typeExamen:
-//           allExamens.find(
-//             (examen) =>
-//               examen.nomExamen ===
-//               factureExamen.find((fe) => fe.id === resultat.idFactureExamen)
-//                 ?.libelleExamen
-//           )?.nomExamen ?? "",
-//         libelleExamen:
-//           factureExamen.find((fe) => fe.id === resultat.idFactureExamen)
-//             ?.libelleExamen ?? "",
-//       }))
-//     );
-
-//     return {
-//       nomClient: client?.nom ?? "",
-//       prenomClient: client?.prenom ?? "",
-//       sexeClient: client?.sexe ?? "",
-//       dateNaissanceClient: client?.dateNaissance ?? null,
-//       ageClient: client?.dateNaissance
-//         ? calculerAge(client.dateNaissance)
-//         : null,
-//       visites: visites,
-//       resultatsExamens: resultatsExamensClient,
-//     };
-//   });
-//   const clientLab = clientLabo.filter(
-//     (client) => client.resultatsExamens.length > 0
-//   );
-
-//   return {
-//     clientLabo: clientLab,
-//   };
-// };
-// "use server";
-// import prisma from "@/lib/prisma";
-// import { ResultatExamen, Visite, Client, Clinique } from "../generated/prisma";
-
-// enum TypeExamen {
-//   MEDECIN = "MEDECIN",
-//   GYNECOLOGIE = "GYNECOLOGIE",
-//   OBSTETRIQUE = "OBSTETRIQUE",
-//   VIH = "VIH",
-//   IST = "IST",
-// }
-
-// export type ClientLaboType = {
-//   nomClient: string;
-//   prenomClient: string;
-//   sexeClient: string;
-//   dateNaissanceClient: Date | null;
-//   ageClient: number | null;
-//   typeExamen: TypeExamen; // ✅ Nouveau champ
-//   visites: Visite[];
-//   resultatsExamens: (ResultatExamen & {
-//     typeExamen: string;
-//     libelleExamen: string;
-//   })[];
-// };
-
-// type VisiteWithRelations = Visite & {
-//   Client: Client | null;
-//   Clinique: Clinique | null;
-//   ResultatExamen: ResultatExamen[];
-// };
-
-// const calculerAge = (dateNaissance: Date): number => {
-//   const diffTemps = Date.now() - new Date(dateNaissance).getTime();
-//   const ageDate = new Date(diffTemps);
-//   return Math.abs(ageDate.getUTCFullYear() - 1970);
-// };
-
-// export const fetchLaboData = async (
-//   clinicIds: string[],
-//   date1: Date,
-//   date2: Date
-// ): Promise<{ clientLabo: ClientLaboType[] }> => {
-//   if (!clinicIds?.length) {
-//     console.warn("Veuillez choisir au moins une clinique");
-//     return { clientLabo: [] };
-//   }
-//   if (!date1 || !date2) {
-//     console.warn("Veuillez choisir une date de début et une date de fin");
-//     return { clientLabo: [] };
-//   }
-
-//   const factureExamen = await prisma.factureExamen.findMany({
-//     where: {
-//       idClinique: { in: clinicIds },
-//       Visite: { dateVisite: { gte: date1, lte: date2 } },
-//     },
-//   });
-
-//   const allExamens = await prisma.examen.findMany();
-
-//   const allVisites = (await prisma.visite.findMany({
-//     where: {
-//       idClinique: { in: clinicIds },
-//       dateVisite: { gte: date1, lte: date2 },
-//     },
-//     include: { Client: true, Clinique: true, ResultatExamen: true },
-//   })) as VisiteWithRelations[];
-
-//   // Grouper les visites par client
-//   const visitesParClient = new Map<string, VisiteWithRelations[]>();
-//   allVisites.forEach((visite) => {
-//     const clientId = visite.idClient || "unknown";
-//     if (!visitesParClient.has(clientId)) visitesParClient.set(clientId, []);
-//     visitesParClient.get(clientId)!.push(visite);
-//   });
-
-//   const clientLabo: ClientLaboType[] = [];
-
-//   // Pour chaque client
-//   for (const [clientId, visites] of visitesParClient.entries()) {
-//     const premiereVisite = visites[0];
-//     const client = premiereVisite.Client;
-//     if (!client) continue;
-
-//     // Tous les résultats d'examens de ce client
-//     const resultatsExamensClient = visites.flatMap((visite) =>
-//       visite.ResultatExamen.map((resultat: ResultatExamen) => {
-//         const facture = factureExamen.find(
-//           (fe) => fe.id === resultat.idFactureExamen
-//         );
-//         const examen = allExamens.find(
-//           (e) => e.nomExamen === facture?.libelleExamen
-//         );
-
-//         return {
-//           ...resultat,
-//           typeExamen: examen?.typeExamen ?? "",
-//           libelleExamen: facture?.libelleExamen ?? "",
-//         };
-//       })
-//     );
-
-//     // ✅ Grouper les résultats par type d'examen
-//     const examensParType = new Map<
-//       string,
-//       (ResultatExamen & { typeExamen: string; libelleExamen: string })[]
-//     >();
-//     resultatsExamensClient.forEach((res) => {
-//       if (!res.typeExamen) return;
-//       if (!examensParType.has(res.typeExamen))
-//         examensParType.set(res.typeExamen, []);
-//       examensParType
-//         .get(res.typeExamen)!
-//         .push(
-//           res as ResultatExamen & { typeExamen: string; libelleExamen: string }
-//         );
-//     });
-
-//     // ✅ Créer un client pour chaque type d'examen présent
-//     examensParType.forEach((examens, type) => {
-//       clientLabo.push({
-//         nomClient: client.nom ?? "",
-//         prenomClient: client.prenom ?? "",
-//         sexeClient: client.sexe ?? "",
-//         dateNaissanceClient: client.dateNaissance ?? null,
-//         ageClient: client.dateNaissance
-//           ? calculerAge(client.dateNaissance)
-//           : null,
-//         typeExamen: type as TypeExamen,
-//         visites,
-//         resultatsExamens: examens,
-//       });
-//     });
-//   }
-
-//   return { clientLabo };
-// };
-
 "use server";
 import prisma from "@/lib/prisma";
-import { ResultatExamen, Visite, Client, Clinique } from "@prisma/client";
+import { FactureExamen, Visite, Client, Clinique } from "@prisma/client";
 
 enum TypeExamen {
   MEDECIN = "MEDECIN",
@@ -294,16 +18,16 @@ export type ClientLaboType = {
   ageClient: number | null;
   typeExamen: TypeExamen;
   visites: Visite[];
-  resultatsExamens: (ResultatExamen & {
+  resultatsExamens: {
     typeExamen: string;
     libelleExamen: string;
-  })[];
+  }[];
 };
 
 type VisiteWithRelations = Visite & {
   Client: Client | null;
   Clinique: Clinique | null;
-  ResultatExamen: ResultatExamen[];
+  FactureExamen: FactureExamen[];
 };
 
 const calculerAge = (dateNaissance: Date): number => {
@@ -314,6 +38,7 @@ const calculerAge = (dateNaissance: Date): number => {
 
 export const fetchLaboData = async (
   clinicIds: string[],
+  activiteIds: string[],
   date1: Date,
   date2: Date
 ): Promise<Record<TypeExamen, ClientLaboType[]>> => {
@@ -339,26 +64,47 @@ export const fetchLaboData = async (
     };
   }
 
-  const factureExamen = await prisma.factureExamen.findMany({
-    where: {
-      idClinique: { in: clinicIds },
-      Visite: { dateVisite: { gte: date1, lte: date2 } },
+  const [allExamens, allVisites] = await Promise.all([
+    prisma.examen.findMany(),
+    prisma.visite.findMany({
+      where: {
+        idClinique: { in: clinicIds },
+        dateVisite: { gte: date1, lte: date2 },
+      },
+      include: { Client: true, Clinique: true, FactureExamen: true },
+    }) as Promise<VisiteWithRelations[]>,
+  ]);
+
+  // Parsing activiteIds : séparer les idActivite et idLieu
+  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
+    ([a, l], v) => {
+      const [act, lieu] = v.split(">").map((s) => s?.trim());
+      if (act) a.push(act);
+      if (lieu) l.push(lieu);
+      return [a, l];
     },
-  });
+    [[], []]
+  );
 
-  const allExamens = await prisma.examen.findMany();
+  // Sentinel "*" → pas de filtre (toutes les visites)
+  const noFilter = activiteIds.includes("*");
 
-  const allVisites = (await prisma.visite.findMany({
-    where: {
-      idClinique: { in: clinicIds },
-      dateVisite: { gte: date1, lte: date2 },
-    },
-    include: { Client: true, Clinique: true, ResultatExamen: true },
-  })) as VisiteWithRelations[];
+  const filteredVisites = noFilter
+    ? allVisites
+    : allVisites.filter((visite) => {
+        if (!tabIdActivite.length) {
+          // Aucune activité sélectionnée → routine uniquement (sans activité)
+          return !visite.idActivite;
+        }
+        const okActivite = tabIdActivite.includes(visite.idActivite ?? "");
+        const okLieu =
+          !tabIdLieu.length || tabIdLieu.includes(visite.idLieu ?? "");
+        return okActivite && okLieu;
+      });
 
-  // Grouper les visites par client
+  // Grouper les visites filtrées par client
   const visitesParClient = new Map<string, VisiteWithRelations[]>();
-  allVisites.forEach((visite) => {
+  filteredVisites.forEach((visite) => {
     const clientId = visite.idClient || "unknown";
     if (!visitesParClient.has(clientId)) visitesParClient.set(clientId, []);
     visitesParClient.get(clientId)!.push(visite);
@@ -379,31 +125,26 @@ export const fetchLaboData = async (
     const client = premiereVisite.Client;
     if (!client) continue;
 
-    // Récupérer tous les résultats d'examens du client
-    const resultatsExamensClient = visites.flatMap((visite) =>
-      visite.ResultatExamen.map((resultat: ResultatExamen) => {
-        const facture = factureExamen.find(
-          (fe) => fe.id === resultat.idFactureExamen
-        );
+    // Récupérer tous les examens facturés du client
+    const facturesExamensClient = visites.flatMap((visite) =>
+      visite.FactureExamen.map((facture) => {
         const examen = allExamens.find(
-          (e) => e.nomExamen === facture?.libelleExamen
+          (e) => e.nomExamen === facture.libelleExamen
         );
-
         return {
-          ...resultat,
           typeExamen: examen?.typeExamen ?? "",
-          libelleExamen: facture?.libelleExamen ?? "",
+          libelleExamen: facture.libelleExamen,
         };
       })
     );
 
-    // Grouper les résultats par type d'examen
+    // Grouper par type d'examen
     const examensParType = new Map<
       string,
-      (ResultatExamen & { typeExamen: string; libelleExamen: string })[]
+      { typeExamen: string; libelleExamen: string }[]
     >();
 
-    resultatsExamensClient.forEach((res) => {
+    facturesExamensClient.forEach((res) => {
       if (!res.typeExamen) return;
       if (!examensParType.has(res.typeExamen))
         examensParType.set(res.typeExamen, []);

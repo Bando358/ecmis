@@ -4,6 +4,7 @@ import {
   getAllPlanningByIdClient,
 } from "@/lib/actions/planningActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -69,8 +70,13 @@ export function Table02({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer ce client ?"
     );
     if (confirmed) {
+      const record = dataPf.find((d) => d.id === id);
       await deletePlanning(id);
-      setDataPf(dataPf.filter((d) => d.id !== id));
+      const remaining = dataPf.filter((d) => d.id !== id);
+      setDataPf(remaining);
+      if (record && !remaining.some((d) => d.idVisite === record.idVisite)) {
+        await removeFormulaireFromRecap(record.idVisite, "03 Fiche Planification familiale");
+      }
     }
   };
 

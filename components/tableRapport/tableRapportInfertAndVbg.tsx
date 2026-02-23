@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -435,39 +436,39 @@ export default function TableRapportAutreSsr({
       </div>
       <h2 className="font-bold">Rapport clients INF -</h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className="font-semibold border border-gray-300">
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={5}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Masculin
-            </TableCell>
-            <TableCell colSpan={5} className="font-bold text-center">
+            </TableHead>
+            <TableHead colSpan={5} className="font-semibold text-center border border-gray-300">
               Féminin
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold border border-gray-300">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
-            <TableCell className="border border-l-gray-400">-10 ans</TableCell>
-            <TableCell>10-14 ans</TableCell>
-            <TableCell>15-19 ans</TableCell>
-            <TableCell>20-24 ans</TableCell>
-            <TableCell className="border border-r-gray-400">
+          <TableRow className="bg-slate-200 text-center">
+            <TableHead className="border border-gray-300">-10 ans</TableHead>
+            <TableHead className="border border-gray-300">10-14 ans</TableHead>
+            <TableHead className="border border-gray-300">15-19 ans</TableHead>
+            <TableHead className="border border-gray-300">20-24 ans</TableHead>
+            <TableHead className="border border-gray-300">
               25 ans et +
-            </TableCell>
-            <TableCell>-10 ans</TableCell>
-            <TableCell>10-14 ans</TableCell>
-            <TableCell>15-19 ans</TableCell>
-            <TableCell>20-24 ans</TableCell>
-            <TableCell className="border border-r-gray-400">
+            </TableHead>
+            <TableHead className="border border-gray-300">-10 ans</TableHead>
+            <TableHead className="border border-gray-300">10-14 ans</TableHead>
+            <TableHead className="border border-gray-300">15-19 ans</TableHead>
+            <TableHead className="border border-gray-300">20-24 ans</TableHead>
+            <TableHead className="border border-gray-300">
               25 ans et +
-            </TableCell>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -541,39 +542,39 @@ export default function TableRapportAutreSsr({
       <Separator className="bg-green-300"></Separator>
       <h2 className="font-bold">Rapport services INF -</h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className="font-semibold border border-gray-300">
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={5}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Masculin
-            </TableCell>
-            <TableCell colSpan={5} className="font-bold text-center">
+            </TableHead>
+            <TableHead colSpan={5} className="font-semibold text-center border border-gray-300">
               Féminin
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold border border-gray-300">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
-            <TableCell className="border border-l-gray-400">-10 ans</TableCell>
-            <TableCell>10-14 ans</TableCell>
-            <TableCell>15-19 ans</TableCell>
-            <TableCell>20-24 ans</TableCell>
-            <TableCell className="border border-r-gray-400">
+          <TableRow className="bg-slate-200 text-center">
+            <TableHead className="border border-gray-300">-10 ans</TableHead>
+            <TableHead className="border border-gray-300">10-14 ans</TableHead>
+            <TableHead className="border border-gray-300">15-19 ans</TableHead>
+            <TableHead className="border border-gray-300">20-24 ans</TableHead>
+            <TableHead className="border border-gray-300">
               25 ans et +
-            </TableCell>
-            <TableCell>-10 ans</TableCell>
-            <TableCell>10-14 ans</TableCell>
-            <TableCell>15-19 ans</TableCell>
-            <TableCell>20-24 ans</TableCell>
-            <TableCell className="border border-r-gray-400">
+            </TableHead>
+            <TableHead className="border border-gray-300">-10 ans</TableHead>
+            <TableHead className="border border-gray-300">10-14 ans</TableHead>
+            <TableHead className="border border-gray-300">15-19 ans</TableHead>
+            <TableHead className="border border-gray-300">20-24 ans</TableHead>
+            <TableHead className="border border-gray-300">
               25 ans et +
-            </TableCell>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

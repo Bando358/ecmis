@@ -8,6 +8,12 @@ export async function getRecapVisiteByIdVisite(idVisite: string) {
   });
 }
 
+export async function getRecapVisitesByTabIdVisite(idVisites: string[]) {
+  return await prisma.recapVisite.findMany({
+    where: { idVisite: { in: idVisites } },
+  });
+}
+
 export async function createRecapVisite(data: {
   idVisite: string;
   idClient: string;
@@ -105,5 +111,45 @@ export async function updateRecapVisite(
     }
   } catch (error) {
     console.error(error);
+  }
+}
+
+/**
+ * Supprime entièrement le RecapVisite lié à une visite.
+ * Appelé quand la visite elle-même est supprimée.
+ */
+export async function deleteRecapVisite(idVisite: string) {
+  try {
+    await prisma.recapVisite.deleteMany({
+      where: { idVisite },
+    });
+  } catch (error) {
+    console.error("Erreur deleteRecapVisite:", error);
+  }
+}
+
+/**
+ * Retire un formulaire du RecapVisite si plus aucun enregistrement
+ * de ce type n'existe pour la visite.
+ * Appelé depuis les composants table après suppression d'un record.
+ */
+export async function removeFormulaireFromRecap(
+  idVisite: string,
+  formulaire: string,
+) {
+  try {
+    const recapVisite = await prisma.recapVisite.findUnique({
+      where: { idVisite },
+    });
+    if (recapVisite && recapVisite.formulaires.includes(formulaire)) {
+      await prisma.recapVisite.update({
+        where: { idVisite },
+        data: {
+          formulaires: recapVisite.formulaires.filter((f) => f !== formulaire),
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Erreur removeFormulaireFromRecap:", error);
   }
 }

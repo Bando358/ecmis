@@ -4,6 +4,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -549,26 +550,21 @@ export default function TableRapportSigObstetrique({
             Tableau 31.1 : Consultations prénatales
           </h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell className="border border-l-gray-400 font-bold">
+                <TableHead className="border border-gray-300 font-semibold">
                   Indicateurs
-                </TableCell>
-                <TableCell className="border border-l-gray-400 font-bold">
+                </TableHead>
+                <TableHead className="border border-gray-300 font-semibold">
                   Nombre
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tabNumeroCpn1.map((client) => (
                 <TableRow key={client.value}>
                   <TableCell
-                    className="border border-l-gray-400 break-word whitespace-normal overflow-hidden"
-                    style={{
-                      width: "350px",
-                      minWidth: "350px",
-                      maxWidth: "350px",
-                    }}
+                    className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[350px] min-w-[350px] max-w-[350px]"
                   >
                     {client.label}
                   </TableCell>
@@ -583,12 +579,7 @@ export default function TableRapportSigObstetrique({
               {tabAutreCpn.map((client) => (
                 <TableRow key={client.value}>
                   <TableCell
-                    className="border border-l-gray-400 break-word whitespace-normal overflow-hidden"
-                    style={{
-                      width: "350px",
-                      minWidth: "350px",
-                      maxWidth: "350px",
-                    }}
+                    className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[350px] min-w-[350px] max-w-[350px]"
                   >
                     {client.label}
                   </TableCell>
@@ -607,26 +598,21 @@ export default function TableRapportSigObstetrique({
             Tableau 31.2 : Dépistage pendant la grossesse
           </h2>
           <Table className="border max-w-full">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell className="border border-l-gray-400 font-bold">
+                <TableHead className="border border-gray-300 font-semibold">
                   Indicateurs
-                </TableCell>
-                <TableCell className="border border-l-gray-400 font-bold">
+                </TableHead>
+                <TableHead className="border border-gray-300 font-semibold">
                   Nombre
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tabDepistageGrossesse.map((client) => (
                 <TableRow key={client.value}>
                   <TableCell
-                    className="border border-l-gray-400 break-word whitespace-normal overflow-hidden"
-                    style={{
-                      width: "350px",
-                      minWidth: "350px",
-                      maxWidth: "350px",
-                    }}
+                    className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[350px] min-w-[350px] max-w-[350px]"
                   >
                     {client.label}
                   </TableCell>
@@ -643,26 +629,21 @@ export default function TableRapportSigObstetrique({
       <div className="max-w-200 mx-auto">
         <h2 className="font-bold mb-2">Tableau 31.3 : Prévention en CPN</h2>
         <Table className="border max-w-full">
-          <TableHeader className="bg-gray-200">
+          <TableHeader className="bg-slate-100">
             <TableRow>
-              <TableCell className="border border-l-gray-400 font-bold">
+              <TableHead className="border border-gray-300 font-semibold">
                 Indicateurs
-              </TableCell>
-              <TableCell className="border border-l-gray-400 font-bold">
+              </TableHead>
+              <TableHead className="border border-gray-300 font-semibold">
                 Nombre
-              </TableCell>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tabPreventionCpn.map((client) => (
               <TableRow key={client.value}>
                 <TableCell
-                  className="border border-l-gray-400 break-word whitespace-normal overflow-hidden"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                  className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   {client.label}
                 </TableCell>
@@ -681,35 +662,30 @@ export default function TableRapportSigObstetrique({
           Tableau 31.4 : Conseil et Dépistage VIH
         </h2>
         <Table className="border max-w-full">
-          <TableHeader className="bg-gray-200">
+          <TableHeader className="bg-slate-100">
             <TableRow>
-              <TableCell className="border border-l-gray-400 font-bold">
+              <TableHead className="border border-gray-300 font-semibold">
                 Indicateurs
-              </TableCell>
-              <TableCell className="border border-l-gray-400 font-bold">
+              </TableHead>
+              <TableHead className="border border-gray-300 font-semibold">
                 CPN
-              </TableCell>
-              <TableCell className="border border-l-gray-400 font-bold">
+              </TableHead>
+              <TableHead className="border border-gray-300 font-semibold">
                 Maternité
-              </TableCell>
-              <TableCell className="border border-l-gray-400 font-bold">
+              </TableHead>
+              <TableHead className="border border-gray-300 font-semibold">
                 Post-Natal
-              </TableCell>
-              <TableCell className="border border-l-gray-400 font-bold">
+              </TableHead>
+              <TableHead className="border border-gray-300 font-semibold">
                 Total
-              </TableCell>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tabConseilDepistage.map((client, index) => (
               <TableRow key={index}>
                 <TableCell
-                  className="border border-l-gray-400 break-word whitespace-normal overflow-hidden"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                  className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   {client.label}
                 </TableCell>

@@ -12,17 +12,28 @@ const prismaClientSingleton = () => {
   }).$extends({
     query: {
       async $allOperations({ operation, model, args, query }) {
-        const maxRetries = 3;
+        const maxRetries = 4;
         let lastError;
         for (let i = 0; i < maxRetries; i++) {
           try {
             return await query(args);
           } catch (error: unknown) {
             lastError = error;
-            // Retry only on connection errors (P1017)
-            if (error && typeof error === "object" && "code" in error && error.code === "P1017") {
-              console.warn(`Prisma retry ${i + 1}/${maxRetries} for ${model}.${operation}`);
-              await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+            const isRetryable =
+              error &&
+              typeof error === "object" &&
+              (("code" in error &&
+                ((error as { code: string }).code === "P1017" ||
+                  (error as { code: string }).code === "P1001" ||
+                  (error as { code: string }).code === "P2024")) ||
+                (error instanceof Error &&
+                  (error.message.includes("Closed") ||
+                    error.message.includes("connection") ||
+                    error.message.includes("timed out"))));
+            if (isRetryable) {
+              const delay = 1000 * (i + 1);
+              console.warn(`Prisma retry ${i + 1}/${maxRetries} for ${model}.${operation} (wait ${delay}ms)`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
             throw error;

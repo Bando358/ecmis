@@ -1,4 +1,3 @@
-// app/activite/page.tsx
 "use client";
 
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -9,19 +8,20 @@ import {
   getAllLieu,
   getOneLieu,
   updateLieu,
+  deleteLieu,
 } from "@/lib/actions/lieuActions";
 import {
   createActivite,
   getAllActivite,
   getAllActiviteByTabIdClinique,
   updateActivite,
+  deleteActivite,
 } from "@/lib/actions/activiteActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { getAllUser, getOneUser } from "@/lib/actions/authActions";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Lieu, Activite, TableName, Clinique, User } from "@prisma/client";
-// import { Lieu } from "@prisma/client";
 import { toast } from "sonner";
 import {
   Table,
@@ -37,46 +37,44 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Eye, EyeClosed, Pencil, ArrowBigLeftDash, Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Pencil,
+  ArrowBigLeftDash,
+  Plus,
+  Trash2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Eye,
+  EyeClosed,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { ActiviteDialog } from "@/components/ActiviteDialog";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import Select from "react-select";
 
-// Composant Skeleton pour les lignes du tableau
-const TableRowSkeleton = () => {
-  return (
-    <TableRow>
-      <TableCell>
-        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+const TableRowSkeleton = () => (
+  <TableRow>
+    {Array.from({ length: 6 }).map((_, i) => (
+      <TableCell key={i}>
+        <div className="h-4 bg-gray-200 rounded animate-pulse" />
       </TableCell>
-      <TableCell>
-        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-      </TableCell>
-      <TableCell className="text-center">
-        <div className="h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
-      </TableCell>
-      <TableCell className="text-center">
-        <div className="h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
-      </TableCell>
-      <TableCell>
-        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-      </TableCell>
-      <TableCell>
-        <div className="flex gap-2">
-          <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-};
-
-// Interface pour grouper les lieux par activité
-interface GroupedLieu {
-  activiteId: string;
-  activiteName: string;
-  lieux: Lieu[];
-}
+    ))}
+  </TableRow>
+);
 
 export default function ActivitePage() {
   const [activites, setActivites] = useState<Activite[]>([]);
@@ -88,184 +86,162 @@ export default function ActivitePage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [idLieu, setIdLieu] = useState<string>("");
   const [oneUser, setOneUser] = useState<User | null>(null);
-  const [positions, setPositions] = useState<number>(-1);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const [selectedCliniqueId, setSelectedCliniqueId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [groupedLieux, setGroupedLieux] = useState<GroupedLieu[]>([]);
+  const [deleteLieuId, setDeleteLieuId] = useState<string | null>(null);
+  const [isDeletingLieu, setIsDeletingLieu] = useState(false);
+
+  // Recherche, filtre, pagination
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterActiviteId, setFilterActiviteId] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const router = useRouter();
   const { data: session } = useSession();
-  const idUser = session?.user.id as string;
+  const idUser = session?.user?.id;
 
-  // === Charger l'utilisateur admin connecté ===
+  const itemsPerPageOptions = [
+    { value: 5, label: "5 par page" },
+    { value: 10, label: "10 par page" },
+    { value: 20, label: "20 par page" },
+    { value: 50, label: "50 par page" },
+  ];
+
+  // === Vérification permissions ===
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!idUser) return;
 
-  useEffect(() => {
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
+    const checkPermissions = async () => {
       try {
-        const permissions = await getUserPermissionsById(oneUser.id);
+        const user = await getOneUser(idUser);
+        if (!user) {
+          router.back();
+          return;
+        }
+        setOneUser(user);
+
+        const permissions = await getUserPermissionsById(user.id);
         const perm = permissions.find(
           (p: { table: string }) => p.table === TableName.LIEU
         );
 
-        if (perm?.canRead || oneUser.role === "ADMIN") {
+        if (perm?.canRead || user.role === "ADMIN") {
           setHasAccess(true);
         } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
+          toast.error("Vous n'avez pas la permission d'accéder à cette page.");
           router.back();
         }
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors de la vérification des permissions:", error);
+        toast.error("Erreur lors de la vérification des permissions.");
       } finally {
         setIsCheckingPermissions(false);
       }
     };
 
-    fetchPermissions();
-  }, [oneUser]);
+    checkPermissions();
+  }, [idUser, router]);
 
-  // Grouper les lieux par activité
+  // === Chargement des données en parallèle ===
   useEffect(() => {
-    if (lieux.length > 0 && activites.length > 0) {
-      const grouped: GroupedLieu[] = [];
+    if (!hasAccess || !oneUser) return;
 
-      // Créer un Map pour regrouper les lieux par activité
-      const lieuxByActivite = new Map<string, Lieu[]>();
-
-      lieux.forEach((lieu) => {
-        if (!lieuxByActivite.has(lieu.idActivite)) {
-          lieuxByActivite.set(lieu.idActivite, []);
-        }
-        lieuxByActivite.get(lieu.idActivite)?.push(lieu);
-      });
-
-      // Créer le tableau groupé
-      lieuxByActivite.forEach((lieuxArray, activiteId) => {
-        const activite = activites.find((a) => a.id === activiteId);
-
-        if (activite) {
-          grouped.push({
-            activiteId,
-            activiteName: activite.libelle,
-            lieux: lieuxArray,
-          });
-        }
-      });
-
-      setGroupedLieux(grouped);
-    }
-  }, [lieux, activites]);
-
-  // Chargement des données - une seule fois
-  useEffect(() => {
     const fetchData = async () => {
-      // Éviter de recharger les données si elles sont déjà chargées
-      if (dataLoaded) {
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
-      const user = await getOneUser(session?.user?.id || "");
-
       try {
-        // Charger les cliniques seulement si nécessaire
-        if (cliniques.length === 0) {
-          const resultCliniques = await getAllClinique();
-          setCliniques(resultCliniques as Clinique[]);
+        const [resultCliniques, resultUsers, resultActivites, resultLieux] =
+          await Promise.all([
+            getAllClinique(),
+            getAllUser(),
+            getAllActivite(),
+            getAllLieu(),
+          ]);
+
+        setCliniques(resultCliniques as Clinique[]);
+        setUsers(resultUsers as User[]);
+
+        // Filtrer les activités selon le rôle
+        if (oneUser.role !== "ADMIN") {
+          const userCliniques = oneUser.idCliniques;
+          setActivites(
+            (resultActivites as Activite[]).filter((a) =>
+              Array.isArray(userCliniques)
+                ? userCliniques.includes(a.idClinique)
+                : userCliniques === a.idClinique
+            )
+          );
+        } else {
+          setActivites(resultActivites as Activite[]);
         }
 
-        // Charger les users seulement si nécessaire
-        if (users.length === 0) {
-          const resultUsers = await getAllUser();
-          setUsers(resultUsers as User[]);
-        }
+        setLieux(resultLieux as Lieu[]);
 
-        // Configurer les activités pour le dialog
-        if (cliniques.length > 0 || (await getAllClinique()).length > 0) {
-          const availableCliniques =
-            cliniques.length > 0 ? cliniques : await getAllClinique();
-          const firstCliniqueId = availableCliniques[0].id;
+        // Configurer le dialog avec la première clinique
+        if (resultCliniques.length > 0) {
+          const firstCliniqueId = resultCliniques[0].id;
           setSelectedCliniqueId(firstCliniqueId);
-          const resultActivites = await getAllActiviteByTabIdClinique([
+          const dialogActivites = await getAllActiviteByTabIdClinique([
             firstCliniqueId,
           ]);
-          setActivitesForDialog(resultActivites as Activite[]);
+          setActivitesForDialog(dialogActivites as Activite[]);
         }
       } catch (error) {
-        console.error("Erreur lors du chargement des données :", error);
+        console.error("Erreur lors du chargement des données:", error);
         toast.error("Erreur lors du chargement des données");
-      }
-
-      const idClinique = user?.idCliniques;
-
-      if (idClinique) {
-        try {
-          // Charger les activités seulement si nécessaire
-          if (activites.length === 0) {
-            const resultActivites = await getAllActivite();
-            if (user?.role !== "ADMIN") {
-              setActivites(
-                resultActivites.filter((activite: { idClinique: any }) =>
-                  Array.isArray(idClinique)
-                    ? idClinique.includes(activite.idClinique)
-                    : idClinique === activite.idClinique
-                ) as Activite[]
-              );
-            } else {
-              setActivites(resultActivites as Activite[]);
-            }
-          }
-        } catch (error) {
-          console.error("Erreur lors du chargement des activités:", error);
-          toast.error("Erreur lors du chargement des activités");
-        }
-      } else {
-        console.warn("idClinique non disponible");
-        toast.warning("Clinique non définie - activités non chargées");
-      }
-
-      try {
-        // Charger les lieux seulement si nécessaire
-        if (lieux.length === 0) {
-          const resultLieux = await getAllLieu();
-          setLieux(resultLieux as Lieu[]);
-        }
-      } catch (error) {
-        console.error("Erreur lors du chargement des lieux:", error);
-        toast.error("Erreur lors du chargement des lieux");
       } finally {
         setIsLoading(false);
-        setDataLoaded(true);
       }
     };
 
-    if (session?.user && hasAccess && !dataLoaded) {
-      fetchData();
+    fetchData();
+  }, [hasAccess, oneUser]);
+
+  // === Filtrage des lieux ===
+  const filteredLieux = useMemo(() => {
+    let filtered = lieux;
+
+    // Filtre par recherche texte
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter((lieu) => {
+        const activite = activites.find((a) => a.id === lieu.idActivite);
+        const clinique = activite
+          ? cliniques.find((c) => c.id === activite.idClinique)
+          : null;
+        return (
+          lieu.lieu.toLowerCase().includes(search) ||
+          lieu.localite.toLowerCase().includes(search) ||
+          (activite?.libelle.toLowerCase().includes(search) ?? false) ||
+          (clinique?.nomClinique.toLowerCase().includes(search) ?? false)
+        );
+      });
     }
-  }, [
-    session?.user,
-    hasAccess,
-    dataLoaded,
-    activites.length,
-    cliniques.length,
-    users.length,
-    lieux.length,
-  ]);
+
+    // Filtre par activité
+    if (filterActiviteId) {
+      filtered = filtered.filter(
+        (lieu) => lieu.idActivite === filterActiviteId
+      );
+    }
+
+    return filtered;
+  }, [lieux, searchTerm, filterActiviteId, activites, cliniques]);
+
+  // === Pagination ===
+  const paginatedLieux = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredLieux.slice(start, start + itemsPerPage);
+  }, [filteredLieux, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredLieux.length / itemsPerPage);
+
+  // Reset page quand les filtres changent
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterActiviteId]);
 
   const {
     register,
@@ -276,11 +252,13 @@ export default function ActivitePage() {
     formState: { errors, isSubmitting },
   } = useForm<Lieu>();
 
-  // Fonction handleActivite qui sera passée au dialog
+  const watchDateDebut = watch("dateDebut");
+
+  // === Handlers ===
   const handleActivite = async (data: Activite, isUpdating: boolean) => {
     try {
       if (isUpdating) {
-        const activiteData = {
+        await updateActivite(data.id, {
           id: data.id,
           libelle: data.libelle,
           dateDebut: data.dateDebut,
@@ -291,16 +269,10 @@ export default function ActivitePage() {
           idClinique: data.idClinique,
           idUser: data.idUser,
           createdAt: data.createdAt,
-        };
-        await updateActivite(data.id, activiteData);
-        toast.info("Activité modifiée avec succès 🎉 !");
-
-        const resultActivites = await getAllActiviteByTabIdClinique([
-          data.idClinique,
-        ]);
-        setActivitesForDialog(resultActivites as Activite[]);
+        });
+        toast.info("Activité modifiée avec succès !");
       } else {
-        const activiteData = {
+        await createActivite({
           id: crypto.randomUUID(),
           libelle: data.libelle,
           dateDebut: new Date(data.dateDebut),
@@ -317,30 +289,164 @@ export default function ActivitePage() {
           idClinique: data.idClinique,
           idUser: data.idUser,
           createdAt: new Date(),
-        };
-        await createActivite(activiteData);
-        toast.success("Activité créée avec succès! 🎉 ");
-        const resultActivites = await getAllActiviteByTabIdClinique([
-          data.idClinique,
-        ]);
-        setActivitesForDialog(resultActivites as Activite[]);
+        });
+        toast.success("Activité créée avec succès !");
+      }
+
+      // Recharger les activités du dialog
+      const refreshed = await getAllActiviteByTabIdClinique([
+        data.idClinique,
+      ]);
+      setActivitesForDialog(refreshed as Activite[]);
+
+      // Recharger toutes les activités pour la page
+      const allRefreshed = await getAllActivite();
+      if (oneUser?.role !== "ADMIN") {
+        setActivites(
+          (allRefreshed as Activite[]).filter((a) =>
+            oneUser?.idCliniques.includes(a.idClinique)
+          )
+        );
+      } else {
+        setActivites(allRefreshed as Activite[]);
       }
     } catch (error) {
-      console.error("Erreur détaillée:", error);
+      console.error("Erreur:", error);
       throw error;
     }
   };
 
-  const handleActiviteCreated = (activite: Activite) => {
-    // Mettre à jour les données locales si nécessaire
-    console.log("Activité créée:", activite);
+  const handleDeleteActivite = async (id: string) => {
+    await deleteActivite(id);
+    // Recharger
+    const refreshed = await getAllActiviteByTabIdClinique([selectedCliniqueId]);
+    setActivitesForDialog(refreshed as Activite[]);
+    const allRefreshed = await getAllActivite();
+    setActivites(allRefreshed as Activite[]);
   };
 
-  const handleActiviteUpdated = (activite: Activite) => {
-    // Mettre à jour les données locales si nécessaire
-    console.log("Activité modifiée:", activite);
+  const handleCliniqueChangeInDialog = async (cliniqueId: string) => {
+    setSelectedCliniqueId(cliniqueId);
+    const refreshed = await getAllActiviteByTabIdClinique([cliniqueId]);
+    setActivitesForDialog(refreshed as Activite[]);
   };
 
+  const onSubmit: SubmitHandler<Lieu> = async (data) => {
+    // Validation dates
+    if (new Date(data.dateFin) <= new Date(data.dateDebut)) {
+      toast.error("La date de fin doit être postérieure à la date de début.");
+      return;
+    }
+
+    try {
+      if (isUpdating) {
+        await updateLieu(idLieu, {
+          id: idLieu,
+          lieu: data.lieu,
+          localite: data.localite,
+          idActivite: data.idActivite,
+          createdAt: data.createdAt,
+          dateDebut: new Date(data.dateDebut),
+          dateFin: new Date(data.dateFin),
+        });
+        toast.info("Lieu modifié avec succès !");
+        setIsUpdating(false);
+      } else {
+        await createLieu({
+          id: crypto.randomUUID(),
+          lieu: data.lieu,
+          localite: data.localite,
+          idActivite: data.idActivite,
+          createdAt: new Date(),
+          dateDebut: new Date(data.dateDebut),
+          dateFin: new Date(data.dateFin),
+        });
+        toast.success("Lieu créé avec succès !");
+      }
+
+      // Recharger les lieux
+      const allLieux = await getAllLieu();
+      setLieux(allLieux as Lieu[]);
+      reset();
+      setIsVisible(false);
+    } catch (error) {
+      toast.error("La création/modification du lieu a échoué !");
+      console.error("Erreur:", error);
+    }
+  };
+
+  const handleUpdateLieu = (id: string) => {
+    const lieu = lieux.find((l) => l.id === id);
+    if (!lieu) return;
+
+    setIdLieu(id);
+    setIsUpdating(true);
+    setValue("lieu", lieu.lieu);
+    setValue("localite", lieu.localite);
+    setValue("idActivite", lieu.idActivite);
+    setValue("dateDebut", lieu.dateDebut);
+    setValue("dateFin", lieu.dateFin);
+    setIsVisible(true);
+  };
+
+  const confirmDeleteLieu = async () => {
+    if (!deleteLieuId) return;
+    setIsDeletingLieu(true);
+    try {
+      await deleteLieu(deleteLieuId);
+      setLieux((prev) => prev.filter((l) => l.id !== deleteLieuId));
+      toast.success("Lieu supprimé avec succès !");
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de la suppression du lieu.");
+    } finally {
+      setIsDeletingLieu(false);
+      setDeleteLieuId(null);
+    }
+  };
+
+  const handleCancelForm = () => {
+    setIsVisible(false);
+    setIsUpdating(false);
+    reset();
+  };
+
+  // === Helpers ===
+  const getCliniqueNameByActivite = (idActivite: string) => {
+    const activite = activites.find((a) => a.id === idActivite);
+    if (!activite) return "Inconnue";
+    const clinique = cliniques.find((c) => c.id === activite.idClinique);
+    return clinique?.nomClinique || "Inconnue";
+  };
+
+  const getActiviteName = (idActivite: string) => {
+    const activite = activites.find((a) => a.id === idActivite);
+    return activite?.libelle || "Inconnue";
+  };
+
+  const formatDate = (dateString: string | Date) => {
+    return new Date(dateString).toLocaleDateString("fr-FR");
+  };
+
+  // Options pour le filtre activité
+  const activiteFilterOptions = [
+    { value: "", label: "Toutes les activités" },
+    ...activites.map((a) => ({
+      value: a.id,
+      label: `${a.libelle} (${getCliniqueNameByActivite(a.id)})`,
+    })),
+  ];
+
+  // === Pagination handlers ===
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+  const goToPreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  // === Rendu ===
   if (isCheckingPermissions) {
     return (
       <div className="flex justify-center gap-2 items-center h-64">
@@ -352,178 +458,101 @@ export default function ActivitePage() {
 
   if (!hasAccess) return null;
 
-  const handleHiddenForm = () => {
-    setIsVisible(!isVisible);
-  };
-
-  const onSubmit: SubmitHandler<Lieu> = async (data) => {
-    try {
-      if (isUpdating) {
-        const lieuData = {
-          id: idLieu,
-          lieu: data.lieu,
-          localite: data.localite,
-          idActivite: data.idActivite,
-          createdAt: data.createdAt,
-          dateDebut: data.dateDebut,
-          dateFin: data.dateFin,
-        };
-
-        await updateLieu(idLieu, lieuData);
-        toast.info("Lieu modifié avec succès 🎉 !");
-        setIsUpdating(false);
-
-        const oneLieu = await getOneLieu(idLieu);
-        if (oneLieu) {
-          const updatedLieux = [...lieux];
-          updatedLieux.splice(positions, 1, oneLieu);
-          setLieux(updatedLieux);
-        }
-        reset();
-      } else {
-        // CORRECTION : Supprimer createdAt de la création car il semble causer des problèmes
-        const lieuData = {
-          id: crypto.randomUUID(),
-          lieu: data.lieu,
-          localite: data.localite,
-          idActivite: watch("idActivite"),
-          createdAt: new Date(),
-          dateDebut: new Date(data.dateDebut),
-          dateFin: new Date(data.dateFin),
-        };
-
-        await createLieu(lieuData);
-        toast.success("Lieu créé avec succès! 🎉 ");
-        const allLieux = await getAllLieu();
-        setLieux(allLieux as Lieu[]);
-        handleHiddenForm();
-      }
-
-      reset();
-      setIsVisible(false);
-    } catch (error) {
-      toast.error("La création/modification du lieu a échoué !");
-      console.error("Erreur détaillée:", error);
-    }
-  };
-
-  const handleUpdateLieu = async (id: string, position: number) => {
-    setPositions(position);
-    const lieuToUpdate = lieux.find((lieu) => lieu.id === id);
-
-    setIdLieu(id);
-
-    if (lieuToUpdate) {
-      setIsUpdating(true);
-
-      setValue("lieu", lieuToUpdate.lieu);
-      setValue("localite", lieuToUpdate.localite);
-      setValue("idActivite", lieuToUpdate.idActivite);
-      setValue("dateDebut", lieuToUpdate.dateDebut);
-      setValue("dateFin", lieuToUpdate.dateFin);
-
-      setIsVisible(true);
-    }
-  };
-
-  const nameCliniqueActivite = (idActivite: string) => {
-    const activite = activites.find((p) => p.id === idActivite);
-    const clinique = cliniques.find(
-      (c) => c.id === (activite ? activite.idClinique : "")
-    );
-    if (clinique) {
-      return clinique ? clinique.nomClinique : "introuvable";
-    }
-    return "Chargement...";
-  };
-
-  const nameActivite = (idActivite: string) => {
-    if (activites.length > 0) {
-      const activite = activites.find((p) => p.id === idActivite);
-      return activite ? activite.libelle : "Activité introuvable";
-    }
-    return "Chargement...";
-  };
-
-  const formatDate = (dateString: string | Date) => {
-    return new Date(dateString).toLocaleDateString("fr-FR");
-  };
-
   return (
-    <div className="space-y-4 relative max-w-7xl mx-auto p-4">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ArrowBigLeftDash
-              className="absolute top-2 text-blue-600 cursor-pointer"
-              onClick={() => {
-                router.push("/administrator");
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Retour sur page administration</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      {/* Bouton pour ouvrir le dialog des activités */}
-      <div className="absolute right-2 -top-1 flex gap-2">
-        <ActiviteDialog
-          cliniques={cliniques}
-          userId={session?.user.id}
-          users={users}
-          activites={activitesForDialog}
-          selectedCliniqueId={selectedCliniqueId}
-          onActiviteCreated={handleActiviteCreated}
-          onActiviteUpdated={handleActiviteUpdated}
-          handleActivite={handleActivite}
-        >
-          <Button className="flex items-center gap-2">
-            <Plus size={16} />
-            Gérer les Activités
-          </Button>
-        </ActiviteDialog>
-
+    <div className="space-y-4 max-w-7xl mx-auto p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant={"ghost"} onClick={handleHiddenForm}>
-                {isVisible ? (
-                  <Eye className="text-blue-600" />
-                ) : (
-                  <EyeClosed className="text-red-600" />
-                )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/administrator")}
+                className="h-8 w-8"
+                aria-label="Retour sur page administration"
+              >
+                <ArrowBigLeftDash className="h-5 w-5 text-blue-600" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Ouvrir le formulaire des lieux</p>
+              <p>Retour sur page administration</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        <div className="flex gap-2">
+          <ActiviteDialog
+            cliniques={cliniques}
+            userId={idUser}
+            users={users}
+            activites={activitesForDialog}
+            selectedCliniqueId={selectedCliniqueId}
+            onCliniqueChange={handleCliniqueChangeInDialog}
+            onActiviteCreated={() => {}}
+            onActiviteUpdated={() => {}}
+            onActiviteDeleted={() => {}}
+            handleActivite={handleActivite}
+            handleDeleteActivite={handleDeleteActivite}
+          >
+            <Button className="flex items-center gap-2">
+              <Plus size={16} />
+              Gérer les Activités
+            </Button>
+          </ActiviteDialog>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (isVisible) handleCancelForm();
+                    else setIsVisible(true);
+                  }}
+                  className="h-8 w-8"
+                  aria-label={
+                    isVisible
+                      ? "Fermer le formulaire des lieux"
+                      : "Ouvrir le formulaire des lieux"
+                  }
+                >
+                  {isVisible ? (
+                    <Eye className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <EyeClosed className="h-5 w-5 text-red-600" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isVisible ? "Fermer le formulaire" : "Ouvrir le formulaire"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
-      {/* Le reste du code pour le formulaire des lieux reste inchangé */}
+      {/* Formulaire Lieu */}
       {isVisible && (
-        <>
-          <h2 className="text-center text-xl font-bold uppercase">
+        <div className="p-4 border rounded-md max-w-3xl mx-auto bg-stone-50">
+          <h2 className="text-center text-xl font-bold uppercase mb-4">
             {isUpdating
-              ? "Formulaire de modification d'un Lieu"
-              : "Formulaire de création d'un Lieu"}
+              ? "Modifier un Lieu"
+              : "Créer un Lieu"}
           </h2>
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="p-4 border rounded-md max-w-150 mx-auto bg-stone-50 grid grid-cols-1 md:grid-cols-2 gap-4"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
             <div>
               <label className="block text-sm font-medium">Nom du lieu</label>
               <Input
-                {...register("lieu", {
-                  required: "Nom du lieu est requis",
-                })}
+                {...register("lieu", { required: "Nom du lieu est requis" })}
                 placeholder="Nom du lieu"
                 className="mt-1"
-                name="lieu"
               />
               {errors.lieu && (
                 <span className="text-red-500 text-sm">
@@ -540,7 +569,6 @@ export default function ActivitePage() {
                 })}
                 placeholder="Localité"
                 className="mt-1"
-                name="localite"
               />
               {errors.localite && (
                 <span className="text-red-500 text-sm">
@@ -556,23 +584,17 @@ export default function ActivitePage() {
                   required: "Activité est requise",
                 })}
                 className="w-full p-2 border rounded-md"
-                name="idActivite"
                 defaultValue=""
               >
-                <option value="" disabled className="text-gray-200">
+                <option value="" disabled>
                   Sélectionner une activité
                 </option>
                 {activites.map((activite) => (
                   <option key={activite.id} value={activite.id}>
-                    {nameCliniqueActivite(activite.id)} -{activite.libelle}{" "}
-                    {activite.dateDebut && activite.dateFin ? (
-                      <>
-                        {formatDate(activite.dateDebut)} -{" "}
-                        {formatDate(activite.dateFin)}
-                      </>
-                    ) : (
-                      <>Aucune période définie</>
-                    )}
+                    {getCliniqueNameByActivite(activite.id)} -{" "}
+                    {activite.libelle}{" "}
+                    ({formatDate(activite.dateDebut)} -{" "}
+                    {formatDate(activite.dateFin)})
                   </option>
                 ))}
               </select>
@@ -582,8 +604,11 @@ export default function ActivitePage() {
                 </span>
               )}
             </div>
+
             <div>
-              <label className="block text-sm font-medium">Date de début</label>
+              <label className="block text-sm font-medium">
+                Date de début
+              </label>
               <Input
                 type="datetime-local"
                 {...register("dateDebut", {
@@ -604,6 +629,15 @@ export default function ActivitePage() {
                 type="datetime-local"
                 {...register("dateFin", {
                   required: "Date de fin est requise",
+                  validate: (value) => {
+                    if (
+                      watchDateDebut &&
+                      new Date(value) <= new Date(watchDateDebut)
+                    ) {
+                      return "La date de fin doit être postérieure à la date de début";
+                    }
+                    return true;
+                  },
                 })}
                 className="mt-1"
               />
@@ -614,139 +648,303 @@ export default function ActivitePage() {
               )}
             </div>
 
-            <div className="md:col-span-2">
-              <Button type="submit" className="mt-4 w-full">
-                {isUpdating && isSubmitting
-                  ? "Modification en cours ..."
-                  : isUpdating
-                  ? "Modifier le Lieu"
+            <div className="md:col-span-2 flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelForm}
+                className="flex-1"
+              >
+                Annuler
+              </Button>
+              <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                {isUpdating
+                  ? isSubmitting
+                    ? "Modification en cours..."
+                    : "Modifier le Lieu"
                   : isSubmitting
-                  ? "Création en cours ..."
+                  ? "Création en cours..."
                   : "Créer le Lieu"}
               </Button>
             </div>
           </form>
-        </>
+        </div>
       )}
 
+      {/* Section Liste des Lieux */}
       <div className="flex-1">
-        <h2 className="text-center text-xl font-bold uppercase">
+        <h2 className="text-center text-xl font-bold uppercase mb-4">
           Liste des Lieux
         </h2>
-        <div className="border rounded-md mt-3">
-          <Table className="bg-white p-4 rounded-md overflow-hidden">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lieu</TableHead>
-                <TableHead>Localité</TableHead>
-                <TableHead className="text-center">Période</TableHead>
-                <TableHead className="text-center">Activité</TableHead>
-                <TableHead>Antennes</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                // Affichage du skeleton pendant le chargement
-                <>
-                  {Array.from({ length: 2 }).map((_, index) => (
+
+        {/* Barre de recherche et filtres */}
+        <div className="mb-4 flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Rechercher par lieu, localité, activité, clinique..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="w-full md:w-64">
+            <Select
+              options={activiteFilterOptions}
+              value={activiteFilterOptions.find(
+                (opt) => opt.value === filterActiviteId
+              )}
+              onChange={(option) => setFilterActiviteId(option?.value || "")}
+              className="basic-single"
+              classNamePrefix="select"
+              placeholder="Filtrer par activité"
+            />
+          </div>
+
+          <div className="w-full md:w-44">
+            <Select
+              options={itemsPerPageOptions}
+              value={itemsPerPageOptions.find(
+                (opt) => opt.value === itemsPerPage
+              )}
+              onChange={(option) => {
+                setItemsPerPage(option?.value || 10);
+                setCurrentPage(1);
+              }}
+              className="basic-single"
+              classNamePrefix="select"
+              placeholder="Par page"
+            />
+          </div>
+        </div>
+
+        {/* Nombre de résultats */}
+        <div className="text-sm text-gray-600 mb-2">
+          {filteredLieux.length} lieu(x) trouvé(s)
+          {searchTerm && (
+            <span>
+              {" "}
+              pour &quot;{searchTerm}&quot;
+            </span>
+          )}
+        </div>
+
+        {/* Tableau */}
+        <div className="border rounded-md bg-white overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-stone-50">
+                  <TableHead className="font-semibold">Lieu</TableHead>
+                  <TableHead className="font-semibold">Localité</TableHead>
+                  <TableHead className="font-semibold text-center">
+                    Période
+                  </TableHead>
+                  <TableHead className="font-semibold text-center">
+                    Activité
+                  </TableHead>
+                  <TableHead className="font-semibold">Antenne</TableHead>
+                  <TableHead className="font-semibold text-center">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 3 }).map((_, index) => (
                     <TableRowSkeleton key={index} />
-                  ))}
-                </>
-              ) : groupedLieux.length > 0 ? (
-                // Affichage des données groupées par activité avec fusion de la colonne Activité
-                groupedLieux.map((group) =>
-                  group.lieux.map((lieu, lieuIndex) => (
-                    <TableRow key={lieu.id}>
+                  ))
+                ) : paginatedLieux.length > 0 ? (
+                  paginatedLieux.map((lieu) => (
+                    <TableRow key={lieu.id} className="hover:bg-gray-50">
                       <TableCell className="font-medium">{lieu.lieu}</TableCell>
                       <TableCell>{lieu.localite}</TableCell>
+                      <TableCell className="text-center text-sm">
+                        {formatDate(lieu.dateDebut)} -{" "}
+                        {formatDate(lieu.dateFin)}
+                      </TableCell>
                       <TableCell className="text-center">
-                        {lieu.dateDebut && lieu.dateFin ? (
-                          <span>
-                            {formatDate(lieu.dateDebut)} -{" "}
-                            {formatDate(lieu.dateFin)}
-                          </span>
-                        ) : (
-                          <span>Aucune période définie</span>
-                        )}
-                      </TableCell>
-
-                      {/* Colonne Activité fusionnée - seulement sur la première ligne de chaque groupe */}
-                      {lieuIndex === 0 ? (
-                        <TableCell
-                          rowSpan={group.lieux.length}
-                          className="text-center align-middle"
-                        >
-                          {group.activiteName}
-                        </TableCell>
-                      ) : null}
-
-                      <TableCell>
-                        {nameCliniqueActivite(lieu.idActivite)}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {getActiviteName(lieu.idActivite)}
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Pencil
-                            className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-blue-600 cursor-pointer"
-                            size={16}
-                            onClick={() => {
-                              // Trouver l'index global du lieu dans le tableau lieux
-                              const globalIndex = lieux.findIndex(
-                                (l) => l.id === lieu.id
-                              );
-                              handleUpdateLieu(lieu.id, globalIndex);
-                            }}
-                          />
+                        {getCliniqueNameByActivite(lieu.idActivite)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-center gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleUpdateLieu(lieu.id)}
+                                  aria-label="Modifier le lieu"
+                                >
+                                  <Pencil className="h-4 w-4 text-blue-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Modifier</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => setDeleteLieuId(lieu.id)}
+                                  aria-label="Supprimer le lieu"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Supprimer</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))
-                )
-              ) : lieux.length > 0 ? (
-                // Fallback si le groupement n'a pas fonctionné - affichage normal
-                lieux.map((lieu, index) => (
-                  <TableRow key={lieu.id}>
-                    <TableCell className="font-medium">{lieu.lieu}</TableCell>
-                    <TableCell>{lieu.localite}</TableCell>
-                    <TableCell className="text-center">
-                      {lieu.dateDebut && lieu.dateFin ? (
-                        <span>
-                          {formatDate(lieu.dateDebut)} -{" "}
-                          {formatDate(lieu.dateFin)}
-                        </span>
-                      ) : (
-                        <span>Aucune période définie</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {nameActivite(lieu.idActivite)}
-                    </TableCell>
-                    <TableCell>
-                      {nameCliniqueActivite(lieu.idActivite)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Pencil
-                          className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-blue-600 cursor-pointer"
-                          size={16}
-                          onClick={() => handleUpdateLieu(lieu.id, index)}
-                        />
-                      </div>
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-gray-500"
+                    >
+                      Aucun lieu trouvé
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                // Message quand il n'y a pas de données
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">
-                    Aucun lieu trouvé
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+            <div className="text-sm text-gray-600">
+              Affichage de {(currentPage - 1) * itemsPerPage + 1} à{" "}
+              {Math.min(currentPage * itemsPerPage, filteredLieux.length)} sur{" "}
+              {filteredLieux.length} lieux
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+                aria-label="Première page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+                aria-label="Page précédente"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={
+                        currentPage === pageNum ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+                aria-label="Page suivante"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+                aria-label="Dernière page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="text-sm text-gray-600">
+              Page {currentPage} sur {totalPages}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Dialog de confirmation suppression lieu */}
+      <AlertDialog
+        open={!!deleteLieuId}
+        onOpenChange={(open) => !open && setDeleteLieuId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est
+              irréversible. Les visites rattachées empêcheront la suppression.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingLieu}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteLieu}
+              disabled={isDeletingLieu}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeletingLieu ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

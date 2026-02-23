@@ -2,13 +2,21 @@
 
 import { FactureProduit } from "@prisma/client";
 import prisma from "@/lib/prisma";
-// import { ClientData } from "./rapportActions";
+import { logAction } from "./journalPharmacyActions";
 
 // Création de FactureProduit
 export async function createFactureProduit(data: FactureProduit) {
-  return await prisma.factureProduit.create({
-    data,
+  const result = await prisma.factureProduit.create({ data });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "FactureProduit",
+    entiteId: result.id,
+    idClinique: data.idClinique,
+    description: `Vente produit: ${data.nomProduit} (x${data.quantite}) - ${data.montantProduit} FCFA`,
+    nouvellesDonnees: { nomProduit: data.nomProduit, quantite: data.quantite, montantProduit: data.montantProduit },
   });
+  return result;
 }
 
 // Récupérer toutes les FactureProduit par idVisite
@@ -41,17 +49,37 @@ export async function getAllFactureProduitByIdVisiteByData(data: ClientData[]) {
 }
 // Suppression d'une FactureProduit
 export async function deleteFactureProduit(id: string) {
-  return await prisma.factureProduit.delete({
-    where: { id },
-  });
+  const existing = await prisma.factureProduit.findUnique({ where: { id } });
+  const result = await prisma.factureProduit.delete({ where: { id } });
+  if (existing) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "FactureProduit",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression vente produit: ${existing.nomProduit} (x${existing.quantite})`,
+      anciennesDonnees: { nomProduit: existing.nomProduit, quantite: existing.quantite, montantProduit: existing.montantProduit },
+    });
+  }
+  return result;
 }
 
 //Mise à jour de FactureProduit
 export async function updateFactureProduit(id: string, data: FactureProduit) {
-  return await prisma.factureProduit.update({
-    where: { id },
-    data,
+  const oldRecord = await prisma.factureProduit.findUnique({ where: { id } });
+  const result = await prisma.factureProduit.update({ where: { id }, data });
+  await logAction({
+    idUser: data.idUser,
+    action: "MODIFICATION",
+    entite: "FactureProduit",
+    entiteId: id,
+    idClinique: data.idClinique,
+    description: `Modification vente produit: ${data.nomProduit}`,
+    anciennesDonnees: oldRecord ? { nomProduit: oldRecord.nomProduit, quantite: oldRecord.quantite, montantProduit: oldRecord.montantProduit } : null,
+    nouvellesDonnees: { nomProduit: data.nomProduit, quantite: data.quantite, montantProduit: data.montantProduit },
   });
+  return result;
 }
 
 export async function updateProduitByFactureProduit(
@@ -77,6 +105,17 @@ export async function updateProduitByFactureProduit(
     const updatedProduit = await prisma.tarifProduit.update({
       where: { id: idProduit },
       data: { quantiteStock: produit.quantiteStock - quantiteProduit },
+    });
+
+    await logAction({
+      idUser: produit.idUser,
+      action: "MODIFICATION",
+      entite: "TarifProduit",
+      entiteId: idProduit,
+      idClinique: produit.idClinique,
+      description: `Decrement stock: -${quantiteProduit} unites (vente) | ${produit.quantiteStock} -> ${updatedProduit.quantiteStock}`,
+      anciennesDonnees: { quantiteStock: produit.quantiteStock },
+      nouvellesDonnees: { quantiteStock: updatedProduit.quantiteStock },
     });
 
     return updatedProduit;

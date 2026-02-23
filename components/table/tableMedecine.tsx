@@ -9,6 +9,7 @@ import {
   getAllMedecineByIdClient,
   deleteMedecine,
 } from "@/lib/actions/mdgActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -65,8 +66,13 @@ export function Table16({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataMedecine.find((d) => d.id === id);
       await deleteMedecine(id);
-      setDataMedecine(dataMedecine.filter((d) => d.id !== id));
+      const remaining = dataMedecine.filter((d) => d.id !== id);
+      setDataMedecine(remaining);
+      if (record && !remaining.some((d) => d.mdgIdVisite === record.mdgIdVisite)) {
+        await removeFormulaireFromRecap(record.mdgIdVisite, "17 Fiche Medecine générale");
+      }
     }
   };
 

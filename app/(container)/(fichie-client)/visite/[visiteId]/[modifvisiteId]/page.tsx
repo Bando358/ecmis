@@ -33,7 +33,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getAllActiviteByIdClinique } from "@/lib/actions/activiteActions";
+import { getActiveActivitesByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { getOneUser } from "@/lib/actions/authActions";
 import {
@@ -44,7 +44,6 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import Retour from "@/components/retour";
 
@@ -78,29 +77,14 @@ export default function FormVisiteModification({
   const [permission, setPermission] = useState<Permission | null>(null);
   const [prescripteur, setPrescripteur] = useState<User | null>(null);
   const [loadingLieu, setLoadingLieu] = useState(false);
-  const [loadingActivite, setLoadingActivite] = useState(false);
   const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
-  const [
-    hasLoadedLieusForCurrentActivite,
-    setHasLoadedLieusForCurrentActivite,
-  ] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const { setSelectedClientId } = useClientContext();
 
   const { data: session, status } = useSession();
-  const idPrestataire = session?.user.id as string;
+  const idPrestataire = session?.user?.id || "";
   const router = useRouter();
-  const idUser = session?.user?.id || "";
-
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      // setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -119,47 +103,75 @@ export default function FormVisiteModification({
 
   // Validation personnalisée pour le champ lieu
   const validateLieu = (value: string | null) => {
-    // Si une activité est sélectionnée, le lieu est obligatoire
     if (idActivite && !value) {
       return "Le lieu est obligatoire lorsque une activité est sélectionnée";
     }
     return true;
   };
 
-  // Chargement des données initiales
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
+    if (!idPrestataire || !modifvisiteId) return;
+
     const fetchData = async () => {
       try {
         setIsLoadingInitialData(true);
-        const oneVisiteData = await getOneVisite(modifvisiteId);
+
+        // Étape 1: Requêtes indépendantes en parallèle
+        const [user, oneVisiteData] = await Promise.all([
+          getOneUser(idPrestataire),
+          getOneVisite(modifvisiteId),
+        ]);
+
+        setPrescripteur(user);
         setOneVisite(oneVisiteData as Visite);
 
         if (oneVisiteData?.idClient) {
           setSelectedClientId(oneVisiteData.idClient);
-          const allVisiteByClient = await getAllVisiteByIdClient(
-            oneVisiteData.idClient,
-          );
-          setAllVisite(allVisiteByClient);
 
-          setLoadingActivite(true);
-          const allActivite = await getAllActiviteByIdClinique(
-            oneVisiteData.idClinique,
+          // Étape 2: Requêtes dépendantes en parallèle
+          const [allVisiteByClient, allActivite, permissions] =
+            await Promise.all([
+              getAllVisiteByIdClient(oneVisiteData.idClient),
+              getActiveActivitesByIdClinique(oneVisiteData.idClinique),
+              user
+                ? getUserPermissionsById(user.id)
+                : Promise.resolve([]),
+            ]);
+
+          setAllVisite(allVisiteByClient);
+          setActivite(allActivite);
+
+          const perm = permissions.find(
+            (p: { table: string }) => p.table === TableName.VISITE,
           );
-          setActivite(allActivite as Activite[]);
-          setLoadingActivite(false);
+          setPermission(perm || null);
+
+          // Charger les lieux si une activité est déjà sélectionnée
+          if (oneVisiteData.idActivite) {
+            try {
+              setLoadingLieu(true);
+              const lieux = await getAllLieuByTabIdActivite([
+                oneVisiteData.idActivite,
+              ]);
+              setLieus(lieux);
+            } catch {
+              setLieus([]);
+            } finally {
+              setLoadingLieu(false);
+            }
+          }
         }
       } catch (err) {
         console.error("Erreur chargement données:", err);
         toast.error("Erreur lors du chargement des données");
-        setLoadingActivite(false);
-        setLoadingLieu(false);
       } finally {
         setIsLoadingInitialData(false);
       }
     };
 
     fetchData();
-  }, [modifvisiteId, setSelectedClientId]);
+  }, [idPrestataire, modifvisiteId, setSelectedClientId]);
 
   // Réinitialiser le formulaire quand oneVisite est chargé
   useEffect(() => {
@@ -174,62 +186,18 @@ export default function FormVisiteModification({
         idActivite: oneVisite.idActivite || null,
         idLieu: oneVisite.idLieu || null,
       });
-      // Réinitialiser le flag pour permettre le rechargement des lieux
-      setHasLoadedLieusForCurrentActivite(false);
     }
   }, [oneVisite, form, idPrestataire, isLoadingInitialData]);
 
-  // Vérification des permissions avec gestion d'erreur NextAuth
+  // Charger les lieux quand l'activité change (seulement en mode édition)
   useEffect(() => {
-    // Attendre que la session soit complètement chargée
-    if (status === "loading" || !prescripteur) return;
+    if (isLoadingInitialData) return;
 
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.VISITE,
-        );
-        setPermission(perm || null);
-      } catch (error: any) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-
-        // Vérifier si c'est une erreur d'authentification
-        if (
-          error.message?.includes("JSON") ||
-          error.message?.includes("DOCTYPE")
-        ) {
-          setAuthError("Erreur d'authentification. Veuillez vous reconnecter.");
-          toast.error("Session expirée. Veuillez vous reconnecter.");
-
-          // Rediriger vers la page de connexion après un délai
-          setTimeout(() => {
-            router.push("/api/auth/signin");
-          }, 2000);
-        }
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur, status, router]);
-
-  // Charger les lieux quand l'activité change
-  useEffect(() => {
     const fetchLieus = async () => {
       if (!idActivite) {
         setLieus([]);
-        setHasLoadedLieusForCurrentActivite(true);
-        // Réinitialiser le champ lieu quand l'activité est désélectionnée
         form.setValue("idLieu", null);
         form.clearErrors("idLieu");
-        return;
-      }
-
-      // Éviter de recharger si on a déjà chargé les lieux pour cette activité
-      if (hasLoadedLieusForCurrentActivite && lieus.length > 0) {
         return;
       }
 
@@ -237,18 +205,12 @@ export default function FormVisiteModification({
         setLoadingLieu(true);
         const lieux = await getAllLieuByTabIdActivite([idActivite]);
         setLieus(lieux);
-        setHasLoadedLieusForCurrentActivite(true);
 
-        // Si un lieu était déjà sélectionné mais n'est plus dans la liste, le réinitialiser
+        // Si un lieu était sélectionné mais n'est plus dans la liste, le réinitialiser
         if (idLieu && !lieux.some((l) => l.id === idLieu)) {
           form.setValue("idLieu", null);
-          // Déclencher la validation après avoir changé la valeur
-          setTimeout(() => {
-            form.trigger("idLieu");
-          }, 0);
         }
-      } catch (error) {
-        console.error("Erreur lors du chargement des lieux:", error);
+      } catch {
         toast.error("Erreur de chargement des lieux");
         setLieus([]);
       } finally {
@@ -257,50 +219,11 @@ export default function FormVisiteModification({
     };
 
     fetchLieus();
-  }, [idActivite, hasLoadedLieusForCurrentActivite, form, idLieu]);
-
-  // Effet spécifique pour charger les lieux lors de l'initialisation si une activité est déjà sélectionnée
-  useEffect(() => {
-    const loadInitialLieus = async () => {
-      if (
-        oneVisite?.idActivite &&
-        !hasLoadedLieusForCurrentActivite &&
-        !isLoadingInitialData
-      ) {
-        try {
-          setLoadingLieu(true);
-          const lieux = await getAllLieuByTabIdActivite([oneVisite.idActivite]);
-          setLieus(lieux);
-          setHasLoadedLieusForCurrentActivite(true);
-        } catch (error) {
-          console.error("Erreur lors du chargement initial des lieux:", error);
-          setLieus([]);
-        } finally {
-          setLoadingLieu(false);
-        }
-      }
-    };
-
-    loadInitialLieus();
-  }, [oneVisite, hasLoadedLieusForCurrentActivite, isLoadingInitialData]);
-
-  // Effet pour déclencher la validation du lieu quand l'activité change
-  useEffect(() => {
-    if (idActivite) {
-      // Déclencher la validation du lieu après un court délai
-      const timer = setTimeout(() => {
-        form.trigger("idLieu");
-      }, 100);
-      return () => clearTimeout(timer);
-    } else {
-      // Si pas d'activité, effacer les erreurs sur le lieu
-      form.clearErrors("idLieu");
-    }
-  }, [idActivite, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idActivite]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     try {
-      // Validation supplémentaire avant soumission
       if (data.idActivite && !data.idLieu) {
         form.setError("idLieu", {
           type: "manual",
@@ -311,10 +234,9 @@ export default function FormVisiteModification({
         return;
       }
 
-      // Vérification de la date existante
       const isDateExist = allVisite.some(
         (v) =>
-          v.id !== modifvisiteId && // Exclure la visite actuelle
+          v.id !== modifvisiteId &&
           format(new Date(v.dateVisite), "yyyy-MM-dd") === data.dateVisite,
       );
 
@@ -337,14 +259,10 @@ export default function FormVisiteModification({
       };
 
       if (oneVisite) {
-        console.log("modifvisiteId:", modifvisiteId);
-        console.log("formattedData:", formattedData);
         const updatedVisite = await updateVisite(modifvisiteId, formattedData);
         setOneVisite(updatedVisite);
         setIsVisible(false);
-        // Réinitialiser le flag pour permettre le rechargement des lieux si nécessaire
-        setHasLoadedLieusForCurrentActivite(false);
-        toast.success("Visite modifiée avec succès! 🎉");
+        toast.success("Visite modifiée avec succès !");
       }
     } catch (err) {
       console.error(err);
@@ -380,7 +298,7 @@ export default function FormVisiteModification({
     }
 
     if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
+      toast.error(
         "Vous n'avez pas la permission de modifier une visite. Contactez un administrateur.",
       );
       return router.back();
@@ -404,22 +322,18 @@ export default function FormVisiteModification({
       form.setValue("idActivite", null);
       form.setValue("idLieu", null);
       form.clearErrors("idLieu");
-      // Réinitialiser le flag pour permettre le rechargement des lieux
-      setHasLoadedLieusForCurrentActivite(false);
     }
   };
 
   const handleReturnActivite = (idActivite: string) => {
-    if (loadingActivite) {
-      return <Skeleton className="h-4 w-32" />;
-    }
     const oneActivite = activite.find((a) => a.id === idActivite);
     return (
       <span>
         {oneActivite?.libelle}{" "}
         <span className="text-sm italic">
-          {oneActivite?.dateDebut.toLocaleDateString("fr-FR")} {"-"}{" "}
-          {oneActivite?.dateFin.toLocaleDateString("fr-FR")}
+          {new Date(oneActivite?.dateDebut ?? "").toLocaleDateString("fr-FR")}{" "}
+          {"-"}{" "}
+          {new Date(oneActivite?.dateFin ?? "").toLocaleDateString("fr-FR")}
         </span>
       </span>
     );
@@ -434,26 +348,20 @@ export default function FormVisiteModification({
       <span>
         {oneLieu?.lieu}{" "}
         <span className="text-sm italic">
-          {oneLieu?.dateDebut.toLocaleDateString("fr-FR")} {"-"}{" "}
-          {oneLieu?.dateFin.toLocaleDateString("fr-FR")}
+          {new Date(oneLieu?.dateDebut ?? "").toLocaleDateString("fr-FR")}{" "}
+          {"-"}{" "}
+          {new Date(oneLieu?.dateFin ?? "").toLocaleDateString("fr-FR")}
         </span>
       </span>
     );
   };
 
-  // Gérer le changement d'activité manuellement pour réinitialiser le flag
+  // Gérer le changement d'activité
   const handleActiviteChange = (value: string | null) => {
     form.setValue("idActivite", value);
-    form.setValue("idLieu", null); // Réinitialiser le lieu
-    setHasLoadedLieusForCurrentActivite(false); // Autoriser le rechargement
-
-    // Déclencher la validation après un court délai
-    setTimeout(() => {
-      form.trigger("idLieu");
-    }, 100);
+    form.setValue("idLieu", null);
   };
 
-  // Vérifier si le formulaire est valide pour l'affichage du bouton
   const isFormValid = () => {
     if (idActivite && !idLieu) {
       return false;
@@ -662,10 +570,6 @@ export default function FormVisiteModification({
                                 onChange={(e) => {
                                   const value = e.target.value || null;
                                   field.onChange(value);
-                                  // Déclencher la validation immédiatement
-                                  setTimeout(() => {
-                                    form.trigger("idLieu");
-                                  }, 0);
                                 }}
                                 value={field.value || ""}
                               >

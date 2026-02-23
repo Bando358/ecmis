@@ -49,7 +49,6 @@ export default function ConstantePage({
   const { constanteId } = use(params);
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedConstante, setSelectedConstante] = useState<Constante[]>([]);
-  const [oneUser, setOneUser] = useState<User | null>(null);
   const [resulImc, setResulImc] = useState<number>(0);
   const [etatImc, setEtatImc] = useState<string>("");
   const [styleImc, setStyleImc] = useState<string>("");
@@ -65,7 +64,7 @@ export default function ConstantePage({
   const { data: session } = useSession();
   const router = useRouter();
 
-  const idUser = session?.user.id as string;
+  const idUser = session?.user?.id || "";
 
   useEffect(() => {
     setSelectedClientId(constanteId);
@@ -79,14 +78,14 @@ export default function ConstantePage({
       setIsLoading(true);
       try {
         // Étape 1: Requêtes indépendantes en parallèle
-        const [user, resultConstante, resultVisites, clientData] = await Promise.all([
-          getOneUser(idUser),
-          getAllContanteByIdClient(constanteId),
-          getAllVisiteByIdClient(constanteId),
-          getOneClient(constanteId),
-        ]);
+        const [user, resultConstante, resultVisites, clientData] =
+          await Promise.all([
+            getOneUser(idUser),
+            getAllContanteByIdClient(constanteId),
+            getAllVisiteByIdClient(constanteId),
+            getOneClient(constanteId),
+          ]);
 
-        setOneUser(user);
         setSelectedConstante(resultConstante as Constante[]);
         setVisites(resultVisites as Visite[]);
         if (clientData) {
@@ -101,7 +100,7 @@ export default function ConstantePage({
         if (user) {
           const permissions = await getUserPermissionsById(user.id);
           const perm = permissions.find(
-            (p: { table: string }) => p.table === TableName.CONSTANTE
+            (p: { table: string }) => p.table === TableName.CONSTANTE,
           );
           setPermission(perm || null);
         }
@@ -141,7 +140,7 @@ export default function ConstantePage({
   useEffect(() => {
     if (watchPoids > 0 && watchTaille > 0) {
       const imc = parseFloat(
-        (watchPoids / ((watchTaille / 100) * (watchTaille / 100))).toFixed(2)
+        (watchPoids / ((watchTaille / 100) * (watchTaille / 100))).toFixed(2),
       );
       setResulImc(imc);
       form.setValue("imc", imc);
@@ -149,11 +148,11 @@ export default function ConstantePage({
         setEtatImc("Maigreur");
         setStyleImc("text-yellow-500 font-black");
         form.setValue("etatImc", "Maigreur");
-      } else if (imc >= 18.5 && imc < 25) {
+      } else if (imc < 25) {
         setEtatImc("Poids normal");
         setStyleImc("text-green-500 font-black");
         form.setValue("etatImc", "Poids normal");
-      } else if (imc >= 25 && imc < 30) {
+      } else if (imc < 30) {
         setEtatImc("Surpoids");
         setStyleImc("text-orange-500 font-black");
         form.setValue("etatImc", "Surpoids");
@@ -162,20 +161,38 @@ export default function ConstantePage({
         setStyleImc("text-red-600 font-black");
         form.setValue("etatImc", "Obésité");
       }
+    } else {
+      setResulImc(0);
+      setEtatImc("");
+      setStyleImc("");
+      form.setValue("imc", 0);
+      form.setValue("etatImc", "");
     }
   }, [watchPoids, watchTaille, form]);
 
   const onSubmit: SubmitHandler<Constante> = async (data) => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une constante. Contactez un administrateur."
+      toast.error(
+        "Vous n'avez pas la permission de créer une constante. Contactez un administrateur.",
       );
       return router.back();
     }
+
+    if (!data.idVisite) {
+      toast.error("Veuillez sélectionner une visite.");
+      return;
+    }
+
+    const poids = parseFloat(data.poids as unknown as string) || 0;
+    if (poids <= 0) {
+      toast.error("Le poids doit être supérieur à 0.");
+      return;
+    }
+
     const formattedData = {
       ...data,
       idUser,
-      poids: parseFloat(data.poids as unknown as string) || 0,
+      poids,
       taille: parseFloat(data.taille as unknown as string) || 0,
       psSystolique:
         parseInt(data.psSystolique as unknown as string, 10) || null,
@@ -243,14 +260,17 @@ export default function ConstantePage({
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4 max-w-3xl mx-auto p-4 m-4 border border-blue-200/60 rounded-md bg-blue-50/20 opacity-90"
+          className="space-y-4 max-w-3xl mx-auto p-4 m-4 border border-blue-200/60 rounded-md bg-white"
         >
           <FormField
             control={form.control}
             name="idVisite"
+            rules={{ required: "Veuillez sélectionner une visite" }}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Visite</FormLabel>
+                <FormLabel>
+                  Visite <span className="text-red-500">*</span>
+                </FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   value={field.value || ""}
@@ -261,21 +281,23 @@ export default function ConstantePage({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {visites.map((visite, index) => (
+                    {visites.map((visite) => (
                       <SelectItem
-                        key={index}
+                        key={visite.id}
                         value={visite.id}
                         disabled={selectedConstante.some(
-                          (p) => p.idVisite === visite.id
+                          (p) => p.idVisite === visite.id,
                         )}
                       >
                         {new Date(visite.dateVisite).toLocaleDateString(
-                          "fr-FR"
-                        )}
+                          "fr-FR",
+                        )}{" "}
+                        — {visite.motifVisite}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -283,11 +305,18 @@ export default function ConstantePage({
             <FormField
               control={form.control}
               name="poids"
+              rules={{
+                required: "Le poids est obligatoire",
+                min: { value: 0.1, message: "Le poids doit être supérieur à 0" },
+                max: { value: 500, message: "Poids invalide" },
+              }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Poids en kg</FormLabel>
+                  <FormLabel>
+                    Poids (kg) <span className="text-red-500">*</span>
+                  </FormLabel>
                   <FormControl>
-                    <Input required type="number" {...field} />
+                    <Input type="number" step="0.1" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -296,9 +325,103 @@ export default function ConstantePage({
             <FormField
               control={form.control}
               name="taille"
+              rules={{
+                min: { value: 1, message: "La taille doit être supérieure à 0" },
+                max: { value: 300, message: "Taille invalide" },
+              }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Taille en (cm)</FormLabel>
+                  <FormLabel>Taille (cm)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.1" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="psSystolique"
+              rules={{
+                min: { value: 50, message: "Valeur trop basse" },
+                max: { value: 300, message: "Valeur trop haute" },
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pression systolique (mmHg)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="number"
+                      placeholder="120"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="psDiastolique"
+              rules={{
+                min: { value: 30, message: "Valeur trop basse" },
+                max: { value: 200, message: "Valeur trop haute" },
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pression diastolique (mmHg)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="number"
+                      placeholder="80"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="temperature"
+              rules={{
+                min: { value: 30, message: "Température trop basse" },
+                max: { value: 45, message: "Température trop haute" },
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Température (°C)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.1" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lieuTemprature"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lieu de température</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} placeholder="Axillaire, Buccal..." />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="pouls"
+              rules={{
+                min: { value: 20, message: "Valeur trop basse" },
+                max: { value: 300, message: "Valeur trop haute" },
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pouls (bpm)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} value={field.value ?? ""} />
                   </FormControl>
@@ -308,95 +431,35 @@ export default function ConstantePage({
             />
             <FormField
               control={form.control}
-              name="psSystolique"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>psSystolique</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ""}
-                      type="number"
-                      placeholder="7"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="psDiastolique"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>psDiastolique</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ""}
-                      type="number"
-                      placeholder="7"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="temperature"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Température(°cl)</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="lieuTemprature"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>lieuTemprature(°cl)</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ""} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="pouls"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Pouls</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="frequenceRespiratoire"
+              rules={{
+                min: { value: 5, message: "Valeur trop basse" },
+                max: { value: 60, message: "Valeur trop haute" },
+              }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fréquence Respiratoire</FormLabel>
+                  <FormLabel>Fréquence respiratoire (c/min)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} value={field.value ?? ""} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
               name="saturationOxygene"
+              rules={{
+                min: { value: 50, message: "Valeur trop basse" },
+                max: { value: 100, message: "Maximum 100%" },
+              }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Saturation Oxygène</FormLabel>
+                  <FormLabel>Saturation oxygène (%)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} value={field.value ?? ""} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -419,7 +482,7 @@ export default function ConstantePage({
               name="etatImc"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Etat Imc</FormLabel>
+                  <FormLabel>État IMC</FormLabel>
                   <FormControl>
                     <Input disabled {...field} value={etatImc} />
                   </FormControl>
@@ -427,29 +490,9 @@ export default function ConstantePage({
               )}
             />
           </div>
-          <FormField
-            control={form.control}
-            name="idClient"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} className="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+          <input type="hidden" {...form.register("idClient")} />
+          <input type="hidden" {...form.register("idUser")} value={idUser} />
 
-          <FormField
-            control={form.control}
-            name="idUser"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input {...field} value={idUser} className="hidden" />
-                </FormControl>
-              </FormItem>
-            )}
-          />
           <Button
             type="submit"
             className="mt-4 mx-auto block"

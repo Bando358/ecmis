@@ -5,6 +5,7 @@ import {
   deleteDepistageVih,
   getAllDepistageVihByIdClient,
 } from "@/lib/actions/depistageVihActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -57,8 +58,13 @@ export function Table13({ id }: { id: string }) {
   };
 
   const handleDelete = async (id: string) => {
+    const record = dataDepistageVih.find((d) => d.id === id);
     await deleteDepistageVih(id);
-    setDataDepistageVih(dataDepistageVih.filter((d) => d.id !== id));
+    const remaining = dataDepistageVih.filter((d) => d.id !== id);
+    setDataDepistageVih(remaining);
+    if (record && !remaining.some((d) => d.depistageVihIdVisite === record.depistageVihIdVisite)) {
+      await removeFormulaireFromRecap(record.depistageVihIdVisite, "14 Fiche de dépistage VIH");
+    }
   };
 
   const getTypeClientLabel = (type: string) => {

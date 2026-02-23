@@ -60,6 +60,7 @@ import { Spinner } from "@/components/ui/spinner";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import Retour from "@/components/retour";
 
 export default function OrdonnancePage({
@@ -241,6 +242,12 @@ export default function OrdonnancePage({
         return;
       } else {
         await createOrdonnance(formattedData);
+        await createRecapVisite({
+          idVisite: formattedData.ordonnanceIdVisite,
+          idClient: ordonnanceId,
+          prescripteurs: [],
+          formulaires: ["18 Fiche Ordonnance"],
+        });
         console.log("formattedData : ", formattedData);
         toast.success("Ordonnance créée avec succès! 🎉");
         const updatedList = await getAllOrdonnanceByIdClient(ordonnanceId);
@@ -299,6 +306,9 @@ export default function OrdonnancePage({
         toast.success("Ordonnance supprimée avec succès! 🎉");
         const updatedList = await getAllOrdonnanceByIdClient(ordonnanceId);
         setTabOrdonnance(updatedList);
+        if (selectedVisite && !updatedList.some((o: Ordonnance) => o.ordonnanceIdVisite === selectedVisite)) {
+          await removeFormulaireFromRecap(selectedVisite, "18 Fiche Ordonnance");
+        }
       } catch (error) {
         toast.error("La suppression de l'ordonnance a échoué");
         console.error("Erreur lors de la suppression de l'ordonnance:", error);

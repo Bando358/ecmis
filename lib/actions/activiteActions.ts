@@ -53,3 +53,48 @@ export async function updateActivite(id: string, data: Activite) {
     data,
   });
 }
+
+// Suppression d'une activité
+export async function deleteActivite(id: string) {
+  // Vérifier s'il y a des lieux liés
+  const lieuxCount = await prisma.lieu.count({ where: { idActivite: id } });
+  if (lieuxCount > 0) {
+    throw new Error(
+      `Impossible de supprimer cette activité : ${lieuxCount} lieu(x) y sont rattaché(s). Supprimez d'abord les lieux associés.`
+    );
+  }
+  // Vérifier s'il y a des visites liées
+  const visitesCount = await prisma.visite.count({
+    where: { idActivite: id },
+  });
+  if (visitesCount > 0) {
+    throw new Error(
+      `Impossible de supprimer cette activité : ${visitesCount} visite(s) y sont rattachée(s).`
+    );
+  }
+  return await prisma.activite.delete({ where: { id } });
+}
+
+// Activités en cours ou récentes par clinique (dateFin >= aujourd'hui - 30 jours)
+export const getActiveActivitesByIdClinique = async (idClinique: string) => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const allActivite = await prisma.activite.findMany({
+    where: {
+      idClinique,
+      dateFin: { gte: thirtyDaysAgo },
+    },
+    orderBy: { dateDebut: "desc" },
+  });
+  return allActivite;
+};
+
+// Récupération des activités avec le nombre de lieux
+export const getAllActiviteWithLieuxCount = async () => {
+  const allActivite = await prisma.activite.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { Lieu: true, Visites: true } } },
+  });
+  return allActivite;
+};

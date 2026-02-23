@@ -2,12 +2,20 @@
 
 import { CommandeFournisseur } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { logAction } from "./journalPharmacyActions";
 
 // Création de CommandeFournisseur
 export async function createCommandeFournisseur(data: CommandeFournisseur) {
-  return await prisma.commandeFournisseur.create({
-    data,
+  const result = await prisma.commandeFournisseur.create({ data });
+  await logAction({
+    idUser: "system",
+    action: "CREATION",
+    entite: "CommandeFournisseur",
+    entiteId: result.id,
+    idClinique: data.idClinique,
+    description: `Commande fournisseur du ${new Date(data.dateCommande).toLocaleDateString("fr-FR")}`,
   });
+  return result;
 }
 
 // Récupérer toutes les CommandeFournisseur de moins 48 heures de dateCommande
@@ -23,11 +31,21 @@ export async function getAllCommandesFournisseur() {
     },
   });
 }
-// Suppression d'un client
+// Suppression d'une commande
 export async function deleteCommandeFournisseur(id: string) {
-  return await prisma.commandeFournisseur.delete({
-    where: { id },
-  });
+  const existing = await prisma.commandeFournisseur.findUnique({ where: { id } });
+  const result = await prisma.commandeFournisseur.delete({ where: { id } });
+  if (existing) {
+    await logAction({
+      idUser: "system",
+      action: "SUPPRESSION",
+      entite: "CommandeFournisseur",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression commande fournisseur du ${existing.dateCommande.toLocaleDateString("fr-FR")}`,
+    });
+  }
+  return result;
 }
 
 //Mise à jour de CommandeFournisseur

@@ -2,12 +2,20 @@
 
 import { AnomalieInventaire } from "@prisma/client";
 import prisma from "../prisma";
+import { logAction } from "./journalPharmacyActions";
 
 // ************ Inventaire **********
 export async function createAnomalie(data: AnomalieInventaire) {
-  return await prisma.anomalieInventaire.create({
-    data,
+  const result = await prisma.anomalieInventaire.create({ data });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "AnomalieInventaire",
+    entiteId: result.id,
+    description: `Anomalie inventaire: ${data.quantiteManquante} unites manquantes${data.description ? " - " + data.description : ""}`,
+    nouvellesDonnees: { quantiteManquante: data.quantiteManquante, description: data.description },
   });
+  return result;
 }
 
 // Récupération des anomalies par détails d'inventaire

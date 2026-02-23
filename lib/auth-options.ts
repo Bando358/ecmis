@@ -1,8 +1,6 @@
 // lib/auth-options.ts
 import prisma from "@/lib/prisma";
 import { NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { PrismaClient } from "@prisma/client";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 
@@ -16,8 +14,8 @@ interface ExtendedUser {
 }
 
 export const authOptions: NextAuthOptions = {
-  // Cast nécessaire pour Prisma 6.x avec extensions ($extends)
-  adapter: PrismaAdapter(prisma as unknown as PrismaClient),
+  // Pas d'adapter nécessaire avec CredentialsProvider + JWT
+  // Cela permet les connexions simultanées sur plusieurs appareils
 
   session: {
     strategy: "jwt",

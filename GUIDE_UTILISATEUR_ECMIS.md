@@ -2,7 +2,7 @@
 
 ## Système Électronique de Gestion des Informations Cliniques
 
-**Version 1.1**
+**Version 2.0**
 **AIBEF - Association Ivoirienne pour le Bien-Être Familial**
 
 ---
@@ -14,20 +14,20 @@
 3. [Présentation générale de l'application](#3-présentation-générale-de-lapplication)
 4. [Accès à l'application](#4-accès-à-lapplication)
 5. [Tableau de bord (Dashboard)](#5-tableau-de-bord-dashboard)
-6. [Navigation générale (Menu latéral)](#6-navigation-générale-menu-latéral)
+6. [Navigation générale (Sidebar)](#6-navigation-générale-sidebar)
 7. [Module Clients](#7-module-clients)
-8. [Fiches Médicales](#8-fiches-médicales)
-9. [Module Planning Familial](#9-module-planning-familial)
-10. [Module Gynécologie](#10-module-gynécologie)
-11. [Module Obstétrique](#11-module-obstétrique)
-12. [Module VIH](#12-module-vih)
-13. [Module Médecine Générale](#13-module-médecine-générale)
-14. [Module Laboratoire](#14-module-laboratoire)
-15. [Module Échographie](#15-module-échographie)
-16. [Module Pharmacie](#16-module-pharmacie)
-17. [Module Prestations](#17-module-prestations)
-18. [Rapports et Listings](#18-rapports-et-listings)
-19. [Gestion des Rendez-vous](#19-gestion-des-rendez-vous)
+8. [Dossier Médical — Hub des Fiches](#8-dossier-médical--hub-des-fiches)
+9. [Visite & Constantes](#9-visite--constantes)
+10. [Planning Familial](#10-planning-familial)
+11. [Gynécologie & Infertilité](#11-gynécologie--infertilité)
+12. [Maternité](#12-maternité)
+13. [IST & VIH](#13-ist--vih)
+14. [Médecine Générale & VBG](#14-médecine-générale--vbg)
+15. [Examens & Échographie](#15-examens--échographie)
+16. [Référencement & Facturation](#16-référencement--facturation)
+17. [Module Pharmacie](#17-module-pharmacie)
+18. [Module Laboratoire & Échographie](#18-module-laboratoire--échographie)
+19. [Rapports, Listings & Rendez-vous](#19-rapports-listings--rendez-vous)
 20. [Module Administration](#20-module-administration)
 21. [Sauvegarde des Données](#21-sauvegarde-des-données)
 22. [Bonnes Pratiques](#22-bonnes-pratiques)
@@ -64,7 +64,7 @@ Elle vise à remplacer un système de gestion médicale basé sur des dossiers p
 
 ### 1.3 Architecture technique
 
-**Son architecture technique** (Next.js 15, TypeScript, Prisma) garantit performance, sécurité et fiabilité, essentielles pour la gestion de données médicales sensibles.
+**Son architecture technique** (Next.js, TypeScript, Prisma) garantit performance, sécurité et fiabilité, essentielles pour la gestion de données médicales sensibles.
 
 Au-delà d'un outil de saisie, eCMIS est un levier d'amélioration de la qualité des soins, offrant une vision unifiée du dossier patient et des données fiables pour la prise de décision.
 
@@ -83,18 +83,7 @@ Ce guide a pour objectif d'accompagner les utilisateurs finaux dans l'utilisatio
 | **Agents d'accueil** | Enregistrement des clients, gestion des RDV |
 | **Gestionnaires** | Suivi des stocks, rapports, facturation |
 
-### 2.2 Structure du guide
-
-**Pour chaque fonctionnalité, le guide précise :**
-
-| Symbole | Signification |
-|---------|---------------|
-| 🎯 **But** | Pourquoi la fonctionnalité existe |
-| 👤 **Rôles concernés** | Qui peut l'utiliser |
-| 📝 **Description** | Comment elle fonctionne |
-| 🖼️ **Capture d'écran** | Emplacement pour illustration |
-
-### 2.3 Conventions utilisées
+### 2.2 Conventions utilisées
 
 | Symbole | Signification |
 |---------|---------------|
@@ -103,19 +92,15 @@ Ce guide a pour objectif d'accompagner les utilisateurs finaux dans l'utilisatio
 | 💡 | Conseil / Astuce |
 | 🔴 | Bouton rouge = Supprimer/Annuler |
 | 🟢 | Bouton vert/bleu = Valider/Enregistrer |
+| 🔀 | Affichage conditionnel (champs qui apparaissent selon un choix) |
 
 ---
 
 ## 3. Présentation générale de l'application
 
 ### 🎯 But
-Centraliser toutes les activités médicales et administratives d'une structure de santé dans un seul outil.
 
-### 👤 Rôles concernés
-- Administrateur
-- Prestataires de santé
-- Agents d'accueil
-- Gestionnaires
+Centraliser toutes les activités médicales et administratives d'une structure de santé dans un seul outil.
 
 ### 📝 Description
 
@@ -126,12 +111,9 @@ L'application permet la gestion complète :
 | **Clients** | Dossiers patients, historique médical |
 | **Consultations** | Visites, constantes, fiches médicales |
 | **Examens** | Demandes, résultats, facturation |
-| **Pharmacie** | Stock, ventes, inventaires |
+| **Pharmacie** | Stock, rapports financiers, inventaires |
 | **Facturation** | Prestations, examens, produits |
 | **Rapports** | Statistiques, exports, listings |
-
-### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Page d'accueil / Dashboard principal]
 
 ---
 
@@ -140,10 +122,8 @@ L'application permet la gestion complète :
 ### 4.1 Page de connexion
 
 #### 🎯 But
-Garantir un accès sécurisé à l'application.
 
-#### 👤 Rôles concernés
-Tous les utilisateurs.
+Garantir un accès sécurisé à l'application. Chaque utilisateur doit s'authentifier avant d'accéder aux données médicales.
 
 #### 📝 Description
 
@@ -151,28 +131,28 @@ La page de connexion est le point d'entrée de l'application. L'utilisateur doit
 - son **nom d'utilisateur**
 - son **mot de passe**
 
-**Fonctionnalités :**
-- Vérification des identifiants
-- Redirection automatique selon les permissions
-- Message d'erreur en cas d'identifiants incorrects
-
 **Étapes de connexion :**
 1. Ouvrez votre navigateur et saisissez l'adresse fournie par votre administrateur
 2. Saisissez votre **Nom d'utilisateur**
 3. Saisissez votre **Mot de passe**
 4. Cliquez sur le bouton **Se connecter**
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Page de connexion avec champs nom d'utilisateur et mot de passe]
+En cas d'identifiants incorrects, un message d'erreur s'affiche.
 
-### 4.2 Création de compte (Premier administrateur)
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch01-01-login-vide.png` | Page de connexion vide |
+| `ch01-02-login-rempli.png` | Formulaire de connexion rempli |
+
+### 4.2 Création de compte (Inscription)
 
 #### 🎯 But
-Permettre la création du premier compte administrateur.
+
+Permettre la création d'un compte utilisateur par le premier administrateur.
 
 #### 📝 Description
-
-Si vous êtes le premier administrateur, accédez à la page d'inscription administrateur.
 
 **Champs requis :**
 
@@ -187,14 +167,12 @@ Si vous êtes le premier administrateur, accédez à la page d'inscription admin
 ⚠️ **Important** : Le mot de passe doit contenir minimum 8 caractères avec majuscule, minuscule et chiffre.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de création de compte administrateur]
+
+| Image | Description |
+|-------|-------------|
+| `ch01-03-inscription.png` | Page d'inscription |
 
 ### 4.3 Déconnexion automatique
-
-#### 🎯 But
-Protéger les données sensibles en cas d'inactivité.
-
-#### 📝 Description
 
 Pour des raisons de sécurité, l'application vous déconnecte automatiquement après :
 
@@ -210,51 +188,76 @@ Pour des raisons de sécurité, l'application vous déconnecte automatiquement a
 ## 5. Tableau de bord (Dashboard)
 
 ### 🎯 But
-Offrir une vue d'ensemble rapide de l'activité de la structure.
+
+Offrir une vue d'ensemble rapide de l'activité de la structure médicale, avec des indicateurs chiffrés et des graphiques interactifs filtrables par clinique et période.
 
 ### 👤 Rôles concernés
+
 - Administrateur
 - Prestataires de santé
 
 ### 📝 Description
 
-Le Dashboard s'affiche après une connexion réussie et présente des indicateurs clés :
+Le Dashboard s'affiche après une connexion réussie. Il présente des indicateurs calculés dynamiquement en fonction des filtres sélectionnés :
+
+**Filtres disponibles :**
+
+| Filtre | Description |
+|--------|-------------|
+| **Période** | Dates de début et de fin |
+| **Type de période** | Quotidien, hebdomadaire, mensuel, trimestriel, semestriel, annuel |
+| **Clinique** | Sélection de la clinique (antenne) |
+| **Prescripteur** | Filtrage par prescripteur (selon la clinique sélectionnée) |
+
+**Indicateurs affichés :**
 
 | Élément | Description |
 |---------|-------------|
-| **Nombre de clients** | Total des clients enregistrés |
-| **Visites du jour** | Nombre de visites effectuées aujourd'hui |
-| **Rendez-vous à venir** | Prochains rendez-vous planifiés |
+| **Nombre de clients** | Total des clients enregistrés pour la période |
+| **Nombre de visites** | Visites effectuées |
+| **Factures** | Examens, produits, prestations, échographies facturés |
 | **Graphiques** | Évolution des consultations sur la période |
-| **Accès rapides** | Liens vers les modules principaux |
 
-### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Dashboard principal avec statistiques et graphiques]
+💡 **Conseil** : Sélectionnez la clinique et la période puis cliquez sur **Rechercher** pour actualiser les données.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch03-01-dashboard-vue-ensemble.png` | Dashboard — en-tête avec filtres et indicateurs |
+| `ch03-02-dashboard-graphiques.png` | Dashboard — graphiques et statistiques |
+| `ch03-03-dashboard-bas-page.png` | Dashboard — bas de page |
 
 ---
 
-## 6. Navigation générale (Menu latéral)
+## 6. Navigation générale (Sidebar)
 
 ### 🎯 But
-Faciliter l'accès rapide et structuré à toutes les fonctionnalités.
+
+Faciliter l'accès rapide et structuré à toutes les fonctionnalités via un menu latéral toujours visible.
 
 ### 📝 Description
 
-Le menu latéral gauche est toujours visible et organisé par modules fonctionnels :
+Le menu latéral gauche est organisé en sections dépliantes :
 
-| Icône | Module | Description |
-|-------|--------|-------------|
-| 📊 | **Dashboard** | Tableau de bord principal |
-| 👥 | **Clients** | Gestion des clients/patients |
-| 💊 | **Pharmacie** | Produits, stocks, ventes |
-| 📋 | **Listings** | Listes et rapports |
-| 🔬 | **Laboratoire** | Examens de laboratoire |
-| 🫀 | **Échographie** | Examens échographiques |
-| 🩺 | **Prestation** | Services médicaux |
-| ⚙️ | **Paramètres** | Administration système |
+| Section | Sous-menus |
+|---------|------------|
+| **Dashboard** | Tableau de bord principal |
+| **Clients** | Liste des clients, Import VIH, Formulaire client |
+| **Pharmacie** | Rapport financier, Produits, Stock, Prix, Inventaire, Historiques |
+| **Listings** | Rapports, Listings, Gestion RDV |
+| **Laboratoire** | Examens, Prix des examens |
+| **Échographie** | Échographies, Prix des échographies |
+| **Prestation** | Prestations, Prix des prestations |
+| **Settings** | Administration, Cliniques, Activités, Comptes, Permissions, Postes, Régions, Sauvegarde |
 
-### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Menu latéral (Sidebar) avec tous les modules]
+Chaque section se déplie en cliquant dessus pour afficher les sous-menus.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch02-01-sidebar-complete.png` | Sidebar — tous les menus ouverts |
 
 ---
 
@@ -263,200 +266,184 @@ Le menu latéral gauche est toujours visible et organisé par modules fonctionne
 ### 7.1 Liste des clients
 
 #### 🎯 But
-Afficher et gérer l'ensemble des patients enregistrés.
 
-#### 👤 Rôles concernés
-- Administrateur
-- Agents autorisés
+Afficher, rechercher et gérer l'ensemble des patients enregistrés dans la structure. Permet un accès rapide au dossier médical de chaque client.
 
 #### 📝 Description
 
-La page présente un tableau interactif contenant :
+La page présente un tableau interactif paginé :
 
 | Colonne | Description |
 |---------|-------------|
-| Nom et prénom | Identité du client |
-| Âge | Calcul automatique depuis la date de naissance |
-| Code client | Identifiant unique |
-| Antenne | Clinique de rattachement |
-| Téléphone | Numéro de contact |
-| Code VIH | Si applicable |
+| **Ouvrir** | Accéder au dossier médical complet |
+| **Nom / Prénom** | Identité du client |
+| **Âge** | Calcul automatique depuis la date de naissance |
+| **Code** | Identifiant unique du client |
+| **Antenne** | Clinique de rattachement |
+| **Tél 1** | Numéro de contact principal |
+| **Code VIH** | Code VIH si applicable |
+| **Actions** | Modifier, Supprimer |
 
-**Fonctionnalités disponibles :**
-- 🔍 Recherche dynamique (nom, code, téléphone)
-- 🏥 Filtres par antenne (icône entonnoir)
-- 📄 Pagination
-- ➕ Ajouter un nouveau client
-- 👁️ Voir les détails d'un client
-- ✏️ Modifier un client
+**Fonctionnalités :**
+- 🔍 **Recherche dynamique** par nom, code ou téléphone
+- 🏥 **Filtre par clinique** (antenne) via le bouton de filtre
+- 📄 **Pagination** ajustable (8 à 100 lignes par page)
+- ➕ **Nouveau client** pour créer un enregistrement
+
+⚠️ Les actions de modification et suppression sont conditionnées par les permissions de l'utilisateur.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Liste des clients avec tableau de données]
 
-### 7.2 Actions sur un client
+| Image | Description |
+|-------|-------------|
+| `ch04-01-clients-liste.png` | Liste des clients filtrée par clinique |
 
-| Icône | Action | Description |
-|-------|--------|-------------|
-| 📂 | Ouvrir | Accéder au dossier médical |
-| ✏️ | Modifier | Mettre à jour les informations |
-| 🗑️ | Supprimer | Supprimer définitivement le client |
+### 7.2 Import clients VIH
 
-⚠️ **Attention** : Ces actions sont conditionnées par les permissions de l'utilisateur.
+#### 🎯 But
+
+Importer des données patients VIH en masse depuis des fichiers CSV/Excel, pour les modules PEC VIH et Caractéristiques.
+
+#### 📝 Description
+
+Deux onglets sont disponibles :
+- **Patient in Care** : import des données de prise en charge VIH
+- **Listing Characteristics** : import des caractéristiques des patients VIH
+
+💡 **Conseil** : Téléchargez le modèle fourni avant de préparer vos données.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch04-02-clients-vih.png` | Interface d'import clients VIH |
 
 ### 7.3 Création d'un nouveau client
 
 #### 🎯 But
-Créer un nouveau client/patient dans le système.
 
-#### 👤 Rôles concernés
-- Conseiller(ère)
-- AMD
-- Agents autorisés
+Enregistrer un nouveau patient dans le système avec toutes ses informations personnelles et médicales de base.
 
 #### 📝 Description
 
-Le formulaire de création permet d'enregistrer un client dans la base de données.
-
-**Informations personnelles :**
-
 | Champ | Type | Obligatoire |
 |-------|------|-------------|
-| Code | Texte | Oui * |
+| Clinique | Sélection | Oui * |
+| Code | Texte (auto-généré) | Oui * |
 | Nom | Texte | Oui * |
 | Prénom | Texte | Oui * |
 | Date de naissance | Date | Oui * |
 | Sexe | Sélection (M/F) | Oui * |
 | Téléphone 1 | Téléphone | Oui * |
 | Téléphone 2 | Téléphone | Non |
-
-**Informations complémentaires :**
-
-| Champ | Type | Obligatoire |
-|-------|------|-------------|
 | Lieu de naissance | Texte | Non |
 | Quartier | Texte | Non |
 | Niveau scolaire | Sélection | Non |
 | Profession | Texte | Non |
 | État matrimonial | Sélection | Non |
 | Ethnie | Texte | Non |
+| Sérologie | Sélection | Non |
 | Source d'information | Sélection | Oui * |
 | Statut client | Sélection | Oui * |
-| Clinique | Sélection | Oui * |
+| Code VIH | Texte | Non |
+
+💡 Le **code client** est généré automatiquement à partir de la clinique, la région et le nom.
 
 **Étapes :**
-1. Cliquez sur **Nouveau client**
-2. Remplissez tous les champs obligatoires (*)
-3. Vérifiez les informations saisies
-4. Cliquez sur **Enregistrer**
+1. Sélectionnez la **Clinique** de rattachement
+2. Remplissez les champs obligatoires (*)
+3. Cliquez sur **Enregistrer**
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de création de client - Partie 1]
-[CAPTURE D'ÉCRAN: Formulaire de création de client - Partie 2]
+#### 🖼️ Captures d'écran
 
-### 7.4 Dossier médical du client
-
-#### 🎯 But
-Assurer un suivi médical complet et structuré.
-
-#### 👤 Rôles concernés
-- Prestataires de santé
-- Médecins
-- Sages-femmes
-
-#### 📝 Description
-
-Chaque client dispose d'un dossier médical composé de plusieurs catégories de fiches :
-
-| Catégorie | Fiches incluses |
-|-----------|-----------------|
-| **Informations** | Données personnelles du client |
-| **Visites & Constantes** | Historique des visites, signes vitaux |
-| **Santé reproductive** | Planning familial, Gynécologie, Infertilité |
-| **Maternité** | Test grossesse, Grossesse, CPN, Accouchement, CPON, SAA |
-| **IST & VIH** | IST, Dépistage, PEC VIH, Examens PV VIH |
-| **Médecine** | Consultations générales, VBG, Ordonnances |
-| **Examens** | Demandes, Résultats, Échographies |
-| **Référencement** | Références, Contre-références |
-| **Facturation** | Historique des factures |
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Fiche client avec onglets et fiches médicales]
-
-### 7.5 Import de clients VIH
-
-#### 🎯 But
-Importer des clients VIH en masse depuis un fichier.
-
-#### 👤 Rôles concernés
-- Administrateur
-- Agents autorisés
-
-#### 📝 Description
-
-Accédez à **Clients > Import clients VIH** pour importer en masse.
-
-**Format du fichier :**
-- Type : Excel (.xlsx) ou CSV
-- Colonnes requises : Voir modèle téléchargeable
-
-💡 **Conseil** : Téléchargez le modèle avant de préparer vos données.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface d'import de clients VIH]
-
-### 7.6 Historique des visites
-
-#### 🎯 But
-Consulter l'historique complet des visites d'un client.
-
-#### 📝 Description
-
-L'historique affiche :
-- Nombre total de visites
-- Navigation par dates
-- Résumé des fiches par visite
-- Actions rapides sur chaque visite
+| Image | Description |
+|-------|-------------|
+| `ch04-03-formulaire-client-haut.png` | Formulaire nouveau client — partie haute |
+| `ch04-04-formulaire-client-bas.png` | Formulaire nouveau client — partie basse |
 
 ---
 
-## 8. Fiches Médicales
+## 8. Dossier Médical — Hub des Fiches
 
-### 8.1 Créer une visite
+### 🎯 But
+
+Offrir un point d'accès centralisé à toutes les fiches médicales d'un patient. Ce hub affiche l'identité du client, l'historique des visites et organise les fiches par catégorie.
+
+### 📝 Description
+
+Le hub se compose de 3 zones :
+
+**1. En-tête du patient** — Affiche le nom, l'âge, le code client, le téléphone et le code VIH (si applicable).
+
+**2. Navigation par catégorie** — 8 boutons de catégorie organisent les fiches :
+
+| Catégorie | Fiches incluses |
+|-----------|-----------------|
+| **Visite & Constante** | Visite, Constantes vitales |
+| **Santé reproductive** | Planning familial, Gynécologie, Infertilité |
+| **Maternité** | Test grossesse, Grossesse, CPN, Accouchement, CPoN, SAA |
+| **IST & VIH** | IST, Dépistage VIH, PEC VIH, Examen PV VIH |
+| **Médecine & VBG** | Médecine générale, VBG, Ordonnance |
+| **Examens & Echo** | Demande d'examen, Résultat d'examen, Demande d'écho, Résultat d'écho |
+| **Référencement** | Référence, Contre-référence |
+| **Facturation** | Historique des factures |
+
+**3. Section visites** — Carousel navigable affichant les visites du patient avec un récapitulatif des formulaires saisis pour chaque visite.
+
+En cliquant sur une catégorie, les onglets correspondants s'affichent avec les tableaux de données et les liens vers les formulaires.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch05-01-fiches-hub-accueil.png` | Hub des fiches — vue d'accueil |
+| `ch05-02-hub-visite.png` | Catégorie Visite & Constante |
+| `ch05-03-hub-reproductive.png` | Catégorie Santé reproductive |
+| `ch05-04-hub-maternite.png` | Catégorie Maternité |
+| `ch05-05-hub-ist-vih.png` | Catégorie IST & VIH |
+| `ch05-06-hub-medecine.png` | Catégorie Médecine & VBG |
+| `ch05-07-hub-examens.png` | Catégorie Examens & Échographie |
+| `ch05-08-hub-reference.png` | Catégorie Référencement |
+| `ch05-09-hub-facturation.png` | Catégorie Facturation |
+
+---
+
+## 9. Visite & Constantes
+
+### 9.1 Créer une visite
 
 #### 🎯 But
-Enregistrer une nouvelle visite pour un client.
 
-#### 👤 Rôles concernés
-- Prestataires de santé
-- Agents d'accueil
+Enregistrer une nouvelle visite pour un client. La visite est le point d'entrée obligatoire avant toute saisie de fiche médicale.
 
 #### 📝 Description
 
-Depuis la fiche client, cliquez sur **Nouvelle visite**.
+| Champ | Type | Obligatoire |
+|-------|------|-------------|
+| Date de visite | Date | Oui * |
+| Motif de visite | Radio (12 motifs) | Oui * |
+| Activité | Sélection | Non |
+| Lieu | Sélection | Non |
 
-| Champ | Description | Obligatoire |
-|-------|-------------|-------------|
-| Date de visite | Date et heure | Oui * |
-| Motif de visite | Raison de la consultation | Oui * |
-| Activité | Type d'activité | Non |
-| Lieu | Lieu de consultation | Non |
+**Motifs disponibles :** Contraception, Gynécologie, Test grossesse, CPN, VIH, Médecine générale, Infertilité, VBG, IST, SAA, Laboratoire, Échographie.
+
+🔀 **Affichage conditionnel :** le champ **Lieu** est désactivé tant qu'aucune **Activité** n'est sélectionnée. Lorsqu'une activité est choisie, les lieux associés à cette activité deviennent disponibles.
+
+⚠️ Une seule visite par jour et par client est autorisée.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de création de visite]
 
-### 8.2 Enregistrer les constantes
+| Image | Description |
+|-------|-------------|
+| `ch06-01-fiche-visite.png` | Formulaire de création de visite |
+
+### 9.2 Enregistrer les constantes
 
 #### 🎯 But
-Documenter les signes vitaux du patient.
 
-#### 👤 Rôles concernés
-- Infirmier(e)
-- Sage-femme
-- Médecin
+Documenter les signes vitaux du patient lors de sa visite. L'IMC est calculé automatiquement et classifié par couleur.
 
 #### 📝 Description
-
-Après création de la visite, enregistrez les signes vitaux :
 
 | Constante | Unité | Valeurs normales |
 |-----------|-------|------------------|
@@ -465,988 +452,1116 @@ Après création de la visite, enregistrez les signes vitaux :
 | Tension systolique | mmHg | 90-140 |
 | Tension diastolique | mmHg | 60-90 |
 | Température | °C | 36.5-37.5 |
+| Lieu température | Texte | — |
 | Pouls | bpm | 60-100 |
 | Fréquence respiratoire | /min | 12-20 |
 | Saturation O2 | % | 95-100 |
+| **IMC** | kg/m² | **Calculé automatiquement** |
+| **État IMC** | Texte | **Classifié automatiquement** |
+
+💡 L'**IMC** et l'**État IMC** sont calculés automatiquement dès que le poids et la taille sont saisis. La couleur de l'état change selon la classification : jaune (maigreur), vert (normal), orange (surpoids), rouge (obésité).
+
+Le formulaire nécessite de sélectionner une visite existante dans le menu déroulant. Les visites pour lesquelles des constantes ont déjà été enregistrées sont désactivées.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire des constantes]
 
-### 8.3 Navigation entre les fiches
-
-#### 📝 Description
-
-Depuis une visite, vous pouvez accéder à toutes les fiches médicales via les boutons d'action.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Boutons d'action sur une visite]
+| Image | Description |
+|-------|-------------|
+| `ch06-02-fiche-constante.png` | Formulaire des constantes vitales |
 
 ---
 
-## 9. Module Planning Familial
+## 10. Planning Familial
 
-### 9.1 Créer une fiche Planning
+### 🎯 But
+
+Enregistrer les consultations de planification familiale, documenter les méthodes contraceptives utilisées et programmer les rendez-vous de suivi.
+
+### 👤 Rôles concernés
+
+- Sage-femme, Infirmier(e), Conseiller(e)
+
+### 📝 Description
+
+| Champ | Type | Obligatoire |
+|-------|------|-------------|
+| Visite | Sélection | Oui * |
+| Statut | Radio : NU (Nouvel Utilisateur) / AU (Ancien Utilisateur) | Oui * |
+| Type de contraception | Sélection | Oui * |
+| Motif de visite | Sélection | Oui * |
+| Counselling PF | Case à cocher | Non |
+| Courte durée | Radio (méthodes) | Non |
+| Implanon | Radio : Insertion / Contrôle | Non |
+| Retrait Implanon | Case à cocher | Non |
+| Jadelle | Radio : Insertion / Contrôle | Non |
+| Retrait Jadelle | Case à cocher | Non |
+| Stérilet (DIU) | Radio : Insertion / Contrôle | Non |
+| Retrait Stérilet | Case à cocher | Non |
+| Date RDV PF | Date | Non |
+
+### 🔀 Affichage conditionnel
+
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Retrait Implanon**, **Retrait Jadelle** ou **Retrait Stérilet** | L'un des retraits est coché | → Apparition de **Raison du retrait** (sélection) |
+| **Raison du retrait** | = « Effet secondaire » | → Apparition de **Description de l'effet secondaire** (texte libre) |
+
+💡 Les rendez-vous planifiés ici apparaîtront automatiquement dans le module **Gestion des RDV**.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch07-01-fiche-planning.png` | Formulaire planning familial — haut |
+| `ch07-01-fiche-planning-suite.png` | Formulaire planning familial — suite |
+
+---
+
+## 11. Gynécologie & Infertilité
+
+### 11.1 Consultation gynécologique
 
 #### 🎯 But
-Enregistrer une consultation de planification familiale.
 
-#### 👤 Rôles concernés
-- Sage-femme
-- Infirmier(e)
-- Conseiller(e)
+Enregistrer une consultation de gynécologie incluant le dépistage du cancer du col et du sein.
 
 #### 📝 Description
 
-Depuis la visite d'un client, cliquez sur **Planning familial**.
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Motif de consultation | Sélection |
+| Counselling avant dépistage | Case à cocher |
+| Counselling après dépistage | Case à cocher |
+| Résultat IVA | Radio : Négatif / Positif |
+| Counselling cancer du sein | Case à cocher |
+| Examen physique | Case à cocher |
+| Examen palpation | Case à cocher |
+| Touchée vaginale | Case à cocher |
+| Règles irrégulières | Case à cocher |
+| Régularisation menstruelle | Case à cocher |
+| Autre problème gynéco | Case à cocher |
 
-**Informations à saisir :**
+#### 🔀 Affichage conditionnel
 
-| Champ | Description |
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Résultat IVA** | = « Positif » | → **Éligible au traitement IVA** (case à cocher) |
+| **Éligible au traitement IVA** | Coché | → **Type de traitement** (Chryothérapie / Thermocoagulation) |
+| **Counselling cancer du sein** | Coché | → **Résultat cancer du sein** (10 options : Normal, Kyste, Mastite, etc.) |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
 |-------|-------------|
-| Statut | Nouveau/Ancien utilisateur |
-| Type de contraception | Catégorie de méthode |
-| Motif de visite | Raison de la consultation |
+| `ch07-02-fiche-gyneco.png` | Formulaire gynécologie — haut |
+| `ch07-02-fiche-gyneco-suite.png` | Formulaire gynécologie — suite |
+
+### 11.2 Suivi d'infertilité
+
+#### 🎯 But
+
+Documenter les consultations d'infertilité et le type de traitement prescrit.
+
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
 | Consultation | Case à cocher |
-| Counselling PF | Case à cocher |
-| Méthode prise | Case à cocher |
+| Counselling | Case à cocher |
+| Examen physique | Case à cocher |
+| Traitement | Radio : Médicale / Hormonale / Ovulation |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de planning familial]
+#### 🖼️ Captures d'écran
 
-### 9.2 Méthodes de contraception
-
-#### 📝 Description
-
-**Méthodes courte durée :**
-- Pilules
-- Injectables
-- Préservatifs
-
-**Méthodes longue durée :**
-
-| Méthode | Options disponibles |
-|---------|---------------------|
-| Implanon | Pose / Retrait |
-| Jadelle | Pose / Retrait |
-| Stérilet (DIU) | Pose / Retrait |
-
-**En cas de retrait :**
-- Renseigner la raison du retrait
-- Documenter les effets secondaires éventuels
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Options de contraception longue durée]
-
-### 9.3 Rendez-vous de suivi
-
-#### 📝 Description
-
-Programmez le prochain rendez-vous en sélectionnant une date dans le champ **RDV PF**.
-
-💡 **Conseil** : Les rendez-vous apparaîtront automatiquement dans le tableau de gestion des RDV.
-
----
-
-## 10. Module Gynécologie
-
-### 10.1 Consultation gynécologique
-
-#### 🎯 But
-Enregistrer une consultation de gynécologie.
-
-#### 👤 Rôles concernés
-- Médecin
-- Sage-femme
-
-#### 📝 Description
-
-Créez une fiche gynécologique depuis la visite du client.
-
-**Sections du formulaire :**
-1. Motif de consultation
-2. Antécédents gynécologiques
-3. Examen clinique
-4. Diagnostic
-5. Traitement prescrit
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de consultation gynécologique]
-
-### 10.2 Suivi d'infertilité
-
-#### 🎯 But
-Documenter les consultations d'infertilité.
-
-#### 📝 Description
-
-Pour les consultations d'infertilité, utilisez la fiche dédiée accessible depuis le dossier médical.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire d'infertilité]
-
-### 10.3 Prise en charge IST
-
-#### 🎯 But
-Enregistrer les infections sexuellement transmissibles.
-
-#### 📝 Description
-
-**Informations requises :**
-- Syndrome identifié
-- Traitement syndromique
-- Partenaire(s) notifié(s)
-- Counselling réalisé
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire IST]
-
----
-
-## 11. Module Obstétrique
-
-### 11.1 Enregistrer une grossesse
-
-#### 🎯 But
-Initier le suivi prénatal d'une cliente.
-
-#### 👤 Rôles concernés
-- Sage-femme
-- Médecin
-
-#### 📝 Description
-
-Créez une fiche grossesse pour initier le suivi prénatal.
-
-| Champ | Description |
+| Image | Description |
 |-------|-------------|
-| Date des dernières règles | Pour calcul du terme |
-| Gestité | Nombre total de grossesses |
-| Parité | Nombre d'accouchements |
-| Enfants vivants | Nombre actuel |
+| `ch07-03-fiche-infertilite.png` | Formulaire infertilité — haut |
+| `ch07-03-fiche-infertilite-suite.png` | Formulaire infertilité — suite |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de grossesse]
+---
 
-### 11.2 Consultations prénatales (CPN)
+## 12. Maternité
 
-#### 🎯 But
-Documenter le suivi prénatal.
-
-#### 📝 Description
-
-Enregistrez chaque consultation prénatale avec :
-
-**Éléments à documenter :**
-- Hauteur utérine
-- Bruits du cœur fœtal
-- Mouvements actifs du fœtus
-- Présentation
-- Examens prescrits
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de consultation prénatale]
-
-### 11.3 Accouchement
+### 12.1 Test de grossesse
 
 #### 🎯 But
-Documenter l'accouchement et ses détails.
 
-#### 📝 Description
-
-| Section | Éléments |
-|---------|----------|
-| **Travail** | Durée, complications |
-| **Accouchement** | Mode (voie basse/césarienne), heure |
-| **Nouveau-né** | Poids, score Apgar, état |
-| **Délivrance** | Type, complications |
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire d'accouchement]
-
-### 11.4 Consultation post-natale (CPON)
-
-#### 🎯 But
-Assurer le suivi après l'accouchement.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire CPON]
-
-### 11.5 Test de grossesse
-
-#### 🎯 But
 Enregistrer les résultats de test de grossesse.
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire test de grossesse]
+#### 📝 Description
 
-### 11.6 Soins après avortement (SAA)
+Formulaire simple avec sélection de la visite et résultat (Positif / Négatif).
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch08-01-fiche-test-grossesse.png` | Formulaire test de grossesse |
+| `ch08-01-fiche-test-grossesse-suite.png` | Formulaire test de grossesse — suite |
+
+### 12.2 Enregistrer une grossesse
 
 #### 🎯 But
-Documenter les soins post-avortement.
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire SAA]
+Initier le suivi prénatal d'une cliente en enregistrant les données de la grossesse.
+
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| HTA | Radio : Oui / Non |
+| Diabète | Radio : Oui / Non |
+| Gestité | Nombre (total de grossesses) |
+| Parité | Nombre (accouchements) |
+| Âge gestationnel | Nombre (semaines) |
+| Date dernières règles | Date |
+| Terme prévu | Date (calculé) |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch08-02-fiche-grossesse.png` | Formulaire grossesse — haut |
+| `ch08-02-fiche-grossesse-suite.png` | Formulaire grossesse — suite |
+
+### 12.3 Consultation prénatale (CPN)
+
+#### 🎯 But
+
+Documenter le suivi prénatal avec les examens, vaccinations et supplémentations.
+
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Grossesse | Sélection |
+| Numéro CPN | Radio : CPN 1 à 5+ |
+| SP | Radio : SP 1 à 5+ |
+| VAT | Radio : VAT 1 à 5+ |
+| Fer | Case à cocher |
+| Folate | Case à cocher |
+| Déparasitant | Case à cocher |
+| MILDA | Case à cocher |
+| Investigations physiques | Case à cocher |
+| État nutritionnel | Texte (auto-rempli depuis IMC) |
+| État grossesse | Radio : Normal / À risque |
+| Counselling PF | Case à cocher |
+| Albuminurie/Sucre | Case à cocher |
+| Anémie | Case à cocher |
+| Syphilis | Case à cocher |
+| AgHbs | Case à cocher |
+| Date RDV | Date |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch08-03-fiche-obstetrique.png` | Formulaire CPN — haut |
+| `ch08-03-fiche-obstetrique-suite.png` | Formulaire CPN — suite |
+
+### 12.4 Accouchement
+
+#### 🎯 But
+
+Documenter l'accouchement, les éventuelles complications et l'état du nouveau-né.
+
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Grossesse | Sélection |
+| Lieu d'accouchement | Radio : Dans l'établissement / À domicile |
+| Statut VAT | Radio : Non vaccinée / Incomplètement / Complètement |
+| Complications | Radio : Oui / Non |
+| Accouchement multiple | Radio : Oui / Non |
+| État de naissance | Radio : À terme / Prématuré / Post terme |
+| Enfants vivants | Nombre |
+| Mort-nés frais | Nombre |
+| Mort-nés macérés | Nombre |
+| Enfants faible poids | Nombre |
+
+#### 🔀 Affichage conditionnel
+
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Complications** | = « Oui » | → **Évacuation de la mère** (Radio : Oui / Non) |
+| **Évacuation de la mère** | = « Oui » | → **Type d'évacuation** (sélection) |
+
+Les champs de complications apparaissent avec une animation fluide.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch08-04-fiche-accouchement.png` | Formulaire accouchement — haut |
+| `ch08-04-fiche-accouchement-suite.png` | Formulaire accouchement — suite |
+
+### 12.5 Consultation post-natale (CPoN)
+
+#### 🎯 But
+
+Assurer le suivi de la mère après l'accouchement.
+
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Durée CPoN | Radio : 6-72h / 4-10 jours / 10 jrs à < 6 sem. / 6-8 semaines |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch08-05-fiche-cpon.png` | Formulaire CPoN — haut |
+| `ch08-05-fiche-cpon-suite.png` | Formulaire CPoN — suite |
+
+### 12.6 Soins après avortement (SAA)
+
+#### 🎯 But
+
+Documenter les soins post-avortement et le counselling associé.
+
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Grossesse | Sélection (si applicable) |
+| Suivi post-avortement | Case à cocher |
+| Counselling pré-avortement | Case à cocher |
+
+#### 🔀 Affichage conditionnel
+
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Counselling pré-avortement** | Coché | → **Motif de demande** (sélection) — apparaît avec animation CSS |
+| **Counselling pré** = décoché ET **Suivi post** = décoché | Les deux décochés | → Section complète de prise en charge : **Méthode d'avortement**, **Type d'avortement**, **Consultation post**, **Counselling post**, **Type de PEC**, **Traitement complication** |
+
+⚠️ Le champ **Grossesse** n'apparaît que si le patient a une grossesse non interrompue enregistrée.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch08-06-fiche-saa.png` | Formulaire SAA — haut |
+| `ch08-06-fiche-saa-suite.png` | Formulaire SAA — suite |
 
 ---
 
-## 12. Module VIH
+## 13. IST & VIH
 
-### 12.1 Dépistage VIH
+### 13.1 Fiche IST
 
 #### 🎯 But
-Enregistrer les tests de dépistage VIH.
 
-#### 👤 Rôles concernés
-- Conseiller(e)
-- Prestataires de santé
+Enregistrer les infections sexuellement transmissibles diagnostiquées, avec le type de prise en charge.
 
 #### 📝 Description
 
-| Champ | Options |
-|-------|---------|
-| Type de dépistage | Volontaire / Prescrit |
-| Counselling pré-test | Oui / Non |
-| Résultat | Positif / Négatif / Indéterminé |
-| Counselling post-test | Oui / Non |
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Type de client | Sélection : CPN / PV VIH / Autres |
+| Type d'IST | Sélection (12 types) |
+| Counselling avant dépistage | Case à cocher |
+| Examen physique | Case à cocher |
+| Counselling après dépistage | Case à cocher |
+| Counselling réduction des risques | Case à cocher |
+| Type de PEC | Radio : Syndromique / Étiologique |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de dépistage VIH]
+#### 🔀 Affichage conditionnel
 
-### 12.2 Prise en charge VIH (PEC VIH)
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Type de PEC** | = « Étiologique » | → **PEC étiologique** (sélection : Candidose, Chancre Mou, Chlamydiose, Herpes Simplex, Syphilis, Autres) |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch09-01-fiche-ist.png` | Formulaire IST — haut |
+| `ch09-01-fiche-ist-suite.png` | Formulaire IST — suite |
+
+### 13.2 Dépistage VIH
 
 #### 🎯 But
-Suivre les clients séropositifs sous traitement.
+
+Enregistrer les tests de dépistage VIH avec le counselling pré et post-test.
 
 #### 📝 Description
 
-**Éléments de suivi :**
-- Stade clinique OMS
-- Traitement ARV
-- Observance
-- Effets secondaires
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Type de client | Sélection (6 types) |
+| Investigation test rapide | Case à cocher |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire PEC VIH]
+#### 🔀 Affichage conditionnel (avec animation)
 
-### 12.3 Examens biologiques VIH
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Investigation test rapide** | Coché | → **Résultat** (Radio : Négatif / Positif / Indéterminé) + **Counselling post-test** (case à cocher) — *apparition animée* |
+| **Counselling post-test** coché ET **Résultat** = « Positif » | Les deux conditions réunies | → **Counselling réduction des risques** + **Soutien psycho-social** (cases à cocher) — *apparition animée* |
+
+💡 Ce formulaire utilise des animations fluides pour guider progressivement le prestataire dans les étapes du dépistage.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch09-02-fiche-depistage.png` | Formulaire dépistage VIH — haut |
+| `ch09-02-fiche-depistage-suite.png` | Formulaire dépistage VIH — suite |
+
+### 13.3 Prise en charge VIH (PEC VIH)
 
 #### 🎯 But
-Documenter les examens de suivi (CD4, charge virale).
+
+Suivre les clients séropositifs sous traitement ARV avec les co-infections et le soutien psycho-social.
 
 #### 📝 Description
 
-| Examen | Fréquence recommandée |
-|--------|----------------------|
-| CD4 | Tous les 6 mois |
-| Charge virale | Tous les 6-12 mois |
-| NFS | Selon protocole |
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Type de client | Sélection : Consultation initiale / Suivi / Autre |
+| Molécule ARV | Sélection (3 molécules) |
+| Effets secondaires ARV | Case à cocher |
+| Cotrimoxazole | Case à cocher |
+| SPDP | Case à cocher |
+| IO Paludisme | Case à cocher |
+| IO Tuberculose | Case à cocher |
+| IO Autre | Case à cocher |
+| Soutien psycho-social | Case à cocher |
+| Date RDV suivi | Date |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire examens PV VIH]
+💡 Les rendez-vous de suivi apparaîtront automatiquement dans le module **Gestion des RDV**.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch09-03-fiche-pec-vih.png` | Formulaire PEC VIH — haut |
+| `ch09-03-fiche-pec-vih-suite.png` | Formulaire PEC VIH — suite |
+
+### 13.4 Examens biologiques VIH
+
+#### 🎯 But
+
+Documenter les examens de suivi biologique des patients VIH (CD4, charge virale, bilans).
+
+#### 📝 Description
+
+| Section | Examens |
+|---------|---------|
+| **Prélèvement** | Date de prélèvement, Date de traitement |
+| **Statut** | Femme enceinte (Oui/Non), Allaitement (Oui/Non) |
+| **Typage** | VIH1, VIH2, VIH1&2 |
+| **Virologie** | Charge virale, Charge virale log, CD4 |
+| **Biochimie** | Glycémie, Créatininémie, Transaminases, Urée |
+| **Lipides** | Cholestérol HDL, Cholestérol total |
+| **Hématologie** | Hémoglobine NFS |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch09-04-fiche-examen-pvvih.png` | Formulaire examen PV VIH — haut |
+| `ch09-04-fiche-examen-pvvih-suite.png` | Formulaire examen PV VIH — suite |
 
 ---
 
-## 13. Module Médecine Générale
+## 14. Médecine Générale & VBG
 
-### 13.1 Consultation de médecine
+### 14.1 Consultation de médecine générale
 
 #### 🎯 But
-Enregistrer les consultations de médecine générale.
 
-#### 👤 Rôles concernés
-- Médecin
-- Infirmier(e)
+Enregistrer les consultations de médecine générale avec diagnostic, traitement et suivi.
 
 #### 📝 Description
 
-**Structure de la consultation :**
-1. Motif de consultation
-2. Histoire de la maladie
-3. Examen physique
-4. Diagnostic
-5. Traitement
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Femme enceinte | Radio : Oui / Non |
+| Motif de consultation | Texte libre |
+| Examen physique | Case à cocher |
+| Type de visite | Radio : Traité / Contrôlé / Référé |
+| Soins infirmiers | Sélection |
+| Mise en observation | Case à cocher |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de médecine générale]
+#### 🔀 Affichage conditionnel
 
-### 13.2 Prise en charge VBG
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Type de visite** | = « Traité » | → Section complète de traitement : **Suspicion paludisme** (Radio : Simple / Grave / R.A.S), **Diagnostic** (multi-sélection), **Autre diagnostic** (texte), **Type d'affection** (sélection), **Traitement** (multi-sélection) — *animation fluide* |
+| **Suspicion paludisme** | = « Simple » ou « Grave » | → **Test rapide paludisme** (case à cocher) — *animation imbriquée* |
+| **Mise en observation** | Coché | → **Durée d'observation** (nombre, en heures) |
+
+💡 Ce formulaire a deux niveaux d'affichage conditionnel imbriqués : le type de visite contrôle l'affichage de toute la section traitement, et au sein de celle-ci, la suspicion de paludisme contrôle l'affichage du test rapide.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch10-01-fiche-medecine.png` | Formulaire médecine générale — haut |
+| `ch10-01-fiche-medecine-suite.png` | Formulaire médecine générale — suite |
+
+### 14.2 Prise en charge VBG
 
 #### 🎯 But
-Documenter les cas de violences basées sur le genre.
 
-#### 📝 Description
+Documenter les cas de violences basées sur le genre avec les services de counselling fournis.
 
 ⚠️ **Confidentialité** : Ces informations sont strictement confidentielles et soumises au secret médical.
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire VBG]
+#### 📝 Description
+
+| Champ | Type |
+|-------|------|
+| Visite | Sélection |
+| Type de VBG | Sélection : Viol, Agressions sexuelles, Agressions physiques, Mariage forcé, Déni de ressources, Maltraitance psychologique |
+| Durée | Nombre (heures) |
+| Consultation | Radio : PEC (Prise En Charge) / Référé |
+
+#### 🔀 Affichage conditionnel
+
+| Déclencheur | Condition | Champs affichés |
+|-------------|-----------|-----------------|
+| **Consultation** | = « PEC » | → Section complète de counselling : **Counselling relation**, **Counselling violence sexuelle**, **Counselling violence physique**, **Counselling sexualité**, **Prévention violence sexuelle**, **Prévention violence physique** (cases à cocher) |
+| **Consultation** | = « Référé » | → Aucun champ supplémentaire (le patient est orienté) |
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch10-02-fiche-vbg.png` | Formulaire VBG — haut |
+| `ch10-02-fiche-vbg-suite.png` | Formulaire VBG — suite |
+
+### 14.3 Ordonnance
+
+#### 🎯 But
+
+Créer des ordonnances médicales imprimables pour les patients.
+
+#### 📝 Description
+
+Après sélection d'une visite :
+- Si **aucune ordonnance** n'existe → le formulaire de création apparaît avec des champs de saisie de médicaments (ajout dynamique)
+- Si **une ordonnance existe** → un aperçu imprimable s'affiche avec le logo, les informations patient et la liste des médicaments
+
+**Actions disponibles :** Imprimer, Modifier, Supprimer, Retour.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch10-03-fiche-ordonnance.png` | Formulaire/Aperçu ordonnance — haut |
+| `ch10-03-fiche-ordonnance-suite.png` | Formulaire/Aperçu ordonnance — suite |
 
 ---
 
-## 14. Module Laboratoire
+## 15. Examens & Échographie
 
-### 14.1 Configuration des examens
+### 15.1 Demande d'examen
 
 #### 🎯 But
-Configurer les examens disponibles dans l'application.
 
-#### 👤 Rôles concernés
-- Administrateur
-- Laborantin(e)
+Créer une demande d'examen de laboratoire pour un patient lors d'une visite.
 
 #### 📝 Description
 
-Accédez à **Laboratoire > Créer un examen** pour configurer :
-- Nom de l'examen
-- Unité de mesure
-- Valeurs normales
-- Type d'examen
+Sélectionnez la visite puis choisissez les examens souhaités parmi la liste disponible.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Liste des examens de laboratoire]
 
-### 14.2 Tarification des examens
+| Image | Description |
+|-------|-------------|
+| `ch11-01-demande-examen.png` | Formulaire de demande d'examen |
+
+### 15.2 Résultat d'examen
 
 #### 🎯 But
-Définir les prix des examens par clinique.
 
-#### 📝 Description
-
-Accédez à **Laboratoire > Tarif Examen**.
-
-**Créer un tarif :**
-1. Sélectionnez l'examen
-2. Sélectionnez la clinique
-3. Saisissez le prix
-4. Cliquez sur **Enregistrer**
+Enregistrer les résultats des examens de laboratoire effectués.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Configuration des tarifs d'examens]
 
-### 14.3 Demander un examen
+| Image | Description |
+|-------|-------------|
+| `ch11-02-resultat-examen.png` | Formulaire de résultat d'examen |
+
+### 15.3 Demande d'échographie
 
 #### 🎯 But
-Créer une demande d'examen pour un client.
 
-#### 📝 Description
-
-Depuis une visite :
-1. Cliquez sur **Demande d'examen**
-2. Sélectionnez les examens souhaités
-3. Cliquez sur **Ajouter**
-4. Validez la demande
+Créer une demande d'échographie pour un patient.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Dialogue de demande d'examen]
 
-### 14.4 Saisir les résultats
-
-#### 🎯 But
-Enregistrer les résultats des examens effectués.
-
-#### 👤 Rôles concernés
-- Laborantin(e)
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Dialogue de saisie des résultats]
+| Image | Description |
+|-------|-------------|
+| `ch11-03-demande-echo.png` | Formulaire de demande d'échographie |
 
 ---
 
-## 15. Module Échographie
+## 16. Référencement & Facturation
 
-### 15.1 Configuration des échographies
-
-#### 🎯 But
-Configurer les types d'échographies disponibles.
-
-#### 📝 Description
-
-Accédez à **Échographie > Créer une Échographie**.
-
-**Types d'échographies :**
-- Abdominale
-- Pelvienne
-- Obstétricale
-- Gynécologique
-- Mammaire
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Configuration des échographies]
-
-### 15.2 Tarification
+### 16.1 Fiche référence
 
 #### 🎯 But
-Définir les tarifs des échographies par clinique.
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Tarifs des échographies]
+Enregistrer les références de patients vers d'autres structures de soins.
 
-### 15.3 Demander une échographie
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch12-01-fiche-reference.png` | Fiche référence — haut |
+| `ch12-01-fiche-reference-suite.png` | Fiche référence — suite |
+
+### 16.2 Fiche contre-référence
 
 #### 🎯 But
-Créer une demande d'échographie pour un client.
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Dialogue de demande d'échographie]
+Enregistrer les retours de patients référés par d'autres structures.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch12-02-fiche-contre-reference.png` | Fiche contre-référence — haut |
+| `ch12-02-fiche-contre-reference-suite.png` | Fiche contre-référence — suite |
+
+### 16.3 Facturation
+
+#### 🎯 But
+
+Consulter et gérer la facturation des produits, prestations et examens pour un patient.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch12-03-fiche-facturation.png` | Fiche facturation — haut |
+| `ch12-03-fiche-facturation-suite.png` | Fiche facturation — suite |
 
 ---
 
-## 16. Module Pharmacie
+## 17. Module Pharmacie
 
-### 16.1 Gestion des produits
+### 17.1 Gestion des produits
 
 #### 🎯 But
-Gérer le catalogue des produits pharmaceutiques.
 
-#### 👤 Rôles concernés
-- Pharmacien(ne)
-- Administrateur
+Gérer le catalogue des produits pharmaceutiques de la structure (contraceptifs, médicaments, consommables).
 
 #### 📝 Description
 
-Accédez à **Pharmacie > Produits** pour gérer le catalogue.
-
-**Types de produits :**
-
-| Type | Exemples |
-|------|----------|
-| Contraceptifs | Pilules, implants, DIU |
-| Médicaments | Antibiotiques, ARV |
-| Consommables | Gants, seringues |
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Liste des produits pharmaceutiques]
-
-### 16.2 Créer un produit
-
-#### 🎯 But
-Ajouter un nouveau produit au catalogue.
-
-#### 📝 Description
-
-| Champ | Description | Obligatoire |
-|-------|-------------|-------------|
-| Nom du produit | Désignation | Oui * |
-| Type | Catégorie | Oui * |
-| Description | Détails | Non |
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire de création de produit]
-
-### 16.3 Tarification et stock
-
-#### 🎯 But
-Gérer les prix et le stock des produits.
-
-#### 📝 Description
-
-Accédez à **Pharmacie > Prix Produits**.
-
-**Pour chaque produit :**
-- Prix unitaire
-- Quantité en stock
-- Seuil d'alerte
-- Clinique concernée
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de tarification des produits]
-
-### 16.4 Gestion du stock
-
-#### 🎯 But
-Suivre les mouvements de stock.
-
-#### 📝 Description
-
-Accédez à **Pharmacie > Gestion de Stock**.
-
-**Actions disponibles :**
-- Entrée de stock
-- Sortie de stock
-- Ajustement d'inventaire
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de gestion du stock]
-
-### 16.5 Fiche de vente
-
-#### 🎯 But
-Enregistrer les ventes de produits.
-
-#### 📝 Description
-
-Accédez à **Pharmacie > Fiche de vente**.
-
-**Étapes de vente :**
-1. Sélectionnez le client (optionnel)
-2. Ajoutez les produits
-3. Vérifiez les quantités
-4. Validez la vente
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de vente]
-
-### 16.6 Inventaire
-
-#### 🎯 But
-Réaliser des inventaires réguliers du stock.
-
-#### 👤 Rôles concernés
-- Pharmacien(ne)
-- Gestionnaire
-
-#### 📝 Description
-
-Accédez à **Pharmacie > Inventaire**.
-
-**Créer un inventaire :**
-1. Cliquez sur **Nouvel inventaire**
-2. Sélectionnez la clinique *
-3. Sélectionnez la date *
-4. Cliquez sur **Enregistrer**
-
-**Saisie de l'inventaire :**
-1. Pour chaque produit, saisissez la quantité réelle
-2. Le système calcule automatiquement l'écart
-3. Signalez les anomalies si nécessaire
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface d'inventaire]
-[CAPTURE D'ÉCRAN: Dialogue de création d'inventaire]
-
-### 16.7 Signaler une anomalie
-
-#### 🎯 But
-Documenter les écarts de stock constatés.
-
-#### 📝 Description
-
-En cas d'écart de stock, signalez une anomalie :
-
-| Champ | Description | Obligatoire |
-|-------|-------------|-------------|
-| Produit | Produit concerné | Auto |
-| Écart | Différence calculée | Auto |
-| Description | Explication de l'écart | Oui * |
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Dialogue d'anomalie d'inventaire]
-
-### 16.8 Commandes fournisseur
-
-#### 🎯 But
-Gérer les commandes d'approvisionnement.
-
-#### 📝 Description
-
-Accédez à **Pharmacie > Historique commande**.
-
-**Créer une commande :**
-1. Cliquez sur **Nouvelle commande**
-2. Sélectionnez la clinique *
-3. Sélectionnez la date *
-4. Cliquez sur **Enregistrer**
-
-**Ajouter des produits à la commande :**
-1. Ouvrez la commande créée
-2. Ajoutez les produits et quantités
-3. Validez
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de commandes fournisseur]
-[CAPTURE D'ÉCRAN: Dialogue de création de commande]
-
----
-
-## 17. Module Prestations
-
-### 17.1 Configuration des prestations
-
-#### 🎯 But
-Configurer les services offerts par la structure.
-
-#### 👤 Rôles concernés
-- Administrateur
-
-#### 📝 Description
-
-Accédez à **Prestation > Prestation** pour gérer le catalogue des services.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Liste des prestations]
-
-### 17.2 Tarification des prestations
-
-#### 🎯 But
-Définir les tarifs des prestations par clinique.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Configuration des tarifs de prestations]
-
-### 17.3 Facturer une prestation
-
-#### 🎯 But
-Enregistrer une prestation pour facturation.
-
-#### 📝 Description
-
-Depuis une visite, ajoutez des prestations à facturer via le bouton dédié.
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de facturation des prestations]
-
----
-
-## 18. Rapports et Listings
-
-### 18.1 Accéder aux rapports
-
-#### 🎯 But
-Générer des rapports statistiques pour le suivi et le reporting.
-
-#### 👤 Rôles concernés
-- Administrateur
-- Gestionnaire
-- Suivi-Évaluation
-
-#### 📝 Description
-
-Accédez à **Listings > Rapports**.
-
-### 18.2 Types de rapports disponibles
-
-| Rapport | Description |
+| Colonne | Description |
 |---------|-------------|
-| Planning Familial | Statistiques PF par méthode |
-| Gynécologie | Consultations gynéco |
-| Obstétrique | Suivi grossesses et accouchements |
-| Dépistage VIH | Tests effectués et résultats |
-| PEC VIH | Patients sous traitement |
-| Laboratoire | Examens réalisés |
-| IST | Infections traitées |
-| Médecine générale | Consultations |
-| SAA | Soins post-avortement |
-| Infertilité/VBG | Cas pris en charge |
+| N° | Numéro séquentiel |
+| Nom | Désignation du produit |
+| Type | CONTRACEPTIF, MÉDICAMENTS ou CONSOMMABLES |
+| Description | Détails du produit |
+| Actions | Modifier, Supprimer |
+
+**Fonctionnalités :** Recherche dynamique, bouton **Ajouter un produit**.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface des rapports]
 
-### 18.3 Générer un rapport
+| Image | Description |
+|-------|-------------|
+| `ch13-01-produits.png` | Liste des produits pharmaceutiques |
+
+### 17.2 Gestion du stock
+
+#### 🎯 But
+
+Suivre les niveaux de stock par clinique, créer des commandes fournisseur et gérer les approvisionnements.
+
+#### 📝 Description
+
+Sélectionnez une clinique pour afficher le stock. Les quantités en stock inférieures à 10 sont affichées en rouge. Créez des commandes fournisseur et ajoutez les produits à commander.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-02-stock.png` | Gestion du stock produits |
+
+### 17.3 Tarifs des produits
+
+#### 🎯 But
+
+Définir les prix unitaires des produits par clinique.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-03-prix.png` | Tarifs des produits |
+
+### 17.4 Rapport financier
+
+#### 🎯 But
+
+Générer et exporter les rapports financiers de la structure : fiche de vente journalière et commissions des prescripteurs (examens et échographies).
+
+#### 📝 Description
+
+Cette page remplace l'ancienne « Fiche de vente » et centralise tous les rapports financiers. Après sélection des filtres, les données sont affichées à l'écran et exportables en **PDF**.
+
+**Filtres obligatoires :**
+
+| Filtre | Description |
+|--------|-------------|
+| **Date de début** | Début de la période |
+| **Date de fin** | Fin de la période |
+| **Clinique(s)** | Multi-sélection des cliniques |
+| **Type de rapport** | Choix parmi 5 types |
+
+**Types de rapports disponibles :**
+
+| Type | Description |
+|------|-------------|
+| **Fiche de vente journalière** | Récapitulatif des ventes par catégorie (produits, prestations, examens, échographies) avec prix unitaire, quantité, montant et stock final. Affiche le total recette global. |
+| **Commission prescripteur — Détail client (Examen)** | Liste détaillée des commissions d'examen : date de visite, prescripteur, client, montant de la commission |
+| **Commission prescripteur — Total (Examen)** | Total des commissions d'examen agrégé par prescripteur avec nombre de commissions et contact |
+| **Commission prescripteur — Détail client (Échographie)** | Liste détaillée des commissions d'échographie par client |
+| **Commission prescripteur — Total (Échographie)** | Total des commissions d'échographie agrégé par prescripteur |
+
+**Étapes :**
+1. Sélectionnez les **dates** de début et de fin
+2. Sélectionnez la ou les **clinique(s)**
+3. Choisissez le **type de rapport**
+4. Cliquez sur **Générer le rapport**
+5. Consultez les résultats à l'écran
+6. Cliquez sur **Télécharger PDF** pour exporter
+
+💡 Le PDF généré inclut le logo AIBEF, les informations de la caissière, la période et les signatures (Caissière / Comptable).
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-04-ventes.png` | Rapport financier — interface avec filtres et résultats |
+
+### 17.5 Inventaire
+
+#### 🎯 But
+
+Réaliser des inventaires réguliers du stock, valider les quantités réelles et signaler les anomalies.
 
 #### 📝 Description
 
 **Étapes :**
-1. Sélectionnez le type de rapport
-2. Choisissez la période (mensuel, trimestriel, semestriel, annuel)
-3. Sélectionnez la clinique
-4. Cliquez sur **Générer**
+1. Sélectionnez la **clinique**
+2. Cliquez sur **Nouvel inventaire**
+3. Pour chaque produit, saisissez la **quantité réelle**
+4. Cliquez sur **Valider** pour chaque produit
+5. En cas d'écart, cliquez sur **Ajuster** et documentez l'anomalie
+
+💡 Exportez l'inventaire en PDF pour l'archivage.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Filtres de génération de rapport]
 
-### 18.4 Exporter un rapport
+| Image | Description |
+|-------|-------------|
+| `ch13-05-inventaire.png` | Interface d'inventaire |
 
-#### 📝 Description
-
-**Formats disponibles :**
-- Excel (.xlsx)
-- PDF
-- Impression directe
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Options d'export]
-
-### 18.5 Listings
+### 17.6 Historique des inventaires
 
 #### 🎯 But
-Consulter des listes de données filtrées.
+
+Consulter l'historique des inventaires réalisés avec statut, anomalies et détails.
 
 #### 📝 Description
 
-Accédez à **Listings > Listings**.
-
-**Listings disponibles :**
-- Toutes les données
-- Obstétrique
-- PEC VIH
-- Planning familial
+Filtrez par clinique et statut (terminé / en cours). Consultez les détails de chaque inventaire et exportez en PDF.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface des listings]
+
+| Image | Description |
+|-------|-------------|
+| `ch13-06-historique-inventaire.png` | Historique des inventaires |
+
+### 17.7 Historique des commandes
+
+#### 🎯 But
+
+Consulter l'historique des commandes fournisseur avec détails et exports.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-07-historique-commandes.png` | Historique des commandes fournisseur |
 
 ---
 
-## 19. Gestion des Rendez-vous
+## 18. Module Laboratoire & Échographie
 
-### 19.1 Tableau des rendez-vous
+### 18.1 Gestion des examens
 
 #### 🎯 But
-Consulter et gérer les rendez-vous programmés.
 
-#### 👤 Rôles concernés
-- Agents d'accueil
-- Prestataires de santé
+Configurer le catalogue des examens de laboratoire disponibles (nom, unité, valeurs normales, type).
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch14-01-examens.png` | Gestion des examens de laboratoire |
+
+### 18.2 Tarifs des examens
+
+#### 🎯 But
+
+Définir les prix des examens par clinique.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch14-02-prix-examens.png` | Tarifs des examens |
+
+### 18.3 Gestion des échographies
+
+#### 🎯 But
+
+Configurer les types d'échographies disponibles (abdominale, pelvienne, obstétricale, gynécologique, mammaire).
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch14-03-echographies.png` | Gestion des échographies |
+
+### 18.4 Tarifs des échographies
+
+#### 🎯 But
+
+Définir les prix des échographies par clinique.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch14-04-prix-echographies.png` | Tarifs des échographies |
+
+---
+
+## 19. Rapports, Listings & Rendez-vous
+
+### 19.1 Rapports
+
+#### 🎯 But
+
+Générer des rapports statistiques consolidés pour le suivi des activités et le reporting aux partenaires/bailleurs.
 
 #### 📝 Description
 
-Accédez à **Listings > Gestion RDV**.
+**Filtres obligatoires :**
 
-**Filtres disponibles :**
-- Période
-- Clinique(s)
-- Type de service
+| Filtre | Description |
+|--------|-------------|
+| Période | Dates de début et de fin |
+| Type de rapport | 15 types disponibles |
+| Clinique(s) | Multi-sélection |
+| Activité(s) | Optionnel, filtré par clinique |
 
-### 19.2 Types de rendez-vous
+**Types de rapports :**
+
+| Rapport | Description |
+|---------|-------------|
+| Planning Familial | Statistiques PF par méthode et tranche d'âge |
+| Gynécologie | Consultations gynéco |
+| Obstétrique | Suivi grossesses et accouchements |
+| IST | Infections traitées |
+| Autre SSR | Santé sexuelle et reproductive |
+| Médecine générale | Consultations MDG |
+| Pédiatrie | Suivi pédiatrique |
+| SAA | Soins post-avortement |
+| Dépistage VIH | Tests et résultats |
+| PEC VIH | Patients sous traitement |
+| Laboratoire | Examens réalisés |
+| SIG (3 variantes) | Système d'information de gestion |
+| Validation | Rapport de validation |
+
+**Étapes :**
+1. Sélectionnez les dates de début et de fin
+2. Choisissez le type de rapport
+3. Sélectionnez la ou les clinique(s)
+4. Cliquez sur **Générer**
+
+💡 Les rapports peuvent être exportés en **Excel** ou **PDF**.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch15-01-rapports.png` | Interface des rapports avec filtres |
+| `ch15-01-rapports-suite.png` | Rapports — tableau de données |
+
+### 19.2 Listings
+
+#### 🎯 But
+
+Générer des listes nominatives de patients filtrées par programme et clinique.
+
+#### 📝 Description
+
+**Types de listings :**
+- Planning Familial
+- Obstétrique
+- PEC VIH
+- Toutes les données
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch15-02-listings.png` | Interface des listings avec filtres |
+| `ch15-02-listings-suite.png` | Listings — données |
+
+### 19.3 Gestion des rendez-vous
+
+#### 🎯 But
+
+Consulter et gérer les rendez-vous programmés automatiquement depuis les fiches Planning Familial, Obstétrique et PEC VIH.
+
+#### 📝 Description
+
+**Filtres :** Période, type de service, clinique(s), activité(s).
+
+**Types de rendez-vous :**
 
 | Type | Source |
 |------|--------|
-| Contraception | Fiches Planning |
-| Obstétrique | Fiches CPN |
-| PEC VIH | Fiches PEC VIH |
+| Planning Familial | Champ « RDV PF » des fiches planning |
+| Obstétrique | Champ « RDV » des fiches CPN |
+| PEC VIH | Champ « Date RDV suivi » des fiches PEC VIH |
 
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Tableau de bord des rendez-vous]
+Après génération, les résultats s'affichent en onglets par type de service.
 
-### 19.3 Actions sur les rendez-vous
+#### 🖼️ Captures d'écran
 
-| Action | Description |
-|--------|-------------|
-| ✅ Confirmer | Marquer comme honoré |
-| 📅 Reprogrammer | Changer la date |
-| ❌ Annuler | Annuler le RDV |
-| 📵 Injoignable | Client non contactable |
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Actions disponibles sur un rendez-vous]
+| Image | Description |
+|-------|-------------|
+| `ch15-03-gestion-rdv.png` | Interface gestion des rendez-vous |
+| `ch15-03-gestion-rdv-suite.png` | Gestion RDV — données |
 
 ---
 
 ## 20. Module Administration
 
 ### 🎯 But
-Permettre aux administrateurs de configurer et gérer les éléments de base du système eCMIS.
+
+Permettre aux administrateurs de configurer et gérer les éléments de base du système eCMIS : cliniques, comptes, permissions, activités, postes et régions.
 
 ### 👤 Rôles concernés
+
 - Administrateur uniquement
-
-### 📝 Description
-
-Le module Administration est accessible uniquement aux utilisateurs disposant des autorisations nécessaires.
-
-**Avant l'affichage des pages d'administration, le système :**
-- vérifie l'identité de l'utilisateur connecté
-- contrôle ses permissions d'accès
 
 ⚠️ **Si l'utilisateur n'est pas autorisé, l'accès est automatiquement refusé.**
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Page Administration (menu principal)]
 
-### 20.1 Création et gestion des régions
+| Image | Description |
+|-------|-------------|
+| `ch16-01-admin-panel.png` | Panneau d'administration — grille de navigation |
 
-#### 🎯 But
-Créer et gérer les régions administratives auxquelles sont rattachées les cliniques.
-
-#### 📝 Description
-
-Cette fonctionnalité permet de :
-- créer une nouvelle région
-- modifier une région existante
-- consulter la liste des régions enregistrées
-
-**Le formulaire comprend :**
-- le nom de la région
-- le code de la région
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire et liste des régions]
-
-### 20.2 Création et gestion des cliniques
+### 20.1 Gestion des cliniques
 
 #### 🎯 But
-Créer et gérer les cliniques rattachées à une région.
+
+Créer et gérer les cliniques (antennes) rattachées à une région.
 
 #### 📝 Description
-
-**Pour chaque clinique, l'administrateur renseigne :**
 
 | Champ | Description |
 |-------|-------------|
 | Nom de la clinique | Désignation officielle |
-| Type de clinique | Centre AIBEF ou Centre franchisé |
-| Numéro de la clinique | Identifiant unique |
-| Région de rattachement | Région géographique |
+| Type | CA (Centre AIBEF) ou CF (Centre Franchisé) |
+| Numéro | Identifiant unique |
+| Région | Rattachement géographique |
+
+Le formulaire se déplie via le bouton en haut à droite. Le tableau liste toutes les cliniques avec possibilité de modifier.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire et liste des cliniques]
 
-### 20.3 Création de comptes utilisateurs
+| Image | Description |
+|-------|-------------|
+| `ch16-02-cliniques.png` | Gestion des cliniques |
+
+### 20.2 Gestion des activités
 
 #### 🎯 But
-Créer des comptes utilisateurs pour l'accès à l'application.
+
+Configurer les activités médicales (ex : planification familiale, obstétrique, PEC VIH) et leurs lieux associés avec des périodes de validité.
 
 #### 📝 Description
 
-Cette fonctionnalité permet de :
-- créer un compte utilisateur
-- associer un rôle à l'utilisateur
-- rattacher l'utilisateur à une ou plusieurs cliniques
-
-**Rôles disponibles :**
-
-| Rôle | Permissions |
-|------|-------------|
-| USER | Accès standard selon permissions |
-| ADMIN | Accès complet à l'administration |
-
-**Postes disponibles :**
-
-| Poste | Code |
-|-------|------|
-| AMD | AMD |
-| Infirmier(e) | INFIRMIER |
-| Sage-femme | SAGE_FEMME |
-| Conseiller(e) | CONSEILLER |
-| Médecin | MEDECIN |
-| Laborantin(e) | LABORANTIN |
-| Caissier(e) | CAISSIERE |
-| Comptable | COMPTABLE |
-| Suivi-Évaluation | SUIVI_EVALUATION |
-| Administrateur | ADMIN |
+Sélectionnez une clinique, puis créez des activités avec leurs lieux et dates. Les activités créées deviennent disponibles dans les formulaires de visite et les modules de rendez-vous/rapports.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Création de compte utilisateur]
+
+| Image | Description |
+|-------|-------------|
+| `ch16-03-activites.png` | Gestion des activités |
+
+### 20.3 Gestion des comptes utilisateurs
+
+#### 🎯 But
+
+Créer des comptes utilisateurs, attribuer des rôles et des cliniques d'affectation.
+
+#### 📝 Description
+
+| Champ | Description |
+|-------|-------------|
+| Nom | Nom complet |
+| Email | Adresse email |
+| Nom d'utilisateur | Identifiant de connexion |
+| Mot de passe | Mot de passe sécurisé |
+| Rôle | USER ou ADMIN |
+| Cliniques | Multi-sélection des cliniques d'affectation |
+| Prescripteur | Case à cocher (détermine si le nom apparaît automatiquement comme prescripteur) |
+
+**Actions :** Créer, Modifier, Bannir/Débannir, Supprimer.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch16-04-comptes.png` | Gestion des comptes utilisateurs |
 
 ### 20.4 Gestion des permissions
 
 #### 🎯 But
-Contrôler et sécuriser les droits d'accès des utilisateurs.
+
+Contrôler finement les droits d'accès de chaque utilisateur sur chaque module (table) de l'application.
 
 #### 📝 Description
 
-Cette fonctionnalité permet de :
-- définir les permissions par module
-- limiter l'accès aux pages sensibles
-- sécuriser les actions selon le rôle
-
-**Permissions disponibles par table :**
+Sélectionnez un utilisateur, puis activez/désactivez les permissions :
 
 | Permission | Description |
 |------------|-------------|
-| Créer | Ajouter de nouvelles données |
-| Lire | Consulter les données |
-| Modifier | Mettre à jour les données |
-| Supprimer | Supprimer les données |
+| **canRead** | Consulter les données |
+| **canCreate** | Ajouter de nouvelles données |
+| **canUpdate** | Modifier les données existantes |
+| **canDelete** | Supprimer des données |
+
+Chaque permission s'applique individuellement par table (Visite, Constante, Planning, IST, etc.).
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Gestion des permissions]
 
-### 20.5 Création et gestion des activités
+| Image | Description |
+|-------|-------------|
+| `ch16-05-permissions.png` | Gestion des permissions |
+
+### 20.5 Gestion des postes
 
 #### 🎯 But
-Configurer les activités médicales utilisées dans la planification et les rapports.
 
-#### 📝 Description
-
-L'administrateur peut :
-- créer une activité (ex. : planification familiale, obstétrique, PEC VIH)
-- associer des lieux et des périodes à une activité
-- rendre les activités disponibles dans les modules de rendez-vous et de rapports
+Créer et gérer les postes/fonctions disponibles dans la structure (AMD, Infirmier, Sage-femme, Médecin, etc.).
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Gestion des activités]
 
-### 20.6 Gestion des postes
+| Image | Description |
+|-------|-------------|
+| `ch16-06-postes.png` | Gestion des postes |
+
+### 20.6 Gestion des prestations
 
 #### 🎯 But
-Créer et gérer les postes/fonctions des utilisateurs.
 
-#### 📝 Description
-
-**Les postes servent à :**
-- structurer les profils des utilisateurs
-- faciliter l'attribution des rôles et des permissions
-- améliorer l'organisation et la gestion des ressources humaines
+Configurer les services médicaux offerts par la structure.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Formulaire et liste des postes]
 
-### 20.7 Désactivation de compte
+| Image | Description |
+|-------|-------------|
+| `ch16-07-prestations.png` | Gestion des prestations |
+
+### 20.7 Tarifs des prestations
 
 #### 🎯 But
-Désactiver un compte utilisateur sans le supprimer.
 
-#### 📝 Description
-
-Pour désactiver un compte utilisateur :
-1. Accédez au compte concerné
-2. Cliquez sur **Désactiver**
-3. Confirmez l'action
-
-⚠️ **Attention** : Un compte désactivé ne peut plus se connecter mais conserve son historique.
+Définir les tarifs des prestations par clinique.
 
 #### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de désactivation]
+
+| Image | Description |
+|-------|-------------|
+| `ch16-08-prix-prestations.png` | Tarifs des prestations |
+
+### 20.8 Gestion des régions
+
+#### 🎯 But
+
+Créer et gérer les régions administratives auxquelles sont rattachées les cliniques.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch16-09-regions.png` | Gestion des régions |
 
 ---
 
 ## 21. Sauvegarde des Données
 
-### 21.1 Accéder aux sauvegardes
+### 🎯 But
 
-#### 🎯 But
-Assurer la sécurité et la pérennité des données de l'application.
+Assurer la sécurité et la pérennité des données en permettant la sauvegarde et la restauration de la base de données.
 
-#### 👤 Rôles concernés
+### 👤 Rôles concernés
+
 - Administrateur uniquement
 
-#### 📝 Description
+### 📝 Description
 
-Accédez à **Administration > Sauvegarde**.
+**Onglet Sauvegarde :**
+1. Sélectionnez le mode (Safe / Force / Overwrite)
+2. Cliquez sur **Sauvegarder**
+3. Téléchargez le fichier de sauvegarde généré
 
-⚠️ **L'accès à cette fonction est strictement réservé aux administrateurs.**
-
-#### 🖼️ Capture d'écran
-[CAPTURE D'ÉCRAN: Interface de sauvegarde]
-
-### 21.2 Créer une sauvegarde
-
-#### 📝 Description
-
-**Étapes :**
-1. Cliquez sur **Nouvelle sauvegarde**
-2. Attendez la fin du processus
-3. Téléchargez le fichier de sauvegarde
-
-⚠️ **Important** : Effectuez des sauvegardes régulières (quotidiennes recommandées).
-
-### 21.3 Restaurer une sauvegarde
-
-#### 📝 Description
-
-En cas de besoin, restaurez les données :
-1. Cliquez sur **Restaurer**
-2. Sélectionnez le fichier de sauvegarde
+**Onglet Restauration :**
+1. Sélectionnez un fichier SQL de sauvegarde
+2. Choisissez le mode de restauration
 3. Confirmez la restauration
 
-⚠️ **Attention** : La restauration écrase les données actuelles. Cette action est irréversible.
+⚠️ **Attention** : La restauration écrase les données actuelles. Cette action est irréversible. Effectuez des sauvegardes régulières (quotidiennes recommandées).
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch16-10-sauvegarde.png` | Interface de sauvegarde et restauration |
 
 ---
 
 ## 22. Bonnes Pratiques
 
-### Pour une utilisation optimale de eCMIS
-
 | N° | Recommandation |
 |----|----------------|
 | 1 | **Toujours vérifier l'antenne sélectionnée** avant toute opération |
-| 2 | **Respecter l'ordre chronologique** des visites et consultations |
-| 3 | **Éviter les suppressions inutiles** - privilégier la désactivation |
-| 4 | **Utiliser les filtres** pour gagner du temps dans les recherches |
-| 5 | **Enregistrer régulièrement** les données lors de longues saisies |
-| 6 | **Vérifier les permissions** avant d'entreprendre des actions sensibles |
-| 7 | **Consulter l'historique client** avant toute nouvelle intervention |
-| 8 | **Utiliser les templates et modèles** pour les rapports récurrents |
+| 2 | **Créer la visite avant** de saisir les fiches médicales |
+| 3 | **Respecter l'ordre chronologique** des visites et consultations |
+| 4 | **Éviter les suppressions inutiles** — privilégier la désactivation |
+| 5 | **Utiliser les filtres** pour gagner du temps dans les recherches |
+| 6 | **Enregistrer régulièrement** les données lors de longues saisies |
+| 7 | **Vérifier les permissions** avant d'entreprendre des actions sensibles |
+| 8 | **Consulter l'historique client** avant toute nouvelle intervention |
 | 9 | **Se déconnecter** après chaque session de travail |
 | 10 | **Signaler immédiatement** tout problème ou anomalie |
 
@@ -1454,7 +1569,7 @@ En cas de besoin, restaurez les données :
 
 ## 23. Assistance et Support
 
-### 23.1 En cas de difficulté
+### En cas de difficulté
 
 | Étape | Action |
 |-------|--------|
@@ -1464,7 +1579,7 @@ En cas de besoin, restaurez les données :
 | 4 | **Vider le cache** du navigateur si nécessaire |
 | 5 | **Vérifier la connexion internet** |
 
-### 23.2 Contacts support technique
+### Contacts support technique
 
 | Type | Contact |
 |------|---------|
@@ -1472,89 +1587,77 @@ En cas de besoin, restaurez les données :
 | **Téléphone** | [Numéro à définir par l'administration] |
 | **Heures de support** | [Périodes à définir] |
 
-### 23.3 Ressources supplémentaires
-
-- **Guide de référence rapide** (à imprimer)
-- **Tutoriels vidéo** (disponibles sur l'intranet)
-- **FAQ en ligne** (mise à jour régulièrement)
-- **Formations périodiques** organisées par l'AIBEF
-
 ---
 
 ## 24. Sécurité et Confidentialité
 
-### 24.1 Principes fondamentaux
+### Principes fondamentaux
 
 | Principe | Description |
 |----------|-------------|
 | **Secret médical** | Les données sont strictement confidentielles |
 | **Accès contrôlé** | Chaque utilisateur n'a accès qu'aux données nécessaires |
-| **Traçabilité** | Toutes les actions sont enregistrées dans des logs |
+| **Traçabilité** | Toutes les actions sont enregistrées |
 | **Sauvegarde** | Les données sont sauvegardées régulièrement |
-| **Conformité** | Respect des réglementations sur la protection des données |
 
-### 24.2 Responsabilités de l'utilisateur
+### Responsabilités de l'utilisateur
 
 | Action | Consigne |
 |--------|----------|
 | Identifiants | **Ne jamais partager** vos identifiants de connexion |
 | Session | **Se déconnecter** après chaque session |
 | Anomalies | **Signaler immédiatement** toute activité suspecte |
-| Procédures | **Respecter les procédures** établies pour la gestion des données |
 
 ---
 
 ## 25. Annexes
 
-### A. Codes d'erreur courants
-
-| Code | Signification | Action recommandée |
-|------|---------------|-------------------|
-| 401 | Non authentifié | Reconnectez-vous |
-| 403 | Accès refusé | Vérifiez vos permissions ou contactez l'administrateur |
-| 404 | Page non trouvée | Vérifiez l'URL |
-| 500 | Erreur serveur | Contactez l'administrateur |
-
-### B. Raccourcis clavier utiles
-
-| Raccourci | Action |
-|-----------|--------|
-| Ctrl + S | Sauvegarder (dans les formulaires) |
-| Ctrl + F | Rechercher |
-| Échap | Fermer une fenêtre modale |
-| Tab | Passer au champ suivant |
-| Entrée | Valider un formulaire |
-| F5 | Actualiser la page |
-
-### C. Périodicité recommandée des tâches
-
-| Tâche | Fréquence | Responsable |
-|-------|-----------|-------------|
-| Sauvegarde manuelle | Quotidienne | Administrateur |
-| Vérification des stocks | Hebdomadaire | Pharmacien |
-| Génération de rapports | Mensuelle | Gestionnaire |
-| Revue des permissions | Trimestrielle | Administrateur |
-| Archivage des données | Annuelle | Administrateur |
-
-### D. Glossaire des termes techniques
+### A. Glossaire
 
 | Terme | Définition |
 |-------|------------|
 | **AMD** | Agent de Marketing Social/Distributeur Communautaire |
 | **ARV** | Antirétroviraux |
+| **CA** | Centre AIBEF |
 | **CD4** | Lymphocytes T CD4 |
+| **CF** | Centre Franchisé |
 | **CPN** | Consultation Prénatale |
-| **CPON** | Consultation Post-Natale |
+| **CPoN** | Consultation Post-Natale |
 | **DIU** | Dispositif Intra-Utérin (stérilet) |
+| **IMC** | Indice de Masse Corporelle |
 | **IST** | Infection Sexuellement Transmissible |
+| **IVA** | Inspection Visuelle à l'Acide acétique |
+| **MILDA** | Moustiquaire Imprégnée à Longue Durée d'Action |
 | **PEC** | Prise En Charge |
 | **PF** | Planning Familial |
-| **PV** | Post-Visite |
 | **SAA** | Soins Après Avortement |
+| **SP** | Sulfadoxine-Pyriméthamine (antipaludique) |
+| **VAT** | Vaccin Antitétanique |
 | **VBG** | Violences Basées sur le Genre |
 | **VIH** | Virus de l'Immunodéficience Humaine |
 
-### E. Configuration requise
+### B. Index des captures d'écran
+
+| Chapitre | Images | Description |
+|----------|--------|-------------|
+| CH01 | `ch01-01` à `ch01-03` | Authentification |
+| CH02 | `ch02-01` | Sidebar |
+| CH03 | `ch03-01` à `ch03-03` | Dashboard |
+| CH04 | `ch04-01` à `ch04-04` | Clients |
+| CH05 | `ch05-01` à `ch05-09` | Hub des fiches |
+| CH06 | `ch06-01` à `ch06-02` | Visite & Constantes |
+| CH07 | `ch07-01` à `ch07-03` (+suites) | Santé reproductive |
+| CH08 | `ch08-01` à `ch08-06` (+suites) | Maternité |
+| CH09 | `ch09-01` à `ch09-04` (+suites) | IST & VIH |
+| CH10 | `ch10-01` à `ch10-03` (+suites) | Médecine & VBG |
+| CH11 | `ch11-01` à `ch11-03` | Examens & Écho |
+| CH12 | `ch12-01` à `ch12-03` (+suites) | Référence & Facturation |
+| CH13 | `ch13-01` à `ch13-07` | Pharmacie |
+| CH14 | `ch14-01` à `ch14-04` | Laboratoire & Écho |
+| CH15 | `ch15-01` à `ch15-03` (+suites) | Rapports & RDV |
+| CH16 | `ch16-01` à `ch16-10` | Administration |
+
+### C. Configuration requise
 
 | Élément | Spécification |
 |---------|---------------|
@@ -1570,16 +1673,12 @@ En cas de besoin, restaurez les données :
 |---------|------|---------------|
 | 1.0 | Janvier 2026 | Version initiale |
 | 1.1 | Janvier 2026 | Ajout contexte, bonnes pratiques, support |
+| 2.0 | Février 2026 | Intégration des captures d'écran, descriptions des affichages conditionnels, refonte complète |
 
 ---
 
-**📘 Note importante**
-Ce guide est destiné à être imprimé et complété par des captures d'écran réelles de l'application eCMIS. Les illustrations doivent être mises à jour régulièrement pour refléter les évolutions de l'interface.
-
----
-
-**Document version :** 1.1
-**Dernière mise à jour :** Janvier 2026
+**Document version :** 2.0
+**Dernière mise à jour :** Février 2026
 **Validé par :** [Nom du responsable]
 **Distribution :** Tous les utilisateurs eCMIS
 
@@ -1589,7 +1688,3 @@ Ce guide est destiné à être imprimé et complété par des captures d'écran 
 
 *Ce document est la propriété de l'Association Ivoirienne pour le Bien-Être Familial.*
 *Sa reproduction est interdite sans autorisation écrite.*
-
----
-
-*Document généré pour l'application eCMIS*

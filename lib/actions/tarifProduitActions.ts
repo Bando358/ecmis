@@ -2,6 +2,7 @@
 
 import { TarifProduit } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { logAction } from "./journalPharmacyActions";
 
 // Création de TarifProduit
 export async function createTarifProduit(data: {
@@ -11,7 +12,7 @@ export async function createTarifProduit(data: {
   idClinique: string;
   idUser: string;
 }) {
-  return await prisma.tarifProduit.create({
+  const result = await prisma.tarifProduit.create({
     data: {
       prixUnitaire: data.prixUnitaire,
       quantiteStock: data.quantiteStock,
@@ -20,6 +21,16 @@ export async function createTarifProduit(data: {
       User: { connect: { id: data.idUser } },
     },
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "TarifProduit",
+    entiteId: result.id,
+    idClinique: data.idClinique,
+    description: `Creation tarif produit: prix=${data.prixUnitaire} FCFA, stock=${data.quantiteStock}`,
+    nouvellesDonnees: { prixUnitaire: data.prixUnitaire, quantiteStock: data.quantiteStock },
+  });
+  return result;
 }
 
 // Récupérer toutes les TarifProduit
@@ -52,7 +63,7 @@ export const getAllTarifProduitsByIdClinique = async (idClinique: string) => {
   return allTarifProduits;
 };
 
-// Suppression d'un client
+// Suppression d'un tarif produit
 export async function deleteTarifProduit(id: string) {
   return await prisma.tarifProduit.delete({
     where: { id },
@@ -61,10 +72,19 @@ export async function deleteTarifProduit(id: string) {
 
 //Mise à jour de TarifProduit
 export async function updateTarifProduit(id: string, data: TarifProduit) {
-  return await prisma.tarifProduit.update({
-    where: { id },
-    data,
+  const oldRecord = await prisma.tarifProduit.findUnique({ where: { id } });
+  const result = await prisma.tarifProduit.update({ where: { id }, data });
+  await logAction({
+    idUser: data.idUser,
+    action: "MODIFICATION",
+    entite: "TarifProduit",
+    entiteId: id,
+    idClinique: data.idClinique,
+    description: `Modification tarif produit: prix=${data.prixUnitaire} FCFA, stock=${data.quantiteStock}`,
+    anciennesDonnees: oldRecord ? { prixUnitaire: oldRecord.prixUnitaire, quantiteStock: oldRecord.quantiteStock } : null,
+    nouvellesDonnees: { prixUnitaire: data.prixUnitaire, quantiteStock: data.quantiteStock },
   });
+  return result;
 }
 
 export async function updateQuantiteStockTarifProduit(
@@ -74,18 +94,27 @@ export async function updateQuantiteStockTarifProduit(
   try {
     const tarif = await prisma.tarifProduit.findUnique({
       where: { id: idTarifProduit },
-      select: { quantiteStock: true },
+      select: { quantiteStock: true, idUser: true, idClinique: true },
     });
 
     if (!tarif) {
       throw new Error("Produit non trouvé");
     }
 
-    // const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
-
     await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
       data: { quantiteStock: quantiteAjoutee },
+    });
+
+    await logAction({
+      idUser: tarif.idUser,
+      action: "MODIFICATION",
+      entite: "TarifProduit",
+      entiteId: idTarifProduit,
+      idClinique: tarif.idClinique,
+      description: `Ajustement stock: ${tarif.quantiteStock} -> ${quantiteAjoutee}`,
+      anciennesDonnees: { quantiteStock: tarif.quantiteStock },
+      nouvellesDonnees: { quantiteStock: quantiteAjoutee },
     });
 
     return { success: true, quantiteAjoutee };
@@ -104,18 +133,28 @@ export async function updateQuantiteStockTarifProduitByDetailCommande(
   try {
     const tarif = await prisma.tarifProduit.findUnique({
       where: { id: idTarifProduit },
-      select: { quantiteStock: true },
+      select: { quantiteStock: true, idUser: true, idClinique: true },
     });
 
     if (!tarif) {
       throw new Error("Produit non trouvé");
     }
 
-    // const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
-
+    const newStock = tarif.quantiteStock + quantiteAjoutee;
     await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
-      data: { quantiteStock: tarif.quantiteStock + quantiteAjoutee },
+      data: { quantiteStock: newStock },
+    });
+
+    await logAction({
+      idUser: tarif.idUser,
+      action: "MODIFICATION",
+      entite: "TarifProduit",
+      entiteId: idTarifProduit,
+      idClinique: tarif.idClinique,
+      description: `Approvisionnement stock: +${quantiteAjoutee} unites | ${tarif.quantiteStock} -> ${newStock}`,
+      anciennesDonnees: { quantiteStock: tarif.quantiteStock },
+      nouvellesDonnees: { quantiteStock: newStock },
     });
 
     return { success: true, quantiteAjoutee };
@@ -134,18 +173,28 @@ export async function updateTarifProduitByDetailCommandeAnnule(
   try {
     const tarif = await prisma.tarifProduit.findUnique({
       where: { id: idTarifProduit },
-      select: { quantiteStock: true },
+      select: { quantiteStock: true, idUser: true, idClinique: true },
     });
 
     if (!tarif) {
       throw new Error("Produit non trouvé");
     }
 
-    // const nouvelleQuantite = tarif.quantiteStock + quantiteAjoutee;
-
+    const newStock = tarif.quantiteStock - quantiteAjoutee;
     await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
-      data: { quantiteStock: tarif.quantiteStock - quantiteAjoutee },
+      data: { quantiteStock: newStock },
+    });
+
+    await logAction({
+      idUser: tarif.idUser,
+      action: "MODIFICATION",
+      entite: "TarifProduit",
+      entiteId: idTarifProduit,
+      idClinique: tarif.idClinique,
+      description: `Annulation commande: -${quantiteAjoutee} unites | ${tarif.quantiteStock} -> ${newStock}`,
+      anciennesDonnees: { quantiteStock: tarif.quantiteStock },
+      nouvellesDonnees: { quantiteStock: newStock },
     });
 
     return { success: true, quantiteAjoutee };

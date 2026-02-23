@@ -2,6 +2,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -375,46 +376,46 @@ const IndicatorRow = ({
 
 // Composant pour l'en-tête de tableau
 const TableHeaderSection = () => (
-  <TableHeader className="bg-gray-200">
+  <TableHeader className="bg-slate-100">
     <TableRow>
-      <TableCell rowSpan={2} className="font-bold">
+      <TableHead rowSpan={2}>
         Indicateurs
-      </TableCell>
-      <TableCell
+      </TableHead>
+      <TableHead
         colSpan={5}
-        className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+        className="font-semibold text-center border border-gray-300"
       >
         Nouveau utilisateur
-      </TableCell>
-      <TableCell colSpan={5} className="font-bold text-center">
+      </TableHead>
+      <TableHead colSpan={5} className="font-semibold text-center">
         Ancien utilisateur
-      </TableCell>
-      <TableCell rowSpan={2} className="font-bold">
+      </TableHead>
+      <TableHead rowSpan={2}>
         Total
-      </TableCell>
+      </TableHead>
     </TableRow>
-    <TableRow className="bg-gray-300 text-center">
+    <TableRow className="bg-slate-200 text-center">
       {AGE_LABELS.map((label, index) => (
-        <TableCell
+        <TableHead
           key={`nu-header-${index}`}
           className={
             index === 0
-              ? "border border-l-gray-400"
+              ? "border border-gray-300"
               : index === 4
-                ? "border border-r-gray-400"
+                ? "border border-gray-300"
                 : ""
           }
         >
           {label}
-        </TableCell>
+        </TableHead>
       ))}
       {AGE_LABELS.map((label, index) => (
-        <TableCell
+        <TableHead
           key={`au-header-${index}`}
-          className={index === 4 ? "border border-r-gray-400" : ""}
+          className={index === 4 ? "border border-gray-300" : ""}
         >
           {label}
-        </TableCell>
+        </TableHead>
       ))}
     </TableRow>
   </TableHeader>
@@ -1621,13 +1622,13 @@ export default function TableRapportPf({
         <Table className="border mb-4">
           <TableHeader className="bg-green-100">
             <TableRow>
-              <TableCell className="font-bold">Méthode</TableCell>
-              <TableCell className="font-bold">-10 ans</TableCell>
-              <TableCell className="font-bold">10-14 ans</TableCell>
-              <TableCell className="font-bold">15-19 ans</TableCell>
-              <TableCell className="font-bold">20-24 ans</TableCell>
-              <TableCell className="font-bold">25+ ans</TableCell>
-              <TableCell className="font-bold">Total</TableCell>
+              <TableHead>Méthode</TableHead>
+              <TableHead>-10 ans</TableHead>
+              <TableHead>10-14 ans</TableHead>
+              <TableHead>15-19 ans</TableHead>
+              <TableHead>20-24 ans</TableHead>
+              <TableHead>25+ ans</TableHead>
+              <TableHead>Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1681,13 +1682,13 @@ export default function TableRapportPf({
         <Table className="border mb-4">
           <TableHeader className="bg-orange-100">
             <TableRow>
-              <TableCell className="font-bold">Méthode</TableCell>
-              <TableCell className="font-bold">-10 ans</TableCell>
-              <TableCell className="font-bold">10-14 ans</TableCell>
-              <TableCell className="font-bold">15-19 ans</TableCell>
-              <TableCell className="font-bold">20-24 ans</TableCell>
-              <TableCell className="font-bold">25+ ans</TableCell>
-              <TableCell className="font-bold">Total</TableCell>
+              <TableHead>Méthode</TableHead>
+              <TableHead>-10 ans</TableHead>
+              <TableHead>10-14 ans</TableHead>
+              <TableHead>15-19 ans</TableHead>
+              <TableHead>20-24 ans</TableHead>
+              <TableHead>25+ ans</TableHead>
+              <TableHead>Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1739,13 +1740,13 @@ export default function TableRapportPf({
         <Table className="border mb-4">
           <TableHeader className="bg-red-100">
             <TableRow>
-              <TableCell className="font-bold">Méthode</TableCell>
-              <TableCell className="font-bold">-10 ans</TableCell>
-              <TableCell className="font-bold">10-14 ans</TableCell>
-              <TableCell className="font-bold">15-19 ans</TableCell>
-              <TableCell className="font-bold">20-24 ans</TableCell>
-              <TableCell className="font-bold">25+ ans</TableCell>
-              <TableCell className="font-bold">Total</TableCell>
+              <TableHead>Méthode</TableHead>
+              <TableHead>-10 ans</TableHead>
+              <TableHead>10-14 ans</TableHead>
+              <TableHead>15-19 ans</TableHead>
+              <TableHead>20-24 ans</TableHead>
+              <TableHead>25+ ans</TableHead>
+              <TableHead>Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1799,21 +1800,21 @@ export default function TableRapportPf({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableCell>Visite</TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Prénom</TableCell>
-              <TableCell>Âge</TableCell>
-              <TableCell>Sexe</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Court Durée</TableCell>
-              <TableCell>Implanon</TableCell>
-              <TableCell>Jadelle</TableCell>
-              <TableCell>Stérilet</TableCell>
-              <TableCell>RDV</TableCell>
-              <TableCell>Protégés</TableCell>
-              <TableCell>PDV</TableCell>
-              <TableCell>Abandon</TableCell>
-              <TableCell>Arrêt</TableCell>
+              <TableHead>Visite</TableHead>
+              <TableHead>Nom</TableHead>
+              <TableHead>Prénom</TableHead>
+              <TableHead>Âge</TableHead>
+              <TableHead>Sexe</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead>Court Durée</TableHead>
+              <TableHead>Implanon</TableHead>
+              <TableHead>Jadelle</TableHead>
+              <TableHead>Stérilet</TableHead>
+              <TableHead>RDV</TableHead>
+              <TableHead>Protégés</TableHead>
+              <TableHead>PDV</TableHead>
+              <TableHead>Abandon</TableHead>
+              <TableHead>Arrêt</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

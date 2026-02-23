@@ -4,6 +4,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -396,11 +397,12 @@ export default function TableRapportValidation({
         conViolence: item.vbgConsultation === "pec",
         casViolence: item.vbgType === "viol" && item.vbgConsultation === "pec",
         autresCasViolence:
-          item.vbgType === "agressionsSexuelles" ||
-          item.vbgType === "agressionsPhysiques" ||
-          item.vbgType === "mariageForce" ||
-          item.vbgType === "deniRessources" ||
-          item.vbgType === "maltraitancePsychologique",
+          item.vbgConsultation === "pec" &&
+          (item.vbgType === "agressionsSexuelles" ||
+            item.vbgType === "agressionsPhysiques" ||
+            item.vbgType === "mariageForce" ||
+            item.vbgType === "deniRessources" ||
+            item.vbgType === "maltraitancePsychologique"),
       }));
 
       setConverted(newConverted);
@@ -920,29 +922,24 @@ export default function TableRapportValidation({
             Tableau : Validation des données de consultations de contraception
           </h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1042,29 +1039,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">VIH</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1163,29 +1155,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">SAA</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1284,29 +1271,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">Infertilité</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1405,29 +1387,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">IST</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1526,29 +1503,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">Gynécologie</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1647,29 +1619,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">Obstétrique</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1768,29 +1735,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">Pédiatrie</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1889,29 +1851,24 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">Médecine générale</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2013,29 +1970,24 @@ export default function TableRapportValidation({
             Violence basée sur le genre
           </h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{
-                    width: "350px",
-                    minWidth: "350px",
-                    maxWidth: "350px",
-                  }}
+                <TableHead
+                  className="border border-gray-300 font-semibold w-[350px] min-w-[350px] max-w-[350px]"
                 >
                   Types de consultation
-                </TableCell>
+                </TableHead>
                 {dataPrescripteur.map((prescripteur) => (
-                  <TableCell
+                  <TableHead
                     key={prescripteur.id}
-                    className="border border-l-gray-400 font-bold text-center"
+                    className="border border-gray-300 text-center"
                   >
                     {prescripteur.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                <TableCell className="border border-l-gray-400 font-bold text-center">
+                <TableHead className="border border-gray-300 text-center">
                   Total
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2135,26 +2087,23 @@ export default function TableRapportValidation({
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">Données laboratoire</h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{ minWidth: "200px", maxWidth: "200px" }}
+                <TableHead
+                  className="border border-gray-300 font-semibold min-w-[200px] max-w-[200px]"
                 >
                   Types {"d'examens"}
-                </TableCell>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{ minWidth: "200px", maxWidth: "200px" }}
+                </TableHead>
+                <TableHead
+                  className="border border-gray-300 font-semibold min-w-[200px] max-w-[200px]"
                 >
                   Caisse
-                </TableCell>
-                <TableCell
-                  className="border border-l-gray-400 font-bold"
-                  style={{ minWidth: "200px", maxWidth: "200px" }}
+                </TableHead>
+                <TableHead
+                  className="border border-gray-300 font-semibold min-w-[200px] max-w-[200px]"
                 >
                   Laboratoire
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2189,17 +2138,17 @@ export default function TableRapportValidation({
             Repartition des consultations par prescripteur{" "}
           </h2>
           <Table className="border">
-            <TableHeader className="bg-gray-200">
+            <TableHeader className="bg-slate-100">
               <TableRow>
-                <TableCell className="border border-l-gray-400 font-bold">
+                <TableHead className="border border-gray-300 font-semibold">
                   Prescripteur
-                </TableCell>
-                <TableCell className="border border-l-gray-400 font-bold">
+                </TableHead>
+                <TableHead className="border border-gray-300 font-semibold">
                   Nombre de clients
-                </TableCell>
-                <TableCell className="border border-l-gray-400 font-bold">
+                </TableHead>
+                <TableHead className="border border-gray-300 font-semibold">
                   Pourcentage
-                </TableCell>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

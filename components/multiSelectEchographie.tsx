@@ -1,15 +1,20 @@
 // MultiSelectEchographie.tsx
-import { getAllEchographies } from "@/lib/actions/echographieActions";
-// import { getAllTarifExamenByClinique } from "@/lib/actions/tarifExamenActions";
-import { getAllTarifEchographieByClinique } from "@/lib/actions/tarifEchographieActions";
 import {
   DemandeEchographie,
   Echographie,
   TarifEchographie,
+  TypeEchographie,
 } from "@prisma/client";
-import React from "react";
-import Select from "react-select";
-import { SingleValue } from "react-select";
+import React, { useMemo } from "react";
+import Select, { SingleValue, GroupBase } from "react-select";
+
+const typeEchographieLabels: Record<TypeEchographie, string> = {
+  OBST: "Obstétrique",
+  GYN: "Gynécologie",
+  INF: "Infertilité",
+  MDG: "Médecine Générale",
+  CAR: "Cardiologie",
+};
 
 interface MultiSelectProps {
   idClinique: string;
@@ -18,34 +23,65 @@ interface MultiSelectProps {
   setSelectedOptions: React.Dispatch<
     React.SetStateAction<DemandeEchographie[]>
   >;
+  allEchographies: Echographie[];
+  tarifEchographies: TarifEchographie[];
 }
 
+type OptionType = DemandeEchographie & {
+  value: string;
+  label: string;
+};
+
 const MultiSelectEchographie: React.FC<MultiSelectProps> = ({
-  idClinique,
   demandes,
   selectedOptions,
   setSelectedOptions,
+  allEchographies,
+  tarifEchographies,
 }) => {
-  const [tabEchographie, setTabEchographie] = React.useState<Echographie[]>([]);
-  const [tabTarif, setTabTarif] = React.useState<TarifEchographie[]>([]);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const getEchographieForDemande = (demande: DemandeEchographie) => {
+    const tarif = tarifEchographies.find(
+      (t) => t.id === demande.idTarifEchographie
+    );
+    return allEchographies.find((e) => e.id === tarif?.idEchographie);
+  };
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      const [Echographie, Tarif] = await Promise.all([
-        getAllEchographies(),
-        getAllTarifEchographieByClinique(idClinique),
-      ]);
-      setTabEchographie(Echographie);
-      setTabTarif(Tarif);
-      setIsLoading(false);
-    };
-    fetchData();
-  }, [idClinique]);
+  const getNameEchographie = (id: string) => {
+    const demand = demandes.find((e) => e.id === id);
+    if (!demand) return "";
+    const echographie = getEchographieForDemande(demand);
+    return echographie?.nomEchographie || "";
+  };
 
-  // Mode single select : accepte SingleValue
-  const handleChange = (selected: SingleValue<DemandeEchographie>) => {
+  // Grouper les options par typeEchographie
+  const groupedOptions = useMemo(() => {
+    const groups = new Map<string, OptionType[]>();
+
+    for (const demande of demandes) {
+      const echographie = getEchographieForDemande(demande);
+      const type = echographie?.typeEchographie || "AUTRE";
+      const label = typeEchographieLabels[type as TypeEchographie] || type;
+
+      if (!groups.has(label)) {
+        groups.set(label, []);
+      }
+
+      groups.get(label)!.push({
+        value: demande.id,
+        label: echographie?.nomEchographie || "Inconnu",
+        ...demande,
+      });
+    }
+
+    const result: GroupBase<OptionType>[] = [];
+    for (const [label, options] of groups) {
+      result.push({ label, options });
+    }
+
+    return result;
+  }, [demandes, allEchographies, tarifEchographies]);
+
+  const handleChange = (selected: SingleValue<OptionType>) => {
     if (selected) {
       setSelectedOptions([selected]);
     } else {
@@ -53,32 +89,27 @@ const MultiSelectEchographie: React.FC<MultiSelectProps> = ({
     }
   };
 
-  const getNameEchographie = (id: string) => {
-    const demand = demandes.find((e) => e.id === id);
-    const tarif = tabTarif.find((t) => t.id === demand?.idTarifEchographie);
-    const echographie = tabEchographie.find(
-      (e) => e.id === tarif?.idEchographie
-    );
-    return echographie ? echographie.nomEchographie : "";
-  };
-
-  const options = demandes.map((demande) => ({
-    value: demande.id,
-    label: getNameEchographie(demande.id),
-    ...demande,
-  }));
-
   return (
-    <Select
+    <Select<OptionType, false, GroupBase<OptionType>>
       isMulti={false}
-      options={options}
-      getOptionLabel={(e) => getNameEchographie(e.id)}
+      options={groupedOptions}
+      getOptionLabel={(e) => getNameEchographie(e.id) || e.label}
       getOptionValue={(e) => e.id}
-      value={selectedOptions[0] ?? null}
+      value={selectedOptions[0] ? { ...selectedOptions[0], value: selectedOptions[0].id, label: getNameEchographie(selectedOptions[0].id) } as OptionType : null}
       onChange={handleChange}
       className="w-full"
-      isLoading={isLoading}
-      loadingMessage={() => "Chargement des echographies..."}
+      placeholder="Rechercher une échographie..."
+      noOptionsMessage={() => "Aucune échographie disponible"}
+      formatGroupLabel={(group) => (
+        <div className="flex items-center gap-2 py-1">
+          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+            {group.label}
+          </span>
+          <span className="text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5">
+            {group.options.length}
+          </span>
+        </div>
+      )}
     />
   );
 };

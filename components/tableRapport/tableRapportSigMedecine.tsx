@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -829,28 +830,28 @@ export default function TableRapportSigMedecine({
       </div>
       <h2 className="font-bold">Tableau 1 : Activités de soins curatifs</h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className="font-semibold">
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={7}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Tranche d’âge
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range) => {
               const label =
                 range.max < 120
                   ? `${range.min}-${range.max} ans`
                   : `${range.min} ans et +`;
-              return <TableCell key={label}>{label}</TableCell>;
+              return <TableHead key={label}>{label}</TableHead>;
             })}
           </TableRow>
         </TableHeader>
@@ -899,28 +900,28 @@ export default function TableRapportSigMedecine({
         Tableau 2 : Activités de soins infirmiers et petite chirurgie
       </h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className="font-semibold">
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={7}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Tranche d’âge
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range) => {
               const label =
                 range.max < 120
                   ? `${range.min}-${range.max} ans`
                   : `${range.min} ans et +`;
-              return <TableCell key={label}>{label}</TableCell>;
+              return <TableHead key={label}>{label}</TableHead>;
             })}
           </TableRow>
         </TableHeader>
@@ -969,32 +970,31 @@ export default function TableRapportSigMedecine({
       <Separator className="bg-green-300" />
       <h2 className="font-bold">Tableau 31 : Maladies infectieuses </h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell
+            <TableHead
               rowSpan={2}
-              className="font-bold"
-              style={{ width: "350px", minWidth: "350px", maxWidth: "350px" }}
+              className="font-semibold w-[350px] min-w-[350px] max-w-[350px]"
             >
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={7}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Tranche d’âge
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range) => {
               const label =
                 range.max < 120
                   ? `${range.min}-${range.max} ans`
                   : `${range.min} ans et +`;
-              return <TableCell key={label}>{label}</TableCell>;
+              return <TableHead key={label}>{label}</TableHead>;
             })}
           </TableRow>
         </TableHeader>
@@ -1087,32 +1087,31 @@ export default function TableRapportSigMedecine({
       <Separator className="bg-green-300" />
       <h2 className="font-bold">Tableau 31.1 : Autes maladies infectieuses </h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell
+            <TableHead
               rowSpan={2}
-              className="font-bold"
-              style={{ width: "350px", minWidth: "350px", maxWidth: "350px" }}
+              className="font-semibold w-[350px] min-w-[350px] max-w-[350px]"
             >
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={7}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Tranche d’âge
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range) => {
               const label =
                 range.max < 120
                   ? `${range.min}-${range.max} ans`
                   : `${range.min} ans et +`;
-              return <TableCell key={label}>{label}</TableCell>;
+              return <TableHead key={label}>{label}</TableHead>;
             })}
           </TableRow>
         </TableHeader>

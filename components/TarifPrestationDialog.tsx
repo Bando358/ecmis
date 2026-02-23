@@ -37,13 +37,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import ReactSelect from "react-select";
 
 interface TarifPrestationDialogProps {
   prestations: Prestation[];
   cliniques: Clinique[];
+  existingTarifs?: TarifPrestation[];
   isUpdating?: boolean;
   initialData?: TarifPrestation;
   onSubmit: (data: TarifPrestation) => Promise<void>;
@@ -53,6 +54,7 @@ interface TarifPrestationDialogProps {
 export default function TarifPrestationDialog({
   prestations,
   cliniques,
+  existingTarifs = [],
   isUpdating = false,
   initialData,
   onSubmit,
@@ -76,22 +78,43 @@ export default function TarifPrestationDialog({
     if (idUser) form.setValue("idUser", idUser);
   }, [idUser, form]);
 
-  // ✅ Regrouper les prestations par typePrestation (si la propriété existe)
-  const groupedPrestationOptions = Object.entries(
-    (prestations as PrestationWithType[]).reduce((acc, prestation) => {
-      // Utiliser typePrestation si disponible, sinon "Autres"
-      const type = prestation.typePrestation || "Autres";
-      if (!acc[type]) acc[type] = [];
-      acc[type].push({
-        value: String(prestation.id),
-        label: prestation.nomPrestation,
-      });
-      return acc;
-    }, {} as Record<string, { value: string; label: string }[]>)
-  ).map(([typePrestation, options]) => ({
-    label: typePrestation,
-    options,
-  }));
+  const selectedClinique = form.watch("idClinique");
+
+  // Filtrer les prestations déjà tarifées pour la clinique sélectionnée
+  const availablePrestations = useMemo(() => {
+    if (!selectedClinique) return prestations;
+    const existingPrestationIds = new Set(
+      existingTarifs
+        .filter((t) => t.idClinique === selectedClinique)
+        .map((t) => t.idPrestation)
+    );
+    // En mode modification, ne pas exclure la prestation en cours d'édition
+    if (isUpdating && initialData) {
+      existingPrestationIds.delete(initialData.idPrestation);
+    }
+    return prestations.filter((p) => !existingPrestationIds.has(p.id));
+  }, [prestations, existingTarifs, selectedClinique, isUpdating, initialData]);
+
+  // Regrouper les prestations disponibles par typePrestation
+  const groupedPrestationOptions = useMemo(() => {
+    return Object.entries(
+      (availablePrestations as PrestationWithType[]).reduce(
+        (acc, prestation) => {
+          const type = prestation.typePrestation || "Autres";
+          if (!acc[type]) acc[type] = [];
+          acc[type].push({
+            value: String(prestation.id),
+            label: prestation.nomPrestation,
+          });
+          return acc;
+        },
+        {} as Record<string, { value: string; label: string }[]>
+      )
+    ).map(([typePrestation, options]) => ({
+      label: typePrestation,
+      options,
+    }));
+  }, [availablePrestations]);
 
   const handleSubmit = async (data: TarifPrestation) => {
     setIsDisabled(true);
@@ -100,7 +123,7 @@ export default function TarifPrestationDialog({
       toast.success(
         `Tarif prestation ${
           isUpdating ? "mis à jour" : "ajouté"
-        } avec succès 🎉`
+        } avec succès !`
       );
       setOpen(false);
       form.reset({
@@ -140,7 +163,51 @@ export default function TarifPrestationDialog({
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              {/* ✅ Sélecteur de prestation groupé par typePrestation */}
+              {/* 1. Clinique (d'abord) */}
+              <FormField
+                control={form.control}
+                name="idClinique"
+                rules={{ required: "La clinique est obligatoire" }}
+                render={({ field }) => (
+                  <FormItem className="grid grid-cols-4 items-center gap-4">
+                    <FormLabel className="text-right">Clinique</FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        // Réinitialiser la prestation si elle n'est plus dispo
+                        const currentPrestation =
+                          form.getValues("idPrestation");
+                        if (currentPrestation) {
+                          const willBeExcluded = existingTarifs.some(
+                            (t) =>
+                              t.idClinique === val &&
+                              t.idPrestation === currentPrestation
+                          );
+                          if (willBeExcluded)
+                            form.setValue("idPrestation", "");
+                        }
+                      }}
+                      value={field.value || undefined}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-70 col-span-3">
+                          <SelectValue placeholder="Sélectionnez une clinique" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {cliniques.map((clinique) => (
+                          <SelectItem key={clinique.id} value={clinique.id}>
+                            {clinique.nomClinique}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="col-span-4 text-right" />
+                  </FormItem>
+                )}
+              />
+
+              {/* 2. Prestation (désactivé sans clinique) */}
               <FormField
                 control={form.control}
                 name="idPrestation"
@@ -151,14 +218,22 @@ export default function TarifPrestationDialog({
                     <div className="col-span-3">
                       <ReactSelect
                         options={groupedPrestationOptions}
-                        placeholder="Sélectionnez une prestation"
+                        placeholder={
+                          !selectedClinique
+                            ? "Choisir une clinique d'abord"
+                            : "Sélectionnez une prestation"
+                        }
+                        isDisabled={!selectedClinique}
                         value={groupedPrestationOptions
                           .flatMap((group) => group.options)
-                          .find((option) => option.value === field.value)}
+                          .find((option) => option.value === field.value) || null}
                         onChange={(selectedOption) => {
                           field.onChange(selectedOption?.value || "");
                           form.trigger("idPrestation");
                         }}
+                        noOptionsMessage={() =>
+                          "Toutes les prestations sont déjà tarifées pour cette clinique"
+                        }
                         classNamePrefix="select"
                         styles={{
                           control: (base) => ({
@@ -180,37 +255,7 @@ export default function TarifPrestationDialog({
                 )}
               />
 
-              {/* Sélecteur de clinique */}
-              <FormField
-                control={form.control}
-                name="idClinique"
-                rules={{ required: "La clinique est obligatoire" }}
-                render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 items-center gap-4">
-                    <FormLabel className="text-right">Clinique</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value || undefined}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-70 col-span-3">
-                          <SelectValue placeholder="Sélectionnez une clinique" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {cliniques.map((clinique) => (
-                          <SelectItem key={clinique.id} value={clinique.id}>
-                            {clinique.nomClinique}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage className="col-span-4 text-right" />
-                  </FormItem>
-                )}
-              />
-
-              {/* Montant de la prestation */}
+              {/* 3. Montant */}
               <FormField
                 control={form.control}
                 name="montantPrestation"

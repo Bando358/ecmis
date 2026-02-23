@@ -402,4 +402,11 @@ export const dataPermission = [
     canUpdate: false,
     canDelete: false,
   },
+  {
+    table: TableName.JOURNAL_PHARMACIE,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
 ];

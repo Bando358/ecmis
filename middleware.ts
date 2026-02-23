@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_THRESHOLD = 5000; // marge de 5 sec
 
 export async function middleware(req: NextRequest) {

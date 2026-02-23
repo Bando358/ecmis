@@ -3,6 +3,7 @@ import {
   deleteTestGrossesse,
   getAllTestGrossesseByIdClient,
 } from "@/lib/actions/testActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useEffect, useState } from "react";
 import {
@@ -62,8 +63,13 @@ export function Table06({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataTestGrossesse.find((d) => d.id === id);
       await deleteTestGrossesse(id);
-      setDataTestGrossesse(dataTestGrossesse.filter((d) => d.id !== id));
+      const remaining = dataTestGrossesse.filter((d) => d.id !== id);
+      setDataTestGrossesse(remaining);
+      if (record && !remaining.some((d) => d.testIdVisite === record.testIdVisite)) {
+        await removeFormulaireFromRecap(record.testIdVisite, "07 Fiche Test TBG");
+      }
     }
   };
 

@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -529,42 +530,42 @@ export default function TableRapportPediatrie({
       </div>
       <h2 className="font-bold">Rapport clients Pédiatrie -</h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className="font-semibold">
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={2}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Masculin
-            </TableCell>
-            <TableCell colSpan={2} className="font-bold text-center">
+            </TableHead>
+            <TableHead colSpan={2} className="font-semibold text-center">
               Féminin
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range, index) => {
               return (
                 <>
-                  <TableCell
+                  <TableHead
                     key={`masculin-${range.min}-${range.max}-${index}`}
                   >
                     {range.min}-{range.max} ans
-                  </TableCell>
+                  </TableHead>
                 </>
               );
             })}
             {ageRanges.map((range, index) => {
               return (
                 <>
-                  <TableCell key={`feminin-${range.min}-${range.max}-${index}`}>
+                  <TableHead key={`feminin-${range.min}-${range.max}-${index}`}>
                     {range.min}-{range.max} ans
-                  </TableCell>
+                  </TableHead>
                 </>
               );
             })}
@@ -641,42 +642,42 @@ export default function TableRapportPediatrie({
       <Separator className="bg-green-300"></Separator>
       <h2 className="font-bold">Rapport services Pédiatrie -</h2>
       <Table className="border">
-        <TableHeader className="bg-gray-200">
+        <TableHeader className="bg-slate-100">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className="font-semibold">
               Indicateurs
-            </TableCell>
-            <TableCell
+            </TableHead>
+            <TableHead
               colSpan={2}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
+              className="font-semibold text-center border border-gray-300"
             >
               Masculin
-            </TableCell>
-            <TableCell colSpan={2} className="font-bold text-center">
+            </TableHead>
+            <TableHead colSpan={2} className="font-semibold text-center">
               Féminin
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className="font-semibold">
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range, index) => {
               return (
                 <>
-                  <TableCell
+                  <TableHead
                     key={`masculin-${range.min}-${range.max}-${index}`}
                   >
                     {range.min}-{range.max} ans
-                  </TableCell>
+                  </TableHead>
                 </>
               );
             })}
             {ageRanges.map((range, index) => {
               return (
                 <>
-                  <TableCell key={`feminin-${range.min}-${range.max}-${index}`}>
+                  <TableHead key={`feminin-${range.min}-${range.max}-${index}`}>
                     {range.min}-{range.max} ans
-                  </TableCell>
+                  </TableHead>
                 </>
               );
             })}

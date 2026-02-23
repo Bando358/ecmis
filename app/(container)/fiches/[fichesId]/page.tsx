@@ -31,11 +31,11 @@ import { Button } from "@/components/ui/button";
 import { useClientContext } from "@/components/ClientContext";
 import { cn } from "@/lib/utils";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
-import { getRecapVisiteByIdVisite } from "@/lib/actions/recapActions";
+import { getRecapVisitesByTabIdVisite } from "@/lib/actions/recapActions";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { Client, RecapVisite, Visite } from "@prisma/client";
 import { motion } from "framer-motion";
-import Retour from "@/components/retour";
+import RetourClients from "@/components/retour-clients";
 
 // Loader pour les composants dynamiques
 const TableLoader = () => (
@@ -479,7 +479,7 @@ const DateCarousel = ({
             key={visite.id}
             className="w-48 text-center border px-2 py-1 rounded-md shrink-0 bg-muted/30 text-sm font-medium"
           >
-            {visite.dateVisite.toLocaleDateString("fr-FR")}
+            {new Date(visite.dateVisite).toLocaleDateString("fr-FR")}
           </div>
         ))}
       </div>
@@ -560,10 +560,10 @@ export default function Fiches({
         setAllVisite(visites);
 
         if (visites.length > 0) {
-          const recaps = await Promise.all(
-            visites.map((v) => getRecapVisiteByIdVisite(v.id)),
+          const recaps = await getRecapVisitesByTabIdVisite(
+            visites.map((v) => v.id),
           );
-          setTabRecapVisite(recaps.flat());
+          setTabRecapVisite(recaps);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -581,15 +581,16 @@ export default function Fiches({
     [categories, selectedCategory],
   );
 
-  // Récap de la visite courante
-  const currentRecap = useMemo(
-    () => tabRecapVisite[currentIndex],
-    [tabRecapVisite, currentIndex],
-  );
+  // Récap de la visite courante (correspondance par idVisite, pas par index)
+  const currentRecap = useMemo(() => {
+    const currentVisite = allVisite[currentIndex];
+    if (!currentVisite) return undefined;
+    return tabRecapVisite.find((r) => r.idVisite === currentVisite.id);
+  }, [tabRecapVisite, currentIndex, allVisite]);
 
   return (
     <div className="w-full relative">
-      <Retour />
+      <RetourClients />
       <div className="space-y-4 max-w-300 mx-auto p-4">
         {/* ===== En-tête client ===== */}
         <Card className="overflow-hidden border-blue-200 shadow-md shadow-blue-100/40">

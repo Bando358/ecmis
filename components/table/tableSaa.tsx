@@ -5,6 +5,7 @@
 //   getAllVisiteByIdClient,
 // } from "@/lib/actions/authActions";
 import { deleteSaa, getAllSaaByIdClient } from "@/lib/actions/saaActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useEffect, useState } from "react";
 import {
@@ -62,8 +63,13 @@ export function Table10({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataSaa.find((d) => d.id === id);
       await deleteSaa(id);
-      setDataSaa(dataSaa.filter((d) => d.id !== id));
+      const remaining = dataSaa.filter((d) => d.id !== id);
+      setDataSaa(remaining);
+      if (record && !remaining.some((d) => d.saaIdVisite === record.saaIdVisite)) {
+        await removeFormulaireFromRecap(record.saaIdVisite, "11 Fiche SAA");
+      }
     }
   };
 

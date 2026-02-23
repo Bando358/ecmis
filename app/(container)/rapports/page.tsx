@@ -2,7 +2,7 @@
 // rapports/page.tsx
 import { useState, useEffect } from "react";
 import Select from "react-select";
-import { Spinner, SpinnerCustom } from "@/components/ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { z } from "zod";
@@ -15,6 +15,16 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  CalendarRange,
+  FileText,
+  Building2,
+  Activity,
+  Loader2,
+} from "lucide-react";
 
 import {
   ClientStatusInfo,
@@ -44,7 +54,12 @@ import {
   ClientLaboType,
   fetchLaboData,
 } from "@/lib/actions/rapportLaboActions";
+import {
+  EchoServiceItem,
+  fetchEchoData,
+} from "@/lib/actions/rapportEchoActions";
 import TableRapportLabo from "@/components/tableRapport/tableRapportLabo";
+import TableRapportEchographie from "@/components/tableRapport/tableRapportEchographie";
 import TableRapportPecVih from "@/components/tableRapport/tableRapportPecVih";
 import TableRapportSigMedecine from "@/components/tableRapport/tableRapportSigMedecine";
 import TableRapportSigObstetrique from "@/components/tableRapport/tableRapportSigObtetrique";
@@ -93,6 +108,7 @@ const FormValuesSchema = z.object({
       }),
     )
     .optional(),
+  activitesUniquement: z.boolean(),
 });
 
 type FormValuesType = z.infer<typeof FormValuesSchema>;
@@ -109,6 +125,7 @@ const tabRapport = [
   { value: "depistageVih", label: "Dépistage VIH" },
   { value: "pecVih", label: "PEC VIH" },
   { value: "laboratoire", label: "Laboratoire" },
+  { value: "echographie", label: "Echographie" },
   { value: "sigMedecine", label: "SIG : Médecine Générale" },
   { value: "sigObstetrique", label: "SIG : Obstétrique" },
   { value: "sigAccouchement", label: "SIG : Accouchement" },
@@ -140,13 +157,9 @@ const AnalyseReportPlanning = () => {
     (ResultatExamen & { libelleExamen?: string })[]
   >([]);
   const [tabExament, setTabExament] = useState<string[]>([]);
+  const [clientEchoData, setClientEchoData] = useState<EchoServiceItem[]>([]);
 
-  const { data: session, status } = useSession();
-  console.log("session", session);
-
-  if (clientAllData) {
-    console.log("clientData rapport page.tsx ", clientAllData);
-  }
+  const { status } = useSession();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -175,6 +188,7 @@ const AnalyseReportPlanning = () => {
       rapport: "",
       idCliniques: [],
       idActivite: [],
+      activitesUniquement: true,
     },
   });
 
@@ -284,10 +298,21 @@ const AnalyseReportPlanning = () => {
   };
 
   const onSubmit: SubmitHandler<FormValuesType> = async (data) => {
-    const { idCliniques, dateDebut, dateFin, rapport, idActivite } = data;
+    const { idCliniques, dateDebut, dateFin, rapport, idActivite, activitesUniquement } = data;
     const selectedIds = idCliniques.map((cl) => cl.value);
-    const selectedActivites = idActivite?.map((act) => act.value) || [];
-    console.log("FormData : ", data);
+
+    // Logique activité :
+    //   - Activités sélectionnées + checkbox coché → filtrer par ces activités
+    //   - Activités sélectionnées + checkbox décoché → "*" = toutes les visites
+    //   - Aucune activité sélectionnée → [] = routine uniquement (sans activité)
+    let selectedActivites: string[];
+    if (idActivite?.length) {
+      selectedActivites = activitesUniquement
+        ? idActivite.map((act) => act.value)
+        : ["*"];
+    } else {
+      selectedActivites = [];
+    }
     setSpinner(true);
 
     try {
@@ -298,27 +323,40 @@ const AnalyseReportPlanning = () => {
         new Date(dateFin),
       );
 
-      setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
-      setResultatLaboratoire(rapportLaboratoire[0].resultatExamen);
-      setTabExament(rapportLaboratoire[0].tabExamen);
+      if (rapportLaboratoire.length > 0) {
+        setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
+        setResultatLaboratoire(rapportLaboratoire[0].resultatExamen);
+        setTabExament(rapportLaboratoire[0].tabExamen);
+      } else {
+        setFactureLaboratoire([]);
+        setResultatLaboratoire([]);
+        setTabExament([]);
+      }
 
-      const clientDataLabo = await fetchLaboData(
-        selectedIds,
-        new Date(dateDebut),
-        new Date(dateFin),
-      );
+      const [clientDataLabo, echoDataResult] = await Promise.all([
+        fetchLaboData(
+          selectedIds,
+          selectedActivites,
+          new Date(dateDebut),
+          new Date(dateFin),
+        ),
+        fetchEchoData(
+          selectedIds,
+          selectedActivites,
+          new Date(dateDebut),
+          new Date(dateFin),
+        ),
+      ]);
       const prescripteurs = await getAllUserIncludedTabIdClinique(selectedIds);
       const allUsers = await getAllUserTabIdClinique(selectedIds);
 
-      console.log("clientDataLabo : ", clientDataLabo);
-      const data = await fetchClientsStatusProteges(
+      const protegeData = await fetchClientsStatusProteges(
         selectedIds,
         selectedActivites,
         new Date(dateDebut),
         new Date(dateFin),
       );
-      setClientDataProtege(data);
-      console.log("ClientDataProtege : ", data);
+      setClientDataProtege(protegeData);
       const clients = await fetchClientsData(
         selectedIds,
         selectedActivites,
@@ -361,9 +399,8 @@ const AnalyseReportPlanning = () => {
       });
       setDataPrescripteur(prescripteurData.filter((p) => p.name !== ""));
 
-      console.log("clientAllData :", newAllDataIdPrescripteur);
-
       setClientLaboData(clientDataLabo);
+      setClientEchoData(echoDataResult);
       setClientAllData(newAllDataIdPrescripteur);
       setRapportClinique(rapport);
       setClients(newAllDataIdPrescripteur);
@@ -414,51 +451,65 @@ const AnalyseReportPlanning = () => {
 
   return (
     <div className="flex flex-col p-6 w-full">
-      <h1 className="text-xl font-bold mb-4 text-center">
-        Générer les Rapport
-      </h1>
+      <div className="mx-auto w-full max-w-lg mb-8">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold text-blue-900">
+            Générer les Rapports
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Sélectionnez les paramètres pour générer votre rapport
+          </p>
+        </div>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="mx-auto p-4 border rounded-md max-w-125"
-      >
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label>Date début :</label>
-              <input
-                type="date"
-                {...register("dateDebut")}
-                className="w-full border px-3 py-2 rounded-md"
-              />
-              {errors.dateDebut && (
-                <span className="text-red-500 text-sm">
-                  {errors.dateDebut.message}
-                </span>
-              )}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-5 p-6 border border-blue-200/60 rounded-lg bg-white shadow-sm"
+        >
+          {/* Période */}
+          <fieldset>
+            <legend className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-1.5">
+              <CalendarRange className="h-4 w-4" />
+              Période du rapport
+            </legend>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Début <span className="text-red-500">*</span>
+                </label>
+                <Input type="date" {...register("dateDebut")} />
+                {errors.dateDebut && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.dateDebut.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Fin <span className="text-red-500">*</span>
+                </label>
+                <Input type="date" {...register("dateFin")} />
+                {errors.dateFin && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.dateFin.message}
+                  </p>
+                )}
+              </div>
             </div>
+          </fieldset>
 
-            <div className="flex-1">
-              <label>Date fin :</label>
-              <input
-                type="date"
-                {...register("dateFin")}
-                className="w-full border px-3 py-2 rounded-md"
-              />
-              {errors.dateFin && (
-                <span className="text-red-500 text-sm">
-                  {errors.dateFin.message}
-                </span>
-              )}
-            </div>
-          </div>
+          <Separator />
 
+          {/* Type de rapport */}
           <div>
-            <label>Type de Rapport :</label>
+            <label className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
+              <FileText className="h-4 w-4" />
+              Type de Rapport <span className="text-red-500">*</span>
+            </label>
             <Select
               options={tabRapport}
               classNamePrefix="select"
               placeholder="Sélectionner le rapport"
+              noOptionsMessage={() => "Aucun rapport disponible"}
               value={
                 tabRapport.find((opt) => opt.value === watch("rapport")) || null
               }
@@ -467,38 +518,51 @@ const AnalyseReportPlanning = () => {
               }}
             />
             {errors.rapport && (
-              <span className="text-red-500 text-sm">
+              <p className="text-red-500 text-xs mt-1">
                 {errors.rapport.message}
-              </span>
+              </p>
             )}
           </div>
 
+          <Separator />
+
+          {/* Cliniques */}
           <div>
-            <label>Cliniques :</label>
+            <label className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
+              <Building2 className="h-4 w-4" />
+              Cliniques <span className="text-red-500">*</span>
+            </label>
             <Select
               isMulti
               options={cliniques}
               classNamePrefix="select"
               placeholder="Sélectionner une ou plusieurs cliniques"
+              noOptionsMessage={() => "Aucune clinique disponible"}
               value={watch("idCliniques")}
               onChange={(selectedOptions) => {
                 setValue(
                   "idCliniques",
                   selectedOptions ? [...selectedOptions] : [],
                 );
-                // Réinitialiser les activités quand les cliniques changent
                 setValue("idActivite", []);
               }}
             />
             {errors.idCliniques && (
-              <span className="text-red-500 text-sm">
+              <p className="text-red-500 text-xs mt-1">
                 {errors.idCliniques.message}
-              </span>
+              </p>
             )}
           </div>
 
+          {/* Activités */}
           <div>
-            <label>Activités :</label>
+            <label className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
+              <Activity className="h-4 w-4" />
+              Activités{" "}
+              <span className="text-gray-400 font-normal text-xs">
+                (optionnel)
+              </span>
+            </label>
             <Select
               isMulti
               options={activites}
@@ -508,6 +572,7 @@ const AnalyseReportPlanning = () => {
                   ? "Sélectionnez d'abord une clinique"
                   : "Sélectionner une ou plusieurs activités"
               }
+              noOptionsMessage={() => "Aucune activité disponible"}
               isDisabled={watch("idCliniques").length === 0}
               value={watch("idActivite")}
               onChange={(selectedOptions) => {
@@ -520,12 +585,13 @@ const AnalyseReportPlanning = () => {
               getOptionLabel={(option) => option.label}
             />
             {watch("idCliniques").length === 0 && (
-              <span className="text-gray-500 text-sm">
-                Veuillez {"d'abord"} sélectionner une clinique
-              </span>
+              <p className="text-gray-400 text-xs mt-1">
+                Veuillez d&#39;abord sélectionner une clinique
+              </p>
             )}
           </div>
 
+          {/* Checkbox activités uniquement */}
           <AnimatePresence>
             {watch("idActivite") && watch("idActivite")!.length > 0 && (
               <motion.div
@@ -534,42 +600,53 @@ const AnalyseReportPlanning = () => {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
               >
-                <FieldGroup className="mx-auto w-full max-w-240">
-                  <Field orientation="horizontal">
-                    <Checkbox
-                      id="activites-uniquement"
-                      name="activites-uniquement"
-                      defaultChecked={false}
-                    />
-                    <FieldContent>
-                      <FieldLabel htmlFor="activites-uniquement">
-                        Rapport des activités uniquement
-                      </FieldLabel>
-                      <FieldDescription>
-                        Cochez cette case si vous souhaitez générer un rapport
-                        basé uniquement sur les activités sélectionnées, sans
-                        inclure les données de routine de la clinique.
-                      </FieldDescription>
-                    </FieldContent>
-                  </Field>
-                </FieldGroup>
+                <div className="rounded-md border border-blue-100 bg-blue-50/50 p-3">
+                  <FieldGroup>
+                    <Field orientation="horizontal">
+                      <Checkbox
+                        id="activites-uniquement"
+                        checked={watch("activitesUniquement") ?? true}
+                        onCheckedChange={(checked) =>
+                          setValue("activitesUniquement", !!checked)
+                        }
+                      />
+                      <FieldContent>
+                        <FieldLabel htmlFor="activites-uniquement">
+                          Rapport des activités uniquement
+                        </FieldLabel>
+                        <FieldDescription>
+                          Cochez pour générer un rapport basé uniquement sur les
+                          activités sélectionnées, sans les données de routine.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+                  </FieldGroup>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex justify-center gap-2"
-          >
-            {spinner && (
-              <SpinnerCustom className="text-green-900 dark:text-slate-400" />
-            )}
-            <div>Générer</div>
-          </button>
-        </div>
-      </form>
+          <Separator />
 
-      {(clients.length > 0 || clientDataProtege.length > 0) && (
+          {/* Submit */}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={spinner}
+          >
+            {spinner ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Génération en cours...
+              </>
+            ) : (
+              "Générer le rapport"
+            )}
+          </Button>
+        </form>
+      </div>
+
+      {(clients.length > 0 || clientDataProtege.length > 0 || clientEchoData.length > 0) && (
         <div className="mt-6 mx-auto max-w-240 w-full">
           {(() => {
             switch (rapportClinique) {
@@ -711,6 +788,19 @@ const AnalyseReportPlanning = () => {
                     ageRanges={ageRanges}
                     clientAllData={clientAllData}
                     clientData={clientLaboData}
+                    dateDebut={watch("dateDebut")}
+                    dateFin={watch("dateFin")}
+                    clinic={getAllClinicNameByIds(
+                      cliniques,
+                      watch("idCliniques").map((item) => item.value),
+                    ).join(", ")}
+                  />
+                );
+              case "echographie":
+                return (
+                  <TableRapportEchographie
+                    ageRanges={ageRanges}
+                    echoData={clientEchoData}
                     dateDebut={watch("dateDebut")}
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(

@@ -2,12 +2,20 @@
 
 import { DetailInventaire } from "@prisma/client";
 import prisma from "../prisma";
+import { logAction } from "./journalPharmacyActions";
 
 // ************ Inventaire **********
 export async function createDetailInventaire(data: DetailInventaire) {
-  return await prisma.detailInventaire.create({
-    data,
+  const result = await prisma.detailInventaire.create({ data });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "DetailInventaire",
+    entiteId: result.id,
+    description: `Detail inventaire: theorique=${data.quantiteTheorique}, reelle=${data.quantiteReelle}, ecart=${data.ecart}`,
+    nouvellesDonnees: { quantiteTheorique: data.quantiteTheorique, quantiteReelle: data.quantiteReelle, ecart: data.ecart },
   });
+  return result;
 }
 
 // Récupération de tous les Inventaire

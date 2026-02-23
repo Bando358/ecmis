@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useClientContext } from "../ClientContext";
 import { Vbg, Visite } from "@prisma/client";
 import { deleteVbg, getAllVbgByIdClient } from "@/lib/actions/vbgActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 
 const TabTypeVbg = [
   { value: "viol", label: "Viol" },
@@ -76,8 +77,13 @@ export function Table15({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataVbg.find((d) => d.id === id);
       await deleteVbg(id);
-      setDataVbg(dataVbg.filter((d) => d.id !== id));
+      const remaining = dataVbg.filter((d) => d.id !== id);
+      setDataVbg(remaining);
+      if (record && !remaining.some((d) => d.vbgIdVisite === record.vbgIdVisite)) {
+        await removeFormulaireFromRecap(record.vbgIdVisite, "16 Fiche Vbg");
+      }
     }
   };
 

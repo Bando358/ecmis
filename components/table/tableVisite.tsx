@@ -4,6 +4,7 @@ import {
   deleteVisite,
   getAllVisiteByIdClient,
 } from "@/lib/actions/visiteActions";
+import { deleteRecapVisite } from "@/lib/actions/recapActions";
 import { Visite } from "@prisma/client";
 import { useEffect, useState } from "react";
 import {
@@ -29,6 +30,7 @@ import {
 import { NotebookPen, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useClientContext } from "../ClientContext";
+import { toast } from "sonner";
 
 export function Table00({ id }: { id: string }) {
   const [data, setData] = useState<Visite[]>([]);
@@ -42,27 +44,28 @@ export function Table00({ id }: { id: string }) {
     fetchData();
   }, [id]);
 
-  const handleDelete = async (id: string) => {
-    const confirmed = window.confirm(
-      "Êtes-vous sûr de vouloir supprimer ce client ?"
-    );
-    if (confirmed) {
-      await deleteVisite(id);
-      setData(data.filter((d) => d.id !== id));
+  const handleDelete = async (visiteId: string) => {
+    try {
+      await deleteRecapVisite(visiteId);
+      await deleteVisite(visiteId);
+      setData(data.filter((d) => d.id !== visiteId));
+      toast.success("Visite supprimée avec succès");
+    } catch {
+      toast.error("Erreur lors de la suppression de la visite");
     }
   };
 
   return (
     <Table className="max-w-150 mx-4">
       <TableCaption>
-        {data.length === 0 ? "Acune constante" : "Liste des visites du client"}
+        {data.length === 0 ? "Aucune visite" : "Liste des visites du client"}
       </TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead className="w-25">Editer</TableHead>
           <TableHead>Date Visite</TableHead>
-          <TableHead>Libellé</TableHead>
-          <TableHead>action</TableHead>
+          <TableHead>Motif</TableHead>
+          <TableHead>Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -81,16 +84,13 @@ export function Table00({ id }: { id: string }) {
               </Link>
             </TableCell>
             <TableCell className="font-medium">
-              {d.dateVisite.toLocaleDateString("fr-FR")}
+              {new Date(d.dateVisite).toLocaleDateString("fr-FR")}
             </TableCell>
-            <TableCell>Visite</TableCell>
+            <TableCell>{d.motifVisite || "—"}</TableCell>
             <TableCell className="flex">
-              {/* <FilePenLine className="text-xl m-1 duration-300 hover:scale-150 text-blue-600 cursor-pointer" /> */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  {/* <Button variant="outline"> */}
                   <Trash2 className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-red-600 cursor-pointer" />
-                  {/* </Button> */}
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -98,18 +98,18 @@ export function Table00({ id }: { id: string }) {
                       Êtes vous absolument sûr?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Cette action est irréversible. si vous cliquez sur
-                      continuer la visite du client sera definitivement
-                      supprimer
+                      Cette action est irréversible. Si vous cliquez sur
+                      continuer, la visite du client sera définitivement
+                      supprimée.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-red-600   "
+                      className="bg-red-600"
                       onClick={() => handleDelete(d.id)}
                     >
-                      Continue
+                      Continuer
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

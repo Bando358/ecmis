@@ -1,12 +1,9 @@
 "use client";
-// import {
-//   deleteVisite,
-//   getConstantesByClientId,
-// } from "@/lib/actions/authActions";
 import {
   deleteConstante,
   getAllContanteByIdClient,
 } from "@/lib/actions/constanteActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -32,6 +29,7 @@ import { NotebookPen, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useClientContext } from "../ClientContext";
 import { Constante } from "@prisma/client";
+import { toast } from "sonner";
 
 export function Table01({ id }: { id: string }) {
   const [data, setData] = useState<Constante[]>([]);
@@ -40,19 +38,23 @@ export function Table01({ id }: { id: string }) {
   useEffect(() => {
     const fetchData = async () => {
       const tab = await getAllContanteByIdClient(id);
-      const newTab = tab.reverse();
-      setData(newTab);
+      setData(tab);
     };
     fetchData();
   }, [id]);
 
-  const handleDelete = async (id: string) => {
-    const confirmed = window.confirm(
-      "Êtes-vous sûr de vouloir supprimer ce client ?"
-    );
-    if (confirmed) {
-      await deleteConstante(id);
-      setData(data.filter((d) => d.id !== id));
+  const handleDelete = async (constanteId: string) => {
+    try {
+      const record = data.find((d) => d.id === constanteId);
+      await deleteConstante(constanteId);
+      const remaining = data.filter((d) => d.id !== constanteId);
+      setData(remaining);
+      if (record && !remaining.some((d) => d.idVisite === record.idVisite)) {
+        await removeFormulaireFromRecap(record.idVisite, "02 Fiche des constantes");
+      }
+      toast.success("Constante supprimée avec succès");
+    } catch {
+      toast.error("Erreur lors de la suppression de la constante");
     }
   };
 
@@ -60,17 +62,17 @@ export function Table01({ id }: { id: string }) {
     <Table className="max-w-150 mx-4">
       <TableCaption>
         {data.length === 0
-          ? "Acune constante"
+          ? "Aucune constante"
           : "Liste des constantes du client"}
       </TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead className="w-25">Ouvrir</TableHead>
-          <TableHead>Date Visite</TableHead>
-          <TableHead>Libellé</TableHead>
+          <TableHead>Date</TableHead>
           <TableHead>Poids</TableHead>
           <TableHead>Taille</TableHead>
-          <TableHead>action</TableHead>
+          <TableHead>IMC</TableHead>
+          <TableHead>Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -89,18 +91,17 @@ export function Table01({ id }: { id: string }) {
               </Link>
             </TableCell>
             <TableCell className="font-medium">
-              {d.createdAt.toLocaleDateString("fr-FR")}
+              {new Date(d.createdAt).toLocaleDateString("fr-FR")}
             </TableCell>
-            <TableCell>Constante</TableCell>
             <TableCell>{d.poids} kg</TableCell>
-            <TableCell>{d.taille} cm</TableCell>
+            <TableCell>{d.taille ? `${d.taille} cm` : "—"}</TableCell>
+            <TableCell>
+              {d.etatImc || "—"}
+            </TableCell>
             <TableCell className="flex">
-              {/* <FilePenLine className="text-xl m-1 duration-300 hover:scale-150 text-blue-600 cursor-pointer" /> */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  {/* <Button variant="outline"> */}
                   <Trash2 className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-red-600 cursor-pointer" />
-                  {/* </Button> */}
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -108,18 +109,17 @@ export function Table01({ id }: { id: string }) {
                       Êtes vous absolument sûr?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Cette action est irréversible. si vous cliquez sur
-                      continuer la visite du client sera definitivement
-                      supprimer
+                      Cette action est irréversible. Si vous cliquez sur
+                      continuer, la constante sera définitivement supprimée.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-red-600   "
+                      className="bg-red-600"
                       onClick={() => handleDelete(d.id)}
                     >
-                      Continue
+                      Continuer
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

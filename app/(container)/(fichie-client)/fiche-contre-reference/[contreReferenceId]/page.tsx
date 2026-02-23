@@ -69,6 +69,7 @@ import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import { getAllReferenceByIdClient } from "@/lib/actions/referenceActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { ArrowBigLeftDash } from "lucide-react";
 
 const TabQualification = [
@@ -312,6 +313,12 @@ export default function ContreReferencePage({
         return;
       } else {
         await createContreReference(formattedData);
+        await createRecapVisite({
+          idVisite: formattedData.refIdVisite,
+          idClient: contreReferenceId,
+          prescripteurs: [],
+          formulaires: ["20 Fiche Contre-référence"],
+        });
         console.log("formattedData : ", formattedData);
         toast.success("Contre-référence créée avec succès! 🎉");
         const updatedList = await getAllContreReferenceByIdClient(
@@ -386,6 +393,9 @@ export default function ContreReferencePage({
           contreReferenceId
         );
         setTabContreReference(updatedList);
+        if (selectedVisite && !updatedList.some((cr: ContreReference) => cr.refIdVisite === selectedVisite)) {
+          await removeFormulaireFromRecap(selectedVisite, "20 Fiche Contre-référence");
+        }
       } catch (error) {
         toast.error("La suppression de la contre-référence a échoué");
         console.error(

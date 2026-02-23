@@ -63,6 +63,7 @@ import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import { Square } from "lucide-react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import Retour from "@/components/retour";
 
 const TabMotifReference = [
@@ -317,6 +318,12 @@ export default function ReferencePage({
         return;
       } else {
         await createReference(formattedData);
+        await createRecapVisite({
+          idVisite: formattedData.refIdVisite,
+          idClient: referenceId,
+          prescripteurs: [],
+          formulaires: ["19 Fiche Référence"],
+        });
         console.log("formattedData : ", formattedData);
         toast.success("Référence créée avec succès! 🎉");
         const updatedList = await getAllReferenceByIdClient(referenceId);
@@ -398,6 +405,9 @@ export default function ReferencePage({
       toast.success("Référence supprimée avec succès! 🎉");
       const updatedList = await getAllReferenceByIdClient(referenceId);
       setTabReference(updatedList);
+      if (selectedVisite && !updatedList.some((r: Reference) => r.refIdVisite === selectedVisite)) {
+        await removeFormulaireFromRecap(selectedVisite, "19 Fiche Référence");
+      }
     } catch (error) {
       toast.error("La suppression de la référence a échoué");
       console.error("Erreur lors de la suppression de la référence:", error);

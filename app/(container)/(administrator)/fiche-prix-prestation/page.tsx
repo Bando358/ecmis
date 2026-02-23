@@ -1,14 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Filter, FilterX, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import {
+  Check,
+  Filter,
+  FilterX,
+  Pencil,
+  Trash2,
+  Plus,
+  X,
+  Search,
+  CircleDollarSign,
+  Stethoscope,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Command,
+  CommandEmpty,
   CommandInput,
   CommandItem,
   CommandList,
+  CommandGroup,
 } from "@/components/ui/command";
 import {
   AlertDialog,
@@ -27,12 +40,16 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Clinique,
   Permission,
@@ -49,9 +66,7 @@ import {
   updateTarifPrestation,
 } from "@/lib/actions/tarifPrestationActions";
 import { useSession } from "next-auth/react";
-// import { TarifPrestationDialog } from "./TarifPrestationDialog";
 import TarifPrestationDialog from "@/components/TarifPrestationDialog";
-import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
@@ -67,28 +82,36 @@ export default function TarificationPrestation() {
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [permission, setPermission] = useState<Permission | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
 
-  const filteredTarifPrestations = selectedCliniques.length
-    ? tarifPrestations.filter((tarif) =>
-        selectedCliniques.includes(tarif.idClinique)
-      )
-    : tarifPrestations;
+  // Filtrage combiné (recherche + clinique)
+  const filteredTarifPrestations = useMemo(() => {
+    return tarifPrestations.filter((tarif) => {
+      const matchClinique =
+        selectedCliniques.length === 0 ||
+        selectedCliniques.includes(tarif.idClinique);
+      const matchSearch =
+        !searchTerm ||
+        tarif.nomPrestation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        nomCliniques(tarif.idClinique)
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase());
+      return matchClinique && matchSearch;
+    });
+  }, [tarifPrestations, selectedCliniques, searchTerm, cliniques]);
 
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
     if (!session?.user) return;
-
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(session.user.id);
         const perm = permissions.find(
-          (p: { table: string; }) => p.table === TableName.TARIF_PRESTATION
+          (p: { table: string }) => p.table === TableName.TARIF_PRESTATION
         );
-
         if (perm?.canRead || session.user.role === "ADMIN") {
           setHasAccess(true);
           setPermission(perm || null);
@@ -105,24 +128,19 @@ export default function TarificationPrestation() {
         setIsCheckingPermissions(false);
       }
     };
-
     fetchPermissions();
   }, [session?.user, router]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const prestation = await getAllPrestation();
-      setPrestations(prestation);
-      const allTarifPrestation = await getAllTarifPrestation();
-      setTarifPrestations(allTarifPrestation);
-    };
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const clinique = await getAllClinique();
-      setCliniques(clinique);
+      const [prestationData, tarifData, cliniqueData] = await Promise.all([
+        getAllPrestation(),
+        getAllTarifPrestation(),
+        getAllClinique(),
+      ]);
+      setPrestations(prestationData);
+      setTarifPrestations(tarifData);
+      setCliniques(cliniqueData);
     };
     fetchData();
   }, []);
@@ -138,24 +156,24 @@ export default function TarificationPrestation() {
 
   if (!hasAccess) return null;
 
-  const namePrestations = (idPrestation: string) => {
-    if (prestations.length > 0) {
-      const prestation = prestations.find((p) => p.id === idPrestation);
-      return prestation ? prestation.nomPrestation : "Prestation introuvable";
-    }
-  };
+  function nomCliniques(idClinique: string) {
+    return (
+      cliniques.find((c) => c.id === idClinique)?.nomClinique ||
+      "Clinique introuvable"
+    );
+  }
 
-  const nomCliniques = (idClinique: string) => {
-    if (cliniques.length > 0) {
-      const clinique = cliniques.find((p) => p.id === idClinique);
-      return clinique ? clinique.nomClinique : "Clinique introuvable";
-    }
+  const namePrestations = (idPrestation: string) => {
+    return (
+      prestations.find((p) => p.id === idPrestation)?.nomPrestation ||
+      "Prestation introuvable"
+    );
   };
 
   const handleCreate = async (data: TarifPrestation) => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de fixer un tarif de prestation. Contactez un administrateur."
+        "Vous n'avez pas la permission de fixer un tarif. Contactez un administrateur."
       );
       return;
     }
@@ -173,7 +191,7 @@ export default function TarificationPrestation() {
   const handleUpdate = async (data: TarifPrestation) => {
     if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de mettre à jour un tarif de prestation. Contactez un administrateur."
+        "Vous n'avez pas la permission de modifier un tarif. Contactez un administrateur."
       );
       return;
     }
@@ -191,14 +209,14 @@ export default function TarificationPrestation() {
   const handleDelete = async (id: string) => {
     if (!permission?.canDelete && session?.user.role !== "ADMIN") {
       alert(
-        "Vous n'avez pas la permission de supprimer un tarif de prestation. Contactez un administrateur."
+        "Vous n'avez pas la permission de supprimer un tarif. Contactez un administrateur."
       );
       return;
     }
     try {
       await deleteTarifPrestation(id);
-      setTarifPrestations(tarifPrestations.filter((tarif) => tarif.id !== id));
-      toast.success("Le tarif a été supprimé avec succès! 🎉");
+      setTarifPrestations(tarifPrestations.filter((t) => t.id !== id));
+      toast.success("Tarif supprimé avec succès !");
     } catch (error) {
       toast.error("Erreur lors de la suppression du tarif");
       console.error(error);
@@ -206,137 +224,253 @@ export default function TarificationPrestation() {
   };
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto p-4 rounded-md">
-      <h1 className="text-2xl font-bold text-center">Tarification</h1>
-      <div className="flex justify-end">
+    <div className="space-y-4 max-w-6xl mx-auto p-4">
+      {/* ===== EN-TETE ===== */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-teal-100 rounded-lg">
+            <CircleDollarSign className="h-6 w-6 text-teal-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Tarification des prestations
+            </h1>
+            <p className="text-sm text-gray-500">
+              {tarifPrestations.length} tarif
+              {tarifPrestations.length > 1 ? "s" : ""} enregistré
+              {tarifPrestations.length > 1 ? "s" : ""}
+            </p>
+          </div>
+        </div>
         <TarifPrestationDialog
           prestations={prestations}
           cliniques={cliniques}
+          existingTarifs={tarifPrestations}
           onSubmit={handleCreate}
         >
-          <Button variant="outline">Ajouter un tarif</Button>
+          <Button className="gap-2">
+            <Plus size={16} />
+            Nouveau tarif
+          </Button>
         </TarifPrestationDialog>
       </div>
 
-      <Table className="border  bg-gray-50 opacity-90 p-6 rounded-sm">
-        <TableHeader>
-          <TableRow>
-            <TableCell>Prestations</TableCell>
-            <TableCell>Tarifs</TableCell>
-            <TableCell
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="cursor-pointer flex flex-row items-center"
+      {/* ===== RECHERCHE + FILTRE CLINIQUE ===== */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Rechercher par prestation ou clinique..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchTerm("")}
             >
-              Cliniques
-              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-                <PopoverTrigger asChild>
-                  <span>
-                    {selectedCliniques.length > 0 ? (
-                      <FilterX
-                        size={14}
-                        onClick={() => setSelectedCliniques([])}
-                        className="text-red-500"
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+        <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "gap-1.5 h-9",
+                selectedCliniques.length > 0 &&
+                  "border-teal-300 bg-teal-50 text-teal-700"
+              )}
+            >
+              {selectedCliniques.length > 0 ? (
+                <>
+                  <FilterX className="h-3.5 w-3.5" />
+                  {selectedCliniques.length} clinique
+                  {selectedCliniques.length > 1 ? "s" : ""}
+                </>
+              ) : (
+                <>
+                  <Filter className="h-3.5 w-3.5" />
+                  Filtrer par clinique
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-0">
+            <Command>
+              <CommandInput placeholder="Rechercher une clinique..." />
+              <CommandList>
+                <CommandEmpty>Aucune clinique trouvée.</CommandEmpty>
+                <CommandGroup>
+                  {selectedCliniques.length > 0 && (
+                    <CommandItem
+                      onSelect={() => setSelectedCliniques([])}
+                      className="text-red-500 text-xs"
+                    >
+                      <X className="mr-2 h-3 w-3" />
+                      Effacer les filtres
+                    </CommandItem>
+                  )}
+                  {cliniques.map((clinique) => (
+                    <CommandItem
+                      key={clinique.id}
+                      value={clinique.nomClinique}
+                      onSelect={() => {
+                        if (selectedCliniques.includes(clinique.id)) {
+                          setSelectedCliniques(
+                            selectedCliniques.filter(
+                              (id) => id !== clinique.id
+                            )
+                          );
+                        } else {
+                          setSelectedCliniques([
+                            ...selectedCliniques,
+                            clinique.id,
+                          ]);
+                        }
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedCliniques.includes(clinique.id)
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
                       />
-                    ) : (
-                      <Filter size={14} className="text-blue-500 rotate-180" />
-                    )}
-                  </span>
-                </PopoverTrigger>
-                <PopoverContent className="w-75 p-4">
-                  <Command>
-                    <CommandInput placeholder="Rechercher une clinique..." />
-                    <CommandList>
-                      {cliniques.map((clinique) => (
-                        <CommandItem
-                          key={clinique.id}
-                          value={clinique.nomClinique}
-                          onSelect={() => {
-                            if (selectedCliniques.includes(clinique.id)) {
-                              setSelectedCliniques(
-                                selectedCliniques.filter(
-                                  (id) => id !== clinique.id
-                                )
-                              );
-                            } else {
-                              setSelectedCliniques([
-                                ...selectedCliniques,
-                                clinique.id,
-                              ]);
-                            }
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2",
-                              selectedCliniques.includes(clinique.id)
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {clinique.nomClinique}
-                        </CommandItem>
-                      ))}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </TableCell>
-            <TableCell>Actions</TableCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredTarifPrestations.map((prestation) => (
-            <TableRow key={prestation.id}>
-              <TableCell>{prestation.nomPrestation}</TableCell>
-              <TableCell>{prestation.montantPrestation} cfa</TableCell>
-              <TableCell>{nomCliniques(prestation.idClinique)}</TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <TarifPrestationDialog
-                    prestations={prestations}
-                    cliniques={cliniques}
-                    isUpdating
-                    initialData={prestation}
-                    onSubmit={handleUpdate}
-                  >
-                    <Pencil
-                      className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-blue-600 cursor-pointer"
-                      size={16}
-                    />
-                  </TarifPrestationDialog>
+                      {clinique.nomClinique}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Trash2 className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-red-600 cursor-pointer" />
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Tarif Prestation !! Êtes vous absolument sûr?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Cette action est irréversible. si vous cliquez sur
-                          continuer le Tarif Prestation sera definitivement
-                          supprimer de la base de données
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-red-600"
-                          onClick={() => handleDelete(prestation.id)}
-                        >
-                          Continue
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
+      {/* ===== TABLEAU ===== */}
+      <Card className="shadow-sm">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50/80">
+              <TableHead className="w-12 text-center font-semibold">
+                N°
+              </TableHead>
+              <TableHead className="font-semibold">Prestation</TableHead>
+              <TableHead className="w-36 text-right font-semibold">
+                Tarif
+              </TableHead>
+              <TableHead className="font-semibold">Clinique</TableHead>
+              <TableHead className="w-24 text-center font-semibold">
+                Actions
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {filteredTarifPrestations.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-center py-12 text-gray-400"
+                >
+                  <Stethoscope className="mx-auto h-10 w-10 mb-2 opacity-30" />
+                  {searchTerm || selectedCliniques.length > 0
+                    ? "Aucun tarif ne correspond aux filtres."
+                    : "Aucun tarif enregistré."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredTarifPrestations.map((tarif, index) => (
+                <TableRow
+                  key={tarif.id}
+                  className="hover:bg-gray-50/50 transition-colors group"
+                >
+                  <TableCell className="text-center text-gray-400 text-sm">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="font-medium text-sm">
+                    {tarif.nomPrestation}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold text-sm">
+                    {tarif.montantPrestation.toLocaleString("fr-FR")} CFA
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {nomCliniques(tarif.idClinique)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <TarifPrestationDialog
+                        prestations={prestations}
+                        cliniques={cliniques}
+                        existingTarifs={tarifPrestations}
+                        isUpdating
+                        initialData={tarif}
+                        onSubmit={handleUpdate}
+                      >
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      </TarifPrestationDialog>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Confirmer la suppression
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action est irréversible. Le tarif de{" "}
+                              <span className="font-semibold">
+                                {tarif.nomPrestation}
+                              </span>{" "}
+                              sera définitivement supprimé.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700"
+                              onClick={() => handleDelete(tarif.id)}
+                            >
+                              Supprimer
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        {filteredTarifPrestations.length > 0 && (
+          <div className="px-4 py-2 border-t bg-gray-50/50 text-xs text-gray-400 text-right">
+            {filteredTarifPrestations.length} résultat
+            {filteredTarifPrestations.length > 1 ? "s" : ""}
+            {(searchTerm || selectedCliniques.length > 0) &&
+              ` sur ${tarifPrestations.length}`}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

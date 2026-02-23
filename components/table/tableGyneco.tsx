@@ -5,6 +5,7 @@ import {
   deleteGyneco,
   getAllGynecoByIdClient,
 } from "@/lib/actions/gynecoActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -57,8 +58,13 @@ export function Table03({ id }: { id: string }) {
   };
 
   const handleDelete = async (id: string) => {
+    const record = dataPf.find((d) => d.id === id);
     await deleteGyneco(id);
-    setDataPf(dataPf.filter((d) => d.id !== id));
+    const remaining = dataPf.filter((d) => d.id !== id);
+    setDataPf(remaining);
+    if (record && !remaining.some((d) => d.idVisite === record.idVisite)) {
+      await removeFormulaireFromRecap(record.idVisite, "04 Fiche gynécologique");
+    }
   };
 
   return (

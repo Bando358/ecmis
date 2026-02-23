@@ -2,6 +2,7 @@
 
 import { getAllPecVihByIdClient } from "@/lib/actions/pecVihActions";
 import { deletePecVih } from "@/lib/actions/pecVihActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useEffect, useState } from "react";
 import {
@@ -59,8 +60,13 @@ export function Table14({ id }: { id: string }) {
   };
 
   const handleDelete = async (id: string) => {
+    const record = dataPecVih.find((d) => d.id === id);
     await deletePecVih(id);
-    setDataPecVih(dataPecVih.filter((d) => d.id !== id));
+    const remaining = dataPecVih.filter((d) => d.id !== id);
+    setDataPecVih(remaining);
+    if (record && !remaining.some((d) => d.pecVihIdVisite === record.pecVihIdVisite)) {
+      await removeFormulaireFromRecap(record.pecVihIdVisite, "15 Fiche de prise en charge VIH");
+    }
   };
 
   const getTypeClientLabel = (type: string) => {

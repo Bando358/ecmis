@@ -20,16 +20,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Constante } from "@prisma/client";
-import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
+import { getOneVisite } from "@/lib/actions/visiteActions";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
@@ -41,92 +34,61 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Retour from "@/components/retour";
 
-// modifConstanteId
 export default function ConstantePage({
   params,
 }: {
   params: Promise<{ modifConstanteId: string }>;
 }) {
   const { modifConstanteId } = use(params);
-  const [visites, setVisites] = useState<Visite[]>([]);
+  const [visite, setVisite] = useState<Visite | null>(null);
   const [constante, setConstante] = useState<Constante>();
-  const [dateConstante, setDateConstante] = useState<Date>();
   const [isLoading, setIsLoading] = useState(true);
 
-  // const [selectedConstante, setSelectedConstante] = useState<Constante[]>([]);
-  const [resulImc, setResulImc] = useState<number>();
+  const [resulImc, setResulImc] = useState<number>(0);
   const [etatImc, setEtatImc] = useState<string>("");
   const [styleImc, setStyleImc] = useState<string>("");
   const [isVisible, setIsVisible] = useState(false);
-  const [oneUser, setOneUser] = useState<User | null>(null);
   const [permission, setPermission] = useState<Permission | null>(null);
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
-
-  const idPrestataire = session?.user.id as string;
+  const idPrestataire = session?.user?.id || "";
   const router = useRouter();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idPrestataire);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idPrestataire]);
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!oneUser) return;
+    if (!idPrestataire || !modifConstanteId) return;
 
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CONSTANTE,
-        );
-        setPermission(perm || null);
-
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'accéder à cette page.");
-        //   router.back();
-        // }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser, router]);
-
-  useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const oneConstante = await getOneConstante(modifConstanteId);
+
+        // Étape 1: Requêtes indépendantes en parallèle
+        const [user, oneConstante] = await Promise.all([
+          getOneUser(idPrestataire),
+          getOneConstante(modifConstanteId),
+        ]);
+
         if (oneConstante) {
           setConstante(oneConstante);
-
-          const result = await getAllVisiteByIdClient(oneConstante.idClient);
-          const resultaVisite = result.filter(
-            (r: { id: string }) => oneConstante.idVisite === r.id,
-          );
-          setVisites(resultaVisite as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-
-          const dateConst = result.find(
-            (r: { id: string }) => r.id === oneConstante.idVisite,
-          );
-          setDateConstante(dateConst?.dateVisite);
-
           setSelectedClientId(oneConstante.idClient);
+
+          // Étape 2: Requêtes dépendantes en parallèle
+          const [visiteData, permissions] = await Promise.all([
+            getOneVisite(oneConstante.idVisite),
+            user ? getUserPermissionsById(user.id) : Promise.resolve([]),
+          ]);
+
+          setVisite(visiteData);
+
+          const perm = permissions.find(
+            (p: { table: string }) => p.table === TableName.CONSTANTE,
+          );
+          setPermission(perm || null);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données :", error);
@@ -134,12 +96,9 @@ export default function ConstantePage({
       } finally {
         setIsLoading(false);
       }
-      // setSelectedConstante(resultConstante as Constante[]);
     };
     fetchData();
-  }, [modifConstanteId, setSelectedClientId]);
-
-  // console.log(visites);
+  }, [idPrestataire, modifConstanteId, setSelectedClientId]);
 
   const form = useForm<Constante>({
     defaultValues: {
@@ -159,13 +118,81 @@ export default function ConstantePage({
       idVisite: "",
     },
   });
+
+  // Réinitialiser le formulaire quand constante est chargée
+  useEffect(() => {
+    if (constante && !isLoading) {
+      form.reset({
+        poids: constante.poids,
+        taille: constante.taille,
+        psSystolique: constante.psSystolique,
+        psDiastolique: constante.psDiastolique,
+        temperature: constante.temperature,
+        lieuTemprature: constante.lieuTemprature,
+        pouls: constante.pouls,
+        frequenceRespiratoire: constante.frequenceRespiratoire,
+        saturationOxygene: constante.saturationOxygene,
+        imc: constante.imc,
+        etatImc: constante.etatImc,
+        idClient: constante.idClient,
+        idUser: idPrestataire,
+        idVisite: constante.idVisite,
+      });
+    }
+  }, [constante, isLoading, form, idPrestataire]);
+
+  const watchPoids = form.watch("poids") || 0;
+  const watchTaille = form.watch("taille") || 0;
+
+  // Calcul IMC — utilise une variable locale pour éviter le stale state
+  useEffect(() => {
+    if (watchPoids > 0 && watchTaille > 0) {
+      const imc = parseFloat(
+        (watchPoids / ((watchTaille / 100) * (watchTaille / 100))).toFixed(2),
+      );
+      setResulImc(imc);
+      form.setValue("imc", imc);
+
+      let newEtat = "";
+      let newStyle = "";
+      if (imc < 18.5) {
+        newEtat = "Maigreur";
+        newStyle = "text-yellow-500 font-black";
+      } else if (imc < 25) {
+        newEtat = "Poids normal";
+        newStyle = "text-green-500 font-black";
+      } else if (imc < 30) {
+        newEtat = "Surpoids";
+        newStyle = "text-orange-500 font-black";
+      } else {
+        newEtat = "Obésité";
+        newStyle = "text-red-600 font-black";
+      }
+      setEtatImc(newEtat);
+      setStyleImc(newStyle);
+      form.setValue("etatImc", newEtat);
+    } else {
+      setResulImc(0);
+      setEtatImc("");
+      setStyleImc("");
+      form.setValue("imc", 0);
+      form.setValue("etatImc", "");
+    }
+  }, [watchPoids, watchTaille, form]);
+
   const onSubmit: SubmitHandler<Constante> = async (data) => {
+    const poids = parseFloat(data.poids as unknown as string) || 0;
+    if (poids <= 0) {
+      toast.error("Le poids doit être supérieur à 0.");
+      return;
+    }
+
     const formattedData = {
       ...data,
       idUser: idPrestataire,
       idClient: constante?.idClient,
-      idVisite: visites[0].id,
-      poids: parseFloat(data.poids as unknown as string) || 0,
+      idVisite: constante?.idVisite,
+      poids,
       taille: parseFloat(data.taille as unknown as string) || 0,
       psSystolique:
         parseInt(data.psSystolique as unknown as string, 10) || null,
@@ -178,98 +205,48 @@ export default function ConstantePage({
       saturationOxygene:
         parseInt(data.saturationOxygene as unknown as string, 10) || null,
     };
+
     try {
-      // await createContante(formattedData);
       if (constante) {
-        console.log("modifConstanteId : ", modifConstanteId);
-        console.log("constante?.id : ", constante?.id);
-        console.log("formattedData : ", formattedData);
-        console.log("visites : ", visites[0]);
         await updateConstante(modifConstanteId, formattedData);
         const oneConstante = await getOneConstante(modifConstanteId);
         if (oneConstante) {
           setConstante(oneConstante);
         }
       }
-      // await createRecapVisite({
-      //   idVisite: form.watch("idVisite"),
-      //   idClient: form.watch("idClient"),
-      //   formulaires: ["01 Créer la visite", "02 Fiche des constantes"], // À adapter dynamiquement
-      // });
-      toast.info("Constante modifiée avec succès ! 🎉");
-      // router.push(`/fiches/${modifConstanteId}`);
+      toast.success("Constante modifiée avec succès !");
     } catch (error) {
-      toast.error("La création de la constante a échoué.");
-      console.error("Erreur lors de la création de la constante :", error);
+      console.error("Erreur lors de la modification de la constante :", error);
+      toast.error("La modification de la constante a échoué.");
     } finally {
       setIsVisible(false);
     }
   };
 
-  const watchPoids = form.watch("poids") || 0;
-  const watchTaille = form.watch("taille") || 0;
-  useEffect(() => {
-    if (watchPoids && watchPoids > 0 && watchTaille && watchTaille > 0) {
-      setResulImc(
-        parseFloat(
-          (watchPoids / ((watchTaille / 100) * (watchTaille / 100))).toFixed(2),
-        ),
-      );
-      // const imc = parseFloat(resulImc)
-      if (resulImc && resulImc < 18.5) {
-        setEtatImc("Maigreur");
-        setStyleImc("text-yellow-500 font-black");
-      } else if (resulImc && resulImc >= 18.5 && resulImc < 25) {
-        setEtatImc("Poids normal");
-        setStyleImc("text-green-500 font-black");
-      } else if (resulImc && resulImc >= 25 && resulImc < 30) {
-        setEtatImc("Surpoids");
-        setStyleImc("text-orange-500 font-black");
-      } else {
-        setEtatImc("Obésité");
-        setStyleImc("text-red-600 font-black");
-      }
-    }
-  }, [watchPoids, watchTaille, resulImc, etatImc, styleImc]);
-  useEffect(() => {
-    // const idclient = visites[0].idClient;
-    if (constante) {
-      form.setValue("idClient", constante.idClient);
-    }
-    form.setValue("idUser", idPrestataire);
-  }, [constante, idPrestataire, form]);
-
-  useEffect(() => {
-    if (resulImc) {
-      form.setValue("imc", resulImc);
-    }
-    if (etatImc) {
-      form.setValue("etatImc", etatImc);
-    }
-  }, [resulImc, etatImc, form]);
-
-  const handleUpdateVisite = async () => {
+  const handleUpdateConstante = () => {
     if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une visite. Contactez un administrateur.",
+      toast.error(
+        "Vous n'avez pas la permission de modifier une constante. Contactez un administrateur.",
       );
       return router.back();
     }
     if (constante) {
-      //setIsUpdating(true); // Activer le mode modification
-
-      form.setValue("idVisite", constante.idVisite);
-      form.setValue("poids", constante.poids);
-      form.setValue("taille", constante.taille);
-      form.setValue("etatImc", constante.etatImc);
-      form.setValue("lieuTemprature", constante.lieuTemprature);
-      form.setValue("imc", constante.imc);
-      form.setValue("pouls", constante.pouls);
-      form.setValue("psDiastolique", constante.psDiastolique);
-      form.setValue("psSystolique", constante.psSystolique);
-      form.setValue("frequenceRespiratoire", constante.frequenceRespiratoire);
-      form.setValue("saturationOxygene", constante.saturationOxygene);
-      form.setValue("temperature", constante.temperature);
+      form.reset({
+        poids: constante.poids,
+        taille: constante.taille,
+        psSystolique: constante.psSystolique,
+        psDiastolique: constante.psDiastolique,
+        temperature: constante.temperature,
+        lieuTemprature: constante.lieuTemprature,
+        pouls: constante.pouls,
+        frequenceRespiratoire: constante.frequenceRespiratoire,
+        saturationOxygene: constante.saturationOxygene,
+        imc: constante.imc,
+        etatImc: constante.etatImc,
+        idClient: constante.idClient,
+        idUser: idPrestataire,
+        idVisite: constante.idVisite,
+      });
       setIsVisible(true);
     }
   };
@@ -313,53 +290,32 @@ export default function ConstantePage({
                       onSubmit={form.handleSubmit(onSubmit)}
                       className="space-y-4 max-w-4xl mx-auto px-4 py-4"
                     >
-                      <FormField
-                        control={form.control}
-                        name="idVisite"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Selectionnez la visite</FormLabel>
-                            <Select
-                              required
-                              // value={field.value}
-                              onValueChange={field.onChange}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Visite à sélectionner" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {visites && visites.length > 0 ? (
-                                  visites.map((visite, index) => (
-                                    <SelectItem key={index} value={visite.id}>
-                                      {new Date(
-                                        visite.dateVisite,
-                                      ).toLocaleDateString("fr-FR")}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="none" disabled>
-                                    Aucune visite disponible
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="text-sm text-gray-600 bg-blue-50/50 rounded-md p-2">
+                        Visite du{" "}
+                        {visite
+                          ? new Date(visite.dateVisite).toLocaleDateString("fr-FR")
+                          : "—"}{" "}
+                        {visite?.motifVisite ? `— ${visite.motifVisite}` : ""}
+                      </div>
 
                       <FormField
                         control={form.control}
                         name="poids"
+                        rules={{
+                          required: "Le poids est obligatoire",
+                          min: { value: 0.1, message: "Le poids doit être supérieur à 0" },
+                          max: { value: 500, message: "Poids invalide" },
+                        }}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Poids en kg</FormLabel>
+                            <FormLabel>
+                              Poids (kg) <span className="text-red-500">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 required
                                 type="number"
+                                step="0.1"
                                 {...field}
                                 value={field.value ?? ""}
                               />
@@ -371,9 +327,113 @@ export default function ConstantePage({
                       <FormField
                         control={form.control}
                         name="taille"
+                        rules={{
+                          min: { value: 1, message: "La taille doit être supérieure à 0" },
+                          max: { value: 300, message: "Taille invalide" },
+                        }}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Taille en (cm)</FormLabel>
+                            <FormLabel>Taille (cm)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                {...field}
+                                value={field.value ?? ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="psSystolique"
+                        rules={{
+                          min: { value: 50, message: "Valeur trop basse" },
+                          max: { value: 300, message: "Valeur trop haute" },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pression systolique (mmHg)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ""}
+                                type="number"
+                                placeholder="120"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="psDiastolique"
+                        rules={{
+                          min: { value: 30, message: "Valeur trop basse" },
+                          max: { value: 200, message: "Valeur trop haute" },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pression diastolique (mmHg)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ""}
+                                type="number"
+                                placeholder="80"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="temperature"
+                        rules={{
+                          min: { value: 30, message: "Température trop basse" },
+                          max: { value: 45, message: "Température trop haute" },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Température (°C)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                {...field}
+                                value={field.value ?? ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="lieuTemprature"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Lieu de température</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value ?? ""} placeholder="Axillaire, Buccal..." />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="pouls"
+                        rules={{
+                          min: { value: 20, message: "Valeur trop basse" },
+                          max: { value: 300, message: "Valeur trop haute" },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pouls (bpm)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -387,88 +447,14 @@ export default function ConstantePage({
                       />
                       <FormField
                         control={form.control}
-                        name="psSystolique"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>psSystolique</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ""}
-                                type="number"
-                                placeholder="7"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="psDiastolique"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>psDiastolique</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ""}
-                                type="number"
-                                placeholder="7"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="temperature"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Température(°cl)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="lieuTemprature"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>lieuTemprature(°cl)</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value ?? ""} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="pouls"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Pouls</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
                         name="frequenceRespiratoire"
+                        rules={{
+                          min: { value: 5, message: "Valeur trop basse" },
+                          max: { value: 60, message: "Valeur trop haute" },
+                        }}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Fréquence Respiratoire</FormLabel>
+                            <FormLabel>Fréquence respiratoire (c/min)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -476,15 +462,20 @@ export default function ConstantePage({
                                 value={field.value ?? ""}
                               />
                             </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
                       <FormField
                         control={form.control}
                         name="saturationOxygene"
+                        rules={{
+                          min: { value: 50, message: "Valeur trop basse" },
+                          max: { value: 100, message: "Maximum 100%" },
+                        }}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Saturation Oxygène</FormLabel>
+                            <FormLabel>Saturation oxygène (%)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -492,6 +483,7 @@ export default function ConstantePage({
                                 value={field.value ?? ""}
                               />
                             </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -518,7 +510,7 @@ export default function ConstantePage({
                           name="etatImc"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Etat Imc</FormLabel>
+                              <FormLabel>État IMC</FormLabel>
                               <FormControl>
                                 <Input
                                   disabled
@@ -530,33 +522,9 @@ export default function ConstantePage({
                           )}
                         />
                       </div>
-                      <FormField
-                        control={form.control}
-                        name="idClient"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input {...field} className="hidden" />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="idUser"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={idPrestataire}
-                                className="hidden"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
+                      <input type="hidden" {...form.register("idClient")} />
+                      <input type="hidden" {...form.register("idUser")} />
+                      <input type="hidden" {...form.register("idVisite")} />
 
                       <div className="flex justify-center gap-4 pt-4 border-t border-blue-100/60 mt-4">
                         <Button
@@ -614,62 +582,63 @@ export default function ConstantePage({
                         Date de visite
                       </span>
                       <span className="col-span-2 text-sm text-gray-700">
-                        {dateConstante &&
-                          new Date(dateConstante).toLocaleDateString("fr-FR")}
+                        {visite
+                          ? new Date(visite.dateVisite).toLocaleDateString("fr-FR")
+                          : "—"}
                       </span>
                     </div>
 
-                    {constante?.taille && (
+                    {constante?.taille != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
                           Taille
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.taille}
+                          {constante.taille} cm
                         </span>
                       </div>
                     )}
 
-                    {constante?.poids && (
+                    {constante?.poids != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
                           Poids
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.poids}
+                          {constante.poids} kg
                         </span>
                       </div>
                     )}
 
-                    {constante?.psSystolique && (
+                    {constante?.psSystolique != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
-                          PsSystolique
+                          Pression systolique
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.psSystolique}
+                          {constante.psSystolique} mmHg
                         </span>
                       </div>
                     )}
 
-                    {constante?.psDiastolique && (
+                    {constante?.psDiastolique != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
-                          PsDiastolique
+                          Pression diastolique
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.psDiastolique}
+                          {constante.psDiastolique} mmHg
                         </span>
                       </div>
                     )}
 
-                    {constante?.temperature && (
+                    {constante?.temperature != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
                           Température
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.temperature}
+                          {constante.temperature} °C
                         </span>
                       </div>
                     )}
@@ -677,7 +646,7 @@ export default function ConstantePage({
                     {constante?.lieuTemprature && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
-                          Lieu Température
+                          Lieu de température
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
                           {constante.lieuTemprature}
@@ -685,40 +654,40 @@ export default function ConstantePage({
                       </div>
                     )}
 
-                    {constante?.pouls && (
+                    {constante?.pouls != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
                           Pouls
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.pouls}
+                          {constante.pouls} bpm
                         </span>
                       </div>
                     )}
 
-                    {constante?.frequenceRespiratoire && (
+                    {constante?.frequenceRespiratoire != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
-                          Fréquence Respiratoire
+                          Fréquence respiratoire
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.frequenceRespiratoire}
+                          {constante.frequenceRespiratoire} c/min
                         </span>
                       </div>
                     )}
 
-                    {constante?.saturationOxygene && (
+                    {constante?.saturationOxygene != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
-                          Saturation Oxygène
+                          Saturation oxygène
                         </span>
                         <span className="col-span-2 text-sm text-gray-700">
-                          {constante.saturationOxygene}
+                          {constante.saturationOxygene} %
                         </span>
                       </div>
                     )}
 
-                    {constante?.imc && (
+                    {constante?.imc != null && (
                       <div className="grid grid-cols-3 gap-x-4 py-2.5">
                         <span className="text-sm font-medium text-blue-800">
                           IMC
@@ -745,7 +714,7 @@ export default function ConstantePage({
                   <Button variant="outline" onClick={() => router.back()}>
                     Retour
                   </Button>
-                  <Button onClick={handleUpdateVisite}>
+                  <Button onClick={handleUpdateConstante}>
                     <Pencil className="h-4 w-4 mr-2" /> Modifier
                   </Button>
                 </CardFooter>

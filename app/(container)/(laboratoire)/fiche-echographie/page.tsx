@@ -17,18 +17,26 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Echographie,
   Permission,
   RegionExaminee,
+  TypeEchographie,
   TableName,
   User,
 } from "@prisma/client";
-import { Eye, EyeClosed, Pencil, Trash2 } from "lucide-react";
-
+import {
+  Plus,
+  X,
+  Pencil,
+  Trash2,
+  Search,
+  ScanLine,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
   Select,
@@ -49,6 +57,44 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const typeEchographieLabels: Record<TypeEchographie, string> = {
+  OBST: "Obstétrique",
+  GYN: "Gynécologie",
+  INF: "Infertilité",
+  MDG: "Médecine Générale",
+  CAR: "Cardiologie",
+};
+
+const typeEchographieColors: Record<TypeEchographie, string> = {
+  OBST: "bg-pink-100 text-pink-800 border-pink-200",
+  GYN: "bg-purple-100 text-purple-800 border-purple-200",
+  INF: "bg-blue-100 text-blue-800 border-blue-200",
+  MDG: "bg-green-100 text-green-800 border-green-200",
+  CAR: "bg-red-100 text-red-800 border-red-200",
+};
+
+const regionLabels: Record<string, string> = {
+  ABDOMEN: "Abdomen",
+  PELVIS_BASSIN: "Pelvis / Bassin",
+  GYNECOLOGIE_OBSTETRIQUE: "Gynéco-Obstétrique",
+  SEINS: "Seins",
+  COU: "Cou",
+  MUSCLES_ET_ARTICULATIONS: "Muscles & Articulations",
+  TESTICULES: "Testicules",
+  PROSTATE: "Prostate",
+  COEUR: "Cœur",
+  PELVIENNE_ABDOMINALE: "Pelvienne / Abdominale",
+  LOMBES_PELVIENNE: "Lombes / Pelvienne",
+  ZONE_LOCALISEE: "Zone localisée",
+  BOURSES: "Bourses",
+  HANCHES: "Hanches",
+  MEMBRES_COU: "Membres / Cou",
+  THORAX: "Thorax",
+  OESOPHAGE: "Œsophage",
+};
 
 export default function EchographiePage() {
   const [listeEchographies, setListeEchographies] = useState<Echographie[]>([]);
@@ -57,10 +103,13 @@ export default function EchographiePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [permission, setPermission] = useState<Permission | null>(null);
   const [oneUser, setOneUser] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<string>("ALL");
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -68,6 +117,7 @@ export default function EchographiePage() {
     };
     fetUser();
   }, [idUser]);
+
   const form = useForm<Echographie>({
     defaultValues: {
       id: "",
@@ -78,9 +128,7 @@ export default function EchographiePage() {
   });
 
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
     if (!oneUser) return;
-
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(oneUser.id);
@@ -88,20 +136,10 @@ export default function EchographiePage() {
           (p: { table: string }) => p.table === TableName.ECHOGRAPHIE
         );
         setPermission(perm || null);
-
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'accéder à cette page.");
-        //   router.back();
-        // }
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors de la vérification des permissions :", error);
       }
     };
-
     fetchPermissions();
   }, [oneUser, router]);
 
@@ -119,8 +157,31 @@ export default function EchographiePage() {
     form.setValue("idUser", idUser);
   }, [idUser, form]);
 
+  // Compteurs par type
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: listeEchographies.length };
+    for (const e of listeEchographies) {
+      counts[e.typeEchographie] = (counts[e.typeEchographie] || 0) + 1;
+    }
+    return counts;
+  }, [listeEchographies]);
+
+  // Filtrage
+  const filteredEchographies = useMemo(() => {
+    return listeEchographies.filter((e) => {
+      const matchType = filterType === "ALL" || e.typeEchographie === filterType;
+      const matchSearch =
+        !searchTerm ||
+        e.nomEchographie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (e.organeExaminee ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        regionLabels[e.regionExaminee]?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchType && matchSearch;
+    });
+  }, [listeEchographies, filterType, searchTerm]);
+
   const onSubmit = async (data: Echographie) => {
     const formattedData = {
+      typeEchographie: data.typeEchographie,
       regionExaminee: data.regionExaminee,
       nomEchographie: data.nomEchographie,
       organeExaminee: data.organeExaminee,
@@ -128,29 +189,20 @@ export default function EchographiePage() {
     };
     try {
       if (isUpdating) {
-        await updateEchographie(data.id, { id: data.id, ...formattedData }); // Appel de la fonction de mise à jour avec l'ID de la prestation
-        toast.success("Echographie mise à jour avec succès! 🎉");
-        form.setValue("nomEchographie", "");
+        await updateEchographie(data.id, { id: data.id, ...formattedData });
+        toast.success("Échographie mise à jour avec succès !");
         setIsUpdating(false);
       } else {
         if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-          alert(
-            "Vous n'avez pas la permission de créer une Echographie. Contactez un administrateur."
-          );
+          alert("Vous n'avez pas la permission de créer une échographie.");
           return router.back();
-        } else {
-          const id = crypto.randomUUID
-            ? crypto.randomUUID()
-            : Math.random().toString(36).substring(2);
-          await createEchographie({ id, ...formattedData }); // Appel de la fonction de création si on est en mode ajout
-          toast.success("Echographie créée avec succès! 🎉");
-          handleHiddenForm();
         }
+        const id = crypto.randomUUID();
+        await createEchographie({ id, ...formattedData });
+        toast.success("Échographie créée avec succès !");
       }
       const updatedList = await getAllEchographies();
       setListeEchographies(updatedList);
-      //form.reset(); // Réinitialisation du formulaire après soumission
-      form.setValue("nomEchographie", "");
       form.reset();
       setIsVisible(false);
     } catch (error) {
@@ -161,260 +213,358 @@ export default function EchographiePage() {
 
   const handleDelete = async (id: string) => {
     if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer une Echographie. Contactez un administrateur."
-      );
+      alert("Vous n'avez pas la permission de supprimer une échographie.");
       return;
-    } else {
-      try {
-        if (confirm("Êtes-vous sûr de vouloir supprimer cette échographie ?")) {
-          await deleteEchographie(id);
-          setListeEchographies(
-            listeEchographies.filter((liste) => liste.id !== id)
-          );
-          toast.success("Une Echographie a été Supprimée avec succès! 🎉");
-        }
-      } catch (error) {
-        toast.error("Erreur lors de la suppression de l'Echographie");
-        console.error(error);
+    }
+    try {
+      if (confirm("Êtes-vous sûr de vouloir supprimer cette échographie ?")) {
+        await deleteEchographie(id);
+        setListeEchographies(listeEchographies.filter((e) => e.id !== id));
+        toast.success("Échographie supprimée avec succès !");
       }
+    } catch (error) {
+      toast.error("Erreur lors de la suppression.");
+      console.error(error);
     }
   };
 
-  const handleUpdateEchographie = async (id: string) => {
+  const handleUpdateEchographie = (id: string) => {
     if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de mettre à jour une Echographie. Contactez un administrateur."
-      );
+      alert("Vous n'avez pas la permission de modifier une échographie.");
       return;
-    } else {
-      const echographieToUpdate = listeEchographies.find(
-        (liste) => liste.id === id
-      );
-      if (echographieToUpdate) {
-        setIsUpdating(true); // Activer le mode modification
-        form.setValue("id", echographieToUpdate.id); // Pré-remplir le champ caché pour l'ID
-        form.setValue("nomEchographie", echographieToUpdate.nomEchographie); // Pré-remplir le champ de nom de prestation
-        form.setValue("regionExaminee", echographieToUpdate.regionExaminee); // Pré-remplir le champ de région examinée
-        form.setValue("organeExaminee", echographieToUpdate.organeExaminee); // Pré-remplir le champ d'organe examiné
-      }
+    }
+    const echo = listeEchographies.find((e) => e.id === id);
+    if (echo) {
+      setIsUpdating(true);
+      form.setValue("id", echo.id);
+      form.setValue("typeEchographie", echo.typeEchographie);
+      form.setValue("nomEchographie", echo.nomEchographie);
+      form.setValue("regionExaminee", echo.regionExaminee);
+      form.setValue("organeExaminee", echo.organeExaminee);
       setIsVisible(true);
     }
   };
 
-  const handleHiddenForm = () => {
+  const handleCancelForm = () => {
+    form.reset();
+    setIsUpdating(false);
+    setIsVisible(false);
+  };
+
+  const handleOpenForm = () => {
     if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission d'ouvrir le formulaire d'échographie. Contactez un administrateur."
-      );
+      alert("Vous n'avez pas la permission d'ajouter une échographie.");
       return;
-    } else {
-      if (!isVisible) {
-        setIsVisible(true);
-        // rafraichirPage();
-      } else {
-        setIsVisible(false);
-      }
     }
+    form.reset();
+    setIsUpdating(false);
+    setIsVisible(true);
   };
 
   return (
-    <div className="space-y-4 max-w-225 mx-auto p-4 relative">
-      {/* className="space-y-4 max-w-225 mx-auto relative flex flex-col justify-center p-4 border rounded-md" */}
-      <Button
-        variant={"ghost"}
-        onClick={handleHiddenForm}
-        className="absolute top-2 z-10 mb-4"
-      >
-        {isVisible ? (
-          <Eye className="text-blue-600" />
-        ) : (
-          <EyeClosed className="text-red-600" />
+    <div className="space-y-4 max-w-6xl mx-auto p-4">
+      {/* En-tête */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-100 rounded-lg">
+            <ScanLine className="h-6 w-6 text-indigo-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Échographies</h1>
+            <p className="text-sm text-gray-500">
+              {listeEchographies.length} échographie{listeEchographies.length > 1 ? "s" : ""} enregistrée{listeEchographies.length > 1 ? "s" : ""}
+            </p>
+          </div>
+        </div>
+        {!isVisible && (
+          <Button onClick={handleOpenForm} className="gap-2">
+            <Plus size={16} />
+            Nouvelle échographie
+          </Button>
         )}
-      </Button>
-      {isVisible && (
-        <AnimatePresence initial={isVisible} mode="wait">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-2 max-w-md rounded-sm mx-auto px-4 py-2 bg-white shadow-md"
-              >
-                <FormField
-                  control={form.control}
-                  name="regionExaminee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        {"Région examinée"} :
-                      </FormLabel>
-                      <Select onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Type à sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(RegionExaminee).map(
-                            ([key, value], index) => (
-                              <SelectItem
-                                key={index}
-                                value={value}
-                                className="text-blue-600"
-                              >
-                                {key.replace(/_/g, " ").toUpperCase()}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="nomEchographie"
-                    rules={{
-                      required: "Le nom de la prestation est obligatoire",
-                    }}
-                    render={({ field, fieldState }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Nom Echographie :</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="abdominale ..."
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            // className="capitalize"
-                          />
-                        </FormControl>
-                        {/* <FormDescription>Ex: Goutte Epaisse</FormDescription> */}
-                        {fieldState.error && (
-                          <FormMessage>{fieldState.error.message}</FormMessage>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="organeExaminee"
-                    rules={{
-                      required: "L'organe examiné est obligatoire",
-                    }}
-                    render={({ field, fieldState }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Organes Examinés :</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Foie, vésicule biliaire, pancréas ..."
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            // className="capitalize"
-                          />
-                        </FormControl>
-                        {/* <FormDescription>Ex: Goutte Epaisse</FormDescription> */}
-                        {fieldState.error && (
-                          <FormMessage>{fieldState.error.message}</FormMessage>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="idUser"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input {...field} value={idUser} className="hidden" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="mx-auto block">
-                  {form.formState.isSubmitting ? "Modifier" : "Ajouter"}
-                </Button>
-              </form>
-            </Form>
-          </motion.div>
-        </AnimatePresence>
-      )}
-      <AnimatePresence initial={true} mode="wait">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <h2 className="text-2xl font-bold text-center">
-            Liste des Échographies
-          </h2>
-          {/* Tableau des échographies */}
-          <Table className="bg-gray-50 opacity-90 p-4 rounded-sm cursor-pointer">
-            <TableHeader>
-              <TableRow>
-                <TableCell className="text-center">N°</TableCell>
-                <TableCell>Région échographique</TableCell>
-                <TableCell>Nom Echographie</TableCell>
-                <TableCell>Organes Examinés</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading
-                ? Array.from({ length: 3 }).map((_, idx) => (
-                    <TableRow
-                      key={`loading-${idx}`}
-                      className="animate-pulse max-w-200"
-                    >
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <TableCell key={i}>
-                          <Skeleton className="h-6 w-20 bg-gray-300" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                : listeEchographies.map((liste, index) => (
-                    <TableRow key={liste.id} className="hover:bg-gray-100">
-                      <TableCell className="text-center">{index + 1}</TableCell>
-                      <TableCell>{liste.regionExaminee}</TableCell>
-                      <TableCell className="max-w-50 whitespace-normal">
-                        Échographie {liste.nomEchographie.toWellFormed()}
-                      </TableCell>
-                      <TableCell className="max-w-50 whitespace-normal">
-                        {liste.organeExaminee?.toWellFormed() ?? "—"}
-                      </TableCell>
+      </div>
 
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="icon"
-                            onClick={() => handleUpdateEchographie(liste.id)}
-                          >
-                            <Pencil size={16} />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            onClick={() => handleDelete(liste.id)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          </Table>
-        </motion.div>
+      {/* Formulaire */}
+      <AnimatePresence mode="wait">
+        {isVisible && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Card className="border-indigo-200 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">
+                  {isUpdating ? "Modifier l'échographie" : "Nouvelle échographie"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="typeEchographie"
+                        rules={{ required: "La spécialité est obligatoire" }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">Spécialité</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choisir une spécialité" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.entries(TypeEchographie).map(([, value]) => (
+                                  <SelectItem key={value} value={value}>
+                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mr-2 ${typeEchographieColors[value as TypeEchographie]}`}>
+                                      {value}
+                                    </span>
+                                    {typeEchographieLabels[value as TypeEchographie]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="regionExaminee"
+                        rules={{ required: "La région est obligatoire" }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">Région examinée</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choisir une région" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.entries(RegionExaminee).map(([key, value]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {regionLabels[key] || key.replace(/_/g, " ")}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="nomEchographie"
+                        rules={{ required: "Le nom est obligatoire" }}
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">Nom de l&apos;échographie</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ex: Échographie abdominale"
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                              />
+                            </FormControl>
+                            {fieldState.error && (
+                              <FormMessage>{fieldState.error.message}</FormMessage>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="organeExaminee"
+                        rules={{ required: "L'organe examiné est obligatoire" }}
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">Organes examinés</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Ex: Foie, vésicule biliaire, pancréas"
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                                className="resize-none h-9.5"
+                              />
+                            </FormControl>
+                            {fieldState.error && (
+                              <FormMessage>{fieldState.error.message}</FormMessage>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="idUser"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input {...field} value={idUser} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button type="button" variant="outline" onClick={handleCancelForm}>
+                        <X size={16} className="mr-1" />
+                        Annuler
+                      </Button>
+                      <Button type="submit" disabled={form.formState.isSubmitting}>
+                        {form.formState.isSubmitting
+                          ? "En cours..."
+                          : isUpdating
+                            ? "Mettre à jour"
+                            : "Enregistrer"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </AnimatePresence>
+
+      {/* Filtres */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* Barre de recherche */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Rechercher une échographie..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {/* Filtre par type */}
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setFilterType("ALL")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              filterType === "ALL"
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Tous ({typeCounts.ALL || 0})
+          </button>
+          {Object.entries(TypeEchographie).map(([, value]) => (
+            <button
+              key={value}
+              onClick={() => setFilterType(value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                filterType === value
+                  ? typeEchographieColors[value as TypeEchographie]
+                      .replace("bg-", "bg-")
+                      .replace("100", "200") + " ring-1 ring-offset-1"
+                  : typeEchographieColors[value as TypeEchographie]
+              } hover:opacity-80`}
+            >
+              {value} ({typeCounts[value] || 0})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tableau */}
+      <Card className="shadow-sm">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50/80">
+              <TableHead className="w-12 text-center font-semibold">N°</TableHead>
+              <TableHead className="w-28 font-semibold">Type</TableHead>
+              <TableHead className="font-semibold">Région</TableHead>
+              <TableHead className="font-semibold">Nom de l&apos;échographie</TableHead>
+              <TableHead className="font-semibold">Organes examinés</TableHead>
+              <TableHead className="w-24 text-center font-semibold">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={`skel-${idx}`}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <TableCell key={i}>
+                      <Skeleton className="h-5 w-full bg-gray-200" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : filteredEchographies.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-12 text-gray-400">
+                  <ScanLine className="mx-auto h-10 w-10 mb-2 opacity-30" />
+                  {searchTerm || filterType !== "ALL"
+                    ? "Aucune échographie ne correspond aux filtres."
+                    : "Aucune échographie enregistrée."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredEchographies.map((echo, index) => (
+                <TableRow
+                  key={echo.id}
+                  className="hover:bg-gray-50/50 transition-colors group"
+                >
+                  <TableCell className="text-center text-gray-400 text-sm">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] font-semibold ${typeEchographieColors[echo.typeEchographie]}`}
+                    >
+                      {typeEchographieLabels[echo.typeEchographie]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {regionLabels[echo.regionExaminee] || echo.regionExaminee.replace(/_/g, " ")}
+                  </TableCell>
+                  <TableCell className="font-medium text-sm max-w-60 whitespace-normal">
+                    {echo.nomEchographie}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-500 max-w-60 whitespace-normal">
+                    {echo.organeExaminee ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => handleUpdateEchographie(echo.id)}
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => handleDelete(echo.id)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        {!isLoading && filteredEchographies.length > 0 && (
+          <div className="px-4 py-2 border-t bg-gray-50/50 text-xs text-gray-400 text-right">
+            {filteredEchographies.length} résultat{filteredEchographies.length > 1 ? "s" : ""}
+            {(searchTerm || filterType !== "ALL") && ` sur ${listeEchographies.length}`}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

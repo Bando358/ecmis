@@ -1,6 +1,7 @@
 "use client";
 
 import { deleteIst, getAllIstByIdClient } from "@/lib/actions/istActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useEffect, useState } from "react";
 import {
@@ -58,8 +59,13 @@ export function Table11({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataIst.find((d) => d.id === id);
       await deleteIst(id);
-      setDataIst(dataIst.filter((d) => d.id !== id));
+      const remaining = dataIst.filter((d) => d.id !== id);
+      setDataIst(remaining);
+      if (record && !remaining.some((d) => d.istIdVisite === record.istIdVisite)) {
+        await removeFormulaireFromRecap(record.istIdVisite, "12 Fiche Ist");
+      }
     }
   };
 

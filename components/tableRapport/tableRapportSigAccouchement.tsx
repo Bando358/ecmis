@@ -6,6 +6,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -477,15 +478,14 @@ export default function TableRapportSigAccouchement({
       {/* Nouveaux tableaux : Lieu d'accouchement, Vaccination, Naissances, Evacuations, Complications */}
       <h2 className="font-bold">Tableau 6 : {"Lieu d'accouchement"}</h2>
       <Table className="table-auto w-full">
-        <TableHeader className="bg-gray-200  border border-gray-400">
+        <TableHeader className="bg-slate-100 border border-gray-300">
           <TableRow>
-            <TableCell
+            <TableHead
               rowSpan={2}
-              className="font-bold"
-              style={{ width: "500px", minWidth: "400px", maxWidth: "400px" }}
+              className="font-semibold w-[500px] min-w-[400px] max-w-[400px]"
             >
               Indicateurs
-            </TableCell>
+            </TableHead>
 
             {/* Header: one cell per age range + Total */}
             {ageRanges.map((range) => {
@@ -494,30 +494,29 @@ export default function TableRapportSigAccouchement({
                   ? `${range.min}-${range.max} ans`
                   : `${range.min} ans et +`;
               return (
-                <TableCell
+                <TableHead
                   key={label}
-                  className="font-bold text-center  border border-gray-400"
+                  className="text-center border border-gray-300"
                 >
                   {label}
-                </TableCell>
+                </TableHead>
               );
             })}
-            <TableCell className="font-bold text-center">Total</TableCell>
+            <TableHead className="text-center">Total</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tabLieuAccouchement.map((item) => (
             <TableRow key={item.label}>
               <TableCell
-                className=" border border-gray-400 break-word whitespace-normal overflow-hidden"
-                style={{ width: "400px", minWidth: "400px", maxWidth: "400px" }}
+                className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[400px] min-w-[400px] max-w-[400px]"
               >
                 {item.label}
               </TableCell>
               {ageRanges.map((range, index) => (
                 <TableCell
                   key={`feminin-${item.label}-${index}`}
-                  className="text-center   border border-gray-400"
+                  className="text-center border border-gray-300"
                 >
                   {countClientBoolean(
                     converted,
@@ -528,7 +527,7 @@ export default function TableRapportSigAccouchement({
                   )}
                 </TableCell>
               ))}
-              <TableCell className="text-center  font-semibold  border border-gray-400">
+              <TableCell className="text-center font-semibold border border-gray-300">
                 {countClientBoolean(converted, 0, 200, item.value, true)}
               </TableCell>
             </TableRow>
@@ -542,32 +541,26 @@ export default function TableRapportSigAccouchement({
           Tableau 7 : Statut vaccinal au VAT à {"l'accouchement"}{" "}
         </h2>
         <Table className="table-auto w-full">
-          <TableHeader className="bg-gray-200  border border-gray-400">
+          <TableHeader className="bg-slate-100 border border-gray-300">
             <TableRow>
-              <TableCell
+              <TableHead
                 rowSpan={2}
-                className="font-bold"
-                style={{ width: "500px", minWidth: "400px", maxWidth: "400px" }}
+                className="font-semibold w-[500px] min-w-[400px] max-w-[400px]"
               >
                 Indicateurs
-              </TableCell>
-              <TableCell className="font-bold text-center">Total</TableCell>
+              </TableHead>
+              <TableHead className="text-center">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tabVaccination.map((item) => (
               <TableRow key={item.label}>
                 <TableCell
-                  className="border border-l-gray-400 break-word whitespace-normal overflow-hidden"
-                  style={{
-                    width: "400px",
-                    minWidth: "400px",
-                    maxWidth: "400px",
-                  }}
+                  className="border border-gray-300 break-word whitespace-normal overflow-hidden w-[400px] min-w-[400px] max-w-[400px]"
                 >
                   {item.label}
                 </TableCell>
-                <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+                <TableCell className="text-center border border-gray-300 font-semibold">
                   {countClientBoolean(converted, 0, 200, item.value, true)}
                 </TableCell>
               </TableRow>
@@ -580,12 +573,12 @@ export default function TableRapportSigAccouchement({
       <div className="flex flex-col gap-2 max-w-125 mx-auto">
         <h2 className="font-bold">Tableau 8 : Issue de la grossesse</h2>
         <Table className="table-auto w-full">
-          <TableHeader className="bg-gray-200  border border-gray-400">
+          <TableHeader className="bg-slate-100 border border-gray-300">
             <TableRow>
-              <TableCell className="font-bold" style={{ width: "500px" }}>
+              <TableHead className="font-semibold w-[500px]">
                 Indicateurs
-              </TableCell>
-              <TableCell className="font-bold text-center">Valeur</TableCell>
+              </TableHead>
+              <TableHead className="text-center">Valeur</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -593,10 +586,10 @@ export default function TableRapportSigAccouchement({
               const totals = computeNaissanceValues(converted);
               return tabNaissance.map((item) => (
                 <TableRow key={item.label}>
-                  <TableCell className="border border-l-gray-400 break-word whitespace-normal overflow-hidden">
+                  <TableCell className="border border-gray-300 break-word whitespace-normal overflow-hidden">
                     {item.label}
                   </TableCell>
-                  <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+                  <TableCell className="text-center border border-gray-300 font-semibold">
                     {/* Use the computed totals when available, fallback to 0 */}
                     {(() => {
                       switch (item.value) {
@@ -622,10 +615,10 @@ export default function TableRapportSigAccouchement({
             })()}
             {tabNaissanceAdditional.map((item) => (
               <TableRow key={item.label}>
-                <TableCell className="border border-l-gray-400 break-word whitespace-normal overflow-hidden">
+                <TableCell className="border border-gray-300 break-word whitespace-normal overflow-hidden">
                   {item.label}
                 </TableCell>
-                <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+                <TableCell className="text-center border border-gray-300 font-semibold">
                   {countClientBoolean(converted, 0, 200, item.value, true)}
                 </TableCell>
               </TableRow>
@@ -642,21 +635,21 @@ export default function TableRapportSigAccouchement({
             Tableau 9 : Evacuation de la mère et du nouveau-né
           </h2>
           <Table className="table-auto w-full">
-            <TableHeader className="bg-gray-200  border border-gray-400">
+            <TableHeader className="bg-slate-100 border border-gray-300">
               <TableRow>
-                <TableCell className="font-bold" style={{ width: "500px" }}>
+                <TableHead className="font-semibold w-[500px]">
                   Indicateurs
-                </TableCell>
-                <TableCell className="font-bold text-center">Valeur</TableCell>
+                </TableHead>
+                <TableHead className="text-center">Valeur</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tabEvacuation.map((item) => (
                 <TableRow key={item.label}>
-                  <TableCell className="border border-l-gray-400 break-word whitespace-normal overflow-hidden">
+                  <TableCell className="border border-gray-300 break-word whitespace-normal overflow-hidden">
                     {item.label}
                   </TableCell>
-                  <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+                  <TableCell className="text-center border border-gray-300 font-semibold">
                     {countClientBoolean(converted, 0, 200, item.value, true)}
                   </TableCell>
                 </TableRow>
@@ -668,21 +661,21 @@ export default function TableRapportSigAccouchement({
         <div className="flex flex-col">
           <h2 className="font-bold">{"Complications"}</h2>
           <Table className="table-auto w-full">
-            <TableHeader className="bg-gray-200  border border-gray-400">
+            <TableHeader className="bg-slate-100 border border-gray-300">
               <TableRow>
-                <TableCell className="font-bold" style={{ width: "500px" }}>
+                <TableHead className="font-semibold w-[500px]">
                   Indicateurs
-                </TableCell>
-                <TableCell className="font-bold text-center">Valeur</TableCell>
+                </TableHead>
+                <TableHead className="text-center">Valeur</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tabComplications.map((item) => (
                 <TableRow key={item.label}>
-                  <TableCell className="border border-l-gray-400 break-word whitespace-normal overflow-hidden">
+                  <TableCell className="border border-gray-300 break-word whitespace-normal overflow-hidden">
                     {item.label}
                   </TableCell>
-                  <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+                  <TableCell className="text-center border border-gray-300 font-semibold">
                     {countClientBoolean(converted, 0, 200, item.value, true)}
                   </TableCell>
                 </TableRow>

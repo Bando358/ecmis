@@ -111,7 +111,7 @@ export const getAllLieuInVisite = async (idActivite: string | "") => {
     return [];
   }
   return await prisma.lieu.findMany({
-    where: { id: idActivite },
+    where: { idActivite },
   });
 };
 
@@ -121,13 +121,13 @@ export const getAllActiviteInVisite = async (date: string) => {
     throw new Error("La date fournie est invalide.");
   }
 
+  // Retourner les activités en cours à la date donnée
   const allActivite = await prisma.activite.findMany({
     where: {
-      dateFin: {
-        lte: parsedDate,
-      },
+      dateDebut: { lte: parsedDate },
+      dateFin: { gte: parsedDate },
     },
-    orderBy: { dateFin: "asc" },
+    orderBy: { dateFin: "desc" },
   });
 
   return allActivite;

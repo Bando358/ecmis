@@ -8,6 +8,7 @@ import {
   deleteGrossesse,
   getAllGrossesseByIdClient,
 } from "@/lib/actions/grossesseActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useEffect, useState } from "react";
 import {
@@ -65,8 +66,13 @@ export function Table05({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataGrossesse.find((d) => d.id === id);
       await deleteGrossesse(id);
-      setDataGrossesse(dataGrossesse.filter((d) => d.id !== id));
+      const remaining = dataGrossesse.filter((d) => d.id !== id);
+      setDataGrossesse(remaining);
+      if (record && !remaining.some((d) => d.grossesseIdVisite === record.grossesseIdVisite)) {
+        await removeFormulaireFromRecap(record.grossesseIdVisite, "06 Fiche grossesse");
+      }
     }
   };
 

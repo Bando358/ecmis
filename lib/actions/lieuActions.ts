@@ -38,6 +38,13 @@ export const getOneLieu = async (id: string | null) => {
 
 // Suppression d'une Fiche Lieu
 export async function deleteLieu(id: string) {
+  // Vérifier s'il y a des visites liées
+  const visitesCount = await prisma.visite.count({ where: { idLieu: id } });
+  if (visitesCount > 0) {
+    throw new Error(
+      `Impossible de supprimer ce lieu : ${visitesCount} visite(s) y sont rattachée(s).`
+    );
+  }
   return await prisma.lieu.delete({
     where: { id },
   });

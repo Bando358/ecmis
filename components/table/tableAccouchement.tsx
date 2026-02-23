@@ -31,6 +31,7 @@ import { useClientContext } from "../ClientContext";
 import { Accouchement, Permission, TableName, Visite } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 
 export function Table08({ id }: { id: string }) {
   const [dataVisite, setDataVisite] = useState<Visite[]>([]);
@@ -93,8 +94,13 @@ export function Table08({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer ce client ?"
     );
     if (confirmed) {
+      const record = dataAccouchement.find((d) => d.id === id);
       await deleteAccouchement(id);
-      setDataAccouchement(dataAccouchement.filter((d) => d.id !== id));
+      const remaining = dataAccouchement.filter((d) => d.id !== id);
+      setDataAccouchement(remaining);
+      if (record && !remaining.some((d) => d.accouchementIdVisite === record.accouchementIdVisite)) {
+        await removeFormulaireFromRecap(record.accouchementIdVisite, "09 Fiche Accouchement");
+      }
     }
   };
 

@@ -10,6 +10,7 @@ import {
   getAllInfertiliteByIdClient,
   deleteInfertilite,
 } from "@/lib/actions/infertiliteActions";
+import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 import {
   Table,
   TableBody,
@@ -66,8 +67,13 @@ export function Table12({ id }: { id: string }) {
       "Êtes-vous sûr de vouloir supprimer la grossesse ce client ?"
     );
     if (confirmed) {
+      const record = dataInfertilite.find((d) => d.id === id);
       await deleteInfertilite(id);
-      setDataInfertilite(dataInfertilite.filter((d) => d.id !== id));
+      const remaining = dataInfertilite.filter((d) => d.id !== id);
+      setDataInfertilite(remaining);
+      if (record && !remaining.some((d) => d.infertIdVisite === record.infertIdVisite)) {
+        await removeFormulaireFromRecap(record.infertIdVisite, "13 Fiche Infertilité");
+      }
     }
   };
 

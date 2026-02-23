@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "../ui/table";
@@ -145,6 +146,16 @@ const labelCellStyle: React.CSSProperties = {
   overflowWrap: "break-word",
 };
 
+// Affiche "-" au lieu de 0 pour une meilleure lisibilité
+const displayValue = (value: number) => (value === 0 ? "-" : value);
+
+// Styles communs pour les cellules
+const dataCellClass = "text-center border border-gray-200 px-2 py-1";
+const totalCellClass = "text-center border border-gray-200 px-2 py-1 font-semibold";
+const headerCellClass = "font-semibold text-center border border-gray-300";
+const sectionHeaderClass = "font-bold bg-blue-50 text-blue-900 border border-gray-300";
+const subTotalRowClass = "bg-amber-50 font-semibold";
+
 export default function TableRapportLabo({
   ageRanges,
   clientAllData,
@@ -168,17 +179,6 @@ export default function TableRapportLabo({
   const [listeExamenIst, setListeExamenIst] = useState<Examen[]>([]);
   const [listeExamenGyneco, setListeExamenGyneco] = useState<Examen[]>([]);
   const [listeExamenMedecine, setListeExamenMedecine] = useState<Examen[]>([]);
-
-  if (clientData) console.log("clientData laboratoire ", clientData);
-
-  useEffect(() => {
-    if (listeExamenMedecine.length > 0) {
-      console.log("listeExamenMedecine : ", listeExamenMedecine);
-    }
-    if (listeExamenObstetrique.length > 0) {
-      console.log("listeExamenObstetrique : ", listeExamenObstetrique);
-    }
-  }, [listeExamenMedecine, listeExamenObstetrique]);
 
   useEffect(() => {
     const fetchExamens = async () => {
@@ -456,12 +456,12 @@ export default function TableRapportLabo({
           ws.getCell(row, 1).value = cfg.label;
           let col = 2;
           masculinCounts.forEach((v) => {
-            ws.getCell(row, col++).value = v;
+            ws.getCell(row, col++).value = excelVal(v);
           });
           femininCounts.forEach((v) => {
-            ws.getCell(row, col++).value = v;
+            ws.getCell(row, col++).value = excelVal(v);
           });
-          ws.getCell(row, col).value = total;
+          ws.getCell(row, col).value = excelVal(total);
           row++;
         }
 
@@ -471,6 +471,9 @@ export default function TableRapportLabo({
 
         return row; // next empty row
       };
+
+      // Helper: écrire une valeur Excel (0 → "-")
+      const excelVal = (v: number): string | number => (v === 0 ? "-" : v);
 
       const writeServiceProcedureTable = (
         ws: Worksheet,
@@ -492,72 +495,59 @@ export default function TableRapportLabo({
         ws.getCell(row, 1).value = procedureLabel;
         let col = 2;
         ageRanges.forEach((range) => {
-          ws.getCell(row, col++).value = countClientBySexe(
-            dataArray,
-            range.min,
-            range.max,
-            "Masculin"
-          );
+          ws.getCell(row, col++).value = excelVal(countClientBySexe(dataArray, range.min, range.max, "Masculin"));
         });
         ageRanges.forEach((range) => {
-          ws.getCell(row, col++).value = countClientBySexe(
-            dataArray,
-            range.min,
-            range.max,
-            "Féminin"
-          );
+          ws.getCell(row, col++).value = excelVal(countClientBySexe(dataArray, range.min, range.max, "Féminin"));
         });
-        ws.getCell(row, col).value = calculateTotalByLaboType(dataArray);
+        ws.getCell(row, col).value = excelVal(calculateTotalByLaboType(dataArray));
         row++;
 
         // Exam details
         for (const examen of examens) {
-          ws.getCell(row, 1).value = `SRV - LABO - ${
-            title.split(" ")[2] || title
-          } - ${examen.nomExamen}`;
+          ws.getCell(row, 1).value = `SRV - LABO - ${title.split(" ")[2] || title} - ${examen.nomExamen}`;
           col = 2;
           ageRanges.forEach((range) => {
-            const m = countClientBySexeAndExamenName(
-              dataArray,
-              examen.nomExamen,
-              range.min,
-              range.max,
-              "Masculin"
-            );
-            ws.getCell(row, col++).value = m;
+            ws.getCell(row, col++).value = excelVal(countClientBySexeAndExamenName(dataArray, examen.nomExamen, range.min, range.max, "Masculin"));
           });
           ageRanges.forEach((range) => {
-            const f = countClientBySexeAndExamenName(
-              dataArray,
-              examen.nomExamen,
-              range.min,
-              range.max,
-              "Féminin"
-            );
-            ws.getCell(row, col++).value = f;
+            ws.getCell(row, col++).value = excelVal(countClientBySexeAndExamenName(dataArray, examen.nomExamen, range.min, range.max, "Féminin"));
           });
           const total = ageRanges.reduce(
             (s, r) =>
               s +
-              countClientBySexeAndExamenName(
-                dataArray,
-                examen.nomExamen,
-                r.min,
-                r.max,
-                "Masculin"
-              ) +
-              countClientBySexeAndExamenName(
-                dataArray,
-                examen.nomExamen,
-                r.min,
-                r.max,
-                "Féminin"
-              ),
+              countClientBySexeAndExamenName(dataArray, examen.nomExamen, r.min, r.max, "Masculin") +
+              countClientBySexeAndExamenName(dataArray, examen.nomExamen, r.min, r.max, "Féminin"),
             0
           );
-          ws.getCell(row, col).value = total;
+          ws.getCell(row, col).value = excelVal(total);
           row++;
         }
+
+        // Sous-total row = somme des colonnes (procédure + examens)
+        ws.getCell(row, 1).value = `Sous-total ${title}`;
+        ws.getCell(row, 1).font = { bold: true };
+        col = 2;
+        let subTotalAll = 0;
+        ageRanges.forEach((range) => {
+          let v = countClientBySexe(dataArray, range.min, range.max, "Masculin");
+          examens.forEach((ex) => { v += countClientBySexeAndExamenName(dataArray, ex.nomExamen, range.min, range.max, "Masculin"); });
+          subTotalAll += v;
+          ws.getCell(row, col).value = excelVal(v);
+          ws.getCell(row, col).font = { bold: true };
+          col++;
+        });
+        ageRanges.forEach((range) => {
+          let v = countClientBySexe(dataArray, range.min, range.max, "Féminin");
+          examens.forEach((ex) => { v += countClientBySexeAndExamenName(dataArray, ex.nomExamen, range.min, range.max, "Féminin"); });
+          subTotalAll += v;
+          ws.getCell(row, col).value = excelVal(v);
+          ws.getCell(row, col).font = { bold: true };
+          col++;
+        });
+        ws.getCell(row, col).value = excelVal(subTotalAll);
+        ws.getCell(row, col).font = { bold: true };
+        row++;
 
         // Apply styles for this service table
         const colCount = 2 + ageRanges.length * 2;
@@ -709,6 +699,73 @@ export default function TableRapportLabo({
           listeExamenMedecine
         ) + 1;
 
+      // TOTAL GÉNÉRAL = somme de tous les sous-totaux
+      currentRow += 1;
+      // Recalculer les sous-totaux de chaque section pour la somme
+      const excelSectionSums: { m: number; f: number }[][] = [];
+      // VIH
+      const vihExcelSums = ageRanges.map((range) => {
+        let m = 0, f = 0;
+        dataLaboVih.forEach((item) => {
+          m += countConvertedBySex(converted, range.min, range.max, item.value, "Masculin");
+          f += countConvertedBySex(converted, range.min, range.max, item.value, "Féminin");
+        });
+        listeExamenVih.forEach((ex) => {
+          m += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], ex.nomExamen, range.min, range.max, "Masculin");
+          f += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], ex.nomExamen, range.min, range.max, "Féminin");
+        });
+        return { m, f };
+      });
+      excelSectionSums.push(vihExcelSums);
+      // IST, OBST, GYN, MG
+      const excelServiceSections: [ClientLaboType[], Examen[]][] = [
+        [istLabo, listeExamenIst],
+        [obstetriqueLabo, listeExamenObstetrique],
+        [gynecoLabo, listeExamenGyneco],
+        [medecineLabo, listeExamenMedecine],
+      ];
+      excelServiceSections.forEach(([data, examens]) => {
+        excelSectionSums.push(ageRanges.map((range) => {
+          let m = countClientBySexe(data, range.min, range.max, "Masculin");
+          let f = countClientBySexe(data, range.min, range.max, "Féminin");
+          examens.forEach((ex) => {
+            m += countClientBySexeAndExamenName(data, ex.nomExamen, range.min, range.max, "Masculin");
+            f += countClientBySexeAndExamenName(data, ex.nomExamen, range.min, range.max, "Féminin");
+          });
+          return { m, f };
+        }));
+      });
+
+      worksheet.getCell(currentRow, 1).value = "TOTAL GÉNÉRAL";
+      worksheet.getCell(currentRow, 1).font = { bold: true, size: 12 };
+      let gtCol = 2;
+      let gtAll = 0;
+      ageRanges.forEach((_, i) => {
+        const v = excelSectionSums.reduce((s, sec) => s + sec[i].m, 0);
+        gtAll += v;
+        const cell = worksheet.getCell(currentRow, gtCol++);
+        cell.value = excelVal(v);
+        cell.font = { bold: true };
+      });
+      ageRanges.forEach((_, i) => {
+        const v = excelSectionSums.reduce((s, sec) => s + sec[i].f, 0);
+        gtAll += v;
+        const cell = worksheet.getCell(currentRow, gtCol++);
+        cell.value = excelVal(v);
+        cell.font = { bold: true };
+      });
+      const gtCell = worksheet.getCell(currentRow, gtCol);
+      gtCell.value = excelVal(gtAll);
+      gtCell.font = { bold: true, size: 12 };
+      // Style pour la ligne total général
+      for (let c = 1; c <= gtCol; c++) {
+        const cell = worksheet.getCell(currentRow, c);
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF334155" } };
+        cell.font = { ...cell.font, color: { argb: "FFFFFFFF" }, bold: true };
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+      }
+
       // Générer et déclencher le téléchargement
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
@@ -761,93 +818,56 @@ export default function TableRapportLabo({
     }, 0);
   };
 
-  // Fonction pour rendre les lignes détaillées des examens - CORRIGÉE
-  // Accepte soit les données spécifiques du labo (ClientLaboType[]) soit le tableau complet clientAllData
+  // Fonction pour rendre les lignes détaillées des examens
   const renderExamDetails = (
     laboData: ClientLaboType[] | clientDataProps[],
     examens: Examen[],
     laboType: string
   ) => {
-    console.log(`🔍 DEBUG ${laboType}:`, {
-      nbClients: laboData.length,
-      nbExamens: examens.length,
-      examensNames: examens.map((e) => e.nomExamen),
-    });
-
-    // Normaliser le type localement pour les opérations d'examen
     const clients = laboData as unknown as ClientLaboType[];
-    // Vérifier les résultats d'examens des clients (casting sûr si la source comporte resultatsExamens)
-    clients.forEach((client, clientIndex) => {
-      const examensClient = (
-        client as unknown as {
-          resultatsExamens?: { libelleExamen?: string }[];
-        }
-      ).resultatsExamens;
-      if (Array.isArray(examensClient) && examensClient.length > 0) {
-        console.log(
-          `Client ${clientIndex} examens:`,
-          examensClient.map((e) => e.libelleExamen)
-        );
-      }
-    });
 
-    return examens.map((examen) => {
-      const debugResults = ageRanges.map((range) => {
-        const masculin = countClientBySexeAndExamenName(
-          clients,
-          examen.nomExamen,
-          range.min,
-          range.max,
-          "Masculin"
-        );
-        const feminin = countClientBySexeAndExamenName(
-          clients,
-          examen.nomExamen,
-          range.min,
-          range.max,
-          "Féminin"
-        );
-        return { range: `${range.min}-${range.max}`, masculin, feminin };
-      });
-
-      console.log(`📊 ${examen.nomExamen}:`, debugResults);
+    return examens.map((examen, exIdx) => {
+      const results = ageRanges.map((range) => ({
+        masculin: countClientBySexeAndExamenName(clients, examen.nomExamen, range.min, range.max, "Masculin"),
+        feminin: countClientBySexeAndExamenName(clients, examen.nomExamen, range.min, range.max, "Féminin"),
+      }));
+      const total = results.reduce((s, r) => s + r.masculin + r.feminin, 0);
 
       return (
-        <TableRow key={`${laboType}-${examen.id}`}>
-          <TableCell className="pl-8 font-medium">
+        <TableRow key={`${laboType}-${examen.id}`} className={exIdx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}>
+          <TableCell className="pl-8 font-medium border border-gray-200" style={labelCellStyle}>
             {`SRV - LABO - ${laboType} - ${examen.nomExamen}`}
           </TableCell>
-
-          {/* Colonnes "Masculin" */}
-          {debugResults.map((result, index) => (
-            <TableCell
-              key={`masculin-${laboType}-${examen.id}-${index}`}
-              className="text-center"
-            >
-              {result.masculin}
-            </TableCell>
+          {results.map((r, i) => (
+            <TableCell key={`m-${laboType}-${examen.id}-${i}`} className={dataCellClass}>{displayValue(r.masculin)}</TableCell>
           ))}
-
-          {/* Colonnes "Féminin" */}
-          {debugResults.map((result, index) => (
-            <TableCell
-              key={`feminin-${laboType}-${examen.id}-${index}`}
-              className="text-center"
-            >
-              {result.feminin}
-            </TableCell>
+          {results.map((r, i) => (
+            <TableCell key={`f-${laboType}-${examen.id}-${i}`} className={dataCellClass}>{displayValue(r.feminin)}</TableCell>
           ))}
-
-          {/* Colonne Total */}
-          <TableCell className="text-center font-semibold">
-            {debugResults.reduce(
-              (sum, result) => sum + result.masculin + result.feminin,
-              0
-            )}
-          </TableCell>
+          <TableCell className={totalCellClass}>{displayValue(total)}</TableCell>
         </TableRow>
       );
     });
+  };
+
+  // Sous-total = somme des colonnes (somme arithmétique de toutes les lignes de la section)
+  const renderSubTotalRow = (label: string, columnSums: { masculin: number; feminin: number }[]) => {
+    const total = columnSums.reduce((s, r) => s + r.masculin + r.feminin, 0);
+
+    return (
+      <TableRow className={subTotalRowClass}>
+        <TableCell className="font-semibold border border-gray-200 pl-4" style={labelCellStyle}>
+          {label}
+        </TableCell>
+        {columnSums.map((r, i) => (
+          <TableCell key={`st-m-${label}-${i}`} className={totalCellClass}>{displayValue(r.masculin)}</TableCell>
+        ))}
+        {columnSums.map((r, i) => (
+          <TableCell key={`st-f-${label}-${i}`} className={totalCellClass}>{displayValue(r.feminin)}</TableCell>
+        ))}
+        <TableCell className="text-center border border-gray-200 px-2 py-1 font-bold">{displayValue(total)}</TableCell>
+      </TableRow>
+    );
   };
 
   // Export to PDF using jsPDF
@@ -944,23 +964,18 @@ export default function TableRapportLabo({
       doc.text("Rapport clients Laboratoire", 14, currentY);
       currentY += 5;
 
+      const pdfVal = (v: number) => (v === 0 ? "-" : String(v));
+
       const laboTypeRows = laboTypesConfig.map((laboType) => {
         const data = laboDataMap[laboType.dataKey];
         const row = [laboType.label];
-        // Masculin
         ageRanges.forEach((range) => {
-          row.push(
-            String(countClientBySexe(data, range.min, range.max, "Masculin"))
-          );
+          row.push(pdfVal(countClientBySexe(data, range.min, range.max, "Masculin")));
         });
-        // Féminin
         ageRanges.forEach((range) => {
-          row.push(
-            String(countClientBySexe(data, range.min, range.max, "Féminin"))
-          );
+          row.push(pdfVal(countClientBySexe(data, range.min, range.max, "Féminin")));
         });
-        // Total
-        row.push(String(calculateTotalByLaboType(data)));
+        row.push(pdfVal(calculateTotalByLaboType(data)));
         return row;
       });
 
@@ -984,19 +999,12 @@ export default function TableRapportLabo({
 
       const vihRows = dataLaboVih.map((item) => {
         const row = [item.label];
-        // Masculin
         ageRanges.forEach((range) => {
-          row.push(
-            String(countConvertedBySex(converted, range.min, range.max, item.value, "Masculin"))
-          );
+          row.push(pdfVal(countConvertedBySex(converted, range.min, range.max, item.value, "Masculin")));
         });
-        // Féminin
         ageRanges.forEach((range) => {
-          row.push(
-            String(countConvertedBySex(converted, range.min, range.max, item.value, "Féminin"))
-          );
+          row.push(pdfVal(countConvertedBySex(converted, range.min, range.max, item.value, "Féminin")));
         });
-        // Total
         const total = ageRanges.reduce(
           (sum, range) =>
             sum +
@@ -1004,7 +1012,7 @@ export default function TableRapportLabo({
             countConvertedBySex(converted, range.min, range.max, item.value, "Féminin"),
           0
         );
-        row.push(String(total));
+        row.push(pdfVal(total));
         return row;
       });
 
@@ -1012,26 +1020,10 @@ export default function TableRapportLabo({
       listeExamenVih.forEach((examen) => {
         const row = [`SRV - LABO - VIH - ${examen.nomExamen}`];
         ageRanges.forEach((range) => {
-          row.push(
-            String(countClientBySexeAndExamenName(
-              clientAllData as unknown as ClientLaboType[],
-              examen.nomExamen,
-              range.min,
-              range.max,
-              "Masculin"
-            ))
-          );
+          row.push(pdfVal(countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, range.min, range.max, "Masculin")));
         });
         ageRanges.forEach((range) => {
-          row.push(
-            String(countClientBySexeAndExamenName(
-              clientAllData as unknown as ClientLaboType[],
-              examen.nomExamen,
-              range.min,
-              range.max,
-              "Féminin"
-            ))
-          );
+          row.push(pdfVal(countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, range.min, range.max, "Féminin")));
         });
         const total = ageRanges.reduce(
           (s, r) =>
@@ -1040,7 +1032,7 @@ export default function TableRapportLabo({
             countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, r.min, r.max, "Féminin"),
           0
         );
-        row.push(String(total));
+        row.push(pdfVal(total));
         vihRows.push(row);
       });
 
@@ -1077,26 +1069,22 @@ export default function TableRapportLabo({
         // Ligne principale du service
         const mainRow = [`SRV - LABO - ${title}`];
         ageRanges.forEach((range) => {
-          mainRow.push(String(countClientBySexe(data, range.min, range.max, "Masculin")));
+          mainRow.push(pdfVal(countClientBySexe(data, range.min, range.max, "Masculin")));
         });
         ageRanges.forEach((range) => {
-          mainRow.push(String(countClientBySexe(data, range.min, range.max, "Féminin")));
+          mainRow.push(pdfVal(countClientBySexe(data, range.min, range.max, "Féminin")));
         });
-        mainRow.push(String(calculateTotal(data)));
+        mainRow.push(pdfVal(calculateTotal(data)));
         rows.push(mainRow);
 
         // Examens détaillés
         examens.forEach((examen) => {
           const row = [`SRV - LABO - ${title} - ${examen.nomExamen}`];
           ageRanges.forEach((range) => {
-            row.push(
-              String(countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Masculin"))
-            );
+            row.push(pdfVal(countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Masculin")));
           });
           ageRanges.forEach((range) => {
-            row.push(
-              String(countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Féminin"))
-            );
+            row.push(pdfVal(countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Féminin")));
           });
           const total = ageRanges.reduce(
             (s, r) =>
@@ -1105,9 +1093,27 @@ export default function TableRapportLabo({
               countClientBySexeAndExamenName(data, examen.nomExamen, r.min, r.max, "Féminin"),
             0
           );
-          row.push(String(total));
+          row.push(pdfVal(total));
           rows.push(row);
         });
+
+        // Sous-total row = somme des colonnes (procédure + examens)
+        const subTotalRow = [`Sous-total ${title}`];
+        let subAll = 0;
+        ageRanges.forEach((range) => {
+          let v = countClientBySexe(data, range.min, range.max, "Masculin");
+          examens.forEach((ex) => { v += countClientBySexeAndExamenName(data, ex.nomExamen, range.min, range.max, "Masculin"); });
+          subAll += v;
+          subTotalRow.push(pdfVal(v));
+        });
+        ageRanges.forEach((range) => {
+          let v = countClientBySexe(data, range.min, range.max, "Féminin");
+          examens.forEach((ex) => { v += countClientBySexeAndExamenName(data, ex.nomExamen, range.min, range.max, "Féminin"); });
+          subAll += v;
+          subTotalRow.push(pdfVal(v));
+        });
+        subTotalRow.push(pdfVal(subAll));
+        rows.push(subTotalRow);
 
         autoTable(doc, {
           startY: currentY,
@@ -1128,6 +1134,67 @@ export default function TableRapportLabo({
       generateServiceTable("GYNECOLOGIE", gynecoLabo, listeExamenGyneco);
       generateServiceTable("MEDECINE", medecineLabo, listeExamenMedecine);
 
+      // Total Général
+      if (currentY > 180) {
+        doc.addPage();
+        currentY = 20;
+      }
+      // Recalculer les sous-totaux pour le PDF total général
+      const pdfSectionSums: { m: number; f: number }[][] = [];
+      // VIH
+      pdfSectionSums.push(ageRanges.map((range) => {
+        let m = 0, f = 0;
+        dataLaboVih.forEach((item) => {
+          m += countConvertedBySex(converted, range.min, range.max, item.value, "Masculin");
+          f += countConvertedBySex(converted, range.min, range.max, item.value, "Féminin");
+        });
+        listeExamenVih.forEach((ex) => {
+          m += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], ex.nomExamen, range.min, range.max, "Masculin");
+          f += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], ex.nomExamen, range.min, range.max, "Féminin");
+        });
+        return { m, f };
+      }));
+      // IST, OBST, GYN, MG
+      ([
+        [istLabo, listeExamenIst],
+        [obstetriqueLabo, listeExamenObstetrique],
+        [gynecoLabo, listeExamenGyneco],
+        [medecineLabo, listeExamenMedecine],
+      ] as [ClientLaboType[], Examen[]][]).forEach(([data, examens]) => {
+        pdfSectionSums.push(ageRanges.map((range) => {
+          let m = countClientBySexe(data, range.min, range.max, "Masculin");
+          let f = countClientBySexe(data, range.min, range.max, "Féminin");
+          examens.forEach((ex) => {
+            m += countClientBySexeAndExamenName(data, ex.nomExamen, range.min, range.max, "Masculin");
+            f += countClientBySexeAndExamenName(data, ex.nomExamen, range.min, range.max, "Féminin");
+          });
+          return { m, f };
+        }));
+      });
+
+      const gtRow = ["TOTAL GÉNÉRAL"];
+      let gtPdfAll = 0;
+      ageRanges.forEach((_, i) => {
+        const v = pdfSectionSums.reduce((s, sec) => s + sec[i].m, 0);
+        gtPdfAll += v;
+        gtRow.push(pdfVal(v));
+      });
+      ageRanges.forEach((_, i) => {
+        const v = pdfSectionSums.reduce((s, sec) => s + sec[i].f, 0);
+        gtPdfAll += v;
+        gtRow.push(pdfVal(v));
+      });
+      gtRow.push(pdfVal(gtPdfAll));
+
+      autoTable(doc, {
+        startY: currentY,
+        body: [gtRow],
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2, fontStyle: "bold" },
+        bodyStyles: { fillColor: [51, 65, 85], textColor: 255 },
+        columnStyles: { 0: { cellWidth: 50 } },
+      });
+
       // Section signature (même page que le dernier tableau)
       currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
       if (currentY > 180) {
@@ -1147,6 +1214,110 @@ export default function TableRapportLabo({
     }
   };
 
+  // Nombre total de colonnes
+  const totalColSpan = 2 + ageRanges.length * 2;
+
+  // Helper pour rendre une section de service (header + procédure + examens + sous-total)
+  const renderServiceSection = (
+    title: string,
+    shortCode: string,
+    data: ClientLaboType[],
+    examens: Examen[],
+  ) => {
+    // Calculer les valeurs de chaque ligne pour pouvoir sommer les colonnes
+    const procResults = ageRanges.map((range) => ({
+      masculin: countClientBySexe(data, range.min, range.max, "Masculin"),
+      feminin: countClientBySexe(data, range.min, range.max, "Féminin"),
+    }));
+    const procTotal = procResults.reduce((s, r) => s + r.masculin + r.feminin, 0);
+
+    const examResults = examens.map((examen) =>
+      ageRanges.map((range) => ({
+        masculin: countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Masculin"),
+        feminin: countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Féminin"),
+      }))
+    );
+
+    // Sous-total = somme colonne par colonne (procédure + tous les examens)
+    const columnSums = ageRanges.map((_, i) => {
+      let m = procResults[i].masculin;
+      let f = procResults[i].feminin;
+      examResults.forEach((ex) => { m += ex[i].masculin; f += ex[i].feminin; });
+      return { masculin: m, feminin: f };
+    });
+
+    return (
+      <>
+        {/* Header de section */}
+        <TableRow>
+          <TableCell colSpan={totalColSpan} className={sectionHeaderClass}>
+            {title}
+          </TableCell>
+        </TableRow>
+        {/* Ligne procédure d'échantillonnage */}
+        <TableRow className="bg-white hover:bg-gray-50">
+          <TableCell className="font-medium pl-4 border border-gray-200" style={labelCellStyle}>
+            {`SRV - LABO - ${shortCode} - Procédures d'échantillonnage`}
+          </TableCell>
+          {procResults.map((r, i) => (
+            <TableCell key={`proc-m-${shortCode}-${i}`} className={dataCellClass}>{displayValue(r.masculin)}</TableCell>
+          ))}
+          {procResults.map((r, i) => (
+            <TableCell key={`proc-f-${shortCode}-${i}`} className={dataCellClass}>{displayValue(r.feminin)}</TableCell>
+          ))}
+          <TableCell className={totalCellClass}>{displayValue(procTotal)}</TableCell>
+        </TableRow>
+        {/* Examens détaillés */}
+        {renderExamDetails(data, examens, shortCode)}
+        {/* Sous-total = somme des colonnes */}
+        {renderSubTotalRow(`Sous-total ${title}`, columnSums)}
+      </>
+    );
+  };
+
+  // Calculer les sous-totaux de chaque section (somme des colonnes)
+  const computeSectionColumnSums = (data: ClientLaboType[], examens: Examen[]) => {
+    return ageRanges.map((range) => {
+      let m = countClientBySexe(data, range.min, range.max, "Masculin");
+      let f = countClientBySexe(data, range.min, range.max, "Féminin");
+      examens.forEach((examen) => {
+        m += countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Masculin");
+        f += countClientBySexeAndExamenName(data, examen.nomExamen, range.min, range.max, "Féminin");
+      });
+      return { masculin: m, feminin: f };
+    });
+  };
+
+  const computeVihColumnSums = () => {
+    return ageRanges.map((range) => {
+      let m = 0, f = 0;
+      dataLaboVih.forEach((item) => {
+        m += countConvertedBySex(converted, range.min, range.max, item.value, "Masculin");
+        f += countConvertedBySex(converted, range.min, range.max, item.value, "Féminin");
+      });
+      listeExamenVih.forEach((examen) => {
+        m += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, range.min, range.max, "Masculin");
+        f += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, range.min, range.max, "Féminin");
+      });
+      return { masculin: m, feminin: f };
+    });
+  };
+
+  // Total général = somme de tous les sous-totaux section par section
+  const sectionSums = [
+    computeVihColumnSums(),
+    computeSectionColumnSums(istLabo, listeExamenIst),
+    computeSectionColumnSums(obstetriqueLabo, listeExamenObstetrique),
+    computeSectionColumnSums(gynecoLabo, listeExamenGyneco),
+    computeSectionColumnSums(medecineLabo, listeExamenMedecine),
+  ];
+  const grandTotalResults = ageRanges.map((_, i) => {
+    let m = 0, f = 0;
+    sectionSums.forEach((s) => { m += s[i].masculin; f += s[i].feminin; });
+    return { masculin: m, feminin: f };
+  });
+  const grandTotal = grandTotalResults.reduce((s, r) => s + r.masculin + r.feminin, 0);
+
   return (
     <div className="flex flex-col gap-4 bg-gray-50 opacity-90 p-4 rounded-sm mt-2 w-full overflow-x-auto">
       <div className="flex gap-2 justify-center">
@@ -1156,11 +1327,7 @@ export default function TableRapportLabo({
           disabled={spinner}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
         >
-          <Spinner
-            show={spinner}
-            size={"small"}
-            className="text-white dark:text-slate-400"
-          />
+          <Spinner show={spinner} size={"small"} className="text-white dark:text-slate-400" />
           Exporter Excel
         </Button>
         <Button
@@ -1169,446 +1336,145 @@ export default function TableRapportLabo({
           disabled={spinnerPdf}
           className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
         >
-          <Spinner
-            show={spinnerPdf}
-            size={"small"}
-            className="text-white dark:text-slate-400"
-          />
+          <Spinner show={spinnerPdf} size={"small"} className="text-white dark:text-slate-400" />
           Exporter PDF
         </Button>
       </div>
 
-      <h2 className="font-bold">Rapport clients Laboratoire</h2>
+      <h2 className="font-bold text-lg">Rapport clients Laboratoire</h2>
 
-      {/* Tableau principal des types de laboratoire */}
-      <Table className="border">
-        <TableHeader className="bg-gray-200">
+      {/* Table unique unifiée */}
+      <Table className="border border-gray-300">
+        <TableHeader className="bg-slate-100 sticky top-0 z-10">
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
+            <TableHead rowSpan={2} className={`${headerCellClass} min-w-[250px]`} style={labelCellStyle}>
               Indicateurs
-            </TableCell>
-            <TableCell
-              colSpan={ageRanges.length}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
-            >
+            </TableHead>
+            <TableHead colSpan={ageRanges.length} className={`${headerCellClass} bg-blue-50`}>
               Masculin
-            </TableCell>
-            <TableCell
-              colSpan={ageRanges.length}
-              className="font-bold text-center"
-            >
+            </TableHead>
+            <TableHead colSpan={ageRanges.length} className={`${headerCellClass} bg-pink-50`}>
               Féminin
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
+            </TableHead>
+            <TableHead rowSpan={2} className={`${headerCellClass} min-w-[60px]`}>
               Total
-            </TableCell>
+            </TableHead>
           </TableRow>
-          <TableRow className="bg-gray-300 text-center">
-            {/* En-têtes Masculin */}
+          <TableRow className="bg-slate-200 text-center">
             {ageRanges.map((range, index) => (
-              <TableCell
-                key={`masculin-header-${index}`}
-                className={
-                  index === 0
-                    ? "border border-l-gray-400"
-                    : index === ageRanges.length - 1
-                    ? "border border-r-gray-400"
-                    : ""
-                }
-              >
-                {range.max < 120
-                  ? `${range.min}-${range.max} ans`
-                  : `${range.min} ans et +`}
-              </TableCell>
+              <TableHead key={`m-h-${index}`} className={`${headerCellClass} bg-blue-50/50 text-xs min-w-[55px]`}>
+                {range.max < 120 ? `${range.min}-${range.max}` : `${range.min}+`}
+              </TableHead>
             ))}
-
-            {/* En-têtes Féminin */}
             {ageRanges.map((range, index) => (
-              <TableCell
-                key={`feminin-header-${index}`}
-                className={
-                  index === ageRanges.length - 1
-                    ? "border border-r-gray-400"
-                    : ""
-                }
-              >
-                {range.max < 120
-                  ? `${range.min}-${range.max} ans`
-                  : `${range.min} ans et +`}
-              </TableCell>
+              <TableHead key={`f-h-${index}`} className={`${headerCellClass} bg-pink-50/50 text-xs min-w-[55px]`}>
+                {range.max < 120 ? `${range.min}-${range.max}` : `${range.min}+`}
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {laboTypesConfig.map((laboType) => {
+          {/* === Tableau résumé par type === */}
+          <TableRow>
+            <TableCell colSpan={totalColSpan} className="font-bold bg-slate-200 text-slate-800 border border-gray-300 text-center">
+              Résumé par type de laboratoire
+            </TableCell>
+          </TableRow>
+          {laboTypesConfig.map((laboType, idx) => {
             const data = laboDataMap[laboType.dataKey];
-            const total = calculateTotalByLaboType(data);
+            const results = ageRanges.map((range) => ({
+              masculin: countClientBySexe(data, range.min, range.max, "Masculin"),
+              feminin: countClientBySexe(data, range.min, range.max, "Féminin"),
+            }));
+            const total = results.reduce((s, r) => s + r.masculin + r.feminin, 0);
 
             return (
-              <TableRow key={laboType.key}>
-                <TableCell className="font-medium">{laboType.label}</TableCell>
-
-                {/* Colonnes "Masculin" */}
-                {ageRanges.map((range, index) => (
-                  <TableCell
-                    key={`masculin-${laboType.key}-${index}`}
-                    className="text-center"
-                  >
-                    {countClientBySexe(data, range.min, range.max, "Masculin")}
-                  </TableCell>
+              <TableRow key={laboType.key} className={idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}>
+                <TableCell className="font-medium border border-gray-200" style={labelCellStyle}>{laboType.label}</TableCell>
+                {results.map((r, i) => (
+                  <TableCell key={`sum-m-${laboType.key}-${i}`} className={dataCellClass}>{displayValue(r.masculin)}</TableCell>
                 ))}
-
-                {/* Colonnes "Féminin" */}
-                {ageRanges.map((range, index) => (
-                  <TableCell
-                    key={`feminin-${laboType.key}-${index}`}
-                    className="text-center"
-                  >
-                    {countClientBySexe(data, range.min, range.max, "Féminin")}
-                  </TableCell>
+                {results.map((r, i) => (
+                  <TableCell key={`sum-f-${laboType.key}-${i}`} className={dataCellClass}>{displayValue(r.feminin)}</TableCell>
                 ))}
-
-                {/* Colonne Total */}
-                <TableCell className="text-center font-semibold">
-                  {total}
-                </TableCell>
+                <TableCell className={totalCellClass}>{displayValue(total)}</TableCell>
               </TableRow>
             );
           })}
-        </TableBody>
-      </Table>
 
-      {/* Section pour les statistiques Laboratoire détaillées */}
-      <h2 className="font-bold mt-8">Détails des services Laboratoire</h2>
-      <Table className="border">
-        <TableHeader className="bg-gray-200">
+          {/* === Section VIH (indicateurs spéciaux + examens) === */}
           <TableRow>
-            <TableCell rowSpan={2} className="font-bold">
-              Services Laboratoire
-            </TableCell>
-            <TableCell
-              colSpan={ageRanges.length}
-              className="font-bold text-center border border-r-gray-400 border-l-gray-400"
-            >
-              Masculin
-            </TableCell>
-            <TableCell
-              colSpan={ageRanges.length}
-              className="font-bold text-center"
-            >
-              Féminin
-            </TableCell>
-            <TableCell rowSpan={2} className="font-bold">
-              Total
-            </TableCell>
-          </TableRow>
-          <TableRow className="bg-gray-300 text-center">
-            {/* En-têtes Masculin */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`masculin-detail-header-${index}`}
-                className={
-                  index === 0
-                    ? "border border-l-gray-400"
-                    : index === ageRanges.length - 1
-                    ? "border border-r-gray-400"
-                    : ""
-                }
-              >
-                {range.max < 120
-                  ? `${range.min}-${range.max} ans`
-                  : `${range.min} ans et +`}
-              </TableCell>
-            ))}
-
-            {/* En-têtes Féminin */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`feminin-detail-header-${index}`}
-                className={
-                  index === ageRanges.length - 1
-                    ? "border border-r-gray-400"
-                    : ""
-                }
-              >
-                {range.max < 120
-                  ? `${range.min}-${range.max} ans`
-                  : `${range.min} ans et +`}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {/* Section VIH */}
-          <TableRow className="bg-gray-100">
-            <TableCell
-              colSpan={2 + ageRanges.length * 2}
-              className="font-bold bg-gray-200"
-            >
+            <TableCell colSpan={totalColSpan} className={sectionHeaderClass}>
               VIH
             </TableCell>
           </TableRow>
-          {/* Render rows defined in dataLaboVih using converted flags */}
-          {dataLaboVih.map((item) => (
-            <TableRow key={`vih-item-${item.value}`}>
-              <TableCell className="font-medium pl-4" style={labelCellStyle}>
-                {item.label}
-              </TableCell>
+          {dataLaboVih.map((item, idx) => {
+            const results = ageRanges.map((range) => ({
+              masculin: countConvertedBySex(converted, range.min, range.max, item.value, "Masculin"),
+              feminin: countConvertedBySex(converted, range.min, range.max, item.value, "Féminin"),
+            }));
+            const total = results.reduce((s, r) => s + r.masculin + r.feminin, 0);
 
-              {/* Masculin */}
-              {ageRanges.map((range, index) => (
-                <TableCell
-                  key={`masculin-${item.value}-${index}`}
-                  className="text-center"
-                >
-                  {countConvertedBySex(
-                    converted,
-                    range.min,
-                    range.max,
-                    item.value,
-                    "Masculin"
-                  )}
+            return (
+              <TableRow key={`vih-${item.value}`} className={idx % 2 === 0 ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 hover:bg-gray-100"}>
+                <TableCell className="font-medium pl-4 border border-gray-200" style={labelCellStyle}>
+                  {item.label}
                 </TableCell>
-              ))}
+                {results.map((r, i) => (
+                  <TableCell key={`vih-m-${item.value}-${i}`} className={dataCellClass}>{displayValue(r.masculin)}</TableCell>
+                ))}
+                {results.map((r, i) => (
+                  <TableCell key={`vih-f-${item.value}-${i}`} className={dataCellClass}>{displayValue(r.feminin)}</TableCell>
+                ))}
+                <TableCell className={totalCellClass}>{displayValue(total)}</TableCell>
+              </TableRow>
+            );
+          })}
+          {renderExamDetails(clientAllData as unknown as ClientLaboType[], listeExamenVih, "VIH")}
+          {(() => {
+            // Sous-total VIH = somme des indicateurs converted + somme des examens VIH
+            const vihColumnSums = ageRanges.map((range, i) => {
+              let m = 0, f = 0;
+              // Somme des lignes indicateurs VIH (converted)
+              dataLaboVih.forEach((item) => {
+                m += countConvertedBySex(converted, range.min, range.max, item.value, "Masculin");
+                f += countConvertedBySex(converted, range.min, range.max, item.value, "Féminin");
+              });
+              // Somme des lignes examens VIH
+              listeExamenVih.forEach((examen) => {
+                m += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, range.min, range.max, "Masculin");
+                f += countClientBySexeAndExamenName(clientAllData as unknown as ClientLaboType[], examen.nomExamen, range.min, range.max, "Féminin");
+              });
+              return { masculin: m, feminin: f };
+            });
+            return renderSubTotalRow("Sous-total VIH", vihColumnSums);
+          })()}
 
-              {/* Féminin */}
-              {ageRanges.map((range, index) => (
-                <TableCell
-                  key={`feminin-${item.value}-${index}`}
-                  className="text-center"
-                >
-                  {countConvertedBySex(
-                    converted,
-                    range.min,
-                    range.max,
-                    item.value,
-                    "Féminin"
-                  )}
-                </TableCell>
-              ))}
+          {/* === Sections IST / OBST / GYN / MG === */}
+          {renderServiceSection("IST", "IST", istLabo, listeExamenIst)}
+          {renderServiceSection("OBSTÉTRIQUE", "OBST", obstetriqueLabo, listeExamenObstetrique)}
+          {renderServiceSection("GYNÉCOLOGIE", "GYN", gynecoLabo, listeExamenGyneco)}
+          {renderServiceSection("MÉDECINE GÉNÉRALE", "MG", medecineLabo, listeExamenMedecine)}
 
-              {/* Total */}
-              <TableCell className="text-center font-semibold">
-                {ageRanges.reduce((sum, range) => {
-                  const m = countConvertedBySex(
-                    converted,
-                    range.min,
-                    range.max,
-                    item.value,
-                    "Masculin"
-                  );
-                  const f = countConvertedBySex(
-                    converted,
-                    range.min,
-                    range.max,
-                    item.value,
-                    "Féminin"
-                  );
-                  return sum + m + f;
-                }, 0)}
-              </TableCell>
-            </TableRow>
-          ))}
-
-          {/* Détails des examens VIH (utilise clientAllData comme source) */}
-          {renderExamDetails(
-            clientAllData as unknown as ClientLaboType[],
-            listeExamenVih,
-            "VIH"
-          )}
-
-          {/* Section IST */}
-          <TableRow className="bg-gray-100">
-            <TableCell
-              colSpan={2 + ageRanges.length * 2}
-              className="font-bold bg-gray-200"
-            >
-              IST
+          {/* === Total Général === */}
+          <TableRow className="bg-slate-800 text-white">
+            <TableCell className="font-bold border border-gray-400 pl-4" style={labelCellStyle}>
+              TOTAL GÉNÉRAL
             </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium pl-4" style={labelCellStyle}>
-              SRV - LABO - IST - Procédures {"d'échantillonnage"}
-            </TableCell>
-            {/* Colonnes "Masculin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`masculin-ist-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(istLabo, range.min, range.max, "Masculin")}
+            {grandTotalResults.map((r, i) => (
+              <TableCell key={`gt-m-${i}`} className="text-center border border-gray-400 px-2 py-1 font-bold">
+                {displayValue(r.masculin)}
               </TableCell>
             ))}
-
-            {/* Colonnes "Féminin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`feminin-ist-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(istLabo, range.min, range.max, "Féminin")}
+            {grandTotalResults.map((r, i) => (
+              <TableCell key={`gt-f-${i}`} className="text-center border border-gray-400 px-2 py-1 font-bold">
+                {displayValue(r.feminin)}
               </TableCell>
             ))}
-
-            {/* Colonne Total */}
-            <TableCell className="text-center font-semibold">
-              {calculateTotal(istLabo)}
+            <TableCell className="text-center border border-gray-400 px-2 py-1 font-bold text-lg">
+              {displayValue(grandTotal)}
             </TableCell>
           </TableRow>
-
-          {/* Détails des examens IST */}
-          {renderExamDetails(istLabo, listeExamenIst, "IST")}
-
-          {/* Section OBSTÉTRIQUE */}
-          <TableRow className="bg-gray-100">
-            <TableCell
-              colSpan={2 + ageRanges.length * 2}
-              className="font-bold bg-gray-200"
-            >
-              OBSTÉTRIQUE
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium pl-4" style={labelCellStyle}>
-              SRV - LABO - OBST - Procédures {"d'échantillonnage"}
-            </TableCell>
-            {/* Colonnes "Masculin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`masculin-obst-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(
-                  obstetriqueLabo,
-                  range.min,
-                  range.max,
-                  "Masculin"
-                )}
-              </TableCell>
-            ))}
-
-            {/* Colonnes "Féminin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`feminin-obst-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(
-                  obstetriqueLabo,
-                  range.min,
-                  range.max,
-                  "Féminin"
-                )}
-              </TableCell>
-            ))}
-
-            {/* Colonne Total */}
-            <TableCell className="text-center font-semibold">
-              {calculateTotal(obstetriqueLabo)}
-            </TableCell>
-          </TableRow>
-
-          {/* Détails des examens OBSTÉTRIQUE */}
-          {renderExamDetails(obstetriqueLabo, listeExamenObstetrique, "OBST")}
-
-          {/* Section GYNÉCOLOGIE */}
-          <TableRow className="bg-gray-100">
-            <TableCell
-              colSpan={2 + ageRanges.length * 2}
-              className="font-bold bg-gray-200"
-            >
-              GYNÉCOLOGIE
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium pl-4" style={labelCellStyle}>
-              SRV - LABO - GYN - Procédures {"d'échantillonnage"}
-            </TableCell>
-            {/* Colonnes "Masculin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`masculin-gyne-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(
-                  gynecoLabo,
-                  range.min,
-                  range.max,
-                  "Masculin"
-                )}
-              </TableCell>
-            ))}
-
-            {/* Colonnes "Féminin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`feminin-gyne-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(gynecoLabo, range.min, range.max, "Féminin")}
-              </TableCell>
-            ))}
-
-            {/* Colonne Total */}
-            <TableCell className="text-center font-semibold">
-              {calculateTotal(gynecoLabo)}
-            </TableCell>
-          </TableRow>
-
-          {/* Détails des examens GYNÉCOLOGIE */}
-          {renderExamDetails(gynecoLabo, listeExamenGyneco, "GYN")}
-
-          {/* Section MÉDECINE GÉNÉRALE */}
-          <TableRow className="bg-gray-100">
-            <TableCell
-              colSpan={2 + ageRanges.length * 2}
-              className="font-bold bg-gray-200"
-            >
-              MÉDECINE GÉNÉRALE
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium pl-4" style={labelCellStyle}>
-              SRV - LABO - MG - Procédures {"d'échantillonnage"}
-            </TableCell>
-            {/* Colonnes "Masculin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`masculin-med-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(
-                  medecineLabo,
-                  range.min,
-                  range.max,
-                  "Masculin"
-                )}
-              </TableCell>
-            ))}
-
-            {/* Colonnes "Féminin" */}
-            {ageRanges.map((range, index) => (
-              <TableCell
-                key={`feminin-med-procedure-${index}`}
-                className="text-center"
-              >
-                {countClientBySexe(
-                  medecineLabo,
-                  range.min,
-                  range.max,
-                  "Féminin"
-                )}
-              </TableCell>
-            ))}
-
-            {/* Colonne Total */}
-            <TableCell className="text-center font-semibold">
-              {calculateTotal(medecineLabo)}
-            </TableCell>
-          </TableRow>
-
-          {/* Détails des examens MÉDECINE GÉNÉRALE */}
-          {renderExamDetails(medecineLabo, listeExamenMedecine, "MG")}
         </TableBody>
       </Table>
     </div>
