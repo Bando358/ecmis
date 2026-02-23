@@ -14,6 +14,13 @@ export async function createTarifPrestation(data: TarifPrestation) {
 export async function getAllTarifPrestation() {
   return await prisma.tarifPrestation.findMany();
 }
+
+// Récupérer les TarifPrestation par clinique
+export async function getAllTarifPrestationByClinique(cliniqueId: string) {
+  return await prisma.tarifPrestation.findMany({
+    where: { idClinique: cliniqueId },
+  });
+}
 // Suppression d'un client
 export async function deleteTarifPrestation(id: string) {
   return await prisma.tarifPrestation.delete({

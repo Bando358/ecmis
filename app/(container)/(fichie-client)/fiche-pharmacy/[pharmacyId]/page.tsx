@@ -1,57 +1,16 @@
-import { use } from "react";
 import FichePharmacyServer from "./FichePharmacyServer";
 import FichePharmacyClient from "./FichePharmacy";
-import {
-  Visite,
-  Client,
-  TarifProduit,
-  TarifExamen,
-  Examen,
-  Prestation,
-  Produit,
-  Clinique,
-  Echographie,
-  TarifEchographie,
-  FactureProduit,
-  FacturePrestation,
-  FactureEchographie,
-  FactureExamen,
-  DemandeExamen,
-  DemandeEchographie,
-  TarifPrestation,
-} from "@prisma/client";
 
-interface FichePharmacyServerData {
-  visites: Visite[];
-  client: Client;
-  tabTarifProduit: TarifProduit[];
-  tabTarifExamens: TarifExamen[];
-  tabExamen: Examen[];
-  prestations: Prestation[];
-  tabProduit: Produit[];
-  tabClinique: Clinique[];
-  tabEchographie: Echographie[];
-  tabTarifEchographies: TarifEchographie[];
-  tabTarifPrestations: TarifPrestation[];
-  tabProduitFactureClient: FactureProduit[];
-  tabPrestationFactureClient: FacturePrestation[];
-  tabEchographieFactureClient: FactureEchographie[];
-  tabExamenFactureClient: FactureExamen[];
-  tabDemandeExamensClient: DemandeExamen[];
-  tabDemandeEchographiesClient: DemandeEchographie[];
-}
-
-// Composant principal qui utilise le serveur component
-export default function FichePharmacy({
+export default async function FichePharmacy({
   params,
 }: {
   params: Promise<{ pharmacyId: string }>;
 }) {
-  const { pharmacyId } = use(params);
+  const { pharmacyId } = await params;
 
   return (
     <FichePharmacyServer pharmacyId={pharmacyId}>
-      {(serverData: FichePharmacyServerData) => (
+      {(serverData) => (
         <FichePharmacyClient params={params} serverData={serverData} />
       )}
     </FichePharmacyServer>

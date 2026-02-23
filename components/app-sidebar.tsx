@@ -14,7 +14,6 @@ import {
   HeartPulse,
   Stethoscope,
   Microscope,
-  BarChart3,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -33,6 +32,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { TeamSwitcher } from "./team-switcher";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { getOneUser } from "@/lib/actions/authActions";
+import { TableName } from "@prisma/client";
 
 const data = {
   user: {
@@ -45,11 +49,10 @@ const data = {
     logo: "Gauge",
     url: "/dashboard",
   },
-  // Un seul objet team avec favicon et logo
   team: {
     name: "Logo aibef",
     favicon: "/favicon.ico",
-    logo: "/logo.png", // Ici c'est une chaîne (URL), pas un élément JSX
+    logo: "/logo.png",
   },
   navMain: [
     {
@@ -61,10 +64,12 @@ const data = {
         {
           title: "import clients VIH",
           url: "/client-vih",
+          permission: TableName.IMPORT_CLIENT_VIH,
         },
         {
           title: "all clients",
           url: "/client",
+          permission: TableName.CLIENT,
         },
       ],
     },
@@ -76,38 +81,47 @@ const data = {
         {
           title: "Rapport financier",
           url: "/rapport-financier",
+          permission: TableName.RAPPORT_FINANCIER,
         },
         {
           title: "Produits",
           url: "/produits",
+          permission: TableName.PRODUIT,
         },
         {
           title: "Prix Produits",
           url: "/prix-produit",
+          permission: TableName.TARIF_PRODUIT,
         },
         {
           title: "Gestion de Stock",
           url: "/stock-produit",
+          permission: TableName.STOCK_PRODUIT,
         },
         {
           title: "Inventaire",
           url: "/inventaire",
+          permission: TableName.ANOMALIE_INVENTAIRE,
         },
         {
           title: "Historique commande",
           url: "/historique-commande",
+          permission: TableName.COMMANDE_FOURNISSEUR,
         },
         {
           title: "Historique Inventaire",
           url: "/historique-inventaire",
+          permission: TableName.HISTORIQUE_INVENTAIRE,
         },
         {
           title: "Tableau financier",
           url: "/tableau-financier",
+          permission: TableName.TABLEAU_FINANCIER,
         },
         {
           title: "Journal des actions",
           url: "/journal-pharmacy",
+          permission: TableName.JOURNAL_PHARMACIE,
         },
       ],
     },
@@ -119,19 +133,22 @@ const data = {
         {
           title: "Gestion RDV",
           url: "/gestion-rdv",
+          permission: TableName.GESTION_RDV,
         },
         {
           title: "Listings",
           url: "/listings",
+          permission: TableName.LISTING,
         },
         {
           title: "Rapports",
           url: "/rapports",
+          permission: TableName.RAPPORT,
         },
         {
           title: "Analyser & Visualiser",
-          // url: "/analyser",
           url: "#",
+          permission: TableName.ANALYSE_VISUALISER,
         },
       ],
     },
@@ -143,10 +160,12 @@ const data = {
         {
           title: "Créer un examen",
           url: "/fiche-examen",
+          permission: TableName.EXAMEN,
         },
         {
           title: "Tarif Examen",
           url: "/fiche-prix-examen",
+          permission: TableName.TARIF_EXAMEN,
         },
       ],
     },
@@ -158,19 +177,13 @@ const data = {
         {
           title: "Créer une Echographie",
           url: "/fiche-echographie",
+          permission: TableName.ECHOGRAPHIE,
         },
         {
           title: "Tarif Echographie",
           url: "/fiche-prix-echographie",
+          permission: TableName.TARIF_ECHOGRAPHIE,
         },
-        // {
-        //   title: "new echographie",
-        //   url: "#",
-        // },
-        // {
-        //   title: "Get Started",
-        //   url: "#",
-        // },
       ],
     },
     {
@@ -181,10 +194,12 @@ const data = {
         {
           title: "Prestation",
           url: "/fiche-prestation",
+          permission: TableName.PRESTATION,
         },
         {
           title: "Tarif Prestation",
           url: "/fiche-prix-prestation",
+          permission: TableName.TARIF_PRESTATION,
         },
       ],
     },
@@ -196,6 +211,7 @@ const data = {
         {
           title: "Administrator",
           url: "/administrator",
+          permission: TableName.ADMINISTRATION,
         },
       ],
     },
@@ -222,6 +238,36 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const isDashboardActive = pathname === data.dashboard.url;
+  const { data: session } = useSession();
+  const idUser = session?.user?.id as string;
+
+  const [allowedTables, setAllowedTables] = useState<Set<string>>(new Set());
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!idUser) return;
+    const load = async () => {
+      try {
+        const user = await getOneUser(idUser);
+        if (user?.role === "ADMIN") {
+          setAllowedTables(new Set(["ALL"]));
+        } else {
+          const permissions = await getUserPermissionsById(idUser);
+          const readable = new Set(
+            permissions
+              .filter((p: { canRead: boolean }) => p.canRead)
+              .map((p: { table: string }) => p.table)
+          );
+          setAllowedTables(readable);
+        }
+      } catch (error) {
+        console.error("Erreur chargement permissions sidebar:", error);
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+    load();
+  }, [idUser]);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -256,7 +302,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <NavMain items={data.navMain} />
+        <NavMain
+          items={data.navMain}
+          allowedTables={allowedTables}
+          permissionsLoaded={permissionsLoaded}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

@@ -1,14 +1,14 @@
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getAllTarifProduits } from "@/lib/actions/tarifProduitActions";
-import { getAllTarifExamen } from "@/lib/actions/tarifExamenActions";
+import { getAllTarifProduitsByIdClinique } from "@/lib/actions/tarifProduitActions";
+import { getAllTarifExamenByClinique } from "@/lib/actions/tarifExamenActions";
 import { getAllExamen } from "@/lib/actions/examenActions";
 import { getAllPrestation } from "@/lib/actions/prestationActions";
 import { getAllProduits } from "@/lib/actions/produitActions";
-import { getAllTarifPrestation } from "@/lib/actions/tarifPrestationActions";
-import { getAllClinique } from "@/lib/actions/cliniqueActions";
+import { getAllTarifPrestationByClinique } from "@/lib/actions/tarifPrestationActions";
+import { getOneClinique } from "@/lib/actions/cliniqueActions";
 import { getAllEchographies } from "@/lib/actions/echographieActions";
-import { getAllTarifEchographie } from "@/lib/actions/tarifEchographieActions";
+import { getAllTarifEchographieByClinique } from "@/lib/actions/tarifEchographieActions";
 import {
   Visite,
   Client,
@@ -45,7 +45,7 @@ interface FichePharmacyServerProps {
     tabExamen: Examen[];
     prestations: Prestation[];
     tabProduit: Produit[];
-    tabClinique: Clinique[];
+    clinique: Clinique | null;
     tabEchographie: Echographie[];
     tabTarifEchographies: TarifEchographie[];
     tabTarifPrestations: TarifPrestation[];
@@ -63,16 +63,23 @@ export default async function FichePharmacyServer({
   children,
 }: FichePharmacyServerProps) {
   try {
-    // Récupération de toutes les données en parallèle
+    // Phase 1 : Client + Visites en parallèle → obtenir idClinique
+    const [clientResult, visitesResult] = await Promise.all([
+      getOneClient(pharmacyId),
+      getAllVisiteByIdClient(pharmacyId),
+    ]);
+
+    const client = clientResult as Client;
+    const idClinique = client?.idClinique || "";
+
+    // Phase 2 : Requêtes restantes en parallèle, tarifs filtrés par clinique
     const [
-      visitesResult,
-      clientResult,
       tarifProduitsResult,
       tarifExamensResult,
       examensResult,
       prestationsResult,
       produitsResult,
-      cliniquesResult,
+      cliniqueResult,
       echographiesResult,
       tarifEchographiesResult,
       tarifPrestationsResult,
@@ -83,17 +90,15 @@ export default async function FichePharmacyServer({
       tabDemandeExamensClient,
       tabDemandeEchographiesClient,
     ] = await Promise.all([
-      getAllVisiteByIdClient(pharmacyId),
-      getOneClient(pharmacyId),
-      getAllTarifProduits(),
-      getAllTarifExamen(),
+      getAllTarifProduitsByIdClinique(idClinique),
+      getAllTarifExamenByClinique(idClinique),
       getAllExamen(),
       getAllPrestation(),
       getAllProduits(),
-      getAllClinique(),
+      getOneClinique(idClinique),
       getAllEchographies(),
-      getAllTarifEchographie(),
-      getAllTarifPrestation(),
+      getAllTarifEchographieByClinique(idClinique),
+      getAllTarifPrestationByClinique(idClinique),
       getAllFactureProduitByIdClient(pharmacyId),
       getAllFacturePrestationByIdClient(pharmacyId),
       getAllFactureEchographieByIdClient(pharmacyId),
@@ -102,16 +107,15 @@ export default async function FichePharmacyServer({
       getAllDemandeEchographiesByIdClient(pharmacyId),
     ]);
 
-    // Transformation des données avec types appropriés
     const data = {
       visites: visitesResult as Visite[],
-      client: clientResult as Client,
+      client,
       tabTarifProduit: tarifProduitsResult as TarifProduit[],
       tabTarifExamens: tarifExamensResult as TarifExamen[],
       tabExamen: examensResult as Examen[],
       prestations: prestationsResult as Prestation[],
       tabProduit: produitsResult as Produit[],
-      tabClinique: cliniquesResult as Clinique[],
+      clinique: cliniqueResult as Clinique | null,
       tabEchographie: echographiesResult as Echographie[],
       tabTarifEchographies: tarifEchographiesResult as TarifEchographie[],
       tabTarifPrestations: tarifPrestationsResult as TarifPrestation[],
@@ -130,7 +134,6 @@ export default async function FichePharmacyServer({
   } catch (error) {
     console.error("Erreur lors du chargement des données:", error);
 
-    // Retourner des données vides en cas d'erreur
     const emptyData = {
       visites: [],
       client: {} as Client,
@@ -139,7 +142,7 @@ export default async function FichePharmacyServer({
       tabExamen: [],
       prestations: [],
       tabProduit: [],
-      tabClinique: [],
+      clinique: null,
       tabEchographie: [],
       tabTarifEchographies: [],
       tabTarifPrestations: [],

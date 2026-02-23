@@ -58,17 +58,14 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { updateQuantiteStockTarifProduit } from "@/lib/actions/tarifProduitActions";
-import { batchFacturation, updateRecapVisiteAfterDelete } from "@/lib/actions/facturationBatchActions";
+import {
+  batchFacturation,
+  updateRecapVisiteAfterDelete,
+} from "@/lib/actions/facturationBatchActions";
 
 import { FactureModal } from "@/components/factureModal";
-import {
-  deleteFactureProduit,
-  getAllFactureProduitByIdVisite,
-} from "@/lib/actions/factureProduitActions";
-import {
-  deleteFacturePrestation,
-  getAllFacturePrestationByIdVisite,
-} from "@/lib/actions/facturePrestationActions";
+import { deleteFactureProduit } from "@/lib/actions/factureProduitActions";
+import { deleteFacturePrestation } from "@/lib/actions/facturePrestationActions";
 
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -116,33 +113,18 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import {
-  deleteFactureExamen,
-  getAllFactureExamenByIdVisite,
-} from "@/lib/actions/factureExamenActions";
+import { deleteFactureExamen } from "@/lib/actions/factureExamenActions";
 import { useRouter } from "next/navigation";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
+
 import { Input } from "@/components/ui/input";
 import { getAllDemandeExamensByIdVisite } from "@/lib/actions/demandeExamenActions";
 import { getAllDemandeEchographiesByIdVisite } from "@/lib/actions/demandeEchographieActions";
 import EchographiesModal from "@/components/echographieModal";
-import {
-  deleteFactureEchographie,
-  getAllFactureEchographieByIdVisite,
-} from "@/lib/actions/factureEchographieActions";
+import { deleteFactureEchographie } from "@/lib/actions/factureEchographieActions";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-
 
 import Retour from "@/components/retour";
 import CommissionsDialog from "@/components/CommissionsDialog";
-
-const typeEchographieLabels: Record<TypeEchographie, string> = {
-  OBST: "Obstétrique",
-  GYN: "Gynécologie",
-  INF: "Infertilité",
-  MDG: "Médecine Gén.",
-  CAR: "Cardiologie",
-};
 
 const typeEchographieColors: Record<TypeEchographie, string> = {
   OBST: "bg-pink-100 text-pink-800 border-pink-200",
@@ -183,8 +165,25 @@ type VisiteType = {
   couverture: string;
   remiseExamen: 0;
   remiseEchographie: 0;
+  partEchographe: 0;
   soustractionExamen: false;
 };
+
+// Fonctions de calcul pures — hors composant pour éviter les re-créations
+const montantProduits = (produits: FactureProduit[]) =>
+  produits.reduce((total, p) => total + (p.montantProduit || 0), 0);
+
+const montantExamen = (produits: DemandeExamenFormValues[]) =>
+  produits.reduce((total, p) => total + (p.prixExamen || 0), 0);
+
+const montantPrestations = (prestations: FacturePrestation[]) =>
+  prestations?.reduce((total, p) => total + (Number(p.prixPrestation) || 0), 0) || 0;
+
+const montantFactureExamens = (examens: FactureExamen[]) =>
+  examens.reduce((total, e) => total + (Number(e.prixExamen) || 0), 0);
+
+const montantFactureEchographies = (echographies: FactureEchographie[]) =>
+  echographies.reduce((total, e) => total + (Number(e.prixEchographie) || 0), 0);
 
 // Composant client principal
 export default function FichePharmacyClient({
@@ -200,7 +199,7 @@ export default function FichePharmacyClient({
     tabExamen: Examen[];
     prestations: Prestation[];
     tabProduit: Produit[];
-    tabClinique: Clinique[];
+    clinique: Clinique | null;
     tabEchographie: Echographie[];
     tabTarifEchographies: TarifEchographie[];
     tabTarifPrestations: TarifPrestation[];
@@ -219,21 +218,17 @@ export default function FichePharmacyClient({
   const [openEchographies, setOpenEchographies] = useState(false);
   const [openCommissions, setOpenCommissions] = useState(false);
 
-  // Utilisation des données du serveur
-  const [visites] = useState<Visite[]>(serverData.visites);
-  const [client] = useState<Client>(serverData.client);
-  const [tabClinique] = useState<Clinique[]>(serverData.tabClinique);
-  const [tabProduit] = useState<Produit[]>(serverData.tabProduit);
-  const [tabTarifProduit] = useState<TarifProduit[]>(
-    serverData.tabTarifProduit,
-  );
-  const [tabExamen] = useState<Examen[]>(serverData.tabExamen);
-  const [tabEchographie] = useState<Echographie[]>(serverData.tabEchographie);
-  const [tabTarifExamens] = useState<TarifExamen[]>(serverData.tabTarifExamens);
-  const [tabTarifEchographies] = useState<TarifEchographie[]>(
-    serverData.tabTarifEchographies,
-  );
-  const [prestations] = useState<Prestation[]>(serverData.prestations);
+  // Données statiques du serveur (pas de setter → pas besoin de useState)
+  const visites = serverData.visites;
+  const client = serverData.client;
+  const clinique = serverData.clinique;
+  const tabProduit = serverData.tabProduit;
+  const tabTarifProduit = serverData.tabTarifProduit;
+  const tabExamen = serverData.tabExamen;
+  const tabEchographie = serverData.tabEchographie;
+  const tabTarifExamens = serverData.tabTarifExamens;
+  const tabTarifEchographies = serverData.tabTarifEchographies;
+  const prestations = serverData.prestations;
 
   const [echographiesFacture, setEchographiesFacture] = useState<
     FactureEchographie[]
@@ -261,7 +256,7 @@ export default function FichePharmacyClient({
   const [produitFacture, setProduitFacture] = useState<FactureProduit[]>([]);
   const [selectedProduits, setSelectedProduits] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingFacture, setIsLoadingFacture] = useState(false);
+
   const [permission, setPermission] = useState<Permission | null>(null);
   const [selectedIdVisite, setSelectedIdVisite] = useState<string>("");
 
@@ -269,32 +264,37 @@ export default function FichePharmacyClient({
   const idUser = session?.user.id as string;
   const router = useRouter();
 
-  // Mémorisation des filtres par clinique pour éviter les re-calculs inutiles
-  const filteredTarifProduits = useMemo(
-    () => tabTarifProduit.filter((t) => t.idClinique === client?.idClinique),
-    [tabTarifProduit, client?.idClinique],
+  // Maps de lookup O(1) au lieu de Array.find() O(n) à chaque render
+  const prestationMap = useMemo(
+    () => new Map(prestations.map((p) => [p.id, p.nomPrestation])),
+    [prestations],
+  );
+  const produitMap = useMemo(
+    () => new Map(tabProduit.map((p) => [p.id, p.nomProduit])),
+    [tabProduit],
+  );
+  const tarifProduitMap = useMemo(
+    () => new Map(tabTarifProduit.map((t) => [t.id, t])),
+    [tabTarifProduit],
+  );
+  const tarifExamenMap = useMemo(
+    () => new Map(tabTarifExamens.map((t) => [t.id, t])),
+    [tabTarifExamens],
+  );
+  const tarifEchographieMap = useMemo(
+    () => new Map(tabTarifEchographies.map((t) => [t.id, t])),
+    [tabTarifEchographies],
+  );
+  const echographieMap = useMemo(
+    () => new Map(tabEchographie.map((e) => [e.id, e])),
+    [tabEchographie],
+  );
+  const examenMap = useMemo(
+    () => new Map(tabExamen.map((e) => [e.id, e])),
+    [tabExamen],
   );
 
-  const filteredTarifPrestations = useMemo(
-    () =>
-      serverData.tabTarifPrestations.filter(
-        (p) => p.idClinique === client?.idClinique,
-      ),
-    [serverData.tabTarifPrestations, client?.idClinique],
-  );
-
-  const filteredTarifExamens = useMemo(
-    () => tabTarifExamens.filter((t) => t.idClinique === client?.idClinique),
-    [tabTarifExamens, client?.idClinique],
-  );
-
-  const filteredTarifEchographies = useMemo(
-    () =>
-      tabTarifEchographies.filter((t) => t.idClinique === client?.idClinique),
-    [tabTarifEchographies, client?.idClinique],
-  );
-
-  // Les fonctions restent identiques...
+  // Fonctions de lookup utilisant les Maps
   const handleDelete = (idProduit: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
       setFactureProduit(
@@ -349,7 +349,10 @@ export default function FichePharmacyClient({
       await deleteFactureProduit(idFacture);
       toast.info("Produit supprimé avec succès !");
       setProduitFacture(produitFacture.filter((p) => p.id !== idFacture));
-      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
+      await updateRecapVisiteAfterDelete(
+        selectedIdVisite,
+        "05 Fiche facturation",
+      );
     } catch (error) {
       toast.error("Erreur lors de la suppression du produit");
       console.error(error);
@@ -367,7 +370,10 @@ export default function FichePharmacyClient({
       await deleteFacturePrestation(id);
       toast.info("Prestation supprimée avec succès !");
       setPrestationFacture(prestationfacture.filter((p) => p.id !== id));
-      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
+      await updateRecapVisiteAfterDelete(
+        selectedIdVisite,
+        "05 Fiche facturation",
+      );
     } catch (error) {
       toast.error("Erreur lors de la suppression de la prestation");
       console.error(error);
@@ -385,7 +391,10 @@ export default function FichePharmacyClient({
       await deleteFactureExamen(id);
       toast.info("Examen supprimé avec succès !");
       setExamensFacture(examensFacture.filter((e) => e.id !== id));
-      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
+      await updateRecapVisiteAfterDelete(
+        selectedIdVisite,
+        "05 Fiche facturation",
+      );
     } catch (error) {
       toast.error("Erreur lors de la suppression de l'examen");
       console.error(error);
@@ -403,79 +412,48 @@ export default function FichePharmacyClient({
       await deleteFactureEchographie(id);
       toast.info("Echographie supprimée avec succès !");
       setEchographiesFacture(echographiesFacture.filter((e) => e.id !== id));
-      await updateRecapVisiteAfterDelete(selectedIdVisite, "05 Fiche facturation");
+      await updateRecapVisiteAfterDelete(
+        selectedIdVisite,
+        "05 Fiche facturation",
+      );
     } catch (error) {
       toast.error("Erreur lors de la suppression de l'echographie");
       console.error(error);
     }
   };
 
-  const refreshProduits = async () => {
-    // Cette fonction peut rester si nécessaire pour les mises à jour
-  };
+  // Lookups O(1) via Maps
+  const nomPrestation = (id: string) =>
+    prestationMap.get(id) || "Prestation introuvable";
 
-  const nomPrestation = (idprestation: string) => {
-    return (
-      prestations.find((p) => p.id === idprestation)?.nomPrestation ||
-      "Prestation introuvable"
-    );
-  };
-
-  const nomClinique = (idClinique: string) => {
-    return (
-      tabClinique.find((c) => c.id === idClinique)?.nomClinique ||
-      "Clinique introuvable"
-    );
-  };
+  const nomClinique = (id: string) =>
+    id === clinique?.id ? clinique.nomClinique : "Clinique introuvable";
 
   const renameValue = (idTarifProduit: string) => {
-    const tarifProduit = tabTarifProduit.find((p) => p.id === idTarifProduit);
-    return (
-      tabProduit.find((p) => p.id === tarifProduit?.idProduit)?.nomProduit ||
-      "Produit introuvable"
-    );
+    const tarif = tarifProduitMap.get(idTarifProduit);
+    return produitMap.get(tarif?.idProduit || "") || "Produit introuvable";
   };
 
   const getExamenPrix = (id: string) => {
     const demand = demandeExamens.find((e) => e.id === id);
-    return (
-      tabTarifExamens.find((t) => t.id === demand?.idTarifExamen)?.prixExamen ||
-      0
-    );
+    return tarifExamenMap.get(demand?.idTarifExamen || "")?.prixExamen || 0;
   };
 
   const renameExamen = (idDemandeExamen: string) => {
-    const demandeExamen = tabDemandeExamens.find(
-      (p) => p.id === idDemandeExamen,
-    );
-    const tarifExamen = tabTarifExamens.find(
-      (p) => p.id === demandeExamen?.idTarifExamen,
-    );
-    return (
-      tabExamen.find((p) => p.id === tarifExamen?.idExamen)?.nomExamen ||
-      "Examen introuvable"
-    );
+    const demande = tabDemandeExamens.find((p) => p.id === idDemandeExamen);
+    const tarif = tarifExamenMap.get(demande?.idTarifExamen || "");
+    return examenMap.get(tarif?.idExamen || "")?.nomExamen || "Examen introuvable";
   };
 
   const renameEchographie = (idDemandeEchographie: string) => {
-    const demandeEchographie = demandeEchographies.find(
-      (p) => p.id === idDemandeEchographie,
-    );
-    const tarifEchographie = tabTarifEchographies.find(
-      (p) => p.id === demandeEchographie?.idTarifEchographie,
-    );
-    return (
-      tabEchographie.find((p) => p.id === tarifEchographie?.idEchographie)
-        ?.nomEchographie || "Echographie introuvable"
-    );
+    const demande = demandeEchographies.find((p) => p.id === idDemandeEchographie);
+    const tarif = tarifEchographieMap.get(demande?.idTarifEchographie || "");
+    return echographieMap.get(tarif?.idEchographie || "")?.nomEchographie || "Echographie introuvable";
   };
 
   const getEchographiePrix = (id: string) => {
     const demand = demandeEchographies.find((e) => e.id === id);
-    return (
-      tabTarifEchographies.find((t) => t.id === demand?.idTarifEchographie)
-        ?.prixEchographie || 0
-    );
+    return tarifEchographieMap.get(demand?.idTarifEchographie || "")?.prixEchographie || 0;
   };
 
   const getServiceEchographie = (idTarifEchographie: string) => {
@@ -485,64 +463,35 @@ export default function FichePharmacyClient({
     return demandeService?.serviceEchographie || "";
   };
 
-  const getTypeEchographieFromDemande = (idDemandeEchographie: string): TypeEchographie | undefined => {
+  const getTypeEchographieFromDemande = (
+    idDemandeEchographie: string,
+  ): TypeEchographie | undefined => {
     const demande = demandeEchographies.find((d) => d.id === idDemandeEchographie);
     if (!demande) return undefined;
-    const tarif = tabTarifEchographies.find((t) => t.id === demande.idTarifEchographie);
+    const tarif = tarifEchographieMap.get(demande.idTarifEchographie);
     if (!tarif) return undefined;
-    const echographie = tabEchographie.find((e) => e.id === tarif.idEchographie);
-    return echographie?.typeEchographie;
+    return echographieMap.get(tarif.idEchographie)?.typeEchographie;
   };
 
-  const getTypeEchographieFromSaved = (idDemandeEchographie: string): TypeEchographie | undefined => {
+  const getTypeEchographieFromSaved = (
+    idDemandeEchographie: string,
+  ): TypeEchographie | undefined => {
     const demande = tabDemandeEchographies.find((d) => d.id === idDemandeEchographie);
     if (!demande) return undefined;
-    const tarif = tabTarifEchographies.find((t) => t.id === demande.idTarifEchographie);
+    const tarif = tarifEchographieMap.get(demande.idTarifEchographie);
     if (!tarif) return undefined;
-    const echographie = tabEchographie.find((e) => e.id === tarif.idEchographie);
-    return echographie?.typeEchographie;
-  };
-
-  const montantProduits = (produits: FactureProduit[]) => {
-    return produits.reduce((total, p) => total + (p.montantProduit || 0), 0);
-  };
-
-  const montantExamen = (produits: DemandeExamenFormValues[]) => {
-    return produits.reduce((total, p) => total + (p.prixExamen || 0), 0);
+    return echographieMap.get(tarif.idEchographie)?.typeEchographie;
   };
 
   const montantEchographie = (
     echographies: DemandeEchographieFormValues[],
     remise: number,
   ) => {
-    const tarifs = echographies.map((e) => {
-      return tabTarifEchographies.find((t) => t.id === e.idTarifEchographie);
-    });
-    const total = tarifs.reduce(
-      (total, t) => total + (t?.prixEchographie || 0),
+    const total = echographies.reduce(
+      (sum, e) => sum + (tarifEchographieMap.get(e.idTarifEchographie)?.prixEchographie || 0),
       0,
     );
     return total * (1 - (remise || 0) / 100);
-  };
-
-  const montantPrestations = (prestations: FacturePrestation[]) => {
-    return (
-      prestations?.reduce(
-        (total, p) => total + (Number(p.prixPrestation) || 0),
-        0,
-      ) || 0
-    );
-  };
-
-  const montantFactureExamens = (examens: FactureExamen[]) => {
-    return examens.reduce((total, e) => total + (Number(e.prixExamen) || 0), 0);
-  };
-
-  const montantFactureEchographies = (echographies: FactureEchographie[]) => {
-    return echographies.reduce(
-      (total, e) => total + (Number(e.prixEchographie) || 0),
-      0,
-    );
   };
 
   const form = useForm<VisiteType>({
@@ -552,6 +501,7 @@ export default function FichePharmacyClient({
       couverture: "",
       remiseExamen: 0,
       remiseEchographie: 0,
+      partEchographe: 0,
       soustractionExamen: false,
     },
   });
@@ -566,6 +516,10 @@ export default function FichePharmacyClient({
     control: form.control,
     name: "remiseEchographie",
   });
+  const watchedPartEchographe = useWatch({
+    control: form.control,
+    name: "partEchographe",
+  });
   const watchedCouverture = useWatch({
     control: form.control,
     name: "couverture",
@@ -573,6 +527,10 @@ export default function FichePharmacyClient({
   const watchedSoustractionExamen = useWatch({
     control: form.control,
     name: "soustractionExamen",
+  });
+  const watchedTypeExamen = useWatch({
+    control: form.control,
+    name: "typeExamen",
   });
 
   // Synchroniser watchedIdVisite avec selectedIdVisite
@@ -602,12 +560,11 @@ export default function FichePharmacyClient({
     };
 
     fetchPermissions();
-  }, [session?.user, router]);
+  }, [session?.user]);
 
-  // Chargement des données de facturation basées sur la visite sélectionnée
+  // Filtrage local des factures pré-chargées côté serveur par visite sélectionnée
   useEffect(() => {
     if (!selectedIdVisite) {
-      setIsLoadingFacture(false);
       setProduitFacture([]);
       setPrestationFacture([]);
       setExamensFacture([]);
@@ -617,52 +574,24 @@ export default function FichePharmacyClient({
       return;
     }
 
-    let cancelled = false;
-    setIsLoadingFacture(true);
-
-    const loadFactures = async () => {
-      try {
-        const [
-          produits,
-          prestations,
-          examens,
-          demandesExamens,
-          demandesEchographies,
-          echographies,
-        ] = await Promise.all([
-          getAllFactureProduitByIdVisite(selectedIdVisite),
-          getAllFacturePrestationByIdVisite(selectedIdVisite),
-          getAllFactureExamenByIdVisite(selectedIdVisite),
-          getAllDemandeExamensByIdVisite(selectedIdVisite),
-          getAllDemandeEchographiesByIdVisite(selectedIdVisite),
-          getAllFactureEchographieByIdVisite(selectedIdVisite),
-        ]);
-
-        if (cancelled) return;
-
-        setProduitFacture((produits || []) as FactureProduit[]);
-        setPrestationFacture((prestations || []) as FacturePrestation[]);
-        setExamensFacture((examens || []) as FactureExamen[]);
-        setTabDemandeExamens((demandesExamens || []) as DemandeExamen[]);
-        setTabDemandeEchographies(
-          (demandesEchographies || []) as DemandeEchographie[],
-        );
-        setEchographiesFacture((echographies || []) as FactureEchographie[]);
-      } catch (error) {
-        console.error(
-          "Erreur lors du chargement des factures:",
-          error,
-        );
-      } finally {
-        if (!cancelled) setIsLoadingFacture(false);
-      }
-    };
-
-    loadFactures();
-
-    return () => {
-      cancelled = true;
-    };
+    setProduitFacture(
+      serverData.tabProduitFactureClient.filter((p) => p.idVisite === selectedIdVisite),
+    );
+    setPrestationFacture(
+      serverData.tabPrestationFactureClient.filter((p) => p.idVisite === selectedIdVisite),
+    );
+    setExamensFacture(
+      serverData.tabExamenFactureClient.filter((e) => e.idVisite === selectedIdVisite),
+    );
+    setTabDemandeExamens(
+      serverData.tabDemandeExamensClient.filter((d) => d.idVisite === selectedIdVisite),
+    );
+    setTabDemandeEchographies(
+      serverData.tabDemandeEchographiesClient.filter((d) => d.idVisite === selectedIdVisite),
+    );
+    setEchographiesFacture(
+      serverData.tabEchographieFactureClient.filter((e) => e.idVisite === selectedIdVisite),
+    );
   }, [selectedIdVisite]);
 
   // Helper : vérifie si un produit est de type CONTRACEPTIF
@@ -736,9 +665,7 @@ export default function FichePharmacyClient({
       demandeEchographies.length > 0 &&
       isNaN(Number(watchedRemiseEchographie))
     ) {
-      toast.error(
-        "La remise pour les échographies doit être un nombre valide",
-      );
+      toast.error("La remise pour les échographies doit être un nombre valide");
       return;
     }
 
@@ -784,8 +711,7 @@ export default function FichePharmacyClient({
         libelleExamen: renameExamen(demande.id),
         prixExamen: Number(watchedRemiseExamen)
           ? Math.round(
-              demande.prixExamen *
-                (1 - Number(watchedRemiseExamen) / 100),
+              demande.prixExamen * (1 - Number(watchedRemiseExamen) / 100),
             )
           : demande.prixExamen,
         idDemandeExamen: demande.id,
@@ -796,9 +722,7 @@ export default function FichePharmacyClient({
         idVisite: watchedIdVisite,
         idClient: pharmacyId,
         idClinique: client?.idClinique || "",
-        remiseEchographie: parseInt(
-          String(watchedRemiseEchographie || "0"),
-        ),
+        remiseEchographie: parseInt(String(watchedRemiseEchographie || "0")),
         idUser: idUser,
         libelleEchographie: renameEchographie(demande.id),
         prixEchographie: Number(watchedRemiseEchographie)
@@ -810,6 +734,7 @@ export default function FichePharmacyClient({
         idDemandeEchographie: demande.id,
         serviceEchographieFacture:
           getServiceEchographie(demande.idTarifEchographie) ?? "",
+        partEchographe: Number(watchedPartEchographe) || 0,
       }));
 
       // UN SEUL appel serveur (transaction atomique)
@@ -836,7 +761,9 @@ export default function FichePharmacyClient({
       // Mise à jour optimiste : affichage immédiat sans refetch
       setProduitFacture((prev) => [
         ...prev,
-        ...(produitsData.map(({ quantiteToDecrement: _, ...p }) => p) as FactureProduit[]),
+        ...(produitsData.map(
+          ({ quantiteToDecrement: _, ...p }) => p,
+        ) as FactureProduit[]),
       ]);
       setPrestationFacture((prev) => [
         ...prev,
@@ -885,18 +812,38 @@ export default function FichePharmacyClient({
 
   // Calcul du total brouillon
   const remiseExamenPct = Number(watchedRemiseExamen) || 0;
+  const partEcho = Number(watchedPartEchographe) || 0;
   const totalBrouillon = Math.round(
     montantProduits(factureProduit) +
       montantPrestations(facturePrestation) +
       montantExamen(demandeExamens) * (1 - remiseExamenPct / 100) +
-      montantEchographie(demandeEchographies, watchedRemiseEchographie || 0),
+      montantEchographie(demandeEchographies, watchedRemiseEchographie || 0) -
+      (demandeEchographies.length > 0 ? partEcho : 0),
   );
 
+  // Somme des partEchographe sauvegardés (unique par batch, prendre le premier)
+  const totalPartEchoSaved =
+    echographiesFacture.length > 0
+      ? (echographiesFacture[0].partEchographe ?? 0)
+      : 0;
   const totalSaved =
     montantProduits(produitFacture) +
     montantPrestations(prestationfacture) +
     montantFactureExamens(examensFacture) +
-    montantFactureEchographies(echographiesFacture);
+    montantFactureEchographies(echographiesFacture) -
+    totalPartEchoSaved;
+
+  // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
+  const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
+  const hasEchos = demandeEchographies.length > 0 || echographiesFacture.length > 0;
+  const examCommissionMissing =
+    (demandeExamens.length > 0 && !Number(watchedRemiseExamen)) ||
+    (examensFacture.length > 0 && examensFacture.some((e) => e.remiseExamen === 0));
+  const echoCommissionMissing =
+    (demandeEchographies.length > 0 && !Number(watchedRemiseEchographie)) ||
+    (echographiesFacture.length > 0 && echographiesFacture.some((e) => e.remiseEchographie === 0));
+  const commissionsMissing = examCommissionMissing || echoCommissionMissing;
+  const commissionsDone = (hasExams || hasEchos) && !commissionsMissing;
 
   return (
     <TooltipProvider>
@@ -1008,7 +955,7 @@ export default function FichePharmacyClient({
                   />
 
                   {demandeExamens.length > 0 && (
-                    <>
+                    <div className="bg-yellow-50/80 flex gap-2 rounded-md p-2 border border-yellow-200 col-span-3">
                       <FormField
                         control={form.control}
                         name="typeExamen"
@@ -1047,7 +994,7 @@ export default function FichePharmacyClient({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">
-                              Commission labo
+                              Commission labo (%)
                             </FormLabel>
                             <Input
                               className="h-9"
@@ -1088,28 +1035,53 @@ export default function FichePharmacyClient({
                           </FormItem>
                         )}
                       />
-                    </>
+                    </div>
                   )}
 
                   {demandeEchographies.length > 0 && (
-                    <FormField
-                      control={form.control}
-                      name="remiseEchographie"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">
-                            Commission Echo
-                          </FormLabel>
-                          <Input
-                            className="h-9"
-                            placeholder="%"
-                            {...field}
-                            value={field.value ?? 0}
-                          />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="bg-green-50/80 flex gap-2 rounded-md p-2 border border-green-200 col-span-2">
+                      <FormField
+                        control={form.control}
+                        name="remiseEchographie"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel className="text-xs">
+                              Commission Echo (%)
+                            </FormLabel>
+                            <Input
+                              className="h-9"
+                              type="number"
+                              min={0}
+                              max={100}
+                              placeholder="0"
+                              {...field}
+                              value={field.value ?? 0}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="partEchographe"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel className="text-xs">
+                              Part Échographe (CFA)
+                            </FormLabel>
+                            <Input
+                              className="h-9"
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              {...field}
+                              value={field.value ?? 0}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   )}
                 </form>
               </Form>
@@ -1164,7 +1136,13 @@ export default function FichePharmacyClient({
                 variant="outline"
                 onClick={() => setOpenCommissions(true)}
                 disabled={!watchedIdVisite}
-                className="h-8 text-xs"
+                className={`h-8 text-xs ${
+                  commissionsMissing
+                    ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                    : commissionsDone
+                      ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                      : ""
+                }`}
               >
                 <Handshake className="h-3.5 w-3.5 mr-1" /> Commissions
               </Button>
@@ -1234,9 +1212,11 @@ export default function FichePharmacyClient({
                       Echographies
                     </p>
                     <p className="text-sm font-bold text-blue-900">
-                      {montantEchographie(
-                        demandeEchographies,
-                        watchedRemiseEchographie || 0,
+                      {Math.round(
+                        montantEchographie(
+                          demandeEchographies,
+                          watchedRemiseEchographie || 0,
+                        ) - (Number(watchedPartEchographe) || 0),
                       ).toLocaleString("fr-FR")}{" "}
                       <span className="text-xs font-normal text-muted-foreground">
                         CFA
@@ -1413,11 +1393,11 @@ export default function FichePharmacyClient({
                           1
                         </TableCell>
                         <TableCell className="text-right font-medium tabular-nums">
-                          {(Number(form.watch("remiseExamen"))
+                          {(Number(watchedRemiseExamen)
                             ? Math.round(
                                 examen.prixExamen *
                                   (1 -
-                                    Number(form.watch("remiseExamen")) / 100),
+                                    Number(watchedRemiseExamen) / 100),
                               )
                             : examen.prixExamen
                           )?.toLocaleString("fr-FR")}
@@ -1436,61 +1416,59 @@ export default function FichePharmacyClient({
                     ))}
 
                     {demandeEchographies.map((echographie, index) => {
-                      const echoType = getTypeEchographieFromDemande(echographie.id);
+                      const echoType = getTypeEchographieFromDemande(
+                        echographie.id,
+                      );
                       return (
-                      <TableRow
-                        key={
-                          echographie.id && echographie.id !== ""
-                            ? echographie.id
-                            : `echographie-${index}`
-                        }
-                        className="group hover:bg-muted/30 transition-colors"
-                      >
-                        <TableCell className="font-medium">
-                          {renameEchographie(echographie.id)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={`text-[11px] ${echoType ? typeEchographieColors[echoType] : "bg-purple-50 text-purple-700 border-purple-200"}`}
-                          >
-                            {echoType ? typeEchographieLabels[echoType] : "Echo"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {getEchographiePrix(echographie.id)?.toLocaleString(
-                            "fr-FR",
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center tabular-nums">
-                          1
-                        </TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">
-                          {(Number(form.watch("remiseEchographie"))
-                            ? Number(
-                                (
-                                  echographie.prixEchographie *
-                                  (1 -
-                                    Number(form.watch("remiseEchographie")) /
-                                      100)
-                                ).toFixed(0),
-                              )
-                            : echographie.prixEchographie
-                          )?.toLocaleString("fr-FR")}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() =>
-                              handleDeleteDemandeEchographie(echographie.id)
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                        <TableRow
+                          key={
+                            echographie.id && echographie.id !== ""
+                              ? echographie.id
+                              : `echographie-${index}`
+                          }
+                          className="group hover:bg-muted/30 transition-colors"
+                        >
+                          <TableCell className="font-medium">
+                            {renameEchographie(echographie.id)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className={`text-[11px] ${echoType ? typeEchographieColors[echoType] : "bg-purple-50 text-purple-700 border-purple-200"}`}
+                            >
+                              {"Échographie"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {getEchographiePrix(echographie.id)?.toLocaleString(
+                              "fr-FR",
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums">
+                            1
+                          </TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">
+                            {Math.round(
+                              (Number(watchedRemiseEchographie)
+                                ? echographie.prixEchographie *
+                                  (1 - Number(watchedRemiseEchographie) / 100)
+                                : echographie.prixEchographie) -
+                              partEcho / demandeEchographies.length,
+                            ).toLocaleString("fr-FR")}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() =>
+                                handleDeleteDemandeEchographie(echographie.id)
+                              }
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
                   </TableBody>
@@ -1510,7 +1488,7 @@ export default function FichePharmacyClient({
                     !watchedIdVisite ||
                     !watchedCouverture ||
                     isLoading ||
-                    (!form.watch("typeExamen") && demandeExamens.length > 0)
+                    (!watchedTypeExamen && demandeExamens.length > 0)
                   }
                   className="gap-1.5"
                 >
@@ -1529,475 +1507,451 @@ export default function FichePharmacyClient({
           )}
 
           {/* ===== FACTURES ENREGISTREES ===== */}
-          {isLoadingFacture && (
-            <div className="flex justify-center items-center h-32">
-              <SpinnerBar />
-            </div>
-          )}
-
           {hasSaved && (
             <div className="w-full" ref={contentRef}>
               <Card className="overflow-hidden border-blue-200/60 shadow-sm shadow-blue-100/30">
-                    <CardHeader className="pb-2 print:hidden">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <ClipboardCheck className="h-4 w-4 text-emerald-600" />
-                          <CardTitle className="text-base">
-                            Factures enregistrees
-                          </CardTitle>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {savedCount} facture(s)
-                          </Badge>
-                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">
-                            {totalSaved.toLocaleString("fr-FR")} CFA
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="px-0 pb-0">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-b-0">
-                            <TableCell colSpan={6} className="text-center py-4">
-                              <Image
-                                src="/LOGO_AIBEF_IPPF.png"
-                                alt="Logo"
-                                width={400}
-                                height={10}
-                                style={{ margin: "auto" }}
-                              />
+                <CardHeader className="pb-2 print:hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ClipboardCheck className="h-4 w-4 text-emerald-600" />
+                      <CardTitle className="text-base">
+                        Factures enregistrees
+                      </CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {savedCount} facture(s)
+                      </Badge>
+                      <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">
+                        {totalSaved.toLocaleString("fr-FR")} CFA
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-0 pb-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b-0">
+                        <TableCell colSpan={6} className="text-center py-4">
+                          <Image
+                            src="/LOGO_AIBEF_IPPF.png"
+                            alt="Logo"
+                            width={400}
+                            height={10}
+                            style={{ margin: "auto" }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                      <TableRow className="bg-blue-50/60">
+                        <TableHead className="text-blue-900">
+                          Designation
+                        </TableHead>
+                        <TableHead className="text-blue-900">Type</TableHead>
+                        <TableHead className="text-right text-blue-900">
+                          P.U.
+                        </TableHead>
+                        <TableHead className="text-center text-blue-900">
+                          Qte
+                        </TableHead>
+                        <TableHead className="text-right text-blue-900">
+                          Montant
+                        </TableHead>
+                        <TableHead className="w-12 print:hidden"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {produitFacture.map((produit, index) => (
+                        <TableRow
+                          key={
+                            produit.id && produit.id !== ""
+                              ? produit.id
+                              : `produit-${index}`
+                          }
+                          className="group hover:bg-muted/30 transition-colors"
+                        >
+                          <TableCell className="font-medium">
+                            {produit.nomProduit}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className="bg-blue-50 text-blue-700 border-blue-200 text-[11px]"
+                            >
+                              Produit
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {Math.round(
+                              (produit.montantProduit || 0) /
+                                (produit.quantite || 1),
+                            ).toLocaleString("fr-FR")}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums">
+                            {produit.quantite}
+                          </TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">
+                            {produit.montantProduit?.toLocaleString("fr-FR")}
+                          </TableCell>
+                          <TableCell className="print:hidden">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Confirmer la suppression
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Cette action est irreversible. Le produit
+                                    sera definitivement supprime.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-600 hover:bg-red-700"
+                                    onClick={() =>
+                                      handleDeleteProduitFactureInBd(
+                                        produit.idTarifProduit,
+                                        produit.id,
+                                        produit.quantite,
+                                      )
+                                    }
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {prestationfacture.map((prestation, index) => (
+                        <TableRow
+                          key={
+                            prestation.id && prestation.id !== ""
+                              ? prestation.id
+                              : `prestation-${index}`
+                          }
+                          className="group hover:bg-muted/30 transition-colors"
+                        >
+                          <TableCell className="font-medium">
+                            {nomPrestation(prestation.idPrestation)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px]"
+                            >
+                              Prestation
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {Number(prestation.prixPrestation)?.toLocaleString(
+                              "fr-FR",
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums">
+                            1
+                          </TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">
+                            {Number(prestation.prixPrestation)?.toLocaleString(
+                              "fr-FR",
+                            )}
+                          </TableCell>
+                          <TableCell className="print:hidden">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Confirmer la suppression
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Cette action est irreversible. La prestation
+                                    sera definitivement supprimee.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-600 hover:bg-red-700"
+                                    onClick={() =>
+                                      handleDeletePrestationFactureInBd(
+                                        prestation.id,
+                                      )
+                                    }
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {examensFacture.map((examen, index) => (
+                        <TableRow
+                          key={
+                            examen.id && examen.id !== ""
+                              ? examen.id
+                              : `examen-${index}`
+                          }
+                          className="group hover:bg-muted/30 transition-colors"
+                        >
+                          <TableCell className="font-medium">
+                            {examen.libelleExamen}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className="bg-amber-50 text-amber-700 border-amber-200 text-[11px]"
+                            >
+                              Examen
+                              {examen.remiseExamen > 0
+                                ? ` (-${examen.remiseExamen}%)`
+                                : ""}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {examen.remiseExamen > 0
+                              ? (
+                                  examen.prixExamen /
+                                  (1 - examen.remiseExamen / 100)
+                                ).toFixed(0)
+                              : examen.prixExamen}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums">
+                            1
+                          </TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">
+                            {examen.prixExamen?.toLocaleString("fr-FR")}
+                          </TableCell>
+                          <TableCell className="print:hidden">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Confirmer la suppression
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Cette action est irreversible. L&apos;examen
+                                    sera definitivement supprime.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-600 hover:bg-red-700"
+                                    onClick={() =>
+                                      handleDeleteExamenFactureInBd(examen.id)
+                                    }
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {echographiesFacture.map((echographie, index) => {
+                        const savedEchoType = getTypeEchographieFromSaved(
+                          echographie.idDemandeEchographie,
+                        );
+                        return (
+                          <TableRow
+                            key={
+                              echographie.id && echographie.id !== ""
+                                ? echographie.id
+                                : `echographie-${index}`
+                            }
+                            className="group hover:bg-muted/30 transition-colors"
+                          >
+                            <TableCell className="font-medium">
+                              {echographie.libelleEchographie}
                             </TableCell>
-                          </TableRow>
-                          <TableRow className="bg-blue-50/60">
-                            <TableHead className="text-blue-900">
-                              Designation
-                            </TableHead>
-                            <TableHead className="text-blue-900">
-                              Type
-                            </TableHead>
-                            <TableHead className="text-right text-blue-900">
-                              P.U.
-                            </TableHead>
-                            <TableHead className="text-center text-blue-900">
-                              Qte
-                            </TableHead>
-                            <TableHead className="text-right text-blue-900">
-                              Montant
-                            </TableHead>
-                            <TableHead className="w-12 print:hidden"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {produitFacture.map((produit, index) => (
-                            <TableRow
-                              key={
-                                produit.id && produit.id !== ""
-                                  ? produit.id
-                                  : `produit-${index}`
-                              }
-                              className="group hover:bg-muted/30 transition-colors"
-                            >
-                              <TableCell className="font-medium">
-                                {produit.nomProduit}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-blue-50 text-blue-700 border-blue-200 text-[11px]"
-                                >
-                                  Produit
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {Math.round(
-                                  (produit.montantProduit || 0) /
-                                    (produit.quantite || 1),
-                                ).toLocaleString("fr-FR")}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums">
-                                {produit.quantite}
-                              </TableCell>
-                              <TableCell className="text-right font-medium tabular-nums">
-                                {produit.montantProduit?.toLocaleString(
-                                  "fr-FR",
-                                )}
-                              </TableCell>
-                              <TableCell className="print:hidden">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Confirmer la suppression
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Cette action est irreversible. Le
-                                        produit sera definitivement supprime.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Annuler
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-red-600 hover:bg-red-700"
-                                        onClick={() =>
-                                          handleDeleteProduitFactureInBd(
-                                            produit.idTarifProduit,
-                                            produit.id,
-                                            produit.quantite,
-                                          )
-                                        }
-                                      >
-                                        Supprimer
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-
-                          {prestationfacture.map((prestation, index) => (
-                            <TableRow
-                              key={
-                                prestation.id && prestation.id !== ""
-                                  ? prestation.id
-                                  : `prestation-${index}`
-                              }
-                              className="group hover:bg-muted/30 transition-colors"
-                            >
-                              <TableCell className="font-medium">
-                                {nomPrestation(prestation.idPrestation)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px]"
-                                >
-                                  Prestation
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {Number(
-                                  prestation.prixPrestation,
-                                )?.toLocaleString("fr-FR")}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums">
-                                1
-                              </TableCell>
-                              <TableCell className="text-right font-medium tabular-nums">
-                                {Number(
-                                  prestation.prixPrestation,
-                                )?.toLocaleString("fr-FR")}
-                              </TableCell>
-                              <TableCell className="print:hidden">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Confirmer la suppression
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Cette action est irreversible. La
-                                        prestation sera definitivement
-                                        supprimee.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Annuler
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-red-600 hover:bg-red-700"
-                                        onClick={() =>
-                                          handleDeletePrestationFactureInBd(
-                                            prestation.id,
-                                          )
-                                        }
-                                      >
-                                        Supprimer
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-
-                          {examensFacture.map((examen, index) => (
-                            <TableRow
-                              key={
-                                examen.id && examen.id !== ""
-                                  ? examen.id
-                                  : `examen-${index}`
-                              }
-                              className="group hover:bg-muted/30 transition-colors"
-                            >
-                              <TableCell className="font-medium">
-                                {examen.libelleExamen}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-amber-50 text-amber-700 border-amber-200 text-[11px]"
-                                >
-                                  Examen
-                                  {examen.remiseExamen > 0
-                                    ? ` (-${examen.remiseExamen}%)`
-                                    : ""}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {examen.remiseExamen > 0
-                                  ? (
-                                      examen.prixExamen /
-                                      (1 - examen.remiseExamen / 100)
-                                    ).toFixed(0)
-                                  : examen.prixExamen}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums">
-                                1
-                              </TableCell>
-                              <TableCell className="text-right font-medium tabular-nums">
-                                {examen.prixExamen?.toLocaleString("fr-FR")}
-                              </TableCell>
-                              <TableCell className="print:hidden">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Confirmer la suppression
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Cette action est irreversible.
-                                        L&apos;examen sera definitivement
-                                        supprime.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Annuler
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-red-600 hover:bg-red-700"
-                                        onClick={() =>
-                                          handleDeleteExamenFactureInBd(
-                                            examen.id,
-                                          )
-                                        }
-                                      >
-                                        Supprimer
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-
-                          {echographiesFacture.map((echographie, index) => {
-                            const savedEchoType = getTypeEchographieFromSaved(echographie.idDemandeEchographie);
-                            return (
-                            <TableRow
-                              key={
-                                echographie.id && echographie.id !== ""
-                                  ? echographie.id
-                                  : `echographie-${index}`
-                              }
-                              className="group hover:bg-muted/30 transition-colors"
-                            >
-                              <TableCell className="font-medium">
-                                {echographie.libelleEchographie}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="secondary"
-                                  className={`text-[11px] ${savedEchoType ? typeEchographieColors[savedEchoType] : "bg-purple-50 text-purple-700 border-purple-200"}`}
-                                >
-                                  {savedEchoType ? typeEchographieLabels[savedEchoType] : "Echo"}
-                                  {echographie.remiseEchographie > 0
-                                    ? ` (-${echographie.remiseEchographie}%)`
-                                    : ""}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={`text-[11px] ${savedEchoType ? typeEchographieColors[savedEchoType] : "bg-purple-50 text-purple-700 border-purple-200"}`}
+                              >
+                                {"Échographie"}
                                 {echographie.remiseEchographie > 0
-                                  ? (
-                                      echographie.prixEchographie /
-                                      (1 - echographie.remiseEchographie / 100)
-                                    ).toFixed(0)
-                                  : echographie.prixEchographie}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums">
-                                1
-                              </TableCell>
-                              <TableCell className="text-right font-medium tabular-nums">
-                                {echographie.prixEchographie?.toLocaleString(
-                                  "fr-FR",
-                                )}
-                              </TableCell>
-                              <TableCell className="print:hidden">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  ? ` (-${echographie.remiseEchographie}%)`
+                                  : ""}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {echographie.remiseEchographie > 0
+                                ? (
+                                    echographie.prixEchographie /
+                                    (1 - echographie.remiseEchographie / 100)
+                                  ).toFixed(0)
+                                : echographie.prixEchographie}
+                            </TableCell>
+                            <TableCell className="text-center tabular-nums">
+                              1
+                            </TableCell>
+                            <TableCell className="text-right font-medium tabular-nums">
+                              {Math.round(
+                                echographie.prixEchographie -
+                                (echographie.partEchographe ?? 0) / echographiesFacture.length,
+                              ).toLocaleString("fr-FR")}
+                            </TableCell>
+                            <TableCell className="print:hidden">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Confirmer la suppression
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irreversible.
+                                      L&apos;echographie sera definitivement
+                                      supprimee.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Annuler
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700"
+                                      onClick={() =>
+                                        handleDeleteEchographieFactureInBd(
+                                          echographie.id,
+                                        )
+                                      }
                                     >
-                                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Confirmer la suppression
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Cette action est irreversible.
-                                        L&apos;echographie sera definitivement
-                                        supprimee.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Annuler
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-red-600 hover:bg-red-700"
-                                        onClick={() =>
-                                          handleDeleteEchographieFactureInBd(
-                                            echographie.id,
-                                          )
-                                        }
-                                      >
-                                        Supprimer
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TableCell>
-                            </TableRow>
-                            );
-                          })}
-                        </TableBody>
-
-                        <TableFooter>
-                          <TableRow className="bg-blue-50/50 border-t-2 border-blue-300/40">
-                            <TableCell
-                              colSpan={4}
-                              className="text-right text-sm font-bold"
-                            >
-                              Total :
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </TableCell>
-                            <TableCell className="text-right text-base font-bold text-blue-800 tabular-nums">
-                              {totalSaved.toLocaleString("fr-FR")} CFA
-                            </TableCell>
-                            <TableCell className="print:hidden"></TableCell>
                           </TableRow>
-                        </TableFooter>
-                      </Table>
-                    </CardContent>
+                        );
+                      })}
+                    </TableBody>
 
-                    {/* Receipt footer */}
-                    <CardFooter className="flex flex-col gap-3 border-t pt-4 pb-5">
-                      <Separator className="print:hidden" />
-                      <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-muted-foreground">
-                            Clinique :
-                          </span>
-                          <span className="font-medium">
-                            {nomClinique(client?.cliniqueId as string)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <User2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-muted-foreground">
-                            Caissiere :
-                          </span>
-                          <span className="font-medium">
-                            {session?.user.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-muted-foreground">Date :</span>
-                          <span className="font-medium">
-                            {new Date().toLocaleDateString("fr-FR", {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                            &nbsp;a&nbsp;
-                            {new Date().toLocaleTimeString("fr-FR")}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Receipt className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-muted-foreground">Recu :</span>
-                          <span className="font-medium">
-                            {client?.nom
-                              ? client.nom
-                                  .split(" ")
-                                  .map(
-                                    (word) =>
-                                      word.charAt(0).toUpperCase() +
-                                      word.slice(1).toLowerCase(),
-                                  )
-                                  .join(" ")
-                              : ""}{" "}
-                            {client?.prenom
-                              ? client.prenom
-                                  .split(" ")
-                                  .map(
-                                    (word) =>
-                                      word.charAt(0).toUpperCase() +
-                                      word.slice(1).toLowerCase(),
-                                  )
-                                  .join(" ")
-                              : ""}
-                          </span>
-                        </div>
-                      </div>
-                    </CardFooter>
+                    <TableFooter>
+                      <TableRow className="bg-blue-50/50 border-t-2 border-blue-300/40">
+                        <TableCell
+                          colSpan={4}
+                          className="text-right text-sm font-bold"
+                        >
+                          Total :
+                        </TableCell>
+                        <TableCell className="text-right text-base font-bold text-blue-800 tabular-nums">
+                          {totalSaved.toLocaleString("fr-FR")} CFA
+                        </TableCell>
+                        <TableCell className="print:hidden"></TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                </CardContent>
+
+                {/* Receipt footer */}
+                <CardFooter className="flex flex-col gap-3 border-t pt-4 pb-5">
+                  <Separator className="print:hidden" />
+                  <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Clinique :</span>
+                      <span className="font-medium">
+                        {nomClinique(client?.cliniqueId as string)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Caissiere :</span>
+                      <span className="font-medium">{session?.user.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Date :</span>
+                      <span className="font-medium">
+                        {new Date().toLocaleDateString("fr-FR", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                        &nbsp;a&nbsp;
+                        {new Date().toLocaleTimeString("fr-FR")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Receipt className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Recu :</span>
+                      <span className="font-medium">
+                        {client?.nom
+                          ? client.nom
+                              .split(" ")
+                              .map(
+                                (word) =>
+                                  word.charAt(0).toUpperCase() +
+                                  word.slice(1).toLowerCase(),
+                              )
+                              .join(" ")
+                          : ""}{" "}
+                        {client?.prenom
+                          ? client.prenom
+                              .split(" ")
+                              .map(
+                                (word) =>
+                                  word.charAt(0).toUpperCase() +
+                                  word.slice(1).toLowerCase(),
+                              )
+                              .join(" ")
+                          : ""}
+                      </span>
+                    </div>
+                  </div>
+                </CardFooter>
               </Card>
             </div>
           )}
 
           {/* ===== EMPTY STATE ===== */}
-          {form.watch("idVisite") &&
-            !isLoadingFacture &&
+          {watchedIdVisite &&
             !hasSaved &&
             !hasDraft && (
               <Card className="border-dashed border-2 border-blue-200/70">
@@ -2017,7 +1971,7 @@ export default function FichePharmacyClient({
             )}
 
           {/* ===== ACTION BUTTONS (Print / Return) ===== */}
-          {form.watch("idVisite") && hasSaved && (
+          {watchedIdVisite && hasSaved && (
             <div className="flex justify-center gap-3 print:hidden">
               <Button
                 variant="outline"
@@ -2044,13 +1998,13 @@ export default function FichePharmacyClient({
           <FactureModal
             open={open}
             idClient={pharmacyId}
-            tabClinique={tabClinique}
+            tabClinique={clinique ? [clinique] : []}
             allProduits={tabProduit}
             clientData={client}
             setOpen={setOpen}
-            refreshProduits={refreshProduits}
+            refreshProduits={async () => {}}
             setFactureProduit={setFactureProduit}
-            tarifProduits={filteredTarifProduits}
+            tarifProduits={tabTarifProduit}
             excludedProduitIds={[
               ...factureProduit.map((p) => p.idTarifProduit),
               ...produitFacture.map((p) => p.idTarifProduit),
@@ -2060,9 +2014,9 @@ export default function FichePharmacyClient({
             openPrestation={openPrestation}
             idClient={pharmacyId}
             setOpenPrestation={setOpenPrestation}
-            refreshProduits={refreshProduits}
+            refreshProduits={async () => {}}
             setFacturePrestation={setFacturePrestation}
-            tarifPrestations={filteredTarifPrestations}
+            tarifPrestations={serverData.tabTarifPrestations}
             excludedPrestationIds={[
               ...facturePrestation.map((p) => p.idPrestation),
               ...prestationfacture.map((p) => p.idPrestation),
@@ -2071,17 +2025,17 @@ export default function FichePharmacyClient({
           <ExamensModal
             open={openExamens}
             idClient={pharmacyId}
-            idVisite={form.watch("idVisite")}
+            idVisite={watchedIdVisite}
             setOpen={setOpenExamens}
             setExamensSelectionnes={setDemandeExamens}
             refreshExamens={async () => {
               const allDemandeExamens = await getAllDemandeExamensByIdVisite(
-                form.watch("idVisite"),
+                watchedIdVisite,
               );
               setTabDemandeExamens(allDemandeExamens as DemandeExamen[]);
             }}
             allExamens={tabExamen}
-            tarifExamens={filteredTarifExamens}
+            tarifExamens={tabTarifExamens}
             demandesExamens={tabDemandeExamens}
             excludedExamenIds={[
               ...demandeExamens.map((e) => e.id),
@@ -2091,21 +2045,21 @@ export default function FichePharmacyClient({
           <EchographiesModal
             open={openEchographies}
             idClient={pharmacyId}
-            idVisite={form.watch("idVisite")}
+            idVisite={watchedIdVisite}
             setOpen={setOpenEchographies}
             setEchographiesSelectionnees={setDemandeEchographies}
             refreshExamens={async () => {
               const allDemandeEchographies =
                 await getAllDemandeEchographiesByIdVisite(
-                  form.watch("idVisite"),
+                  watchedIdVisite,
                 );
               setTabDemandeEchographies(
                 allDemandeEchographies as DemandeEchographie[],
               );
             }}
-            tabClinique={tabClinique}
+            tabClinique={clinique ? [clinique] : []}
             allEchographies={tabEchographie}
-            tarifEchographies={filteredTarifEchographies}
+            tarifEchographies={tabTarifEchographies}
             demandesEchographies={tabDemandeEchographies}
             excludedEchographieIds={[
               ...demandeEchographies.map((e) => e.id),

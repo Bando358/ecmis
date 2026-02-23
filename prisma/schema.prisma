@@ -81,6 +81,12 @@ enum TableName {
   ANALYSE_VISUALISER
   ANALYTICS_SETTINGS
   JOURNAL_PHARMACIE
+  RAPPORT_FINANCIER
+  HISTORIQUE_INVENTAIRE
+  TABLEAU_FINANCIER
+  GESTION_RDV
+  LISTING
+  RAPPORT
 }
 
 model Permission {
@@ -1415,6 +1421,7 @@ model FactureEchographie {
   idClient                  String
   idClinique                String
   remiseEchographie         Int    @default(0)
+  partEchographe            Int    @default(0)
   idDemandeEchographie      String
   idUser                    String
 

@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 
 export function NavMain({
   items,
+  allowedTables,
+  permissionsLoaded,
 }: {
   items: {
     title: string;
@@ -32,10 +34,21 @@ export function NavMain({
     items?: {
       title: string;
       url: string;
+      permission?: string;
     }[];
   }[];
+  allowedTables: Set<string>;
+  permissionsLoaded: boolean;
 }) {
   const pathname = usePathname();
+  const isAdmin = allowedTables.has("ALL");
+
+  const hasPermission = (permission?: string) => {
+    if (!permissionsLoaded) return true;
+    if (isAdmin) return true;
+    if (!permission) return true;
+    return allowedTables.has(permission);
+  };
 
   return (
     <SidebarGroup className="px-2">
@@ -44,9 +57,18 @@ export function NavMain({
       </SidebarGroupLabel>
       <SidebarMenu className="space-y-1">
         {items.map((item) => {
-          const hasActiveChild = item.items?.some(
+          // Filtrer les sous-items visibles
+          const visibleChildren = item.items?.filter((sub) =>
+            hasPermission(sub.permission)
+          );
+
+          // Masquer le groupe si aucun sous-item visible
+          if (visibleChildren && visibleChildren.length === 0) return null;
+
+          const hasActiveChild = visibleChildren?.some(
             (sub) => sub.url !== "#" && pathname === sub.url,
           );
+
           return (
             <Collapsible
               key={item.title}
@@ -77,7 +99,7 @@ export function NavMain({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenuSub className="mt-1 space-y-1 ml-4">
-                    {item.items?.map((subItem) => {
+                    {visibleChildren?.map((subItem) => {
                       const isActive =
                         subItem.url !== "#" && pathname === subItem.url;
                       return (

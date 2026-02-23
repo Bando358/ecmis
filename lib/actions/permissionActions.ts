@@ -255,3 +255,81 @@ export async function deletePermissionByUserId(idUser: string) {
 //     throw new Error("Échec de la création des permissions");
 //   }
 // }
+
+// ===== Tables liées aux menus du sidebar =====
+const MENU_TABLES: TableName[] = [
+  TableName.IMPORT_CLIENT_VIH,
+  TableName.CLIENT,
+  TableName.RAPPORT_FINANCIER,
+  TableName.PRODUIT,
+  TableName.TARIF_PRODUIT,
+  TableName.STOCK_PRODUIT,
+  TableName.ANOMALIE_INVENTAIRE,
+  TableName.COMMANDE_FOURNISSEUR,
+  TableName.HISTORIQUE_INVENTAIRE,
+  TableName.TABLEAU_FINANCIER,
+  TableName.JOURNAL_PHARMACIE,
+  TableName.GESTION_RDV,
+  TableName.LISTING,
+  TableName.RAPPORT,
+  TableName.ANALYSE_VISUALISER,
+  TableName.EXAMEN,
+  TableName.TARIF_EXAMEN,
+  TableName.ECHOGRAPHIE,
+  TableName.TARIF_ECHOGRAPHIE,
+  TableName.PRESTATION,
+  TableName.TARIF_PRESTATION,
+  TableName.ADMINISTRATION,
+];
+
+/**
+ * Attribue les permissions menu (canRead=true) à TOUS les utilisateurs
+ * pour chaque TableName du sidebar, sans créer de doublons.
+ */
+export async function assignMenuPermissionsToAllUsers() {
+  try {
+    const users = await prisma.user.findMany({ select: { id: true } });
+    let created = 0;
+    let skipped = 0;
+
+    for (const user of users) {
+      // Permissions existantes pour cet utilisateur
+      const existing = await prisma.permission.findMany({
+        where: { userId: user.id, table: { in: MENU_TABLES } },
+        select: { table: true },
+      });
+      const existingSet = new Set(existing.map((p) => p.table));
+
+      // Tables manquantes
+      const missing = MENU_TABLES.filter((t) => !existingSet.has(t));
+      if (missing.length === 0) {
+        skipped += MENU_TABLES.length;
+        continue;
+      }
+
+      await prisma.permission.createMany({
+        data: missing.map((table) => ({
+          userId: user.id,
+          table,
+          canCreate: true,
+          canRead: true,
+          canUpdate: true,
+          canDelete: true,
+        })),
+      });
+      created += missing.length;
+      skipped += existingSet.size;
+    }
+
+    return {
+      success: true,
+      message: `${created} permission(s) créée(s), ${skipped} déjà existante(s), ${users.length} utilisateur(s) traité(s).`,
+      created,
+      skipped,
+      usersCount: users.length,
+    };
+  } catch (error) {
+    console.error("Erreur assignMenuPermissionsToAllUsers:", error);
+    return { success: false, message: "Erreur lors de l'attribution des permissions." };
+  }
+}

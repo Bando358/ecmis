@@ -2,16 +2,41 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { TableName, User } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { getOneUser } from "@/lib/actions/authActions";
+import {
+  MapPin,
+  Building2,
+  UserPlus,
+  Briefcase,
+  ShieldCheck,
+  CalendarCheck,
+  DatabaseBackup,
+  Settings2,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface AdminItem {
+  label: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  color: string;
+  bgColor: string;
+  permission?: TableName; // null = ADMIN only
+}
 
 export default function Administrator() {
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const [allowedTables, setAllowedTables] = useState<Set<string>>(new Set());
   const [oneUser, setOneUser] = useState<User | null>(null);
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
@@ -31,15 +56,26 @@ export default function Administrator() {
     const fetchPermissions = async () => {
       try {
         const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.ADMINISTRATION
-        );
 
-        if (perm?.canRead || oneUser.role === "ADMIN") {
+        if (oneUser.role === "ADMIN") {
           setHasAccess(true);
+          setAllowedTables(new Set(["ALL"]));
         } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
+          const perm = permissions.find(
+            (p: { table: string }) => p.table === TableName.ADMINISTRATION
+          );
+          if (perm?.canRead) {
+            const readable = new Set(
+              permissions
+                .filter((p: { canRead: boolean }) => p.canRead)
+                .map((p: { table: string }) => p.table)
+            );
+            setAllowedTables(readable);
+            setHasAccess(true);
+          } else {
+            alert("Vous n'avez pas la permission d'accéder à cette page.");
+            router.back();
+          }
         }
       } catch (error) {
         console.error(
@@ -65,103 +101,149 @@ export default function Administrator() {
 
   if (!hasAccess) return null;
 
-  const TabAdmin = [
-    { label: "Création d'une région", href: `/fiche-region/` },
+  const tabAdmin: AdminItem[] = [
     {
-      label: "Création d'une clinique",
-      href: `/fiche-clinique/`,
-    },
-    { label: "Création de compte", href: `/fiche-compte/` },
-    // {
-    //   label: "Création d'un fournisseur produit",
-    //   href: `/fiche-fournisseur/`,
-    // },
-    { label: "Création d'un post", href: `/fiche-post/` },
-    {
-      label: "Création des permissions",
-      href: `/fiche-permissions/`,
+      label: "Régions",
+      description: "Gérer les régions géographiques",
+      href: "/fiche-region/",
+      icon: MapPin,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-50",
+      permission: TableName.REGION,
     },
     {
-      label: "Création d'une activité",
-      href: `/fiche-activites/`,
+      label: "Cliniques",
+      description: "Créer et configurer les cliniques",
+      href: "/fiche-clinique/",
+      icon: Building2,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      permission: TableName.CLINIQUE,
     },
     {
-      label: "Sauvegarde de la base",
-      href: `/sauvegarde`,
+      label: "Comptes",
+      description: "Gérer les comptes utilisateurs",
+      href: "/fiche-compte/",
+      icon: UserPlus,
+      color: "text-violet-600",
+      bgColor: "bg-violet-50",
+      permission: TableName.USER,
+    },
+    {
+      label: "Posts",
+      description: "Définir les postes de travail",
+      href: "/fiche-post/",
+      icon: Briefcase,
+      color: "text-amber-600",
+      bgColor: "bg-amber-50",
+      permission: TableName.POST,
+    },
+    {
+      label: "Permissions",
+      description: "Configurer les droits d'accès",
+      href: "/fiche-permissions/",
+      icon: ShieldCheck,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+      permission: TableName.PERMISSION,
+    },
+    {
+      label: "Activités",
+      description: "Définir les types d'activités",
+      href: "/fiche-activites/",
+      icon: CalendarCheck,
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50",
+      permission: TableName.ACTIVITE,
+    },
+    {
+      label: "Sauvegarde",
+      description: "Sauvegarder la base de données",
+      href: "/sauvegarde",
+      icon: DatabaseBackup,
+      color: "text-slate-600",
+      bgColor: "bg-slate-50",
+      // Pas de permission spécifique → ADMIN uniquement
     },
   ];
 
+  const visibleCards = tabAdmin.filter((item) => {
+    if (allowedTables.has("ALL")) return true; // ADMIN voit tout
+    if (!item.permission) return false; // Sauvegarde → ADMIN uniquement
+    return allowedTables.has(item.permission);
+  });
+
   return (
-    <div>
-      <h2 className="text-center text-xl font-bold uppercase text-gray-600">
-        Administration
-      </h2>
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
+      {/* En-tête */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+          <Settings2 className="h-5 w-5 text-blue-600" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Administration</h1>
+          <p className="text-sm text-muted-foreground">
+            Configuration et gestion du système
+          </p>
+        </div>
+        {oneUser && (
+          <Badge
+            variant="secondary"
+            className="ml-auto bg-blue-50 text-blue-700 border-blue-200"
+          >
+            {oneUser.role}
+          </Badge>
+        )}
+      </div>
 
-      <div className="max-w-225 mx-auto relative flex flex-col justify-center p-4 rounded-md">
-        <Card>
-          <CardContent>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {TabAdmin.map((row, index) => (
-                <li key={index} className="relative">
-                  <Link
-                    href={row.href}
-                    prefetch={false}
-                    className="group relative block p-2 bg-white rounded-2xl
-          overflow-hidden
-          transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
-          hover:-translate-y-1.5
-          hover:shadow-xl hover:shadow-blue-100/60
-          hover:bg-linear-to-br hover:from-white hover:to-blue-50"
+      {/* Grille */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {visibleCards.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <Link key={index} href={item.href} prefetch={false}>
+              <Card
+                className={cn(
+                  "group h-full cursor-pointer border-gray-200/80",
+                  "transition-all duration-300",
+                  "hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/50 hover:border-blue-300",
+                )}
+              >
+                <CardContent className="p-5 flex items-start gap-4">
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors duration-300",
+                      item.bgColor,
+                      "group-hover:bg-blue-100",
+                    )}
                   >
-                    {/* Halo lumineux */}
-                    <div
-                      className="pointer-events-none absolute inset-0 opacity-0
-            bg-linear-to-r from-blue-100/40 via-transparent to-blue-100/40
-            group-hover:opacity-100
-            transition-opacity duration-500"
+                    <Icon
+                      className={cn(
+                        "h-5 w-5 transition-colors duration-300",
+                        item.color,
+                        "group-hover:text-blue-600",
+                      )}
                     />
-
-                    {/* Bordure animée */}
-                    <div
-                      className="absolute bottom-0 left-6 right-6 h-0.5
-            bg-linear-to-r from-transparent via-blue-500 to-transparent
-            scale-x-0 group-hover:scale-x-100
-            transition-transform duration-500 origin-center"
-                    />
-
-                    {/* Point animé */}
-                    <div
-                      className="absolute top-2 left-5 w-2.5 h-2.5 rounded-full bg-blue-500
-            scale-0 group-hover:scale-100
-            group-hover:animate-pulse
-            transition-transform duration-300 delay-150"
-                    />
-
-                    {/* Contenu */}
-                    <span
-                      className="relative flex flex-col pl-6 text-gray-700
-            transition-all duration-300
-            group-hover:text-blue-700
-            group-hover:translate-x-1"
-                    >
-                      <span className="font-medium group-hover:font-semibold">
-                        {row.label}
-                      </span>
-
-                      <span
-                        className="text-sm text-gray-400 mt-1
-              transition-colors duration-300
-              group-hover:text-blue-400"
-                      >
-                        {/* optionnel : description */}
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 group-hover:text-blue-800 transition-colors">
+                      {item.label}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {item.description}
+                    </p>
+                  </div>
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 shrink-0 mt-1 text-gray-300 transition-all duration-300",
+                      "group-hover:text-blue-500 group-hover:translate-x-1",
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
