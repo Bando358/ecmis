@@ -18,7 +18,6 @@ import { useSession } from "next-auth/react";
 import {
   Client,
   Gynecologie,
-  Permission,
   TableName,
   User,
   Visite,
@@ -53,7 +52,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 const tabTypeTraitement = [
   { value: "chryotherapie", label: "Chryothérapie" },
@@ -101,7 +101,7 @@ export default function GynecoPage({
   const [prescripteur, setPrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [client, setClient] = useState<Client | null>(null);
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
   const [isLoading, setIsLoading] = useState(true);
 
   const { setSelectedClientId } = useClientContext();
@@ -135,17 +135,10 @@ export default function GynecoPage({
         setClient(cliniqueClient);
 
         // Étape 2: Requêtes dépendantes en parallèle
-        const [permissions, allPrestataire] = await Promise.all([
-          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
-          cliniqueClient?.idClinique
-            ? getAllUserIncludedIdClinique(cliniqueClient.idClinique)
-            : Promise.resolve([]),
-        ]);
+        const allPrestataire = cliniqueClient?.idClinique
+          ? await getAllUserIncludedIdClinique(cliniqueClient.idClinique)
+          : [];
 
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.GYNECOLOGIE
-        );
-        setPermission(perm || null);
         setAllPrescripteur(allPrestataire as User[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -171,11 +164,9 @@ export default function GynecoPage({
     },
   });
   const onSubmit: SubmitHandler<Gynecologie> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une gynécologie. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.GYNECOLOGIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

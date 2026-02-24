@@ -15,7 +15,6 @@ import {
 import {
   Client,
   Ist,
-  Permission,
   TableName,
   User,
   Visite,
@@ -51,7 +50,8 @@ import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 // import { Separator } from "@/components/ui/separator";
 
 const tabTypePec = [
@@ -100,7 +100,7 @@ export default function IstPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [prescripteur, setPrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
     setSelectedClientId(istId);
@@ -111,52 +111,30 @@ export default function IstPage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.IST
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultIst = await getAllIstByIdClient(istId);
-      setSelectedIst(resultIst as Ist[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(istId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const client = await getOneClient(istId);
-      setClient(client);
-      let allPrestataire: User[] = [];
-      if (client?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(client.idClinique);
+      // Wave 1: all independent calls in parallel
+      const [user, resultIst, resultVisites, clientData] = await Promise.all([
+        getOneUser(idUser),
+        getAllIstByIdClient(istId),
+        getAllVisiteByIdClient(istId),
+        getOneClient(istId),
+      ]);
+
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
+      setSelectedIst(resultIst as Ist[]);
+      setVisites(resultVisites as Visite[]);
+      setClient(clientData);
+
+      // Wave 2: depends on client
+      if (clientData?.idClinique) {
+        const prescripteurs = await getAllUserIncludedIdClinique(clientData.idClinique);
+        setAllPrescripteur(prescripteurs);
       }
-      setAllPrescripteur(allPrestataire);
     };
     fetchData();
-  }, [istId]);
+  }, [istId, idUser]);
 
   // console.log(visites);
 
@@ -169,11 +147,9 @@ export default function IstPage({
     },
   });
   const onSubmit: SubmitHandler<Ist> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une IST. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.IST)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

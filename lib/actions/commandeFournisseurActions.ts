@@ -1,11 +1,13 @@
 "use server";
 
-import { CommandeFournisseur } from "@prisma/client";
+import { CommandeFournisseur, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de CommandeFournisseur
 export async function createCommandeFournisseur(data: CommandeFournisseur) {
+  await requirePermission(TableName.COMMANDE_FOURNISSEUR, "canCreate");
   const result = await prisma.commandeFournisseur.create({ data });
   await logAction({
     idUser: "system",
@@ -33,6 +35,7 @@ export async function getAllCommandesFournisseur() {
 }
 // Suppression d'une commande
 export async function deleteCommandeFournisseur(id: string) {
+  await requirePermission(TableName.COMMANDE_FOURNISSEUR, "canDelete");
   const existing = await prisma.commandeFournisseur.findUnique({ where: { id } });
   const result = await prisma.commandeFournisseur.delete({ where: { id } });
   if (existing) {
@@ -53,6 +56,7 @@ export async function updateCommandeFournisseur(
   id: string,
   data: CommandeFournisseur
 ) {
+  await requirePermission(TableName.COMMANDE_FOURNISSEUR, "canUpdate");
   return await prisma.commandeFournisseur.update({
     where: { id },
     data,

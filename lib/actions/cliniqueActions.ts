@@ -1,7 +1,8 @@
 "use server";
 
-import { Clinique } from "@prisma/client";
+import { Clinique, TableName } from "@prisma/client";
 import prisma from "../prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // ************* Clinique **************
 export const getAllClinique = async () => {
@@ -12,6 +13,7 @@ export const getAllClinique = async () => {
 };
 // Création d'une région
 export async function createClinique(data: Clinique) {
+  await requirePermission(TableName.CLINIQUE, "canCreate");
   return await prisma.clinique.create({
     data,
   });
@@ -31,6 +33,7 @@ export const getOneClinique = async (id: string | null) => {
 
 //Mise à jour de la Région
 export async function updateClinique(id: string, data: Clinique) {
+  await requirePermission(TableName.CLINIQUE, "canUpdate");
   return await prisma.clinique.update({
     where: { id },
     data,

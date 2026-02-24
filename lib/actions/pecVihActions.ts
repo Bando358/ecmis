@@ -1,10 +1,12 @@
 "use server";
 // pecVihActions.ts
-import { PecVih } from "@prisma/client";
+import { PecVih, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche de PEC VIH
 export async function createPecVih(data: PecVih) {
+  await requirePermission(TableName.PEC_VIH, "canCreate");
   return await prisma.pecVih.create({
     data,
   });
@@ -29,6 +31,7 @@ export async function createPecVihViaData(data: {
   pecVihIdVisite: string;
   pecVihIdClinique: string; // Ajout obligatoire
 }) {
+  await requirePermission(TableName.PEC_VIH, "canCreate");
   return await prisma.pecVih.create({
     data: {
       pecVihCreatedAt: data.pecVihCreatedAt,
@@ -104,6 +107,7 @@ export const getOnePecVih = async (id: string | null) => {
 
 // Suppression d'une Fiche de PEC VIH
 export async function deletePecVih(id: string) {
+  await requirePermission(TableName.PEC_VIH, "canDelete");
   return await prisma.pecVih.delete({
     where: { id },
   });
@@ -111,6 +115,7 @@ export async function deletePecVih(id: string) {
 
 //Mise à jour de la Fiche de PEC VIH
 export async function updatePecVih(id: string, data: PecVih) {
+  await requirePermission(TableName.PEC_VIH, "canUpdate");
   return await prisma.pecVih.update({
     where: { id },
     data,

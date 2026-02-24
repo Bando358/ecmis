@@ -9,7 +9,9 @@ import {
   getOneConstante,
 } from "@/lib/actions/constanteActions";
 import { useSession } from "next-auth/react";
-import { Permission, TableName, User, Visite } from "@prisma/client";
+import { TableName, Visite } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -24,8 +26,6 @@ import { Input } from "@/components/ui/input";
 import { Constante } from "@prisma/client";
 import { getOneVisite } from "@/lib/actions/visiteActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getOneUser } from "@/lib/actions/authActions";
 import {
   Card,
   CardHeader,
@@ -52,8 +52,8 @@ export default function ConstantePage({
   const [etatImc, setEtatImc] = useState<string>("");
   const [styleImc, setStyleImc] = useState<string>("");
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
 
   const { data: session } = useSession();
   const idPrestataire = session?.user?.id || "";
@@ -67,28 +67,14 @@ export default function ConstantePage({
       try {
         setIsLoading(true);
 
-        // Étape 1: Requêtes indépendantes en parallèle
-        const [user, oneConstante] = await Promise.all([
-          getOneUser(idPrestataire),
-          getOneConstante(modifConstanteId),
-        ]);
+        const oneConstante = await getOneConstante(modifConstanteId);
 
         if (oneConstante) {
           setConstante(oneConstante);
           setSelectedClientId(oneConstante.idClient);
 
-          // Étape 2: Requêtes dépendantes en parallèle
-          const [visiteData, permissions] = await Promise.all([
-            getOneVisite(oneConstante.idVisite),
-            user ? getUserPermissionsById(user.id) : Promise.resolve([]),
-          ]);
-
+          const visiteData = await getOneVisite(oneConstante.idVisite);
           setVisite(visiteData);
-
-          const perm = permissions.find(
-            (p: { table: string }) => p.table === TableName.CONSTANTE,
-          );
-          setPermission(perm || null);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données :", error);
@@ -224,10 +210,8 @@ export default function ConstantePage({
   };
 
   const handleUpdateConstante = () => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de modifier une constante. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.CONSTANTE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (constante) {

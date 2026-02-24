@@ -26,7 +26,6 @@ import {
   Clinique,
   CommandeFournisseur,
   DetailCommande,
-  Permission,
   TableName,
   User,
 } from "@prisma/client";
@@ -38,6 +37,7 @@ import {
   updateTarifProduitByDetailCommandeAnnule,
 } from "@/lib/actions/tarifProduitActions";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommandeFournisseurDialog } from "@/components/CommandeFournisseurDialog";
 import { DetailCommandeDialog } from "@/components/detailCommandeDialog";
@@ -50,8 +50,9 @@ import {
   deleteDetailCommande,
   getAllDetailCommande,
 } from "@/lib/actions/detailCommandeActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, Loader2 } from "lucide-react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { getOneUser } from "@/lib/actions/authActions";
 import { Badge } from "@/components/ui/badge";
 
@@ -68,12 +69,13 @@ export default function GestionStockProduitPage() {
     useState<CommandeFournisseur | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [prescripteur, setPrescripteur] = useState<User>();
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [recherche, setRecherche] = useState<string>("");
   const [selectedClinique, setSelectedClinique] = useState<string>("");
 
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
+  const { canCreate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
+  const router = useRouter();
 
   useEffect(() => {
     const fetUser = async () => {
@@ -171,27 +173,6 @@ export default function GestionStockProduitPage() {
     setTarifsFiltres(triees);
   }, [recherche, selectedClinique, listeTarifProduit, produits, cliniques]);
 
-  useEffect(() => {
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.STOCK_PRODUIT
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
   const handleCreateCommande = async (data: Partial<CommandeFournisseur>) => {
     const dateISO =
       typeof data.dateCommande === "string"
@@ -224,10 +205,8 @@ export default function GestionStockProduitPage() {
     data: Partial<DetailCommande>,
     tarifProduit: TarifProduit
   ): Promise<void> => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un stock. Contactez un administrateur."
-      );
+    if (!canCreate(TableName.STOCK_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     if (!currentCommande) {
@@ -304,10 +283,8 @@ export default function GestionStockProduitPage() {
       toast.error("Détail de commande introuvable.");
       return;
     }
-    if (!permission?.canDelete && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer ce détail de commande. Contactez un administrateur."
-      );
+    if (!canDelete(TableName.STOCK_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     //  Confirmer la suppression
@@ -404,14 +381,12 @@ export default function GestionStockProduitPage() {
     return details;
   };
 
-  if (status === "loading") {
+  if (isLoadingPermissions || status === "loading") {
     return (
-      <div className="space-y-4 max-w-300 p-4 flex flex-col mx-auto">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-10 w-full" />
-      </div>
+      <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
     );
   }
+  if (!canRead(TableName.STOCK_PRODUIT)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-300 p-4 flex flex-col mx-auto">
@@ -438,7 +413,7 @@ export default function GestionStockProduitPage() {
               className="w-full sm:w-auto"
               disabled={
                 !selectedClinique ||
-                (!permission?.canCreate && prescripteur?.role !== "ADMIN")
+                (!canCreate(TableName.STOCK_PRODUIT))
               }
             >
               Commande Fournisseur
@@ -623,8 +598,7 @@ export default function GestionStockProduitPage() {
                                     }
                                     size="sm"
                                     disabled={
-                                      (!permission?.canCreate &&
-                                        prescripteur?.role !== "ADMIN") ||
+                                      !canCreate(TableName.STOCK_PRODUIT) ||
                                       qteCommandee > 0
                                     }
                                   >
@@ -643,8 +617,7 @@ export default function GestionStockProduitPage() {
                                   variant="destructive"
                                   size="sm"
                                   className={
-                                    permission?.canDelete ||
-                                    prescripteur?.role === "ADMIN"
+                                    canDelete(TableName.STOCK_PRODUIT)
                                       ? ""
                                       : "p-2 hidden"
                                   }

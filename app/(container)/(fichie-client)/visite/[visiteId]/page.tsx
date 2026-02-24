@@ -20,15 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Activite,
-  Client,
-  Lieu,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Activite, Client, Lieu, TableName, User, Visite } from "@prisma/client";
 import {
   Form,
   FormControl,
@@ -39,7 +31,8 @@ import {
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { v4 as uuid } from "uuid";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getActiveActivitesByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
@@ -75,8 +68,9 @@ export default function FormVisite({
   const [client, setClient] = useState<Client | null>(null);
   const [prescripteur, setPrescripteur] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { canCreate } = usePermissionContext();
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
@@ -101,18 +95,11 @@ export default function FormVisite({
         setClient(clientData);
         setAllVisite(visites);
 
-        // Étape 2: Requêtes dépendantes en parallèle
-        const [permissions, activites] = await Promise.all([
-          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
-          clientData?.idClinique
-            ? getActiveActivitesByIdClinique(clientData.idClinique)
-            : Promise.resolve([]),
-        ]);
+        // Étape 2: Requêtes dépendantes
+        const activites = clientData?.idClinique
+          ? await getActiveActivitesByIdClinique(clientData.idClinique)
+          : [];
 
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.VISITE
-        );
-        setPermission(perm || null);
         setActivite(activites);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -174,11 +161,9 @@ export default function FormVisite({
   }, [idActivite]);
 
   const onSubmit: SubmitHandler<VisiteFormValues> = async (data) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de créer une visite. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.VISITE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     if (isSubmitting) return;
     setIsSubmitting(true);

@@ -33,9 +33,8 @@ import { usePathname } from "next/navigation";
 import { TeamSwitcher } from "./team-switcher";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { useMemo } from "react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
 import { TableName } from "@prisma/client";
 
 const data = {
@@ -239,35 +238,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const isDashboardActive = pathname === data.dashboard.url;
   const { data: session } = useSession();
-  const idUser = session?.user?.id as string;
+  const { permissionMap, isLoading: permissionsLoading } = usePermissionContext();
+  const isAdmin = session?.user?.role === "ADMIN";
 
-  const [allowedTables, setAllowedTables] = useState<Set<string>>(new Set());
-  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const allowedTables = useMemo(() => {
+    if (isAdmin) return new Set(["ALL"]);
+    return new Set(
+      Object.entries(permissionMap)
+        .filter(([, p]) => p.canRead)
+        .map(([table]) => table),
+    );
+  }, [permissionMap, isAdmin]);
 
-  useEffect(() => {
-    if (!idUser) return;
-    const load = async () => {
-      try {
-        const user = await getOneUser(idUser);
-        if (user?.role === "ADMIN") {
-          setAllowedTables(new Set(["ALL"]));
-        } else {
-          const permissions = await getUserPermissionsById(idUser);
-          const readable = new Set(
-            permissions
-              .filter((p: { canRead: boolean }) => p.canRead)
-              .map((p: { table: string }) => p.table)
-          );
-          setAllowedTables(readable);
-        }
-      } catch (error) {
-        console.error("Erreur chargement permissions sidebar:", error);
-      } finally {
-        setPermissionsLoaded(true);
-      }
-    };
-    load();
-  }, [idUser]);
+  const permissionsLoaded = !permissionsLoading;
 
   return (
     <Sidebar collapsible="icon" {...props}>

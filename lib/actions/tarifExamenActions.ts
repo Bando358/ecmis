@@ -1,10 +1,12 @@
 "use server";
 
-import { TarifExamen } from "@prisma/client";
+import { TarifExamen, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de TarifExamen
 export async function createTarifExamen(data: TarifExamen) {
+  await requirePermission(TableName.TARIF_EXAMEN, "canCreate");
   return await prisma.tarifExamen.create({
     data,
   });
@@ -38,6 +40,7 @@ export async function getOneTarifExamen(id: string) {
 
 // Suppression d'un TarifExamen
 export async function deleteTarifExamen(id: string) {
+  await requirePermission(TableName.TARIF_EXAMEN, "canDelete");
   return await prisma.tarifExamen.delete({
     where: { id },
   });
@@ -45,6 +48,7 @@ export async function deleteTarifExamen(id: string) {
 
 //Mise à jour de TarifExamen
 export async function updateTarifExamen(id: string, data: TarifExamen) {
+  await requirePermission(TableName.TARIF_EXAMEN, "canUpdate");
   return await prisma.tarifExamen.update({
     where: { id },
     data,

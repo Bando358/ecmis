@@ -1,10 +1,12 @@
 "use server";
 
-import { TarifEchographie } from "@prisma/client";
+import { TarifEchographie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de TarifEchographie
 export async function createTarifEchographie(data: TarifEchographie) {
+  await requirePermission(TableName.TARIF_ECHOGRAPHIE, "canCreate");
   return await prisma.tarifEchographie.create({
     data,
   });
@@ -38,6 +40,7 @@ export async function getOneTarifEchographie(id: string) {
 
 // Suppression d'un TarifEchographie
 export async function deleteTarifEchographie(id: string) {
+  await requirePermission(TableName.TARIF_ECHOGRAPHIE, "canDelete");
   return await prisma.tarifEchographie.delete({
     where: { id },
   });
@@ -48,6 +51,7 @@ export async function updateTarifEchographie(
   id: string,
   data: TarifEchographie
 ) {
+  await requirePermission(TableName.TARIF_ECHOGRAPHIE, "canUpdate");
   return await prisma.tarifEchographie.update({
     where: { id },
     data,

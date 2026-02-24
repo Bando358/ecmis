@@ -15,7 +15,6 @@ import {
   Vbg,
   User,
   Visite,
-  Permission,
   TableName,
   Client,
 } from "@prisma/client";
@@ -44,7 +43,8 @@ import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { createVbg, getAllVbgByIdClient } from "@/lib/actions/vbgActions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 const TabTypeVbg = [
@@ -76,7 +76,7 @@ export default function VbgPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [prescripteur, setPrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
   const [client, setClient] = useState<Client | null>(null);
 
   const { setSelectedClientId } = useClientContext();
@@ -89,64 +89,38 @@ export default function VbgPage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.VBG
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultVbg = await getAllVbgByIdClient(vbgId);
-      setSelectedVbg(resultVbg as Vbg[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(vbgId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const client = await getOneClient(vbgId);
-      setClient(client);
-      let allPrestataire: User[] = [];
-      if (client?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(client.idClinique);
+      // Wave 1: all independent calls in parallel
+      const [user, resultVbg, resultVisites, clientData] = await Promise.all([
+        getOneUser(idUser),
+        getAllVbgByIdClient(vbgId),
+        getAllVisiteByIdClient(vbgId),
+        getOneClient(vbgId),
+      ]);
+
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
+      setSelectedVbg(resultVbg as Vbg[]);
+      setVisites(resultVisites as Visite[]);
+      setClient(clientData);
+
+      // Wave 2: depends on client
+      if (clientData?.idClinique) {
+        const prescripteurs = await getAllUserIncludedIdClinique(clientData.idClinique);
+        setAllPrescripteur(prescripteurs);
       }
-      setAllPrescripteur(allPrestataire);
-      console.log("allPrestataire", allPrestataire);
     };
-    // console.log("resultVbg Vbg", selectedVbg);
     fetchData();
-  }, [vbgId]);
+  }, [vbgId, idUser]);
 
   // console.log(visites);
 
   const form = useForm<Vbg>();
   const onSubmit: SubmitHandler<Vbg> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une fiche VBG. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.VBG)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

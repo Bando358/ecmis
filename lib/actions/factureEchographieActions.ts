@@ -1,11 +1,13 @@
 "use server";
 
-import { FactureEchographie } from "@prisma/client";
+import { FactureEchographie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de FactureEchographie
 export async function createFactureEchographie(data: FactureEchographie) {
+  await requirePermission(TableName.FACTURE_ECHOGRAPHIE, "canCreate");
   const result = await prisma.factureEchographie.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -32,6 +34,7 @@ export async function getAllFactureEchographie() {
 }
 // Suppression d'une FactureEchographie
 export async function deleteFactureEchographie(id: string) {
+  await requirePermission(TableName.FACTURE_ECHOGRAPHIE, "canDelete");
   const existing = await prisma.factureEchographie.findUnique({ where: { id } });
   const result = await prisma.factureEchographie.delete({ where: { id } });
   if (existing) {
@@ -53,6 +56,7 @@ export async function updateFactureEchographie(
   id: string,
   data: FactureEchographie
 ) {
+  await requirePermission(TableName.FACTURE_ECHOGRAPHIE, "canUpdate");
   const oldRecord = await prisma.factureEchographie.findUnique({ where: { id } });
   const result = await prisma.factureEchographie.update({ where: { id }, data });
   await logAction({

@@ -12,7 +12,10 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { Cpon, Permission, TableName, User, Visite } from "@prisma/client";
+import { Cpon, User, Visite } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -38,7 +41,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useClientContext } from "@/components/ClientContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -75,7 +77,6 @@ export default function CpnPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [onePrescripteur, setOnePrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   const { setSelectedClientId } = useClientContext();
@@ -84,57 +85,36 @@ export default function CpnPage({
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
+    if (!idUser) return;
+    const fetchData = async () => {
+      // Wave 1: all independent calls in parallel
+      const [user, oneCpon] = await Promise.all([
+        getOneUser(idUser),
+        getOneCpon(modifCponId),
+      ]);
+
       setIsPrescripteur(user?.prescripteur ? true : false);
       setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore charg\u00e9, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur?.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CPON,
-        );
-        setPermission(perm || null);
-
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'acc\u00e9der \u00e0 cette page.");
-        //   router.back();
-        // }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la v\u00e9rification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const oneCpon = await getOneCpon(modifCponId);
-      const oneUser = await getOneUser(oneCpon?.cponIdUser as string);
-      setPrescripteur(oneUser?.name);
       setSelectedCpon(oneCpon as Cpon);
+
       if (oneCpon) {
-        const result = await getAllVisiteByIdClient(oneCpon.cponIdClient);
+        // Wave 2: calls that depend on oneCpon, but independent of each other
+        const [oneUser, result, cliniqueClient] = await Promise.all([
+          getOneUser(oneCpon.cponIdUser as string),
+          getAllVisiteByIdClient(oneCpon.cponIdClient),
+          getOneClient(oneCpon.cponIdClient),
+        ]);
+
+        setPrescripteur(oneUser?.name);
+
         const visiteDate = result.find(
           (r: { id: string }) => r.id === oneCpon.cponIdVisite,
         );
 
-        const cliniqueClient = await getOneClient(oneCpon.cponIdClient);
+        // Wave 3: depends on cliniqueClient
         let allPrestataire: User[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
@@ -145,20 +125,18 @@ export default function CpnPage({
 
         setVisites(
           result.filter((r: { id: any }) => r.id === oneCpon.cponIdVisite),
-        ); // Use oneCpon instead of selectedCpon
+        );
         setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(oneCpon.cponIdClient); // Use oneCpon instead of selectedCpon
+        setSelectedClientId(oneCpon.cponIdClient);
       }
     };
     fetchData();
-  }, [modifCponId, setSelectedClientId]);
+  }, [modifCponId, idUser, setSelectedClientId]);
 
   const form = useForm<Cpon>();
   const onSubmit: SubmitHandler<Cpon> = async (data) => {
-    if (!permission?.canCreate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de cr\u00e9er une CPoN. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.CPON)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
 
@@ -190,10 +168,8 @@ export default function CpnPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une CPoN. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.CPON)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedCpon) {

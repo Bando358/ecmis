@@ -38,15 +38,16 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
   createPermissionBeforeChecked,
-  getUserPermissionsById,
 } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { dataPermission } from "@/lib/permissionData";
 import { Textarea } from "@/components/ui/textarea";
-import { SpinnerCustom } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import Select from "react-select";
 
@@ -60,8 +61,6 @@ export default function CreatePostForm() {
   const [idPost, setIdPost] = useState<string>("");
   const [oneUser, setOneUser] = useState<User | null>(null);
   const [positions, setPositions] = useState<number>(-1);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
 
   // États pour la pagination et la recherche
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,6 +72,7 @@ export default function CreatePostForm() {
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const postStatusOptions = [
     { value: PostStatus.AMD, label: "AMD" },
@@ -93,6 +93,7 @@ export default function CreatePostForm() {
     { value: 50, label: "50 par page" },
   ];
 
+  // === Charger l'utilisateur connecté (pour filtrage des données) ===
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -100,36 +101,6 @@ export default function CreatePostForm() {
     };
     fetUser();
   }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.POST
-        );
-
-        if (perm?.canRead || oneUser.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser]);
 
   useEffect(() => {
     // Attendre que idUser et oneUser soient disponibles
@@ -239,16 +210,8 @@ export default function CreatePostForm() {
     formState: { errors, isSubmitting },
   } = useForm<Post>();
 
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.POST)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   const handleHiddenForm = () => {
     if (!isVisible) {

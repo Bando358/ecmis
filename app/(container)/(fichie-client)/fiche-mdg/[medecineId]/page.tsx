@@ -21,7 +21,6 @@ import {
   Medecine,
   Visite,
   User,
-  Permission,
   TableName,
   Client,
 } from "@prisma/client";
@@ -58,7 +57,8 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Option = {
@@ -169,7 +169,7 @@ export default function MdgPage({
   const [prescripteur, setPrescripteur] = useState<User>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
 
@@ -178,56 +178,34 @@ export default function MdgPage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.MEDECINE
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultMedecine = await getAllMedecineByIdClient(medecineId);
-      setSelectedMedecine(resultMedecine as Medecine[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(medecineId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const client = await getOneClient(medecineId);
-      setClient(client);
-      let allPrestataire: User[] = [];
-      if (client?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(client.idClinique);
+      // Wave 1: all independent calls in parallel
+      const [user, resultMedecine, resultVisites, clientData] = await Promise.all([
+        getOneUser(idUser),
+        getAllMedecineByIdClient(medecineId),
+        getAllVisiteByIdClient(medecineId),
+        getOneClient(medecineId),
+      ]);
+
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
+      setSelectedMedecine(resultMedecine as Medecine[]);
+      setVisites(resultVisites as Visite[]);
+      setClient(clientData);
+
+      // Wave 2: depends on client
+      if (clientData?.idClinique) {
+        const prescripteurs = await getAllUserIncludedIdClinique(clientData.idClinique);
+        setAllPrescripteur(prescripteurs);
       }
-      setAllPrescripteur(allPrestataire);
 
       setSelectedClientId(medecineId);
       const tabReverse = [...tabDiagnosticOptions.reverse()];
       setSelectedDiagnostic(tabReverse);
     };
     fetchData();
-  }, [medecineId, setSelectedClientId]);
+  }, [medecineId, idUser, setSelectedClientId]);
 
   // console.log(visites);
   useEffect(() => {
@@ -248,11 +226,9 @@ export default function MdgPage({
     },
   });
   const onSubmit: SubmitHandler<Medecine> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une médecine. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.MEDECINE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const { mdgDureeObservation, ...rest } = data;
     const formattedData = {

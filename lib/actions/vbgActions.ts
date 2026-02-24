@@ -1,10 +1,12 @@
 "use server";
 
-import { Vbg } from "@prisma/client";
+import { Vbg, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Vbg
 export async function createVbg(data: Vbg) {
+  await requirePermission(TableName.VBG, "canCreate");
   return await prisma.vbg.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneVbg = async (id: string | null) => {
 
 // Suppression d'une Fiche Vbg
 export async function deleteVbg(id: string) {
+  await requirePermission(TableName.VBG, "canDelete");
   return await prisma.vbg.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteVbg(id: string) {
 
 //Mise à jour de la Fiche Vbg
 export async function updateVbg(id: string, data: Vbg) {
+  await requirePermission(TableName.VBG, "canUpdate");
   return await prisma.vbg.update({
     where: { id },
     data,

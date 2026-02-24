@@ -6,6 +6,12 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { fetchClientsDataLaboratoire } from "@/lib/actions/rapportActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { TableName } from "@prisma/client";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import {
   getAllUserIncludedTabIdClinique,
@@ -82,6 +88,8 @@ const tabListing = [
 ];
 
 export default function Page() {
+  const router = useRouter();
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
   const [clients, setClients] = useState<ClientData[]>([]);
   const [activites, setActivites] = useState<ActiviteOption[]>([]);
   const [clientData, setClientData] = useState<ClientData[]>([]);
@@ -316,6 +324,13 @@ export default function Page() {
       setSpinner(false);
     }
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.LISTING)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   return (
     <div className="flex flex-col p-6 w-full">

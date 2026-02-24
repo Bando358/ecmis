@@ -4,8 +4,11 @@ import {
   getUserPermissionsById,
   updatePermission,
 } from "@/lib/actions/permissionActions";
-import { Permission, User } from "@prisma/client";
+import { Permission, User, TableName } from "@prisma/client";
 import { use, useState, useEffect } from "react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +56,7 @@ export default function PermissionPage({
 
   const router = useRouter();
   const { data: session } = useSession();
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   // === Charger l'utilisateur admin connecté ===
   useEffect(() => {
@@ -207,6 +211,9 @@ export default function PermissionPage({
     }
     setIsPending(false);
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.PERMISSION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   if (loading) {
     return (

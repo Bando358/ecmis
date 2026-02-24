@@ -13,14 +13,9 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import {
-  Activite,
-  Lieu,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Activite, Lieu, TableName, User, Visite } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import {
   Form,
   FormControl,
@@ -32,7 +27,6 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, Loader2, Pencil } from "lucide-react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getActiveActivitesByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { getOneUser } from "@/lib/actions/authActions";
@@ -74,13 +68,13 @@ export default function FormVisiteModification({
   const [lieus, setLieus] = useState<Lieu[]>([]);
   const [oneVisite, setOneVisite] = useState<Visite>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [prescripteur, setPrescripteur] = useState<User | null>(null);
   const [loadingLieu, setLoadingLieu] = useState(false);
   const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
 
   const { data: session, status } = useSession();
   const idPrestataire = session?.user?.id || "";
@@ -130,22 +124,14 @@ export default function FormVisiteModification({
           setSelectedClientId(oneVisiteData.idClient);
 
           // Étape 2: Requêtes dépendantes en parallèle
-          const [allVisiteByClient, allActivite, permissions] =
+          const [allVisiteByClient, allActivite] =
             await Promise.all([
               getAllVisiteByIdClient(oneVisiteData.idClient),
               getActiveActivitesByIdClinique(oneVisiteData.idClinique),
-              user
-                ? getUserPermissionsById(user.id)
-                : Promise.resolve([]),
             ]);
 
           setAllVisite(allVisiteByClient);
           setActivite(allActivite);
-
-          const perm = permissions.find(
-            (p: { table: string }) => p.table === TableName.VISITE,
-          );
-          setPermission(perm || null);
 
           // Charger les lieux si une activité est déjà sélectionnée
           if (oneVisiteData.idActivite) {
@@ -297,10 +283,8 @@ export default function FormVisiteModification({
       return;
     }
 
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de modifier une visite. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.VISITE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
 

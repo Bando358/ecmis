@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import { useInactivityGuard } from "@/hooks/useInactivityGuard";
 import { ClientProvider } from "@/components/ClientContext";
 import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
+import { PermissionProvider } from "@/contexts/PermissionContext";
 
 function InactivityGuard({ children }: { children: React.ReactNode }) {
   useInactivityGuard();
@@ -17,11 +18,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <ActivityTracker />
-      <ClientProvider>
-        <ConfirmDialogProvider>
-          <InactivityGuard>{children}</InactivityGuard>
-        </ConfirmDialogProvider>
-      </ClientProvider>
+      <PermissionProvider>
+        <ClientProvider>
+          <ConfirmDialogProvider>
+            <InactivityGuard>{children}</InactivityGuard>
+          </ConfirmDialogProvider>
+        </ClientProvider>
+      </PermissionProvider>
       <InactivityDebug />
       <Toaster position="top-right" richColors />
     </SessionProvider>

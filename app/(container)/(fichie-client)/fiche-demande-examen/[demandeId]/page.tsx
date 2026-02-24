@@ -72,7 +72,6 @@ import {
   Client,
   User,
   Clinique,
-  Permission,
   TableName,
   TypeExamen,
 } from "@prisma/client";
@@ -86,11 +85,12 @@ import {
 import { useReactToPrint } from "react-to-print";
 import { useRouter } from "next/navigation";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   createRecapVisite,
   removeFormulaireFromRecap,
 } from "@/lib/actions/recapActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 const typeExamenLabels: Record<TypeExamen, string> = {
@@ -127,7 +127,6 @@ export default function PageDemandeExamen({
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [selectedPrescripteur, setSelectedPrescripteur] = useState<string>("");
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -136,68 +135,45 @@ export default function PageDemandeExamen({
   const router = useRouter();
   const idUser = session?.user.id as string;
 
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canCreate, canDelete } = usePermissionContext();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    if (prescripteur && client) {
-      const fetchPrescripteurs = async () => {
-        const prescripteursData = await getAllUserIncludedIdClinique(
-          client.cliniqueId
-        );
-        setTabPrescripteurs([...prescripteursData]);
-      };
-      fetchPrescripteurs();
-    }
-  }, [prescripteur, client]);
+    if (!idUser || !demandeId) return;
 
-  useEffect(() => {
-    if (!session?.user) return;
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.DEMANDE_EXAMEN
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error("Erreur lors de la vérification des permissions :", error);
-      }
-    };
-    fetchPermissions();
-  }, [session?.user, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [clientData, visitesData, examensData, clinique] =
+        // Wave 1: toutes les requêtes indépendantes en parallèle
+        const [user, clientData, visitesData, examensData, clinique] =
           await Promise.all([
+            getOneUser(idUser),
             getOneClient(demandeId),
             getAllVisiteByIdClient(demandeId),
             getAllExamen(),
             getAllClinique(),
           ]);
 
+        setPrescripteur(user!);
+
         if (!clientData) return;
         setClient(clientData as Client);
-        const tarifExam = await getAllTarifExamenByClinique(
-          clientData.cliniqueId
-        );
         setVisites(visitesData as Visite[]);
-        setTabTarifExamens(tarifExam as TarifExamen[]);
         setTabExamens(examensData as Examen[]);
         setTabClinique(clinique as Clinique[]);
+
+        // Wave 2: requêtes dépendantes du client en parallèle
+        const [tarifExam, prescripteursData] = await Promise.all([
+          getAllTarifExamenByClinique(clientData.cliniqueId),
+          getAllUserIncludedIdClinique(clientData.cliniqueId),
+        ]);
+        setTabTarifExamens(tarifExam as TarifExamen[]);
+        setTabPrescripteurs([...prescripteursData]);
       } catch (error) {
         console.error("Erreur lors du chargement des données :", error);
       }
     };
-    fetchData();
-  }, [demandeId]);
+    fetchAllData();
+  }, [idUser, demandeId]);
 
   useEffect(() => {
     const fetchDemandes = async () => {
@@ -237,11 +213,9 @@ export default function PageDemandeExamen({
   };
 
   const handleDeleteDemandeInBD = async (demandeId: string) => {
-    if (!permission?.canDelete && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer une demande d'examen. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canDelete(TableName.DEMANDE_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
     }
     try {
       await deleteDemandeExamen(demandeId);
@@ -261,11 +235,9 @@ export default function PageDemandeExamen({
   };
 
   const handleDemandeExamen = async () => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une demande d'examen. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.DEMANDE_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     if (demandeExamens.length === 0) {
       toast.error("Aucune demande à soumettre.");

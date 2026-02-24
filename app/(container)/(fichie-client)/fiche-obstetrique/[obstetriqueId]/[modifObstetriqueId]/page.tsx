@@ -14,14 +14,9 @@ import {
   getEtatImcByIdVisite,
 } from "@/lib/actions/obstetriqueActions";
 import { useSession } from "next-auth/react";
-import {
-  Grossesse,
-  Obstetrique,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Grossesse, Obstetrique, TableName, User, Visite } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -50,7 +45,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -106,65 +100,46 @@ export default function GynecoPage({
   const [prescripteur, setPrescripteur] = useState<string>();
   const [onePrescripteur, setOnePrescripteur] = useState<User>();
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
+    if (!idUser) return;
+    const fetchData = async () => {
+      // Wave 1: all independent calls in parallel
+      const [user, oneObstetrique] = await Promise.all([
+        getOneUser(idUser),
+        getOneObstetrique(modifObstetriqueId),
+      ]);
+
       setIsPrescripteur(user?.prescripteur ? true : false);
       setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore charg\u00e9, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.OBSTETRIQUE,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la v\u00e9rification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const oneObstetrique = await getOneObstetrique(modifObstetriqueId);
-      const oneUser = await getOneUser(oneObstetrique?.obstIdUser as string);
-      setPrescripteur(oneUser?.name);
       setSelectedObstetrique(oneObstetrique as Obstetrique);
+
       if (oneObstetrique) {
-        const result = await getAllVisiteByIdClient(
-          oneObstetrique.obstIdClient,
-        );
+        // Wave 2: calls that depend on oneObstetrique, but independent of each other
+        const [oneUser, result, resultGrossesse, cliniqueClient] = await Promise.all([
+          getOneUser(oneObstetrique.obstIdUser as string),
+          getAllVisiteByIdClient(oneObstetrique.obstIdClient),
+          getOneGrossesse(oneObstetrique.obstIdGrossesse),
+          getOneClient(oneObstetrique.obstIdClient),
+        ]);
+
+        setPrescripteur(oneUser?.name);
+        setGrossessesObjt(resultGrossesse);
+
         const visiteDate = result.find(
           (r: { id: string }) => r.id === oneObstetrique.obstIdVisite,
         );
-        const resultGrossesse = await getOneGrossesse(
-          oneObstetrique.obstIdGrossesse,
-        );
-        setGrossessesObjt(resultGrossesse);
-        const cliniqueClient = await getOneClient(oneObstetrique.obstIdClient);
+
+        // Wave 3: depends on cliniqueClient
         let allPrestataire: User[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
@@ -177,13 +152,13 @@ export default function GynecoPage({
           result.filter(
             (r: { id: string }) => r.id === oneObstetrique.obstIdVisite,
           ),
-        ); // Use oneObstetrique instead of selectedObstetrique
+        );
         setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(oneObstetrique.obstIdClient); // Use oneObstetrique instead of selectedObstetrique
+        setSelectedClientId(oneObstetrique.obstIdClient);
       }
     };
     fetchData();
-  }, [modifObstetriqueId, setSelectedClientId]);
+  }, [modifObstetriqueId, idUser, setSelectedClientId]);
 
   // Fonction pour r\u00e9cup\u00e9rer et d\u00e9finir l'\u00e9tat IMC
   const handleVisiteChange = async (idVisite: string) => {
@@ -267,10 +242,8 @@ export default function GynecoPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une CPN. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.OBSTETRIQUE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedObstetrique) {

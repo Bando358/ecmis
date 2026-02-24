@@ -12,7 +12,10 @@ import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneIst, updateIst } from "@/lib/actions/istActions";
 
 import { useSession } from "next-auth/react";
-import { Ist, Permission, TableName, User, Visite } from "@prisma/client";
+import { Ist, User, Visite } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -39,7 +42,6 @@ import { Separator } from "@/components/ui/separator";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -106,103 +108,72 @@ export default function IstPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.IST,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
       try {
-        const oneIst = await getOneIst(modifIstId);
+        // Wave 1: all independent calls in parallel
+        const [user, oneIst] = await Promise.all([
+          getOneUser(idUser),
+          getOneIst(modifIstId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setOnePrescripteur(user!);
         setSelectedIst(oneIst as Ist);
 
-        let allPrestataire: User[] = [];
-
         if (oneIst?.istIdClient) {
-          const cliniqueClient = await getOneClient(oneIst.istIdClient);
+          // Wave 2: calls that depend on oneIst, but independent of each other
+          const [nomPrescripteur, result, cliniqueClient] = await Promise.all([
+            getOneUser(oneIst.istIdUser),
+            getAllVisiteByIdClient(oneIst.istIdClient),
+            getOneClient(oneIst.istIdClient),
+          ]);
 
+          setPrescripteur(nomPrescripteur?.name);
+
+          const visiteDate = result.find(
+            (r: { id: string }) => r.id === oneIst.istIdVisite,
+          );
+
+          // Wave 3: depends on cliniqueClient
+          let allPrestataire: User[] = [];
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
               cliniqueClient.idClinique,
             );
           }
+          setAllPrescripteur(allPrestataire);
+
+          setVisites(
+            result.filter(
+              (r: { id: string }) => r.id === oneIst.istIdVisite,
+            ),
+          );
+          setDateVisite(visiteDate?.dateVisite);
+          setSelectedClientId(oneIst.istIdClient);
         }
-
-        setAllPrescripteur(allPrestataire);
-        console.log("allPrestataire ", allPrestataire);
       } catch (err) {
-        console.error("Erreur chargement prescripteurs:", err);
+        console.error("Erreur chargement données:", err);
       }
     };
 
     fetchData();
-  }, [modifIstId]); // ✅ plus propre
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedIst) {
-        const result = await getAllVisiteByIdClient(selectedIst.istIdClient);
-        const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedIst.istIdVisite,
-        );
-
-        const nomPrescripteur = await getOneUser(selectedIst.istIdUser);
-        setPrescripteur(nomPrescripteur?.name);
-
-        setVisites(
-          result.filter(
-            (r: { id: string }) => r.id === selectedIst.istIdVisite,
-          ),
-        ); // Assurez-vous que result est bien de type CliniqueData[]
-        setDateVisite(visiteDate?.dateVisite);
-        // const clientData = await getOneClient(selectedGyneco.idClient);
-        setSelectedClientId(selectedIst.istIdClient);
-      }
-    };
-    fetchData();
-  }, [selectedIst, setSelectedClientId]);
+  }, [modifIstId, idUser, setSelectedClientId]);
   // console.log(visites);
 
   const form = useForm<Ist>();
   const onSubmit: SubmitHandler<Ist> = async (data) => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une IST. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.IST)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     const formattedData = {
@@ -239,10 +210,8 @@ export default function IstPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une IST. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.IST)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedIst) {

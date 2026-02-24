@@ -28,40 +28,17 @@ import {
 import { NotebookPen, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useClientContext } from "../ClientContext";
-import { Accouchement, Permission, TableName, Visite } from "@prisma/client";
-import { useSession } from "next-auth/react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { Accouchement, TableName, Visite } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { toast } from "sonner";
 import { removeFormulaireFromRecap } from "@/lib/actions/recapActions";
 
 export function Table08({ id }: { id: string }) {
   const [dataVisite, setDataVisite] = useState<Visite[]>([]);
   const [dataAccouchement, setDataAccouchement] = useState<Accouchement[]>([]);
   const { setSelectedClientId } = useClientContext();
-  const [permission, setPermission] = useState<Permission | null>(null);
-
-  const { data: session } = useSession();
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: Permission) => p.table === TableName.ACCOUCHEMENT
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [session?.user]);
+  const { canUpdate, canDelete } = usePermissionContext();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,10 +61,8 @@ export function Table08({ id }: { id: string }) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un accouchement. Contactez un administrateur."
-      );
+    if (!canDelete(TableName.ACCOUCHEMENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     const confirmed = window.confirm(
@@ -105,11 +80,9 @@ export function Table08({ id }: { id: string }) {
   };
 
   const handleUpdateAccouchement = (e: React.MouseEvent) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
+    if (!canUpdate(TableName.ACCOUCHEMENT)) {
       e.preventDefault();
-      alert(
-        "Vous n'avez pas la permission de modifier un accouchement. Contactez un administrateur."
-      );
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
   };

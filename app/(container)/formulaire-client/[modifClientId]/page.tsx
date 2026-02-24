@@ -7,16 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
-import { Client, Permission, TableName, User } from "@prisma/client";
+import { Client, TableName, User } from "@prisma/client";
 import { getOneClient, updateClient } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOneUser } from "@/lib/actions/authActions";
 import Retour from "@/components/retour";
-import { on } from "events";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 interface CliniqueData {
   id: string;
@@ -109,12 +109,12 @@ export default function ModifFormulaireClient({
   const { modifClientId } = use(params);
   const [selectedClient, setSelectedClient] = useState<Client>();
   const [clinique, setClinique] = useState<CliniqueData[]>([]);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [onePrescripteur, setOnePrescripteur] = useState<User | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { data: session } = useSession();
+  const { canUpdate } = usePermissionContext();
   const idPrestataire = session?.user.id as string;
 
   useEffect(() => {
@@ -161,31 +161,11 @@ export default function ModifFormulaireClient({
   }, [modifClientId, idPrestataire, onePrescripteur]);
 
   useEffect(() => {
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CLIENT
-        );
-        setPermission(perm || null);
-        if (!perm?.canUpdate && onePrescripteur.role !== "ADMIN") {
-          alert(
-            "Vous n'avez pas la permission de modifier un client. Contactez un administrateur."
-          );
-          router.push("/dashboard");
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur, router]);
+    if (!canUpdate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
+      router.push("/dashboard");
+    }
+  }, [canUpdate, router]);
 
   const {
     watch,
@@ -204,10 +184,8 @@ export default function ModifFormulaireClient({
   });
 
   const onSubmit: SubmitHandler<Client> = async (data) => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un client. Contactez un administrateur."
-      );
+    if (!canUpdate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
 
@@ -248,10 +226,8 @@ export default function ModifFormulaireClient({
   };
 
   const handleUpdateClient = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un client. Contactez un administrateur."
-      );
+    if (!canUpdate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
     if (selectedClient) {

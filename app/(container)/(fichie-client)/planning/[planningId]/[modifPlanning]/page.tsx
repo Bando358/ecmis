@@ -15,7 +15,9 @@ import { getOneClient } from "@/lib/actions/clientActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOnePlanning, updatePlanning } from "@/lib/actions/planningActions";
 import { useSession } from "next-auth/react";
-import { Permission, Planning, TableName, User, Visite } from "@prisma/client";
+import { Planning, TableName, User, Visite } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -39,7 +41,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ConstanteClient from "@/components/constanteClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import Retour from "@/components/retour";
 import {
   Card,
@@ -103,47 +104,12 @@ export default function ModifPlanningPage({
   const [onePrescripteur, setOnePrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
   const { data: session } = useSession();
   const idPrestataire = session?.user.id as string;
   const router = useRouter();
-
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idPrestataire);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idPrestataire]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PLANNING,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    console.log("isPrescripteur changé : ", isPrescripteur);
-  }, [isPrescripteur]);
 
   // const [selectedOtherValue, setSelectedOtherValue] = useState<boolean>(false);
 
@@ -156,46 +122,53 @@ export default function ModifPlanningPage({
     { id: "au", value: "au", label: "AU" },
   ];
 
-  // const router = useRouter();
   useEffect(() => {
+    if (!idPrestataire) return;
     const fetchData = async () => {
-      const pf = await getOnePlanning(modifPlanning);
+      // Wave 1: all independent calls in parallel
+      const [user, pf] = await Promise.all([
+        getOneUser(idPrestataire),
+        getOnePlanning(modifPlanning),
+      ]);
+
+      setIsPrescripteur(user?.prescripteur ? true : false);
+      setOnePrescripteur(user!);
       setSelectedPlanning(pf as Planning);
 
-      const cliniqueClient = await getOneClient(pf?.idClient ?? null);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique,
-        );
-      }
-      setAllPrescripteur(allPrestataire.filter((user) => user.prescripteur));
-    };
-    fetchData();
-  }, [modifPlanning, idPrestataire]);
+      if (pf) {
+        // Wave 2: calls that depend on pf, but independent of each other
+        const [nomPrescripteur, result, cliniqueClient] = await Promise.all([
+          getOneUser(pf.idUser),
+          getAllVisiteByIdClient(pf.idClient),
+          getOneClient(pf.idClient ?? null),
+        ]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedPlanning) {
-        const result = await getAllVisiteByIdClient(selectedPlanning.idClient);
-        const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedPlanning.idVisite,
-        );
-
-        const nomPrescripteur = await getOneUser(selectedPlanning.idUser);
         setPrescripteur(nomPrescripteur?.username);
+
+        const visiteDate = result.find(
+          (r: { id: string }) => r.id === pf.idVisite,
+        );
+
+        // Wave 3: depends on cliniqueClient
+        let allPrestataire: User[] = [];
+        if (cliniqueClient?.idClinique) {
+          allPrestataire = await getAllUserIncludedIdClinique(
+            cliniqueClient.idClinique,
+          );
+        }
+        setAllPrescripteur(allPrestataire.filter((user) => user.prescripteur));
 
         setVisites(
           result.filter(
-            (r: { id: string }) => r.id === selectedPlanning.idVisite,
+            (r: { id: string }) => r.id === pf.idVisite,
           ),
-        ); // Assurez-vous que result est bien de type CliniqueData[]
+        );
         setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(selectedPlanning.idClient);
+        setSelectedClientId(pf.idClient);
       }
     };
     fetchData();
-  }, [selectedPlanning, setSelectedClientId]);
+  }, [modifPlanning, idPrestataire, setSelectedClientId]);
 
   // console.log(visites);
 
@@ -205,10 +178,8 @@ export default function ModifPlanningPage({
     },
   });
   const onSubmit: SubmitHandler<Planning> = async (data) => {
-    if (!permission?.canCreate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une fiche de planification familiale. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.PLANNING)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     // Normalize rdvPf to a JS Date (Prisma DateTime expects a Date)

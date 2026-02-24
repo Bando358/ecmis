@@ -23,6 +23,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Lieu, Activite, TableName, Clinique, User } from "@prisma/client";
 import { toast } from "sonner";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import {
   Table,
   TableHeader,
@@ -59,11 +61,10 @@ import {
   ChevronsRight,
   Eye,
   EyeClosed,
+  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { ActiviteDialog } from "@/components/ActiviteDialog";
-import { SpinnerCustom } from "@/components/ui/spinner";
 import Select from "react-select";
 
 const TableRowSkeleton = () => (
@@ -86,8 +87,6 @@ export default function ActivitePage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [idLieu, setIdLieu] = useState<string>("");
   const [oneUser, setOneUser] = useState<User | null>(null);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
   const [selectedCliniqueId, setSelectedCliniqueId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [deleteLieuId, setDeleteLieuId] = useState<string | null>(null);
@@ -102,6 +101,7 @@ export default function ActivitePage() {
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user?.id;
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const itemsPerPageOptions = [
     { value: 5, label: "5 par page" },
@@ -110,44 +110,19 @@ export default function ActivitePage() {
     { value: 50, label: "50 par page" },
   ];
 
-  // === Vérification permissions ===
+  // === Charger l'utilisateur connecté (pour filtrage des données) ===
   useEffect(() => {
     if (!idUser) return;
-
-    const checkPermissions = async () => {
-      try {
-        const user = await getOneUser(idUser);
-        if (!user) {
-          router.back();
-          return;
-        }
-        setOneUser(user);
-
-        const permissions = await getUserPermissionsById(user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.LIEU
-        );
-
-        if (perm?.canRead || user.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          toast.error("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error("Erreur lors de la vérification des permissions:", error);
-        toast.error("Erreur lors de la vérification des permissions.");
-      } finally {
-        setIsCheckingPermissions(false);
-      }
+    const fetchUser = async () => {
+      const user = await getOneUser(idUser);
+      if (user) setOneUser(user);
     };
-
-    checkPermissions();
-  }, [idUser, router]);
+    fetchUser();
+  }, [idUser]);
 
   // === Chargement des données en parallèle ===
   useEffect(() => {
-    if (!hasAccess || !oneUser) return;
+    if (!oneUser) return;
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -197,7 +172,7 @@ export default function ActivitePage() {
     };
 
     fetchData();
-  }, [hasAccess, oneUser]);
+  }, [oneUser]);
 
   // === Filtrage des lieux ===
   const filteredLieux = useMemo(() => {
@@ -447,16 +422,8 @@ export default function ActivitePage() {
   };
 
   // === Rendu ===
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom className="text-2xl text-gray-200" />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.ACTIVITE)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto p-4">

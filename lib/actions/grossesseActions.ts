@@ -1,10 +1,12 @@
 "use server";
 
-import { Grossesse } from "@prisma/client";
+import { Grossesse, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Grossesse
 export async function createGrossesse(data: Grossesse) {
+  await requirePermission(TableName.GROSSESSE, "canCreate");
   return await prisma.grossesse.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneGrossesse = async (id: string | null) => {
 
 // Suppression d'une Fiche Grossesse
 export async function deleteGrossesse(id: string) {
+  await requirePermission(TableName.GROSSESSE, "canDelete");
   return await prisma.grossesse.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteGrossesse(id: string) {
 
 //Mise à jour de la Fiche Grossesse
 export async function updateGrossesse(id: string, data: Grossesse) {
+  await requirePermission(TableName.GROSSESSE, "canUpdate");
   return await prisma.grossesse.update({
     where: { id },
     data,

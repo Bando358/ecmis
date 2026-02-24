@@ -1,14 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { TableName, User } from "@prisma/client";
+import { TableName } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { SpinnerCustom } from "@/components/ui/spinner";
-import { getOneUser } from "@/lib/actions/authActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { toast } from "sonner";
 import {
   MapPin,
   Building2,
@@ -19,6 +18,7 @@ import {
   DatabaseBackup,
   Settings2,
   ChevronRight,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,72 +34,12 @@ interface AdminItem {
 }
 
 export default function Administrator() {
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
-  const [allowedTables, setAllowedTables] = useState<Set<string>>(new Set());
-  const [oneUser, setOneUser] = useState<User | null>(null);
+  const { canRead, isLoading } = usePermissionContext();
   const { data: session } = useSession();
-  const idUser = session?.user.id as string;
   const router = useRouter();
 
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-
-        if (oneUser.role === "ADMIN") {
-          setHasAccess(true);
-          setAllowedTables(new Set(["ALL"]));
-        } else {
-          const perm = permissions.find(
-            (p: { table: string }) => p.table === TableName.ADMINISTRATION
-          );
-          if (perm?.canRead) {
-            const readable = new Set(
-              permissions
-                .filter((p: { canRead: boolean }) => p.canRead)
-                .map((p: { table: string }) => p.table)
-            );
-            setAllowedTables(readable);
-            setHasAccess(true);
-          } else {
-            alert("Vous n'avez pas la permission d'accéder à cette page.");
-            router.back();
-          }
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser]);
-
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex gap-2 justify-center items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.ADMINISTRATION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   const tabAdmin: AdminItem[] = [
     {
@@ -168,9 +108,8 @@ export default function Administrator() {
   ];
 
   const visibleCards = tabAdmin.filter((item) => {
-    if (allowedTables.has("ALL")) return true; // ADMIN voit tout
-    if (!item.permission) return false; // Sauvegarde → ADMIN uniquement
-    return allowedTables.has(item.permission);
+    if (!item.permission) return session?.user?.role === "ADMIN"; // Sauvegarde → ADMIN uniquement
+    return canRead(item.permission);
   });
 
   return (
@@ -186,12 +125,12 @@ export default function Administrator() {
             Configuration et gestion du système
           </p>
         </div>
-        {oneUser && (
+        {session?.user?.role && (
           <Badge
             variant="secondary"
             className="ml-auto bg-blue-50 text-blue-700 border-blue-200"
           >
-            {oneUser.role}
+            {session.user.role}
           </Badge>
         )}
       </div>

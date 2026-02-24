@@ -18,7 +18,6 @@ import { useSession } from "next-auth/react";
 import {
   Client,
   PecVih,
-  Permission,
   TableName,
   User,
   Visite,
@@ -46,7 +45,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getOneClient } from "@/lib/actions/clientActions";
 // 🚀 Import Framer Motion
 import { motion, AnimatePresence } from "framer-motion";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 const tabTypeClientPec = [
@@ -73,7 +73,7 @@ export default function PecVihPage({
   const [prescripteur, setPrescripteur] = useState<User>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -85,56 +85,30 @@ export default function PecVihPage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PEC_VIH
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultPecVih = await getAllPecVihByIdClient(pecVihId);
+      // Wave 1: all independent calls in parallel
+      const [user, resultPecVih, resultVisites, cliniqueClient] = await Promise.all([
+        getOneUser(idUser),
+        getAllPecVihByIdClient(pecVihId),
+        getAllVisiteByIdClient(pecVihId),
+        getOneClient(pecVihId),
+      ]);
+
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
       setSelectedPecVih(resultPecVih as PecVih[]);
-
-      const result = await getAllVisiteByIdClient(pecVihId);
-      setVisites(result as Visite[]);
-
-      const cliniqueClient = await getOneClient(pecVihId);
+      setVisites(resultVisites as Visite[]);
       setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
+
+      // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
+        const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
+        setAllPrescripteur(prescripteurs as User[]);
       }
-      setAllPrescripteur(allPrestataire as User[]);
     };
     fetchData();
-  }, [pecVihId]);
+  }, [pecVihId, idUser]);
 
   useEffect(() => {
     form.setValue("pecVihIdClient", pecVihId);
@@ -160,11 +134,9 @@ export default function PecVihPage({
   });
 
   const onSubmit: SubmitHandler<PecVih> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une PEC VIH. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.PEC_VIH)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

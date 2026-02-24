@@ -102,6 +102,18 @@ export const ERROR_MESSAGES = {
   INVALID_FORMAT: "Format invalide",
   INVALID_DATE: "Date invalide",
 
+  // Permissions
+  PERMISSION_DENIED_READ:
+    "Vous n'avez pas la permission d'accéder à cette page.",
+  PERMISSION_DENIED_CREATE:
+    "Vous n'avez pas la permission de créer cet élément.",
+  PERMISSION_DENIED_UPDATE:
+    "Vous n'avez pas la permission de modifier cet élément.",
+  PERMISSION_DENIED_DELETE:
+    "Vous n'avez pas la permission de supprimer cet élément.",
+  PERMISSION_LOADING_ERROR:
+    "Impossible de vérifier vos permissions. Veuillez rafraîchir la page.",
+
   // Général
   UNKNOWN_ERROR: "Une erreur est survenue",
   NETWORK_ERROR: "Erreur de connexion réseau",

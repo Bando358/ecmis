@@ -1,11 +1,13 @@
 "use server";
 
-import { Produit } from "@prisma/client";
+import { Produit, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de Produit
 export async function createProduit(data: Produit) {
+  await requirePermission(TableName.PRODUIT, "canCreate");
   const result = await prisma.produit.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -37,6 +39,7 @@ export async function getAllProduits() {
 }
 // Suppression d'un produit
 export async function deleteProduit(id: string) {
+  await requirePermission(TableName.PRODUIT, "canDelete");
   const existing = await prisma.produit.findUnique({ where: { id } });
   const result = await prisma.produit.delete({ where: { id } });
   if (existing) {
@@ -54,6 +57,7 @@ export async function deleteProduit(id: string) {
 
 //Mise à jour de Produit
 export async function updateProduit(id: string, data: Produit) {
+  await requirePermission(TableName.PRODUIT, "canUpdate");
   const oldRecord = await prisma.produit.findUnique({ where: { id } });
   const result = await prisma.produit.update({ where: { id }, data });
   await logAction({

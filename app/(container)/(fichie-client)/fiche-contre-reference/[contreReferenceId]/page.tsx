@@ -19,7 +19,6 @@ import {
 import {
   Client,
   ContreReference,
-  Permission,
   Reference,
   TableName,
   User,
@@ -68,8 +67,9 @@ import { Spinner } from "@/components/ui/spinner";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import { getAllReferenceByIdClient } from "@/lib/actions/referenceActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { ArrowBigLeftDash } from "lucide-react";
 
 const TabQualification = [
@@ -107,7 +107,6 @@ export default function ContreReferencePage({
   const [showForm, setShowForm] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdated, setIsUpdated] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -118,72 +117,57 @@ export default function ContreReferencePage({
   const idUser = session?.user.id as string;
   const router = useRouter();
 
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrestataire(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canCreate, canUpdate, canDelete } = usePermissionContext();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
+    if (!idUser || !contreReferenceId) return;
 
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CONTRE_REFERENCE
+        // Wave 1: toutes les requêtes indépendantes en parallèle
+        const [user, result, reference, cliniqueClient, allContreRefByClient] = await Promise.all([
+          getOneUser(idUser),
+          getAllVisiteByIdClient(contreReferenceId),
+          getAllReferenceByIdClient(contreReferenceId),
+          getOneClient(contreReferenceId),
+          getAllContreReferenceByIdClient(contreReferenceId),
+        ]);
+
+        setIsPrestataire(user?.prescripteur ? true : false);
+        setPrescripteur(user!);
+
+        const valVisite = result.filter((visite: { id: string }) =>
+          reference.some(
+            (ref: { refIdVisite: string }) => ref.refIdVisite === visite.id
+          )
         );
-        setPermission(perm || null);
+        setVisites(valVisite as Visite[]);
+
+        const valReference = reference.filter((ref: { refIdVisite: string }) =>
+          valVisite.some(
+            (visite: { id: string }) => visite.id === ref.refIdVisite
+          )
+        );
+        setAllReference(valReference as Reference[]);
+
+        setClient(cliniqueClient);
+        setTabContreReference(allContreRefByClient as ContreReference[]);
+
+        // Wave 2: requête dépendante du client
+        let allPrestataireData: User[] = [];
+        if (cliniqueClient?.idClinique) {
+          allPrestataireData = await getAllUserIncludedIdClinique(
+            cliniqueClient.idClinique
+          );
+        }
+        setAllPrestataire(allPrestataireData as User[]);
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
       }
     };
-
-    fetchPermissions();
-  }, [prescripteur, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const result = await getAllVisiteByIdClient(contreReferenceId);
-      const reference = await getAllReferenceByIdClient(contreReferenceId);
-      const valVisite = result.filter((visite: { id: string }) =>
-        reference.some(
-          (ref: { refIdVisite: string }) => ref.refIdVisite === visite.id
-        )
-      );
-      setVisites(valVisite as Visite[]);
-
-      const valReference = reference.filter((ref: { refIdVisite: string }) =>
-        valVisite.some(
-          (visite: { id: string }) => visite.id === ref.refIdVisite
-        )
-      );
-      setAllReference(valReference as Reference[]);
-
-      const cliniqueClient = await getOneClient(contreReferenceId);
-      setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
-      }
-      setAllPrestataire(allPrestataire as User[]);
-
-      const allContreRefByClient = await getAllContreReferenceByIdClient(
-        contreReferenceId
-      );
-      setTabContreReference(allContreRefByClient as ContreReference[]);
-    };
-    fetchData();
-  }, [contreReferenceId]);
+    fetchAllData();
+  }, [idUser, contreReferenceId]);
 
   const form = useForm<ContreReference>({
     defaultValues: {
@@ -268,11 +252,9 @@ export default function ContreReferencePage({
   }, [selectedVisite, getContreReferenceByIdVisite, form]);
 
   const onSubmit: SubmitHandler<ContreReference> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une contre-référence. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.CONTRE_REFERENCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       id: crypto.randomUUID(),
@@ -337,11 +319,9 @@ export default function ContreReferencePage({
   };
 
   const handleUpdate = () => {
-    if (!permission?.canUpdate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier cette contre-référence. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canUpdate(TableName.CONTRE_REFERENCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
+      return;
     }
     setShowForm(true);
     setSelectedContreReference(null);
@@ -375,11 +355,9 @@ export default function ContreReferencePage({
   const reactToPrintFn = useReactToPrint({ contentRef });
 
   const handleDeleteContreReference = async () => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer cette contre-référence. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canDelete(TableName.CONTRE_REFERENCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
     }
     if (!idContreReference) return;
     const confirmDelete = window.confirm(

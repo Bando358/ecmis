@@ -73,7 +73,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Clinique,
   Echographie,
-  Permission,
   TableName,
   TarifEchographie,
   TypeEchographie,
@@ -88,7 +87,9 @@ import {
   updateTarifEchographie,
 } from "@/lib/actions/tarifEchographieActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { Loader2 } from "lucide-react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 const typeEchographieLabels: Record<TypeEchographie, string> = {
   OBST: "Obstétrique",
@@ -115,12 +116,12 @@ export default function TarificationEchographie() {
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [selectedCliniques, setSelectedCliniques] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   // Filtrage combiné (recherche + clinique)
   const filteredTarifEchographies = useMemo(() => {
@@ -151,22 +152,6 @@ export default function TarificationEchographie() {
     };
     fetchData();
   }, []);
-
-  useEffect(() => {
-    if (!session?.user) return;
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.TARIF_ECHOGRAPHIE
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error("Erreur lors de la vérification des permissions :", error);
-      }
-    };
-    fetchPermissions();
-  }, [session?.user, router]);
 
   const nameEchographies = (idEchographie: string) => {
     return (
@@ -236,11 +221,9 @@ export default function TarificationEchographie() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un tarif. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canDelete(TableName.TARIF_ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
     }
     try {
       await deleteTarifEchographie(id);
@@ -253,10 +236,8 @@ export default function TarificationEchographie() {
   };
 
   const handleUpdateEchographie = (id: string) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un tarif. Contactez un administrateur."
-      );
+    if (!canUpdate(TableName.TARIF_ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
     const tarif = tarifEchographies.find((t) => t.id === id);
@@ -277,16 +258,17 @@ export default function TarificationEchographie() {
   };
 
   const handleOpenForm = () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission d'ajouter un tarif. Contactez un administrateur."
-      );
+    if (!canCreate(TableName.TARIF_ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     form.reset();
     setIsUpdating(false);
     setIsVisible(true);
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.TARIF_ECHOGRAPHIE)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-6xl mx-auto p-4">

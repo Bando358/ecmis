@@ -1,10 +1,12 @@
 "use server";
 
-import { TestGrossesse } from "@prisma/client";
+import { TestGrossesse, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Test de Grossesse
 export async function createTestGrossesse(data: TestGrossesse) {
+  await requirePermission(TableName.TEST_GROSSESSE, "canCreate");
   return await prisma.testGrossesse.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneTestGrossesse = async (id: string | null) => {
 
 // Suppression d'une Fiche TestGrossesse
 export async function deleteTestGrossesse(id: string) {
+  await requirePermission(TableName.TEST_GROSSESSE, "canDelete");
   return await prisma.testGrossesse.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteTestGrossesse(id: string) {
 
 //Mise à jour de la Fiche TestGrossesse
 export async function updateTestGrossesse(id: string, data: TestGrossesse) {
+  await requirePermission(TableName.TEST_GROSSESSE, "canUpdate");
   return await prisma.testGrossesse.update({
     where: { id },
     data,

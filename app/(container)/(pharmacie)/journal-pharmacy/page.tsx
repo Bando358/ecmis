@@ -1,3 +1,8 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
+import prisma from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import { TableName } from "@prisma/client";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import {
   fetchJournalEntries,
@@ -6,6 +11,16 @@ import {
 import JournalPharmacyClient from "@/components/JournalPharmacyClient";
 
 export default async function JournalPharmacyPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+  if (session.user.role !== "ADMIN") {
+    const perm = await prisma.permission.findFirst({
+      where: { userId: session.user.id, table: TableName.JOURNAL_PHARMACIE },
+      select: { canRead: true },
+    });
+    if (!perm?.canRead) redirect("/dashboard");
+  }
+
   try {
     const [cliniques, journalData, stats] = await Promise.all([
       getAllClinique(),

@@ -21,7 +21,6 @@ import {
 import {
   Client,
   Grossesse,
-  Permission,
   TableName,
   User,
   Visite,
@@ -54,7 +53,8 @@ import {
 } from "@/lib/actions/grossesseActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { ArrowBigLeftDash } from "lucide-react";
 
 const TabHta = [
@@ -75,7 +75,7 @@ export default function GrossessePage({
   const [prescripteur, setPrescripteur] = useState<User>();
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
   const [isLoading, setIsLoading] = useState(true);
 
   const { data: session } = useSession();
@@ -104,17 +104,10 @@ export default function GrossessePage({
         setClient(cliniqueClient);
 
         // Étape 2: Requêtes dépendantes en parallèle
-        const [permissions, allPrestataire] = await Promise.all([
-          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
-          cliniqueClient?.idClinique
-            ? getAllUserIncludedIdClinique(cliniqueClient.idClinique)
-            : Promise.resolve([]),
-        ]);
+        const allPrestataire = cliniqueClient?.idClinique
+          ? await getAllUserIncludedIdClinique(cliniqueClient.idClinique)
+          : [];
 
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.GROSSESSE
-        );
-        setPermission(perm || null);
         setAllPrescripteur(allPrestataire as User[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -135,11 +128,9 @@ export default function GrossessePage({
 
   const form = useForm<Grossesse>();
   const onSubmit: SubmitHandler<Grossesse> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une grossesse. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.GROSSESSE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

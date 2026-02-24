@@ -34,6 +34,10 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { TableName } from "@prisma/client";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "next-auth/react";
@@ -42,6 +46,8 @@ import { get } from "http";
 import { getOneUser } from "@/lib/actions/authActions";
 
 export default function BackupPage() {
+  const router = useRouter();
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState("safe");
   const [progress, setProgress] = useState(0);
@@ -50,7 +56,6 @@ export default function BackupPage() {
   const [task, setTask] = useState<"backup" | "restore" | null>(null);
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
-  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -275,6 +280,13 @@ export default function BackupPage() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.ADMINISTRATION)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 relative min-h-screen">

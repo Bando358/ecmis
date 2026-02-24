@@ -12,14 +12,7 @@ import { createRecapVisite } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
-import {
-  Visite,
-  ExamenPvVih,
-  TableName,
-  Permission,
-  Client,
-  User,
-} from "@prisma/client";
+import { Visite, ExamenPvVih, TableName, Client } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -44,8 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { ArrowBigLeftDash } from "lucide-react";
 
 export default function ExamenPvVihPage({
@@ -60,8 +53,8 @@ export default function ExamenPvVihPage({
   const [selectedExamenPvVih, setSelectedExamenPvVih] = useState<ExamenPvVih[]>(
     []
   );
-  const [user, setUser] = useState<User | null>(null);
-  const [permission, setPermission] = useState<Permission | null>(null);
+
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   const { data: session } = useSession();
@@ -73,49 +66,28 @@ export default function ExamenPvVihPage({
     setSelectedClientId(examenPvVihId);
   }, [examenPvVihId, setSelectedClientId]);
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setUser(user!);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!examenPvVihId) return;
 
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PEC_VIH
-        );
-        setPermission(perm || null);
+        const [resultExamenPvVih, resultVisites, clientData] = await Promise.all([
+          getAllExamenPvVihByIdClient(examenPvVihId),
+          getAllVisiteByIdClient(examenPvVihId),
+          getOneClient(examenPvVihId),
+        ]);
+
+        setSelectedExamenPvVih(resultExamenPvVih as ExamenPvVih[]);
+        setVisites(resultVisites as Visite[]);
+        if (clientData) {
+          setClient(clientData);
+        }
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
       }
     };
-
-    fetchPermissions();
-  }, [user, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const resultExamenPvVih = await getAllExamenPvVihByIdClient(
-        examenPvVihId
-      );
-      setSelectedExamenPvVih(resultExamenPvVih as ExamenPvVih[]);
-      const result = await getAllVisiteByIdClient(examenPvVihId);
-      setVisites(result as Visite[]);
-      const clientData = await getOneClient(examenPvVihId);
-      if (clientData) {
-        setClient(clientData);
-      }
-    };
-    fetchData();
+    fetchAllData();
   }, [examenPvVihId]);
 
   const form = useForm<ExamenPvVih>({
@@ -143,11 +115,9 @@ export default function ExamenPvVihPage({
   });
 
   const onSubmit: SubmitHandler<ExamenPvVih> = async (data) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un examen PV VIH. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.PEC_VIH)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
 
     const formattedData = {

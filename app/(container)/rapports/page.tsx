@@ -25,6 +25,11 @@ import {
   Activity,
   Loader2,
 } from "lucide-react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { TableName } from "@prisma/client";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 import {
   ClientStatusInfo,
@@ -133,6 +138,8 @@ const tabRapport = [
 ];
 
 const AnalyseReportPlanning = () => {
+  const router = useRouter();
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
   const [clients, setClients] = useState<ClientData[]>([]);
   const [clientData, setClientData] = useState<ClientData[]>([]);
   const [clientLaboData, setClientLaboData] = useState<
@@ -440,6 +447,13 @@ const AnalyseReportPlanning = () => {
     { min: 25, max: 49 },
     { min: 50, max: 120 },
   ];
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.RAPPORT)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   if (status === "loading" || cliniques.length === 0) {
     return (

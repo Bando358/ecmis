@@ -11,14 +11,9 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import {
-  Client,
-  PecVih,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Client, PecVih, TableName, User, Visite } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -42,7 +37,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -85,98 +79,67 @@ export default function ModifPecVihPage({
   const [onePrescripteur, setOnePrescripteur] = useState<User>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PEC_VIH,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
       try {
-        const onePecVih = await getOnePecVih(modifpecVihId);
+        // Wave 1: all independent calls in parallel
+        const [user, onePecVih] = await Promise.all([
+          getOneUser(idUser),
+          getOnePecVih(modifpecVihId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setOnePrescripteur(user!);
         setSelectedPecVih(onePecVih as PecVih);
 
-        let allPrestataire: User[] = [];
-
         if (onePecVih?.pecVihIdClient) {
-          const cliniqueClient = await getOneClient(onePecVih.pecVihIdClient);
+          // Wave 2: calls that depend on onePecVih, but independent of each other
+          const [nomPrescripteur, result, cliniqueClient] = await Promise.all([
+            getOneUser(onePecVih.pecVihIdUser),
+            getAllVisiteByIdClient(onePecVih.pecVihIdClient),
+            getOneClient(onePecVih.pecVihIdClient),
+          ]);
+
+          setPrescripteur(nomPrescripteur?.name);
           setClient(cliniqueClient);
 
+          const visiteDate = result.find(
+            (r: { id: string }) => r.id === onePecVih.pecVihIdVisite,
+          );
+
+          // Wave 3: depends on cliniqueClient
+          let allPrestataire: User[] = [];
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
               cliniqueClient.idClinique,
             );
           }
+          setAllPrescripteur(allPrestataire);
+
+          setVisites(
+            result.filter(
+              (r: { id: string }) => r.id === onePecVih.pecVihIdVisite,
+            ),
+          );
+          setDateVisite(visiteDate?.dateVisite);
+          setSelectedClientId(onePecVih.pecVihIdClient);
         }
-
-        setAllPrescripteur(allPrestataire);
       } catch (err) {
-        console.error("Erreur chargement prescripteurs:", err);
+        console.error("Erreur chargement données:", err);
       }
     };
 
     fetchData();
-  }, [modifpecVihId]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedPecVih) {
-        const result = await getAllVisiteByIdClient(
-          selectedPecVih.pecVihIdClient,
-        );
-        const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite,
-        );
-
-        const nomPrescripteur = await getOneUser(selectedPecVih.pecVihIdUser);
-        const nomP = nomPrescripteur?.name;
-        setPrescripteur(nomP);
-
-        setVisites(
-          result.filter(
-            (r: { id: string }) => r.id === selectedPecVih.pecVihIdVisite,
-          ),
-        );
-        setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(selectedPecVih.pecVihIdClient);
-      }
-    };
-    fetchData();
-  }, [selectedPecVih, setSelectedClientId]);
+  }, [modifpecVihId, idUser, setSelectedClientId]);
 
   const form = useForm<PecVih>();
 
@@ -226,10 +189,8 @@ export default function ModifPecVihPage({
   };
 
   const handleUpdatePecVih = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une PEC VIH. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.PEC_VIH)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedPecVih) {

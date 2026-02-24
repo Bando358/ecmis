@@ -1,10 +1,12 @@
 "use server";
 
-import { Saa } from "@prisma/client";
+import { Saa, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Saa
 export async function createSaa(data: Saa) {
+  await requirePermission(TableName.SAA, "canCreate");
   return await prisma.saa.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneSaa = async (id: string | null) => {
 
 // Suppression d'une Fiche Saa
 export async function deleteSaa(id: string) {
+  await requirePermission(TableName.SAA, "canDelete");
   return await prisma.saa.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteSaa(id: string) {
 
 //Mise à jour de la Fiche Saa
 export async function updateSaa(id: string, data: Saa) {
+  await requirePermission(TableName.SAA, "canUpdate");
   return await prisma.saa.update({
     where: { id },
     data,

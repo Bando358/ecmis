@@ -10,14 +10,14 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input"; // Import de l'input
-import { Permission, Produit, TableName } from "@prisma/client";
+import { Produit, TableName } from "@prisma/client";
 import {
   createProduit,
   deleteProduit,
   getAllProduits,
   updateProduit,
 } from "@/lib/actions/produitActions";
-import { Trash2, Search } from "lucide-react";
+import { Trash2, Search, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,15 +30,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import ProduitDialog from "@/components/produitDialog";
-import { useSession } from "next-auth/react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { useRouter } from "next/navigation";
 
 export default function ProduitPage() {
   const [listeProduits, setListeProduits] = useState<Produit[]>([]);
   const [produitsFiltres, setProduitsFiltres] = useState<Produit[]>([]);
   const [recherche, setRecherche] = useState<string>("");
-  const [permission, setPermission] = useState<Permission | null>(null);
-  const { data: session } = useSession();
+  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
+  const router = useRouter();
 
   // Chargement initial des produits
   useEffect(() => {
@@ -63,85 +64,51 @@ export default function ProduitPage() {
     }
   }, [recherche, listeProduits]);
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PRODUIT
-        );
-        setPermission(perm || null);
-
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'accéder à cette page.");
-        //   router.back();
-        // }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [session?.user]);
-
   const handleCreateProduit = async (data: Produit) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un produit. Contactez un administrateur."
-      );
+    if (!canCreate(TableName.PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
-    } else {
-      try {
-        await createProduit(data);
-        const updatedList = await getAllProduits();
-        setListeProduits(updatedList);
-      } catch (error) {
-        throw error;
-      }
+    }
+    try {
+      await createProduit(data);
+      const updatedList = await getAllProduits();
+      setListeProduits(updatedList);
+    } catch (error) {
+      throw error;
     }
   };
 
   const handleUpdateProduit = async (data: Produit) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un produit. Contactez un administrateur."
-      );
+    if (!canUpdate(TableName.PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
-    } else {
-      try {
-        await updateProduit(data.id, data);
-        const updatedList = await getAllProduits();
-        setListeProduits(updatedList);
-      } catch (error) {
-        throw error;
-      }
+    }
+    try {
+      await updateProduit(data.id, data);
+      const updatedList = await getAllProduits();
+      setListeProduits(updatedList);
+    } catch (error) {
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un  produit. Contactez un administrateur."
-      );
+    if (!canDelete(TableName.PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
-    } else {
-      try {
-        await deleteProduit(id);
-        setListeProduits((prev) => prev.filter((p) => p.id !== id));
-        toast.success("Produit supprimé avec succès! 🎉");
-      } catch (error) {
-        toast.error("Erreur lors de la suppression du produit.");
-        console.error(error);
-      }
+    }
+    try {
+      await deleteProduit(id);
+      setListeProduits((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Produit supprimé avec succès!");
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du produit.");
+      console.error(error);
     }
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.PRODUIT)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-225 p-4 flex flex-col mx-auto">

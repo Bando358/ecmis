@@ -1,7 +1,8 @@
 "use server";
 //lib/actions/activiteActions.ts
-import { Activite } from "@prisma/client";
+import { Activite, TableName } from "@prisma/client";
 import prisma from "../prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // ************* Activité by tableau id Clinique **************
 
@@ -29,6 +30,7 @@ export const getAllActiviteByTabIdClinique = async (idClinique: string[]) => {
 };
 // Création d'une activité
 export async function createActivite(data: Activite) {
+  await requirePermission(TableName.ACTIVITE, "canCreate");
   return await prisma.activite.create({
     data,
   });
@@ -48,6 +50,7 @@ export const getOneActivite = async (id: string | null) => {
 
 //Mise à jour de l'activité
 export async function updateActivite(id: string, data: Activite) {
+  await requirePermission(TableName.ACTIVITE, "canUpdate");
   return await prisma.activite.update({
     where: { id },
     data,
@@ -56,6 +59,7 @@ export async function updateActivite(id: string, data: Activite) {
 
 // Suppression d'une activité
 export async function deleteActivite(id: string) {
+  await requirePermission(TableName.ACTIVITE, "canDelete");
   // Vérifier s'il y a des lieux liés
   const lieuxCount = await prisma.lieu.count({ where: { idActivite: id } });
   if (lieuxCount > 0) {

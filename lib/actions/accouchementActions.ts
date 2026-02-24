@@ -1,10 +1,12 @@
 "use server";
 
-import { Accouchement } from "@prisma/client";
+import { Accouchement, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Accouchement
 export async function createAccouchement(data: Accouchement) {
+  await requirePermission(TableName.ACCOUCHEMENT, "canCreate");
   return await prisma.accouchement.create({
     data,
   });
@@ -72,6 +74,7 @@ export const getOneAccouchement = async (id: string | null) => {
 
 // Suppression d'une Fiche Accouchement
 export async function deleteAccouchement(id: string) {
+  await requirePermission(TableName.ACCOUCHEMENT, "canDelete");
   return await prisma.accouchement.delete({
     where: { id },
   });
@@ -79,6 +82,7 @@ export async function deleteAccouchement(id: string) {
 
 //Mise à jour de la Fiche Accouchement
 export async function updateAccouchement(id: string, data: Accouchement) {
+  await requirePermission(TableName.ACCOUCHEMENT, "canUpdate");
   return await prisma.accouchement.update({
     where: { id },
     data,

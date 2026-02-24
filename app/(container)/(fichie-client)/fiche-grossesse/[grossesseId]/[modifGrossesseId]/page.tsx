@@ -12,7 +12,10 @@ import {
   getOneGrossesse,
 } from "@/lib/actions/grossesseActions";
 import { useSession } from "next-auth/react";
-import { Grossesse, Permission, TableName, User, Visite } from "@prisma/client";
+import { Grossesse, User, Visite } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -39,7 +42,6 @@ import { useClientContext } from "@/components/ClientContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import Retour from "@/components/retour";
 import {
   Card,
@@ -77,60 +79,39 @@ export default function GynecoPage({
   const [onePrescripteur, setOnePrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
+    if (!idUser) return;
+    const fetchData = async () => {
+      // Wave 1: all independent calls in parallel
+      const [user, oneGrossesse] = await Promise.all([
+        getOneUser(idUser),
+        getOneGrossesse(modifGrossesseId),
+      ]);
+
       setIsPrescripteur(user?.prescripteur ? true : false);
       setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.GROSSESSE,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const oneGrossesse = await getOneGrossesse(modifGrossesseId);
       setSelectedGrossesse(oneGrossesse as Grossesse);
+
       if (oneGrossesse) {
-        const result = await getAllVisiteByIdClient(
-          oneGrossesse.grossesseIdClient,
-        );
+        // Wave 2: calls that depend on oneGrossesse, but independent of each other
+        const [result, cliniqueClient] = await Promise.all([
+          getAllVisiteByIdClient(oneGrossesse.grossesseIdClient),
+          getOneClient(oneGrossesse.grossesseIdClient),
+        ]);
+
         const visiteDate = result.find(
           (r: { id: string }) => r.id === oneGrossesse.grossesseIdVisite,
         );
 
-        const cliniqueClient = await getOneClient(
-          oneGrossesse.grossesseIdClient,
-        );
+        // Wave 3: depends on cliniqueClient
         let allPrestataire: User[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
@@ -143,13 +124,13 @@ export default function GynecoPage({
           result.filter(
             (r: { id: string }) => r.id === oneGrossesse.grossesseIdVisite,
           ),
-        ); // Use oneGrossesse instead of selectedGrossesse
+        );
         setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(oneGrossesse.grossesseIdClient); // Use oneGrossesse instead of selectedGrossesse
+        setSelectedClientId(oneGrossesse.grossesseIdClient);
       }
     };
     fetchData();
-  }, [modifGrossesseId, setSelectedClientId]);
+  }, [modifGrossesseId, idUser, setSelectedClientId]);
 
   const form = useForm<Grossesse>();
   const onSubmit: SubmitHandler<Grossesse> = async (data) => {
@@ -192,10 +173,8 @@ export default function GynecoPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une grossesse. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.GROSSESSE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedGrossesse) {

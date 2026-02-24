@@ -1,10 +1,12 @@
 "use server";
 
-import { Prestation } from "@prisma/client";
+import { Prestation, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de Prestation
 export async function createPrestation(data: Prestation) {
+  await requirePermission(TableName.PRESTATION, "canCreate");
   return await prisma.prestation.create({
     data,
   });
@@ -16,6 +18,7 @@ export async function getAllPrestation() {
 }
 // Suppression d'un client
 export async function deletePrestation(id: string) {
+  await requirePermission(TableName.PRESTATION, "canDelete");
   return await prisma.prestation.delete({
     where: { id },
   });
@@ -23,6 +26,7 @@ export async function deletePrestation(id: string) {
 
 //Mise à jour de prestation
 export async function updatePrestation(id: string, data: Prestation) {
+  await requirePermission(TableName.PRESTATION, "canUpdate");
   return await prisma.prestation.update({
     where: { id },
     data,

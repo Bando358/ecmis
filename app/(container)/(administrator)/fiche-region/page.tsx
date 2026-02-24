@@ -11,7 +11,7 @@ import {
   getOneRegion,
   updateRegion,
 } from "@/lib/actions/regionActions";
-import { Region, TableName, User } from "@prisma/client";
+import { Region, TableName } from "@prisma/client";
 import {
   Table,
   TableHeader,
@@ -25,11 +25,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Eye, EyeClosed, Pencil, ArrowBigLeftDash } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { SpinnerCustom } from "@/components/ui/spinner";
-import { getOneUser } from "@/lib/actions/authActions";
+import { Eye, EyeClosed, Pencil, ArrowBigLeftDash, Loader2 } from "lucide-react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 export default function CreateRegionForm() {
   const [regions, setRegions] = useState<Region[]>([]);
@@ -37,21 +35,8 @@ export default function CreateRegionForm() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [idRegion, setIdRegion] = useState<string>("");
   const [positions, setPositions] = useState<number>(-1);
-  const [oneUser, setOneUser] = useState<User | null>(null);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
   const route = useRouter();
-  const { data: session } = useSession();
-  const idUser = session?.user.id as string;
-
-  // === Charger l'utilisateur admin connecté ===
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canRead, isLoading } = usePermissionContext();
 
   const {
     register,
@@ -62,36 +47,6 @@ export default function CreateRegionForm() {
   } = useForm<Region>();
 
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.REGION
-        );
-
-        if (perm?.canRead || oneUser.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          route.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser]);
-
-  useEffect(() => {
     const fetchData = async () => {
       const allRegions = await getAllRegion();
       setRegions(allRegions);
@@ -99,16 +54,8 @@ export default function CreateRegionForm() {
     fetchData();
   }, []);
 
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.REGION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); route.back(); return null; }
 
   const handleHiddenForm = () => {
     if (!isVisible) {

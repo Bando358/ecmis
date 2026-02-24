@@ -1,11 +1,13 @@
 "use server";
 
 // Type d'entrée sans la relation Visite
-import { ContreReference } from "@prisma/client";
+import { ContreReference, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche ContreRéférence
 export const createContreReference = async (data: ContreReference) => {
+  await requirePermission(TableName.CONTRE_REFERENCE, "canCreate");
   return await prisma.contreReference.create({
     data,
   });
@@ -44,6 +46,7 @@ export const getOneContreReference = async (id: string | null) => {
 
 // Suppression d'une Fiche ContreRéférence
 export async function deleteContreReference(id: string) {
+  await requirePermission(TableName.CONTRE_REFERENCE, "canDelete");
   return await prisma.contreReference.delete({
     where: { id },
   });
@@ -51,6 +54,7 @@ export async function deleteContreReference(id: string) {
 
 //Mise à jour de la Fiche ContreRéférence
 export async function updateContreReference(id: string, data: ContreReference) {
+  await requirePermission(TableName.CONTRE_REFERENCE, "canUpdate");
   return await prisma.contreReference.update({
     where: { id },
     data,

@@ -1,10 +1,12 @@
 "use server";
 
-import { Obstetrique } from "@prisma/client";
+import { Obstetrique, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Obstétricale
 export async function createObstetrique(data: Obstetrique) {
+  await requirePermission(TableName.OBSTETRIQUE, "canCreate");
   return await prisma.obstetrique.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneObstetrique = async (id: string | null) => {
 
 // Suppression d'une Fiche Obstétricale
 export async function deleteObstetrique(id: string) {
+  await requirePermission(TableName.OBSTETRIQUE, "canDelete");
   return await prisma.obstetrique.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteObstetrique(id: string) {
 
 //Mise à jour de la Fiche Obstétricale
 export async function updateObstetrique(id: string, data: Obstetrique) {
+  await requirePermission(TableName.OBSTETRIQUE, "canUpdate");
   return await prisma.obstetrique.update({
     where: { id },
     data,

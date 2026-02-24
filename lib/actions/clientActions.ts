@@ -1,9 +1,10 @@
 "use server";
 
-import { Client, Prisma } from "@prisma/client";
+import { Client, Prisma, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { PAGINATION, ERROR_MESSAGES } from "@/lib/constants";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Types pour la pagination
 export interface PaginatedResult<T> {
@@ -25,6 +26,7 @@ export interface ClientFilterParams {
 
 // Création d'une client
 export async function createClient(data: Client) {
+  await requirePermission(TableName.CLIENT, "canCreate");
   const client = await prisma.client.create({
     data,
   });
@@ -206,6 +208,7 @@ export const getOneClient = async (id: string | null) => {
 
 // Suppression d'un client
 export async function deleteClient(id: string) {
+  await requirePermission(TableName.CLIENT, "canDelete");
   return await prisma.client.delete({
     where: { id },
   });
@@ -213,6 +216,7 @@ export async function deleteClient(id: string) {
 
 //Mise à jour de la Client
 export async function updateClient(id: string, data: Client) {
+  await requirePermission(TableName.CLIENT, "canUpdate");
   return await prisma.client.update({
     where: { id },
     data,

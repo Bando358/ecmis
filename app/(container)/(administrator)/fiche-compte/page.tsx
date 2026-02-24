@@ -50,7 +50,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import {
   Clinique,
-  Permission,
   TableName,
   User,
   UserRole,
@@ -68,13 +67,13 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Loader2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SpinnerCustom } from "@/components/ui/spinner";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { on } from "events";
 
 const signUpSchema = z.object({
   name: z.string().min(5, {
@@ -118,11 +117,8 @@ export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [idUserUpdate, setIdUserUpdate] = useState<string>("");
   const [positions, setPositions] = useState<number>(-1);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
 
   // États pour la pagination et la recherche
   const [searchTerm, setSearchTerm] = useState("");
@@ -142,12 +138,14 @@ export default function RegisterForm() {
   ];
 
   const router = useRouter();
+  const { canRead, canDelete, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   console.log("idUser : ", idUser);
   const userRole = session?.user.role as string;
 
+  // === Charger l'utilisateur connecté (pour filtrage des données) ===
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -155,36 +153,6 @@ export default function RegisterForm() {
     };
     fetUser();
   }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.USER
-        );
-        setPermission(perm || null);
-        if (perm?.canRead || oneUser.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser, router]);
 
   useEffect(() => {
     // Attendre que oneUser soit chargé
@@ -326,16 +294,8 @@ export default function RegisterForm() {
     setCurrentPage(1); // Retour à la première page lors du changement
   };
 
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex gap-2 justify-center items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.USER)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   const nomCliniques = (idClinique: string[]) => {
     if (cliniques.length > 0) {
@@ -458,8 +418,8 @@ export default function RegisterForm() {
   }));
 
   const toggleCompteUser = async (id: string) => {
-    if (permission?.canDelete) {
-      alert("Vous n'avez pas la permission de bannir ce compte.");
+    if (!canDelete(TableName.USER)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     // Logique pour activer/désactiver le compte utilisateur

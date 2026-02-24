@@ -1,10 +1,12 @@
 "use server";
 
-import { Visite } from "@prisma/client";
+import { Visite, TableName } from "@prisma/client";
 import prisma from "../prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Visite
 export async function createVisite(data: Visite) {
+  await requirePermission(TableName.VISITE, "canCreate");
   return await prisma.visite.create({
     data,
   });
@@ -17,6 +19,7 @@ export async function checkClientVisiteOnDate(
   idUser: string,
   idClinique: string // Ajouter ce paramètre obligatoire
 ) {
+  await requirePermission(TableName.VISITE, "canCreate");
   const startOfDay = new Date(dateVisite);
   startOfDay.setHours(0, 0, 0, 0);
 
@@ -78,6 +81,7 @@ export const getOneVisite = async (id: string | null) => {
 
 // Suppression d'un Visite
 export async function deleteVisite(id: string) {
+  await requirePermission(TableName.VISITE, "canDelete");
   return await prisma.visite.delete({
     where: { id },
   });
@@ -85,6 +89,7 @@ export async function deleteVisite(id: string) {
 
 //Mise à jour de la Visite
 export async function updateVisite(id: string, data: Partial<Visite>) {
+  await requirePermission(TableName.VISITE, "canUpdate");
   return await prisma.visite.update({
     where: { id },
     data: {

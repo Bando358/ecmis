@@ -1,11 +1,13 @@
 "use server";
 
-import { FactureExamen } from "@prisma/client";
+import { FactureExamen, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de FactureExamen
 export async function createFactureExamen(data: FactureExamen) {
+  await requirePermission(TableName.FACTURE_EXAMEN, "canCreate");
   const result = await prisma.factureExamen.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -32,6 +34,7 @@ export async function getAllFactureExamen() {
 }
 // Suppression d'une FactureExamen
 export async function deleteFactureExamen(id: string) {
+  await requirePermission(TableName.FACTURE_EXAMEN, "canDelete");
   const existing = await prisma.factureExamen.findUnique({ where: { id } });
   const result = await prisma.factureExamen.delete({ where: { id } });
   if (existing) {
@@ -50,6 +53,7 @@ export async function deleteFactureExamen(id: string) {
 
 //Mise à jour de FactureExamen
 export async function updateFactureExamen(id: string, data: FactureExamen) {
+  await requirePermission(TableName.FACTURE_EXAMEN, "canUpdate");
   const oldRecord = await prisma.factureExamen.findUnique({ where: { id } });
   const result = await prisma.factureExamen.update({ where: { id }, data });
   await logAction({

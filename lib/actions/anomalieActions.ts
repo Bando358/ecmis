@@ -1,11 +1,13 @@
 "use server";
 
-import { AnomalieInventaire } from "@prisma/client";
+import { AnomalieInventaire, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // ************ Inventaire **********
 export async function createAnomalie(data: AnomalieInventaire) {
+  await requirePermission(TableName.ANOMALIE_INVENTAIRE, "canCreate");
   const result = await prisma.anomalieInventaire.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -29,6 +31,7 @@ export async function getAnomaliesByDetailInventaireIds(detailIds: string[]) {
 
 // Suppression d'une anomalie
 export async function deleteAnomaliesByIds(ids: string[]) {
+  await requirePermission(TableName.ANOMALIE_INVENTAIRE, "canDelete");
   return await prisma.anomalieInventaire.deleteMany({
     where: { id: { in: ids } },
   });

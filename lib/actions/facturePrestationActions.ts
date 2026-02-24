@@ -1,11 +1,13 @@
 "use server";
 
-import { FacturePrestation } from "@prisma/client";
+import { FacturePrestation, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de FacturePrestation
 export async function createFacturePrestation(data: FacturePrestation) {
+  await requirePermission(TableName.FACTURE_PRESTATION, "canCreate");
   const result = await prisma.facturePrestation.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -44,6 +46,7 @@ export async function getAllFacturePrestation() {
 }
 // Suppression d'une FacturePrestation
 export async function deleteFacturePrestation(id: string) {
+  await requirePermission(TableName.FACTURE_PRESTATION, "canDelete");
   const existing = await prisma.facturePrestation.findUnique({ where: { id } });
   const result = await prisma.facturePrestation.delete({ where: { id } });
   if (existing) {
@@ -65,6 +68,7 @@ export async function updateFacturePrestation(
   id: string,
   data: FacturePrestation
 ) {
+  await requirePermission(TableName.FACTURE_PRESTATION, "canUpdate");
   const oldRecord = await prisma.facturePrestation.findUnique({ where: { id } });
   const result = await prisma.facturePrestation.update({ where: { id }, data });
   await logAction({

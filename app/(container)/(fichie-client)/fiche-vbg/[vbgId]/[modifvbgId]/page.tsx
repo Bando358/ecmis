@@ -14,7 +14,10 @@ import {
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 
 import { useSession } from "next-auth/react";
-import { Permission, TableName, User, Vbg, Visite } from "@prisma/client";
+import { User, Vbg, Visite } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -45,7 +48,6 @@ import {
 } from "@/lib/actions/vbgActions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { Loader2, Pencil } from "lucide-react";
 import {
   Card,
@@ -92,7 +94,6 @@ export default function IstPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
   // setSelectedClientId(params.infertiliteId);
@@ -100,100 +101,70 @@ export default function IstPage({
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.VBG,
-        );
-        setPermission(perm || null);
-        if (onePrescripteur.role !== "ADMIN") {
-          const allPrescripteur = await getAllUserIncludedTabIdClinique(
-            onePrescripteur.idCliniques,
-          );
-          setAllPrescripteur(allPrescripteur as User[]);
-        } else {
-          const allPrescripteur = await getAllUser();
-          setAllPrescripteur(allPrescripteur as User[]);
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
       try {
-        const resultVbg = await getAllVbgByIdClient(modifvbgId);
-        setSelectedVbg(resultVbg as Vbg[]); // Assurez-vous que result est bien de type CliniqueData[]
-        const oneVbg = await getOneVbg(modifvbgId);
+        // Wave 1: all independent calls in parallel
+        const [user, resultVbg, oneVbg] = await Promise.all([
+          getOneUser(idUser),
+          getAllVbgByIdClient(modifvbgId),
+          getOneVbg(modifvbgId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setOnePrescripteur(user!);
+        setSelectedVbg(resultVbg as Vbg[]);
         setSelectedOneVbg(oneVbg as Vbg);
 
-        let allPrestataire: User[] = [];
-
         if (oneVbg?.vbgIdClient) {
-          const cliniqueClient = await getOneClient(oneVbg.vbgIdClient);
+          // Wave 2: calls that depend on oneVbg, but independent of each other
+          const [nomPrescripteur, result, cliniqueClient] = await Promise.all([
+            getOneUser(oneVbg.vbgIdUser),
+            getAllVisiteByIdClient(oneVbg.vbgIdClient),
+            getOneClient(oneVbg.vbgIdClient),
+          ]);
 
-          if (cliniqueClient?.idClinique) {
+          setPrescripteur(nomPrescripteur?.name);
+
+          const visiteDate = result.find(
+            (r: { id: string }) => r.id === oneVbg.vbgIdVisite,
+          );
+
+          // Wave 3: depends on user role and cliniqueClient
+          let allPrestataire: User[] = [];
+          if (user?.role !== "ADMIN") {
+            allPrestataire = await getAllUserIncludedTabIdClinique(
+              user!.idCliniques,
+            ) as User[];
+          } else {
+            allPrestataire = await getAllUser() as User[];
+          }
+          // Also load from cliniqueClient as fallback
+          if (cliniqueClient?.idClinique && allPrestataire.length === 0) {
             allPrestataire = await getAllUserIncludedIdClinique(
               cliniqueClient.idClinique,
             );
           }
+          setAllPrescripteur(allPrestataire);
+
+          setVisites(
+            result.filter(
+              (r: { id: string }) => r.id === oneVbg.vbgIdVisite,
+            ),
+          );
+          setDateVisite(visiteDate?.dateVisite);
+          setSelectedClientId(oneVbg.vbgIdClient);
         }
-
-        setAllPrescripteur(allPrestataire);
-        console.log("allPrestataire ", allPrestataire);
       } catch (err) {
-        console.error("Erreur chargement prescripteurs:", err);
+        console.error("Erreur chargement données:", err);
       }
     };
 
     fetchData();
-  }, [modifvbgId]); // ✅ plus propre
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedOneVbg) {
-        const result = await getAllVisiteByIdClient(selectedOneVbg.vbgIdClient);
-        const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedOneVbg.vbgIdVisite,
-        );
-
-        const nomPrescripteur = await getOneUser(selectedOneVbg.vbgIdUser);
-        setPrescripteur(nomPrescripteur?.name);
-
-        setVisites(
-          result.filter(
-            (r: { id: string }) => r.id === selectedOneVbg.vbgIdVisite,
-          ),
-        ); // Assurez-vous que result est bien de type CliniqueData[]
-        setDateVisite(visiteDate?.dateVisite);
-        // const clientData = await getOneClient(selectedGyneco.idClient);
-        setSelectedClientId(selectedOneVbg.vbgIdClient);
-      }
-    };
-    fetchData();
-  }, [selectedOneVbg, setSelectedClientId]);
+  }, [modifvbgId, idUser, setSelectedClientId]);
   // console.log(visites);
 
   const form = useForm<Vbg>();
@@ -243,10 +214,8 @@ export default function IstPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canCreate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une fiche VBG. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.VBG)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedOneVbg) {

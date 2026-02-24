@@ -24,7 +24,6 @@ import {
   Produit,
   Clinique,
   Inventaire,
-  Permission,
   TableName,
   DetailInventaire,
   AnomalieInventaire,
@@ -48,8 +47,9 @@ import {
   createDetailInventaire,
   getAllDetailInventaireByTabIdDetailInventaire,
 } from "@/lib/actions/detailInventaireActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { Search, Printer, Download } from "lucide-react";
+import { Search, Printer, Download, Loader2 } from "lucide-react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { AnomalieInventaireDialog } from "@/components/anomalieInventaireDialog";
 import { createAnomalie } from "@/lib/actions/anomalieActions";
 import { SpinnerCustom } from "@/components/ui/spinner";
@@ -83,20 +83,12 @@ export default function DetailInventairePage() {
   const [anomalies, setAnomalies] = useState<AnomalieInventaire[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
   const [validatingProducts, setValidatingProducts] = useState<{
     [key: string]: boolean;
   }>({});
   const [adjustingProducts, setAdjustingProducts] = useState<{
     [key: string]: boolean;
   }>({});
-  const [permissionInventaire, setPermissionInventaire] =
-    useState<Permission | null>(null);
-  const [permissionAjustement, setPermissionAjustement] =
-    useState<Permission | null>(null);
-  const [permissionDetailInventaire, setPermissionDetailInventaire] =
-    useState<Permission | null>(null);
   const [recherche, setRecherche] = useState<string>("");
   const [prescripteur, setPrescripteur] = useState<User>();
   const [selectedClinique, setSelectedClinique] = useState<string>("");
@@ -107,6 +99,7 @@ export default function DetailInventairePage() {
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
   const router = useRouter();
+  const { canCreate, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -246,54 +239,11 @@ export default function DetailInventairePage() {
     selectedClinique,
   ]);
 
-  useEffect(() => {
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const permInventaire = permissions.find(
-          (p: { table: string }) => p.table === TableName.INVENTAIRE
-        );
-        setPermissionInventaire(permInventaire || null);
-
-        const permDetail = permissions.find(
-          (p: { table: string }) => p.table === TableName.DETAIL_INVENTAIRE
-        );
-        setPermissionDetailInventaire(permDetail || null);
-
-        const permAjustement = permissions.find(
-          (p: { table: string }) => p.table === TableName.AJUSTEMENT_STOCK
-        );
-        setPermissionAjustement(permAjustement || null);
-
-        // Vérification de l'accès à la page
-        if (permInventaire?.canRead || prescripteur.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur, router]);
-
   // Création d'un nouvel inventaire
   const handleCreateInventaire = useCallback(
     async (data: Partial<Inventaire>): Promise<Inventaire | null> => {
-      if (!permissionInventaire?.canCreate && prescripteur?.role !== "ADMIN") {
-        alert(
-          "Vous n'avez pas la permission de créer cet inventaire. Contactez un administrateur ou votre supérieur."
-        );
+      if (!canCreate(TableName.INVENTAIRE)) {
+        toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
         return null;
       }
 
@@ -340,16 +290,14 @@ export default function DetailInventairePage() {
         return null;
       }
     },
-    [permissionInventaire?.canCreate, prescripteur?.role, idUser]
+    [canCreate, idUser]
   );
 
   // Création d'une nouvelle anomalie
   const handleCreateAnomalie = useCallback(
     async (data: Partial<AnomalieInventaire>) => {
-      if (!permissionAjustement?.canCreate && prescripteur?.role !== "ADMIN") {
-        alert(
-          "Vous n'avez pas la permission de faire cet ajustement. Contactez un administrateur ou votre supérieur."
-        );
+      if (!canCreate(TableName.AJUSTEMENT_STOCK)) {
+        toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
         return null;
       }
 
@@ -448,8 +396,7 @@ export default function DetailInventairePage() {
       }
     },
     [
-      permissionAjustement?.canCreate,
-      prescripteur?.role,
+      canCreate,
       idUser,
       detailInventaires,
     ]
@@ -472,13 +419,8 @@ export default function DetailInventairePage() {
   // Validation d'un produit dans l'inventaire
   const handleValiderProduit = useCallback(
     async (tarifProduit: TarifProduit) => {
-      if (
-        !permissionDetailInventaire?.canCreate &&
-        prescripteur?.role !== "ADMIN"
-      ) {
-        alert(
-          "Vous n'avez pas la permission de créer les détails d'inventaire. Contactez un administrateur."
-        );
+      if (!canCreate(TableName.DETAIL_INVENTAIRE)) {
+        toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
         return;
       }
 
@@ -543,8 +485,7 @@ export default function DetailInventairePage() {
       }
     },
     [
-      permissionDetailInventaire?.canCreate,
-      prescripteur?.role,
+      canCreate,
       currentInventaire,
       detailInventaires,
       quantitesReelles,
@@ -950,17 +891,8 @@ export default function DetailInventairePage() {
     </TableRow>
   );
 
-  // Afficher un loader pendant la vérification des permissions
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.ANOMALIE_INVENTAIRE)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   // Afficher un loader pendant le chargement de la session
   if (status === "loading") {

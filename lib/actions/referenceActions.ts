@@ -1,12 +1,14 @@
 "use server";
 
 // Type d'entrée sans la relation Visite
-import { Reference } from "@prisma/client";
+import { Reference, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 type ReferenceCreateInput = Omit<Reference, "Visite">;
 
 // Création d'une Fiche Référence
 export const createReference = async (data: ReferenceCreateInput) => {
+  await requirePermission(TableName.REFERENCE, "canCreate");
   try {
     // Valider que les relations obligatoires existent
     const visiteExists = await prisma.visite.findUnique({
@@ -70,6 +72,7 @@ export const getOneReference = async (id: string | null) => {
 
 // Suppression d'une Fiche Référence
 export async function deleteReference(id: string) {
+  await requirePermission(TableName.REFERENCE, "canDelete");
   return await prisma.reference.delete({
     where: { id },
   });
@@ -77,6 +80,7 @@ export async function deleteReference(id: string) {
 
 //Mise à jour de la Fiche Référence
 export async function updateReference(id: string, data: Reference) {
+  await requirePermission(TableName.REFERENCE, "canUpdate");
   return await prisma.reference.update({
     where: { id },
     data,

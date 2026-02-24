@@ -1,11 +1,13 @@
 "use server";
 
 // Type d'entrée sans la relation Visite
-import { Ordonnance } from "@prisma/client";
+import { Ordonnance, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Ordonnance
 export const createOrdonnance = async (data: Ordonnance) => {
+  await requirePermission(TableName.ORDONNANCE, "canCreate");
   return await prisma.ordonnance.create({
     data,
   });
@@ -44,6 +46,7 @@ export const getOneOrdonnance = async (id: string | null) => {
 
 // Suppression d'une Fiche Ordonnance
 export async function deleteOrdonnance(id: string) {
+  await requirePermission(TableName.ORDONNANCE, "canDelete");
   return await prisma.ordonnance.delete({
     where: { id },
   });
@@ -51,6 +54,7 @@ export async function deleteOrdonnance(id: string) {
 
 //Mise à jour de la Fiche Ordonnance
 export async function updateOrdonnance(id: string, data: Ordonnance) {
+  await requirePermission(TableName.ORDONNANCE, "canUpdate");
   return await prisma.ordonnance.update({
     where: { id },
     data,

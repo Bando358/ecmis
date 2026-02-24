@@ -21,7 +21,6 @@ import {
   Client,
   Grossesse,
   Obstetrique,
-  Permission,
   TableName,
   User,
   Visite,
@@ -56,7 +55,8 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 const TabEtatGrossesse = [
   { value: "normal", label: "Normal" },
@@ -100,7 +100,7 @@ export default function ObstetriquePage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -112,59 +112,32 @@ export default function ObstetriquePage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.OBSTETRIQUE
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultObstetrique = await getAllObstetriqueByIdClient(
-        obstetriqueId
-      );
-      setSelectedObstetrique(resultObstetrique as Obstetrique[]);
-      const result = await getAllVisiteByIdClient(obstetriqueId);
-      setVisites(result as Visite[]);
+      // Wave 1: all independent calls in parallel
+      const [user, resultObstetrique, resultVisites, resultGrossesse, cliniqueClient] = await Promise.all([
+        getOneUser(idUser),
+        getAllObstetriqueByIdClient(obstetriqueId),
+        getAllVisiteByIdClient(obstetriqueId),
+        getAllGrossesseByIdClient(obstetriqueId),
+        getOneClient(obstetriqueId),
+      ]);
 
-      const resultGrossesse = await getAllGrossesseByIdClient(obstetriqueId);
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
+      setSelectedObstetrique(resultObstetrique as Obstetrique[]);
+      setVisites(resultVisites as Visite[]);
       setGrossesses(resultGrossesse as Grossesse[]);
-      const cliniqueClient = await getOneClient(obstetriqueId);
       setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
+
+      // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
+        const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
+        setAllPrescripteur(prescripteurs as User[]);
       }
-      setAllPrescripteur(allPrestataire as User[]);
     };
     fetchData();
-  }, [obstetriqueId]);
+  }, [obstetriqueId, idUser]);
 
   const handleVisiteChange = async (idVisite: string) => {
     try {
@@ -219,11 +192,9 @@ export default function ObstetriquePage({
   });
 
   const onSubmit: SubmitHandler<Obstetrique> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une CPN. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.OBSTETRIQUE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     // Ensure obstRdv is a Date (Prisma DateTime maps to JS Date in generated types)
     const rawRdv = form.getValues("obstRdv");

@@ -1,11 +1,13 @@
 "use server";
 
-import { Inventaire } from "@prisma/client";
+import { Inventaire, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Inventaire
 export async function createInventaire(data: Inventaire) {
+  await requirePermission(TableName.INVENTAIRE, "canCreate");
   // Extraire la date sans l'heure pour comparaison
   const dateInventaire = new Date(data.dateInventaire);
   const startOfDay = new Date(dateInventaire);
@@ -65,6 +67,7 @@ export const getRecentInventaires = async () => {
 
 // Suppression d'une Fiche Inventaire. Toutefois, les détails associés doivent être supprimés au préalable.
 export async function deleteInventaire(id: string) {
+  await requirePermission(TableName.INVENTAIRE, "canDelete");
   const existing = await prisma.inventaire.findUnique({ where: { id } });
   await prisma.detailInventaire.deleteMany({
     where: { idInventaire: id },

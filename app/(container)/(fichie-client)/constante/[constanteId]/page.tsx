@@ -12,7 +12,7 @@ import { createRecapVisite } from "@/lib/actions/recapActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
-import { Visite, Constante, TableName, Permission, User } from "@prisma/client";
+import { Visite, Constante, TableName } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -37,8 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { ArrowBigLeftDash } from "lucide-react";
 
 export default function ConstantePage({
@@ -57,8 +57,9 @@ export default function ConstantePage({
     nom: string;
     prenom: string;
   } | null>(null);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   const { data: session } = useSession();
@@ -77,10 +78,9 @@ export default function ConstantePage({
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        // Étape 1: Requêtes indépendantes en parallèle
-        const [user, resultConstante, resultVisites, clientData] =
+        // Requêtes indépendantes en parallèle
+        const [resultConstante, resultVisites, clientData] =
           await Promise.all([
-            getOneUser(idUser),
             getAllContanteByIdClient(constanteId),
             getAllVisiteByIdClient(constanteId),
             getOneClient(constanteId),
@@ -94,15 +94,6 @@ export default function ConstantePage({
             nom: clientData.nom,
             prenom: clientData.prenom,
           });
-        }
-
-        // Étape 2: Requête dépendante (permissions basées sur user)
-        if (user) {
-          const permissions = await getUserPermissionsById(user.id);
-          const perm = permissions.find(
-            (p: { table: string }) => p.table === TableName.CONSTANTE,
-          );
-          setPermission(perm || null);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -171,11 +162,9 @@ export default function ConstantePage({
   }, [watchPoids, watchTaille, form]);
 
   const onSubmit: SubmitHandler<Constante> = async (data) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de créer une constante. Contactez un administrateur.",
-      );
-      return router.back();
+    if (!canCreate(TableName.CONSTANTE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
 
     if (!data.idVisite) {

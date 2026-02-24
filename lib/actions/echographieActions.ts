@@ -1,10 +1,12 @@
 "use server";
 
-import { Echographie, TypeEchographie, RegionExaminee } from "@prisma/client";
+import { Echographie, TypeEchographie, RegionExaminee, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de Echographie
 export async function createEchographie(data: Echographie) {
+  await requirePermission(TableName.ECHOGRAPHIE, "canCreate");
   return await prisma.echographie.create({
     data,
   });
@@ -28,6 +30,7 @@ export async function getOneEchographie(id: string) {
 
 // Suppression d'un echographie
 export async function deleteEchographie(id: string) {
+  await requirePermission(TableName.ECHOGRAPHIE, "canDelete");
   return await prisma.echographie.delete({
     where: { id },
   });
@@ -35,6 +38,7 @@ export async function deleteEchographie(id: string) {
 
 //Mise à jour de echographie
 export async function updateEchographie(id: string, data: Echographie) {
+  await requirePermission(TableName.ECHOGRAPHIE, "canUpdate");
   return await prisma.echographie.update({
     where: { id },
     data,
@@ -43,6 +47,7 @@ export async function updateEchographie(id: string, data: Echographie) {
 
 // Seed des 20 échographies prédéfinies
 export async function seedEchographies(idUser: string) {
+  await requirePermission(TableName.ECHOGRAPHIE, "canCreate");
   const echographies: {
     typeEchographie: TypeEchographie;
     regionExaminee: RegionExaminee;

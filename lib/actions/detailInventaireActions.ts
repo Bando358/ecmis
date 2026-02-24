@@ -1,11 +1,13 @@
 "use server";
 
-import { DetailInventaire } from "@prisma/client";
+import { DetailInventaire, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // ************ Inventaire **********
 export async function createDetailInventaire(data: DetailInventaire) {
+  await requirePermission(TableName.DETAIL_INVENTAIRE, "canCreate");
   const result = await prisma.detailInventaire.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -55,6 +57,7 @@ export async function updateDetailInventaire(
   id: string,
   data: Partial<DetailInventaire>
 ) {
+  await requirePermission(TableName.DETAIL_INVENTAIRE, "canUpdate");
   return await prisma.detailInventaire.update({
     where: { id },
     data,
@@ -63,12 +66,14 @@ export async function updateDetailInventaire(
 
 // Suppression d'un Inventaire
 export async function deleteDetailInventaire(id: string) {
+  await requirePermission(TableName.DETAIL_INVENTAIRE, "canDelete");
   return await prisma.detailInventaire.delete({
     where: { id },
   });
 }
 // Suppression d'un Inventaire
 export async function deleteDetailInventairesByIds(ids: string[]) {
+  await requirePermission(TableName.DETAIL_INVENTAIRE, "canDelete");
   return await prisma.detailInventaire.deleteMany({
     where: { id: { in: ids } },
   });

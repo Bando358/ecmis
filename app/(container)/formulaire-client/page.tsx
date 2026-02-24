@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
-import { Client, Permission, TableName, User } from "@prisma/client";
+import { Client, TableName, User } from "@prisma/client";
 
 import {
   createClient,
@@ -21,10 +21,11 @@ import {
   // getAllCliniquesByUser,
 } from "@/lib/actions/cliniqueActions";
 import { getAllRegion } from "@/lib/actions/regionActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import Retour from "@/components/retour";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 interface RegionData {
   id: string;
@@ -114,9 +115,9 @@ export default function FormulaireClient() {
   const [oneUser, setOneUser] = useState<User | null>(null);
   const [region, setRegion] = useState<RegionData[]>([]);
   const [newCode, setNewCode] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const idPrestataire = session?.user.id as string;
   const router = useRouter();
+  const { canCreate } = usePermissionContext();
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
@@ -154,34 +155,6 @@ export default function FormulaireClient() {
     fetchData();
   }, [idPrestataire]);
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: Permission) => p.table === TableName.CLIENT,
-        );
-        setPermission(perm || null);
-
-        if (perm?.canRead || oneUser.role === "ADMIN") {
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser]);
-
   const {
     watch,
     setValue,
@@ -205,10 +178,8 @@ export default function FormulaireClient() {
   const selectedClinique = clinique.find((c) => c.id === clinic);
 
   const handleGenerateCode = async () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un client. Contactez un administrateur.",
-      );
+    if (!canCreate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return router.back();
     }
     if (!prenom || !selectedRegion || !selectedClinique) {
@@ -244,10 +215,8 @@ export default function FormulaireClient() {
   };
 
   const onSubmit: SubmitHandler<Client> = async (data) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un client. Contactez un administrateur.",
-      );
+    if (!canCreate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return router.back();
     }
     const formattedData = {

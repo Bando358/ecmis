@@ -9,6 +9,9 @@ import {
 import { getOneUser, getAllUser } from "@/lib/actions/authActions";
 import { Permission, User, TableName, Post } from "@prisma/client";
 import { getOnePostIdClient } from "@/lib/actions/postActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +65,7 @@ export default function PermissionInitialPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
+  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   // === Charger l'utilisateur admin connecté ===
   useEffect(() => {
@@ -289,6 +293,9 @@ export default function PermissionInitialPage() {
     }
     setIsPending(false);
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.PERMISSION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   if (usersLoading) {
     return (

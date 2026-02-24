@@ -1,8 +1,9 @@
 "use server";
 
-import { TarifProduit } from "@prisma/client";
+import { TarifProduit, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de TarifProduit
 export async function createTarifProduit(data: {
@@ -12,6 +13,7 @@ export async function createTarifProduit(data: {
   idClinique: string;
   idUser: string;
 }) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canCreate");
   const result = await prisma.tarifProduit.create({
     data: {
       prixUnitaire: data.prixUnitaire,
@@ -65,6 +67,7 @@ export const getAllTarifProduitsByIdClinique = async (idClinique: string) => {
 
 // Suppression d'un tarif produit
 export async function deleteTarifProduit(id: string) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canDelete");
   return await prisma.tarifProduit.delete({
     where: { id },
   });
@@ -72,6 +75,7 @@ export async function deleteTarifProduit(id: string) {
 
 //Mise à jour de TarifProduit
 export async function updateTarifProduit(id: string, data: TarifProduit) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
   const oldRecord = await prisma.tarifProduit.findUnique({ where: { id } });
   const result = await prisma.tarifProduit.update({ where: { id }, data });
   await logAction({
@@ -91,6 +95,7 @@ export async function updateQuantiteStockTarifProduit(
   idTarifProduit: string,
   quantiteAjoutee: number
 ) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
   try {
     const tarif = await prisma.tarifProduit.findUnique({
       where: { id: idTarifProduit },
@@ -130,6 +135,7 @@ export async function updateQuantiteStockTarifProduitByDetailCommande(
   idTarifProduit: string,
   quantiteAjoutee: number
 ) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
   try {
     const tarif = await prisma.tarifProduit.findUnique({
       where: { id: idTarifProduit },
@@ -170,6 +176,7 @@ export async function updateTarifProduitByDetailCommandeAnnule(
   idTarifProduit: string,
   quantiteAjoutee: number
 ) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
   try {
     const tarif = await prisma.tarifProduit.findUnique({
       where: { id: idTarifProduit },

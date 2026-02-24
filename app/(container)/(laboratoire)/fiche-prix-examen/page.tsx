@@ -54,7 +54,6 @@ import {
 import {
   Clinique,
   Examen,
-  Permission,
   TableName,
   TarifExamen,
 } from "@prisma/client";
@@ -70,7 +69,10 @@ import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
 import { useSession } from "next-auth/react";
 import { Input } from "@/components/ui/input";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 export default function TarificationExamen() {
   const [open, setOpen] = useState(false);
@@ -81,10 +83,11 @@ export default function TarificationExamen() {
   const [selectedCliniques, setSelectedCliniques] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
+  const router = useRouter();
+  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const filteredTarifExamens = selectedCliniques.length
     ? tarifExamens.filter((tarif) =>
@@ -101,34 +104,6 @@ export default function TarificationExamen() {
     };
     fetchData();
   }, []);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!session?.user) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.TARIF_EXAMEN
-        );
-        setPermission(perm || null);
-
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'accéder à cette page.");
-        //   router.back();
-        // }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [session?.user]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -193,53 +168,49 @@ export default function TarificationExamen() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un tarif examen. Contactez un administrateur."
-      );
-    } else {
-      try {
-        await deleteTarifExamen(id);
-        setTarifExamens(tarifExamens.filter((tarif) => tarif.id !== id));
-        toast.success("Le tarif a été Supprimé avec succès! 🎉");
-      } catch (error) {
-        toast.error("Erreur lors de la suppression du tarif");
-        console.error(error);
-      }
+    if (!canDelete(TableName.TARIF_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
+    }
+    try {
+      await deleteTarifExamen(id);
+      setTarifExamens(tarifExamens.filter((tarif) => tarif.id !== id));
+      toast.success("Le tarif a été Supprimé avec succès!");
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du tarif");
+      console.error(error);
     }
   };
   const handleUpdateExamen = async (id: string) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un tarif examen. Contactez un administrateur."
-      );
-    } else {
-      const tarifExamenToUpdate = tarifExamens.find((tarif) => tarif.id === id);
-      if (tarifExamenToUpdate) {
-        setIsUpdating(true); // Activer le mode modification
-        form.setValue("id", tarifExamenToUpdate.id); // Assurez-vous que "id" est correctement défini ici
-        form.setValue("idExamen", tarifExamenToUpdate.idExamen);
-        form.setValue("idClinique", tarifExamenToUpdate.idClinique);
-        form.setValue("prixExamen", tarifExamenToUpdate.prixExamen);
-        setIsVisible(true);
-      }
+    if (!canUpdate(TableName.TARIF_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
+      return;
+    }
+    const tarifExamenToUpdate = tarifExamens.find((tarif) => tarif.id === id);
+    if (tarifExamenToUpdate) {
+      setIsUpdating(true);
+      form.setValue("id", tarifExamenToUpdate.id);
+      form.setValue("idExamen", tarifExamenToUpdate.idExamen);
+      form.setValue("idClinique", tarifExamenToUpdate.idClinique);
+      form.setValue("prixExamen", tarifExamenToUpdate.prixExamen);
+      setIsVisible(true);
     }
   };
 
   const handleHiddenForm = () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un tarif echographie. Contactez un administrateur."
-      );
+    if (!canCreate(TableName.TARIF_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
+    }
+    if (!isVisible) {
+      setIsVisible(true);
     } else {
-      if (!isVisible) {
-        setIsVisible(true);
-        // rafraichirPage();
-      } else {
-        setIsVisible(false);
-      }
+      setIsVisible(false);
     }
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.TARIF_EXAMEN)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-225 mx-auto relative flex flex-col justify-center p-4">

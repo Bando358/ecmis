@@ -2,6 +2,7 @@
 // lib/actions/permissionActions.ts
 import { TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 export async function getUserPermissions(id: string) {
   try {
@@ -71,6 +72,7 @@ export async function updatePermission(
   action: "canCreate" | "canRead" | "canUpdate" | "canDelete",
   value: boolean
 ) {
+  await requirePermission(TableName.PERMISSION, "canUpdate");
   try {
     const permission = await prisma.permission.updateMany({
       where: {
@@ -103,6 +105,7 @@ interface permissionProps {
 export async function createPermissionBeforeChecked(
   tablePermissions: permissionProps[]
 ) {
+  await requirePermission(TableName.PERMISSION, "canCreate");
   try {
     if (!tablePermissions || tablePermissions.length === 0) return null;
 
@@ -163,6 +166,7 @@ export async function createPermissionBeforeChecked(
 // create permission
 
 export async function createPermission(tablePermissions: permissionProps[]) {
+  await requirePermission(TableName.PERMISSION, "canCreate");
   try {
     if (!tablePermissions || tablePermissions.length === 0) return null;
 
@@ -207,6 +211,7 @@ export async function getOnePermissionByUserIdAndTable(
 
 // delete permission by userId
 export async function deletePermissionByUserId(idUser: string) {
+  await requirePermission(TableName.PERMISSION, "canDelete");
   try {
     const permission = await prisma.permission.deleteMany({
       where: {
@@ -287,6 +292,7 @@ const MENU_TABLES: TableName[] = [
  * pour chaque TableName du sidebar, sans créer de doublons.
  */
 export async function assignMenuPermissionsToAllUsers() {
+  await requirePermission(TableName.PERMISSION, "canCreate");
   try {
     const users = await prisma.user.findMany({ select: { id: true } });
     let created = 0;

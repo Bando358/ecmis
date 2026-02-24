@@ -15,13 +15,9 @@ import {
   updateTestGrossesse,
 } from "@/lib/actions/testActions";
 import { useSession } from "next-auth/react";
-import {
-  User,
-  TestGrossesse,
-  Visite,
-  Permission,
-  TableName,
-} from "@prisma/client";
+import { User, TestGrossesse, Visite, TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -47,7 +43,6 @@ import { useClientContext } from "@/components/ClientContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import Retour from "@/components/retour";
 import {
   Card,
@@ -86,9 +81,9 @@ export default function GynecoPage({
   const [onePrescripteur, setOnePrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
   // setSelectedClientId(params.infertiliteId);
 
   const { data: session } = useSession();
@@ -97,76 +92,60 @@ export default function GynecoPage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
+    if (!idUser) return;
+    const fetchData = async () => {
+      // Wave 1: all independent calls in parallel
+      const [user, oneTest] = await Promise.all([
+        getOneUser(idUser),
+        getOneTestGrossesse(modifTestId),
+      ]);
+
       setIsPrescripteur(user?.prescripteur ? true : false);
       setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.TEST_GROSSESSE,
-        );
-        setPermission(perm || null);
-        if (onePrescripteur.role !== "ADMIN") {
-          const allPrescripteur = await getAllUserIncludedTabIdClinique(
-            onePrescripteur.idCliniques,
-          );
-          setAllPrescripteur(allPrescripteur as User[]);
-        } else {
-          const allPrescripteur = await getAllUser();
-          setAllPrescripteur(allPrescripteur as User[]);
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const oneTest = await getOneTestGrossesse(modifTestId);
-      const oneUser = await getOneUser(oneTest?.testIdUser as string);
-
-      setPrescripteur(oneUser?.name);
       setSelectedTest(oneTest as TestGrossesse);
+
       if (oneTest) {
-        const result = await getAllVisiteByIdClient(oneTest.testIdClient);
+        // Wave 2: calls that depend on oneTest, but independent of each other
+        const [oneUser, result, cliniqueClient] = await Promise.all([
+          getOneUser(oneTest.testIdUser as string),
+          getAllVisiteByIdClient(oneTest.testIdClient),
+          getOneClient(oneTest.testIdClient),
+        ]);
+
+        setPrescripteur(oneUser?.name);
+
         const visiteDate = result.find(
           (r: { id: string }) => r.id === oneTest.testIdVisite,
         );
 
-        const cliniqueClient = await getOneClient(oneTest.testIdClient);
+        // Wave 3: depends on user role and cliniqueClient
         let allPrestataire: User[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique,
           );
         }
+        // Fallback: load by role if needed
+        if (allPrestataire.length === 0) {
+          if (user?.role !== "ADMIN") {
+            allPrestataire = await getAllUserIncludedTabIdClinique(
+              user!.idCliniques,
+            ) as User[];
+          } else {
+            allPrestataire = await getAllUser() as User[];
+          }
+        }
         setAllPrescripteur(allPrestataire as User[]);
 
         setVisites(
           result.filter((r: { id: string }) => r.id === oneTest.testIdVisite),
-        ); // Use oneTest instead of selectedTest
+        );
         setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(oneTest.testIdClient); // Use oneTest instead of selectedTest
+        setSelectedClientId(oneTest.testIdClient);
       }
     };
     fetchData();
-  }, [modifTestId, setSelectedClientId]);
+  }, [modifTestId, idUser, setSelectedClientId]);
 
   // Fonction pour récupérer et définir l'état IMC
 
@@ -199,10 +178,8 @@ export default function GynecoPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un TEST. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.TEST_GROSSESSE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedTest) {

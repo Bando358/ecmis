@@ -18,14 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Client,
-  Permission,
-  Planning,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Client, Planning, TableName, User, Visite } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 // import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -55,7 +48,8 @@ import {
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 interface Implan {
   id: string;
@@ -109,7 +103,8 @@ export default function PlanningPage({
   const [prescripteur, setPrescripteur] = useState<User>();
   const [clients, setAllClients] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -130,56 +125,40 @@ export default function PlanningPage({
   // const tabIdClinique = session?.user.idCliniques as string[];
   const router = useRouter();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!idUser || !planningId) return;
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PLANNING
-        );
-        setPermission(perm || null);
+        // Wave 1: toutes les requêtes indépendantes en parallèle
+        const [user, resultPlanning, resultVisites, cliniqueClient] = await Promise.all([
+          getOneUser(idUser),
+          getAllPlanningByIdClient(planningId),
+          getAllVisiteByIdClient(planningId),
+          getOneClient(planningId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setPrescripteur(user!);
+        setSelectedPlanning(resultPlanning as Planning[]);
+        setVisites(resultVisites as Visite[]);
+        setAllClients(cliniqueClient);
+
+        // Wave 2: requête dépendante du client
+        let allPrestataire: User[] = [];
+        if (cliniqueClient?.idClinique) {
+          allPrestataire = await getAllUserIncludedIdClinique(
+            cliniqueClient.idClinique
+          );
+        }
+        setAllPrescripteur(allPrestataire.filter((user) => user.prescripteur));
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
       }
     };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const resultPlanning = await getAllPlanningByIdClient(planningId);
-      setSelectedPlanning(resultPlanning as Planning[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(planningId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
-
-      const cliniqueClient = await getOneClient(planningId);
-      setAllClients(cliniqueClient);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
-      }
-      setAllPrescripteur(allPrestataire.filter((user) => user.prescripteur));
-    };
-    fetchData();
-  }, [planningId]);
+    fetchAllData();
+  }, [idUser, planningId]);
 
   // console.log(visites);
 
@@ -208,11 +187,9 @@ export default function PlanningPage({
   });
   const onSubmit: SubmitHandler<Planning> = async (data) => {
     // Déterminer methodePrise en fonction des données actuelles
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une fiche de planification familiale. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.PLANNING)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const isMethodePrise =
       (data.courtDuree && data.courtDuree !== "spotting") ||

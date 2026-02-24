@@ -1,7 +1,8 @@
 "use server";
 
-import { Post } from "@prisma/client";
+import { Post, TableName } from "@prisma/client";
 import prisma from "../prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // ************* Post **************
 export const getAllPosts = async () => {
@@ -18,6 +19,7 @@ export const getAllPost = async () => {
 };
 // Création d'un post
 export async function createPost(data: Post) {
+  await requirePermission(TableName.POST, "canCreate");
   return await prisma.post.create({
     data,
   });
@@ -48,6 +50,7 @@ export const getOnePostIdClient = async (id: string | null) => {
 
 //Mise à jour de la post
 export async function updatePost(id: string, data: Post) {
+  await requirePermission(TableName.POST, "canUpdate");
   return await prisma.post.update({
     where: { id },
     data,
@@ -56,6 +59,7 @@ export async function updatePost(id: string, data: Post) {
 
 // Suppression d'un post
 export async function deletePost(id: string) {
+  await requirePermission(TableName.POST, "canDelete");
   return await prisma.post.delete({
     where: { id },
   });

@@ -1,11 +1,13 @@
 "use server";
 
-import { FactureProduit } from "@prisma/client";
+import { FactureProduit, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de FactureProduit
 export async function createFactureProduit(data: FactureProduit) {
+  await requirePermission(TableName.FACTURE_PRODUIT, "canCreate");
   const result = await prisma.factureProduit.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -49,6 +51,7 @@ export async function getAllFactureProduitByIdVisiteByData(data: ClientData[]) {
 }
 // Suppression d'une FactureProduit
 export async function deleteFactureProduit(id: string) {
+  await requirePermission(TableName.FACTURE_PRODUIT, "canDelete");
   const existing = await prisma.factureProduit.findUnique({ where: { id } });
   const result = await prisma.factureProduit.delete({ where: { id } });
   if (existing) {
@@ -67,6 +70,7 @@ export async function deleteFactureProduit(id: string) {
 
 //Mise à jour de FactureProduit
 export async function updateFactureProduit(id: string, data: FactureProduit) {
+  await requirePermission(TableName.FACTURE_PRODUIT, "canUpdate");
   const oldRecord = await prisma.factureProduit.findUnique({ where: { id } });
   const result = await prisma.factureProduit.update({ where: { id }, data });
   await logAction({
@@ -86,6 +90,7 @@ export async function updateProduitByFactureProduit(
   idProduit: string,
   quantiteProduit: number
 ) {
+  await requirePermission(TableName.FACTURE_PRODUIT, "canUpdate");
   try {
     // Vérifier si le produit existe
     const produit = await prisma.tarifProduit.findUnique({

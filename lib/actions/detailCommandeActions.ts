@@ -1,12 +1,14 @@
 "use server";
 
-import { DetailCommande } from "@prisma/client";
+import { DetailCommande, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logAction } from "./journalPharmacyActions";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création de DetailCommande
 export async function createDetailCommande(data: DetailCommande) {
+  await requirePermission(TableName.DETAIL_COMMANDE, "canCreate");
   const result = await prisma.detailCommande.create({ data });
   await logAction({
     idUser: data.idUser,
@@ -26,6 +28,7 @@ export async function getAllDetailCommande() {
 }
 // Suppression d'un client
 export async function deleteDetailCommande(id: string) {
+  await requirePermission(TableName.DETAIL_COMMANDE, "canDelete");
   return await prisma.detailCommande.delete({
     where: { id },
   });
@@ -33,6 +36,7 @@ export async function deleteDetailCommande(id: string) {
 
 //Mise à jour de DetailCommande
 export async function updateDetailCommande(id: string, data: DetailCommande) {
+  await requirePermission(TableName.DETAIL_COMMANDE, "canUpdate");
   return await prisma.detailCommande.update({
     where: { id },
     data,
@@ -61,6 +65,7 @@ export async function getAllDetailCommandeByCommandeId(idCommande: string) {
 }
 
 export async function deleteDetailCommandesByIds(ids: string[]) {
+  await requirePermission(TableName.DETAIL_COMMANDE, "canDelete");
   try {
     // recupérer les détails à supprimer
     const detailsToDelete = await prisma.detailCommande.findMany({

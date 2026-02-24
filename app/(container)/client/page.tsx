@@ -9,11 +9,13 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Eye, FilePenLine, Trash2, Funnel, FunnelX, UserPlus, Users } from "lucide-react";
 
-import { Client, Clinique, Permission, TableName, User } from "@prisma/client";
+import { Client, Clinique, User, TableName } from "@prisma/client";
 import { deleteClient, getAllClient } from "@/lib/actions/clientActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
 import { useClientContext } from "@/components/ClientContext";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,7 +77,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
 import { toast } from "sonner";
 
@@ -140,7 +141,6 @@ export default function Clients() {
   const [cliniques, setCliniques] = useState<Clinique[]>(cache?.cliniques ?? []);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [isLoading, setIsLoading] = useState(!cache);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(8);
@@ -148,6 +148,7 @@ export default function Clients() {
   const router = useRouter();
   const { setSelectedClientId } = useClientContext();
   const { data: session } = useSession();
+  const { canCreate, canUpdate, canDelete } = usePermissionContext();
   const idUser = session?.user?.id || "";
 
   const nomCliniques = useCallback(
@@ -165,28 +166,6 @@ export default function Clients() {
     };
     fetUser();
   }, [idUser]);
-
-  // Charger les permissions une seule fois
-  useEffect(() => {
-    if (!utilisateur || permission !== null) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(utilisateur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CLIENT
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [utilisateur, permission]);
 
   // Fetch data quand l'utilisateur est disponible.
   // Si le cache (window) existe, les donnees s'affichent instantanement
@@ -260,39 +239,30 @@ export default function Clients() {
 
   // Handlers
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && utilisateur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un client. Contactez un administrateur."
-      );
+    if (!canDelete(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
-    } else {
-      await deleteClient(id);
-      setClients((prev) => prev.filter((client) => client.id !== id));
-      toast.error("Client supprimé avec succès");
     }
+    await deleteClient(id);
+    setClients((prev) => prev.filter((client) => client.id !== id));
+    toast.error("Client supprimé avec succès");
   };
 
   const handleUpdatedClient = (id: string) => {
-    if (!permission?.canUpdate && utilisateur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de mettre à jour un client. Contactez un administrateur."
-      );
+    if (!canUpdate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
-    } else {
-      router.push(`/formulaire-client/${id}`);
     }
+    router.push(`/formulaire-client/${id}`);
   };
 
   const handleNewClient = () => {
-    if (!permission?.canCreate && utilisateur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un client. Contactez un administrateur."
-      );
+    if (!canCreate(TableName.CLIENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
-    } else {
-      setSpinner(true);
-      router.push("/formulaire-client");
     }
+    setSpinner(true);
+    router.push("/formulaire-client");
   };
 
   const toggleAntenne = (antenne: string) => {

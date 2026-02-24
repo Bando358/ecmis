@@ -41,7 +41,6 @@ import {
   User,
   TarifProduit,
   Produit,
-  Permission,
   TableName,
 } from "@prisma/client";
 import {
@@ -53,6 +52,7 @@ import {
   Eye,
   MoreVertical,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -75,11 +75,12 @@ import { CommandeDetailDialog } from "@/components/CommandeDetailDialog";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { getAllProduits } from "@/lib/actions/produitActions";
 import { getAllTarifProduits } from "@/lib/actions/tarifProduitActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   deleteDetailCommandesByIds,
   getAllDetailCommandeByCommandeId,
 } from "@/lib/actions/detailCommandeActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 // Types étendus pour inclure les relations
 type CommandeFournisseurWithRelations = CommandeFournisseur & {
@@ -99,15 +100,12 @@ export default function HistoriqueCommandesPage() {
   const [commandesFiltrees, setCommandesFiltrees] = useState<
     CommandeFournisseurWithRelations[]
   >([]);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [idCliniques, setIdCliniques] = useState<string[]>([]);
   const [produits, setProduits] = useState<Produit[]>([]);
   const [tarifProduits, setTarifProduits] = useState<TarifProduit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [recherche, setRecherche] = useState<string>("");
@@ -122,6 +120,7 @@ export default function HistoriqueCommandesPage() {
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
   const router = useRouter();
+  const { canCreate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   // Récupération de l'utilisateur courant
   useEffect(() => {
@@ -141,37 +140,6 @@ export default function HistoriqueCommandesPage() {
     };
     fetchUser();
   }, [idUser]);
-
-  // Vérification des permissions
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(user.id);
-        const permCommande = permissions.find(
-          (p: { table: string }) => p.table === TableName.COMMANDE_FOURNISSEUR
-        );
-        setPermission(permCommande || null);
-
-        if (permCommande?.canRead || user.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [user, router]);
 
   // Chargement des données initiales
   useEffect(() => {
@@ -516,10 +484,8 @@ export default function HistoriqueCommandesPage() {
   const handleDeleteCommande = async (
     commande: CommandeFournisseurWithRelations
   ) => {
-    if (!permission?.canDelete && user?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer cette commande. Contactez un administrateur ou votre supérieur."
-      );
+    if (!canDelete(TableName.COMMANDE_FOURNISSEUR)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
 
@@ -563,8 +529,8 @@ export default function HistoriqueCommandesPage() {
 
   // Créer une nouvelle commande
   const handleCreateNewCommande = () => {
-    if (!permission?.canCreate && user?.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission de créer une commande.");
+    if (!canCreate(TableName.COMMANDE_FOURNISSEUR)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     router.push("/commandes/nouvelle");
@@ -594,16 +560,8 @@ export default function HistoriqueCommandesPage() {
     </TableRow>
   );
 
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerCustom />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.COMMANDE_FOURNISSEUR)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   if (status === "loading") {
     return (
@@ -886,8 +844,7 @@ export default function HistoriqueCommandesPage() {
                                     )}
                                     Télécharger PDF
                                   </DropdownMenuItem>
-                                  {(permission?.canDelete ||
-                                    user?.role === "ADMIN") && (
+                                  {canDelete(TableName.COMMANDE_FOURNISSEUR) && (
                                     <DropdownMenuItem
                                       onClick={() =>
                                         handleDeleteCommande(commande)

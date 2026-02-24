@@ -1,11 +1,13 @@
 "use server";
 
 //lib/actions/lieuActions.ts
-import { Lieu } from "@prisma/client";
+import { Lieu, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Lieu
 export async function createLieu(data: Lieu) {
+  await requirePermission(TableName.LIEU, "canCreate");
   return await prisma.lieu.create({
     data,
   });
@@ -38,6 +40,7 @@ export const getOneLieu = async (id: string | null) => {
 
 // Suppression d'une Fiche Lieu
 export async function deleteLieu(id: string) {
+  await requirePermission(TableName.LIEU, "canDelete");
   // Vérifier s'il y a des visites liées
   const visitesCount = await prisma.visite.count({ where: { idLieu: id } });
   if (visitesCount > 0) {
@@ -52,6 +55,7 @@ export async function deleteLieu(id: string) {
 
 //Mise à jour de la Fiche Lieu
 export async function updateLieu(id: string, data: Lieu) {
+  await requirePermission(TableName.LIEU, "canUpdate");
   return await prisma.lieu.update({
     where: { id },
     data,

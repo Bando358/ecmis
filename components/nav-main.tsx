@@ -20,6 +20,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function NavMain({
   items,
@@ -44,11 +45,28 @@ export function NavMain({
   const isAdmin = allowedTables.has("ALL");
 
   const hasPermission = (permission?: string) => {
-    if (!permissionsLoaded) return true;
+    if (!permissionsLoaded) return false;
     if (isAdmin) return true;
     if (!permission) return true;
     return allowedTables.has(permission);
   };
+
+  if (!permissionsLoaded) {
+    return (
+      <SidebarGroup className="px-2">
+        <SidebarGroupLabel className="px-2 py-3 text-sm font-semibold">
+          Menu
+        </SidebarGroupLabel>
+        <SidebarMenu className="space-y-2 px-2">
+          {[1, 2, 3, 4].map((i) => (
+            <SidebarMenuItem key={i}>
+              <Skeleton className="h-8 w-full rounded-md" />
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
+    );
+  }
 
   return (
     <SidebarGroup className="px-2">

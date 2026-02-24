@@ -13,7 +13,6 @@ import {
 import {
   Client,
   Ordonnance,
-  Permission,
   TableName,
   User,
   Visite,
@@ -59,8 +58,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Spinner } from "@/components/ui/spinner";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 export default function OrdonnancePage({
@@ -83,8 +83,6 @@ export default function OrdonnancePage({
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdated, setIsUpdated] = useState(false);
   const [medicaments, setMedicaments] = useState<string[]>([""]);
-  const [permission, setPermission] = useState<Permission | null>(null);
-  const [isPermissionUpdated, setIsPermissionUpdated] = useState(false);
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -95,60 +93,42 @@ export default function OrdonnancePage({
   const idUser = session?.user.id as string;
   const router = useRouter();
 
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canCreate, canUpdate, canDelete } = usePermissionContext();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
+    if (!idUser || !ordonnanceId) return;
 
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.ORDONNANCE
-        );
-        setPermission(perm || null);
-        setIsPermissionUpdated(perm?.canUpdate || false);
+        // Wave 1: toutes les requêtes indépendantes en parallèle
+        const [user, resultVisites, cliniqueClient, allOrdonnanceByClient] = await Promise.all([
+          getOneUser(idUser),
+          getAllVisiteByIdClient(ordonnanceId),
+          getOneClient(ordonnanceId),
+          getAllOrdonnanceByIdClient(ordonnanceId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setPrescripteur(user!);
+        setVisites(resultVisites as Visite[]);
+        setClient(cliniqueClient);
+        setTabOrdonnance(allOrdonnanceByClient as Ordonnance[]);
+
+        // Wave 2: requête dépendante du client
+        let allPrestataireData: User[] = [];
+        if (cliniqueClient?.idClinique) {
+          allPrestataireData = await getAllUserIncludedIdClinique(
+            cliniqueClient.idClinique
+          );
+        }
+        setAllPrestataire(allPrestataireData as User[]);
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
       }
     };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const result = await getAllVisiteByIdClient(ordonnanceId);
-      setVisites(result as Visite[]);
-
-      const cliniqueClient = await getOneClient(ordonnanceId);
-      setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
-      }
-      setAllPrestataire(allPrestataire as User[]);
-
-      const allOrdonnanceByClient = await getAllOrdonnanceByIdClient(
-        ordonnanceId
-      );
-      setTabOrdonnance(allOrdonnanceByClient as Ordonnance[]);
-    };
-    fetchData();
-  }, [ordonnanceId]);
+    fetchAllData();
+  }, [idUser, ordonnanceId]);
 
   const form = useForm<Ordonnance>({
     defaultValues: {
@@ -215,11 +195,9 @@ export default function OrdonnancePage({
   };
 
   const onSubmit: SubmitHandler<Ordonnance> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une ordonnance. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.ORDONNANCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       id: crypto.randomUUID(),
@@ -261,12 +239,9 @@ export default function OrdonnancePage({
   };
 
   const handleUpdate = () => {
-    if (!isPermissionUpdated && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier cette ordonnance. Contactez un administrateur."
-      );
+    if (!canUpdate(TableName.ORDONNANCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
-      // return router.back();
     }
     setShowForm(true);
     setSelectedOrdonnance(null);
@@ -289,12 +264,9 @@ export default function OrdonnancePage({
   const reactToPrintFn = useReactToPrint({ contentRef });
 
   const handleDeleteOrdonnance = async () => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer cette ordonnance. Contactez un administrateur."
-      );
+    if (!canDelete(TableName.ORDONNANCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
-      // return router.back();
     }
     if (!idOrdonnance) return;
     const confirmDelete = window.confirm(

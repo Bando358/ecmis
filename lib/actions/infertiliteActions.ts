@@ -1,10 +1,12 @@
 "use server";
 
-import { Infertilite } from "@prisma/client";
+import { Infertilite, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Infertilité
 export async function createInfertilite(data: Infertilite) {
+  await requirePermission(TableName.INFERTILITE, "canCreate");
   return await prisma.infertilite.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneInfertilite = async (id: string | null) => {
 
 // Suppression d'une Fiche Infertilité
 export async function deleteInfertilite(id: string) {
+  await requirePermission(TableName.INFERTILITE, "canDelete");
   return await prisma.infertilite.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteInfertilite(id: string) {
 
 //Mise à jour de la Fiche Infertilité
 export async function updateInfertilite(id: string, data: Infertilite) {
+  await requirePermission(TableName.INFERTILITE, "canUpdate");
   return await prisma.infertilite.update({
     where: { id },
     data,

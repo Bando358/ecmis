@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import ClientVihUploadPage from "@/components/clientVihUpload";
 import VisitePecVihUpload from "@/components/PecVihUpload";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { TableName, User } from "@prisma/client";
+import { TableName } from "@prisma/client";
 
 import {
   Card,
@@ -16,72 +14,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getOneUser } from "@/lib/actions/authActions";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { toast } from "sonner";
 
 export default function ToggleSystemPecVih() {
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [oneUser, setOneUser] = useState<User | null>(null);
-  const [hasAccess, setHasAccess] = useState(false);
-  const { data: session } = useSession();
-  const idUser = session?.user.id as string;
+  const { canRead, isLoading: isCheckingPermissions } = usePermissionContext();
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!idUser) {
-        setIsCheckingPermissions(false);
-        return;
-      }
-
-      try {
-        const user = await getOneUser(idUser);
-        if (!user) {
-          alert("Utilisateur introuvable.");
-          router.back();
-          setIsCheckingPermissions(false);
-          return;
-        }
-        setOneUser(user);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération de l'utilisateur :",
-          error
-        );
-        setIsCheckingPermissions(false);
-      }
-    };
-    fetchData();
-  }, [idUser, router]);
+  const hasAccess = canRead(TableName.IMPORT_CLIENT_VIH);
 
   useEffect(() => {
-    if (!oneUser) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.IMPORT_CLIENT_VIH
-        );
-
-        if (perm?.canRead || oneUser.role === "ADMIN") {
-          setHasAccess(true);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [oneUser, router]);
+    if (!isCheckingPermissions && !hasAccess) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+      router.back();
+    }
+  }, [isCheckingPermissions, hasAccess, router]);
 
   if (isCheckingPermissions) {
     return (

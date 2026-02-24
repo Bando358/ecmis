@@ -21,7 +21,6 @@ import {
 import {
   Client,
   Cpon,
-  Permission,
   TableName,
   User,
   Visite,
@@ -50,7 +49,8 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useClientContext } from "@/components/ClientContext";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { ArrowBigLeftDash } from "lucide-react";
 
 const TabDuree = [
@@ -73,7 +73,7 @@ export default function CponPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [prescripteur, setPrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -84,61 +84,30 @@ export default function CponPage({
   const idUser = session?.user.id as string;
   const router = useRouter();
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.CPON
-        );
-        setPermission(perm || null);
-
-        // if (perm?.canRead || session.user.role === "ADMIN") {
-        // } else {
-        //   alert("Vous n'avez pas la permission d'accéder à cette page.");
-        //   router.back();
-        // }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultCpon = await getAllCponByIdClient(cponId);
-      setSelectedCpon(resultCpon as Cpon[]); // Assurez-vous que result est bien de type CliniqueData[]
-      const result = await getAllVisiteByIdClient(cponId);
-      setVisites(result as Visite[]); // Assurez-vous que result est bien de type CliniqueData[]
+      // Wave 1: all independent calls in parallel
+      const [user, resultCpon, resultVisites, cliniqueClient] = await Promise.all([
+        getOneUser(idUser),
+        getAllCponByIdClient(cponId),
+        getAllVisiteByIdClient(cponId),
+        getOneClient(cponId),
+      ]);
 
-      const cliniqueClient = await getOneClient(cponId);
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
+      setSelectedCpon(resultCpon as Cpon[]);
+      setVisites(resultVisites as Visite[]);
       setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
+
+      // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
+        const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
+        setAllPrescripteur(prescripteurs as User[]);
       }
-      setAllPrescripteur(allPrestataire as User[]);
     };
     fetchData();
-  }, [cponId]);
+  }, [cponId, idUser]);
 
   // Fonction pour récupérer et définir l'état IMC
 
@@ -153,11 +122,9 @@ export default function CponPage({
     },
   });
   const onSubmit: SubmitHandler<Cpon> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une CPoN. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.CPON)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

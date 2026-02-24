@@ -15,6 +15,7 @@ export { useLocalStorage, useUserPreferences } from "./useLocalStorage";
 // Permissions
 export { usePermissions } from "./usePermissions";
 export type { PermissionAction, PermissionMap, UsePermissionsReturn } from "./usePermissions";
+export { usePermissionContext } from "@/contexts/PermissionContext";
 
 // Async operations
 export { useAsync, useAsyncActions, usePolling } from "./useAsync";

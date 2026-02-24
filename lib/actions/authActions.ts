@@ -1,8 +1,9 @@
 "use server";
 
-import { User } from "@prisma/client";
+import { User, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import * as bcrypt from "bcrypt";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 type RegisterInput = {
   name: string;
@@ -119,6 +120,7 @@ export const getOneUser = async (id: string | null) => {
 
 // Suppression d'un User
 export async function deleteUser(id: string) {
+  await requirePermission(TableName.USER, "canDelete");
   return await prisma.user.delete({
     where: { id },
   });
@@ -126,6 +128,7 @@ export async function deleteUser(id: string) {
 
 //Mise à jour de la User et le mot de passe doit être haché
 export async function updateUser(id: string, data: User) {
+  await requirePermission(TableName.USER, "canUpdate");
   const { password, ...rest } = data;
 
   // Hacher le mot de passe s'il a été modifié
@@ -193,6 +196,7 @@ export const getAllUserTabIdClinique = async (idCliniques: string[]) => {
 
 // ************* Creer une fonction pour mettre banned à true s'il est false ou null ou false s'il est true **************
 export async function toggleBanUser(id: string) {
+  await requirePermission(TableName.USER, "canUpdate");
   const user = await prisma.user.findUnique({
     where: { id },
   });

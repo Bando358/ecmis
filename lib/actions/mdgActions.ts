@@ -1,10 +1,12 @@
 "use server";
 
-import { Medecine } from "@prisma/client";
+import { Medecine, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Medecine
 export async function createMedecine(data: Medecine) {
+  await requirePermission(TableName.MEDECINE, "canCreate");
   return await prisma.medecine.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneMedecine = async (id: string | null) => {
 
 // Suppression d'une Fiche Medecine
 export async function deleteMedecine(id: string) {
+  await requirePermission(TableName.MEDECINE, "canDelete");
   return await prisma.medecine.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteMedecine(id: string) {
 
 //Mise à jour de la Fiche Medecine
 export async function updateMedecine(id: string, data: Medecine) {
+  await requirePermission(TableName.MEDECINE, "canUpdate");
   return await prisma.medecine.update({
     where: { id },
     data,

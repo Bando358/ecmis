@@ -1,10 +1,12 @@
 "use server";
 
-import { Planning } from "@prisma/client";
+import { Planning, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Planning
 export async function createPlanning(data: Planning) {
+  await requirePermission(TableName.PLANNING, "canCreate");
   return await prisma.planning.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOnePlanning = async (id: string | null) => {
 
 // Suppression d'un Planning
 export async function deletePlanning(id: string) {
+  await requirePermission(TableName.PLANNING, "canDelete");
   return await prisma.planning.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deletePlanning(id: string) {
 
 //Mise à jour de la Planning
 export async function updatePlanning(id: string, data: Planning) {
+  await requirePermission(TableName.PLANNING, "canUpdate");
   return await prisma.planning.update({
     where: { id },
     data,

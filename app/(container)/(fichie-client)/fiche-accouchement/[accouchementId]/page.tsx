@@ -24,7 +24,6 @@ import {
   Accouchement,
   Client,
   Grossesse,
-  Permission,
   TableName,
   User,
   Visite,
@@ -59,7 +58,8 @@ import { Separator } from "@/components/ui/separator";
 import { useClientContext } from "@/components/ClientContext";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { ArrowBigLeftDash } from "lucide-react";
 
 const tabTypeEvacuation = [
@@ -102,7 +102,7 @@ export default function AccouchementPage({
   const [prescripteur, setPrescripteur] = useState<User>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -113,70 +113,39 @@ export default function AccouchementPage({
   const idUser = session?.user.id as string;
   const router = useRouter();
 
-  // SOLUTION 1: Vérification de type sécurisée
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.ACCOUCHEMENT
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultAccouchement = await getAllAccouchementByIdClient(
-        accouchementId
-      );
+      // Wave 1: all independent calls in parallel
+      const [user, resultAccouchement, resultVisites, resultGrossesse, cliniqueClient] = await Promise.all([
+        getOneUser(idUser),
+        getAllAccouchementByIdClient(accouchementId),
+        getAllVisiteByIdClient(accouchementId),
+        getAllGrossesseByIdClient(accouchementId),
+        getOneClient(accouchementId),
+      ]);
 
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
       setSelectedAccouchement(resultAccouchement as Accouchement[]);
-      const result = await getAllVisiteByIdClient(accouchementId);
-      setVisites(result as Visite[]);
-      const resultGrossesse = await getAllGrossesseByIdClient(accouchementId);
+      setVisites(resultVisites as Visite[]);
       setGrossesses(resultGrossesse as Grossesse[]);
-
-      const cliniqueClient = await getOneClient(accouchementId);
       setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
+
+      // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
+        const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
+        setAllPrescripteur(prescripteurs as User[]);
       }
-      setAllPrescripteur(allPrestataire as User[]);
     };
     fetchData();
-  }, [accouchementId]);
+  }, [accouchementId, idUser]);
 
   const form = useForm<Accouchement>();
   const onSubmit: SubmitHandler<Accouchement> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un accouchement. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.ACCOUCHEMENT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

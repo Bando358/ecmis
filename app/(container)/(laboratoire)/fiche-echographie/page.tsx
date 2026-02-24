@@ -23,11 +23,9 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
 import {
   Echographie,
-  Permission,
   RegionExaminee,
   TypeEchographie,
   TableName,
-  User,
 } from "@prisma/client";
 import {
   Plus,
@@ -36,6 +34,7 @@ import {
   Trash2,
   Search,
   ScanLine,
+  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
@@ -55,8 +54,8 @@ import {
 } from "@/lib/actions/echographieActions";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -101,22 +100,13 @@ export default function EchographiePage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
-  const [oneUser, setOneUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
-
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const form = useForm<Echographie>({
     defaultValues: {
@@ -126,22 +116,6 @@ export default function EchographiePage() {
       idUser: idUser || "",
     },
   });
-
-  useEffect(() => {
-    if (!oneUser) return;
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.ECHOGRAPHIE
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error("Erreur lors de la vérification des permissions :", error);
-      }
-    };
-    fetchPermissions();
-  }, [oneUser, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -193,9 +167,9 @@ export default function EchographiePage() {
         toast.success("Échographie mise à jour avec succès !");
         setIsUpdating(false);
       } else {
-        if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-          alert("Vous n'avez pas la permission de créer une échographie.");
-          return router.back();
+        if (!canCreate(TableName.ECHOGRAPHIE)) {
+          toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+          return;
         }
         const id = crypto.randomUUID();
         await createEchographie({ id, ...formattedData });
@@ -212,8 +186,8 @@ export default function EchographiePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission de supprimer une échographie.");
+    if (!canDelete(TableName.ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
@@ -229,8 +203,8 @@ export default function EchographiePage() {
   };
 
   const handleUpdateEchographie = (id: string) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission de modifier une échographie.");
+    if (!canUpdate(TableName.ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
     const echo = listeEchographies.find((e) => e.id === id);
@@ -252,14 +226,17 @@ export default function EchographiePage() {
   };
 
   const handleOpenForm = () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission d'ajouter une échographie.");
+    if (!canCreate(TableName.ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     form.reset();
     setIsUpdating(false);
     setIsVisible(true);
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.ECHOGRAPHIE)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-6xl mx-auto p-4">

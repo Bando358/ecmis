@@ -1,10 +1,12 @@
 "use server";
 
-import { Constante } from "@prisma/client";
+import { Constante, TableName } from "@prisma/client";
 import prisma from "../prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // ************ Constante **********
 export async function createContante(data: Constante) {
+  await requirePermission(TableName.CONSTANTE, "canCreate");
   return await prisma.constante.create({
     data,
   });
@@ -60,6 +62,7 @@ export const getOneConstante = async (id: string | null) => {
 
 // Mise à jour d'une Visite
 export async function updateConstante(id: string, data: Partial<Constante>) {
+  await requirePermission(TableName.CONSTANTE, "canUpdate");
   return await prisma.constante.update({
     where: { id },
     data,
@@ -82,6 +85,7 @@ export const getConstantByIdVisiteClient = async (idVisite: string) => {
 
 // Suppression d'une Constante
 export async function deleteConstante(id: string) {
+  await requirePermission(TableName.CONSTANTE, "canDelete");
   return await prisma.constante.delete({
     where: { id },
   });

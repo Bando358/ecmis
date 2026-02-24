@@ -1,3 +1,4 @@
+import React from "react";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getRecapVisitesByTabIdVisite } from "@/lib/actions/recapActions";

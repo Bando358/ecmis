@@ -2,7 +2,8 @@
 
 import React from "react";
 import { TableName } from "@prisma/client";
-import { usePermissions, PermissionAction } from "@/hooks/usePermissions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { PermissionAction } from "@/hooks/usePermissions";
 import { AlertCircle, Lock, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -57,7 +58,7 @@ export function AuthGuard({
   unauthorizedMessage,
   showLoader = true,
 }: AuthGuardProps) {
-  const { hasPermission, isLoading, error } = usePermissions();
+  const { hasPermission, isLoading, error } = usePermissionContext();
 
   // Afficher un loader pendant le chargement des permissions
   if (isLoading && showLoader) {
@@ -163,7 +164,7 @@ export function MultiAuthGuard({
   showUnauthorized = true,
   requireAll = true,
 }: MultiAuthGuardProps) {
-  const { hasPermission, isLoading } = usePermissions();
+  const { hasPermission, isLoading } = usePermissionContext();
 
   if (isLoading) {
     return (

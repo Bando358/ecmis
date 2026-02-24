@@ -14,13 +14,10 @@ import {
 } from "@/lib/actions/infertiliteActions";
 
 import { useSession } from "next-auth/react";
-import {
-  Infertilite,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Infertilite, User, Visite } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -46,7 +43,6 @@ import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -81,7 +77,6 @@ export default function IstPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
   // setSelectedClientId(params.infertiliteId);
@@ -89,96 +84,60 @@ export default function IstPage({
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.INFERTILITE,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
       try {
-        const oneInfertilite = await getOneInfertilite(modifInfertiliteId);
+        // Wave 1: all independent calls in parallel
+        const [user, oneInfertilite] = await Promise.all([
+          getOneUser(idUser),
+          getOneInfertilite(modifInfertiliteId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setOnePrescripteur(user!);
         setSelectedInfertilite(oneInfertilite as Infertilite);
 
-        let allPrestataire: User[] = [];
-
         if (oneInfertilite?.infertIdClient) {
-          const cliniqueClient = await getOneClient(
-            oneInfertilite.infertIdClient,
+          // Wave 2: calls that depend on oneInfertilite, but independent of each other
+          const [nomPrescripteur, result, cliniqueClient] = await Promise.all([
+            getOneUser(oneInfertilite.infertIdUser),
+            getAllVisiteByIdClient(oneInfertilite.infertIdClient),
+            getOneClient(oneInfertilite.infertIdClient),
+          ]);
+
+          setPrescripteur(nomPrescripteur?.name);
+
+          const visiteDate = result.find(
+            (r: { id: string }) => r.id === oneInfertilite.infertIdVisite,
           );
 
+          // Wave 3: depends on cliniqueClient
+          let allPrestataire: User[] = [];
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
               cliniqueClient.idClinique,
             );
           }
+          setAllPrescripteur(allPrestataire);
+
+          setVisites(
+            result.filter(
+              (r: { id: string }) => r.id === oneInfertilite.infertIdVisite,
+            ),
+          );
+          setDateVisite(visiteDate?.dateVisite);
+          setSelectedClientId(oneInfertilite.infertIdClient);
         }
-
-        setAllPrescripteur(allPrestataire);
-        console.log("allPrestataire ", allPrestataire);
       } catch (err) {
-        console.error("Erreur chargement prescripteurs:", err);
+        console.error("Erreur chargement données:", err);
       }
     };
 
     fetchData();
-  }, [modifInfertiliteId]); // ✅ plus propre
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedInfertilite) {
-        const result = await getAllVisiteByIdClient(
-          selectedInfertilite.infertIdClient,
-        );
-        const visiteDate = result.find(
-          (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite,
-        );
-
-        const nomPrescripteur = await getOneUser(
-          selectedInfertilite.infertIdUser,
-        );
-        const nomP = nomPrescripteur?.name;
-        setPrescripteur(nomP);
-
-        setVisites(
-          result.filter(
-            (r: { id: string }) => r.id === selectedInfertilite.infertIdVisite,
-          ),
-        ); // Assurez-vous que result est bien de type CliniqueData[]
-        setDateVisite(visiteDate?.dateVisite);
-        // const clientData = await getOneClient(selectedGyneco.idClient);
-        setSelectedClientId(selectedInfertilite.infertIdClient);
-      }
-    };
-    fetchData();
-  }, [selectedInfertilite, setSelectedClientId]);
+  }, [modifInfertiliteId, idUser, setSelectedClientId]);
   // console.log(visites);
 
   const form = useForm<Infertilite>();
@@ -216,10 +175,8 @@ export default function IstPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une infertilité. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.INFERTILITE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedInfertilite) {

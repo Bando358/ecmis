@@ -1,10 +1,12 @@
 "use server";
 
-import { Ist } from "@prisma/client";
+import { Ist, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche IST
 export async function createIst(data: Ist) {
+  await requirePermission(TableName.IST, "canCreate");
   // Remove idUser, idClient, idVisite, istIdClinique from data before spreading
   const { istIdClient, istIdUser, istIdVisite, istIdClinique, ...rest } = data;
   return await prisma.ist.create({
@@ -51,6 +53,7 @@ export const getOneIst = async (id: string | null) => {
 
 // Suppression d'une Fiche IST
 export async function deleteIst(id: string) {
+  await requirePermission(TableName.IST, "canDelete");
   return await prisma.ist.delete({
     where: { id },
   });
@@ -58,6 +61,7 @@ export async function deleteIst(id: string) {
 
 //Mise à jour de la Fiche IST
 export async function updateIst(id: string, data: Ist) {
+  await requirePermission(TableName.IST, "canUpdate");
   return await prisma.ist.update({
     where: { id },
     data,

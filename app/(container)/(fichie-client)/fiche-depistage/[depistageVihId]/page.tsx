@@ -15,14 +15,7 @@ import {
 } from "@/lib/actions/authActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { useSession } from "next-auth/react";
-import {
-  Client,
-  DepistageVih,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Client, DepistageVih, TableName, User, Visite } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -52,7 +45,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { getOneClient } from "@/lib/actions/clientActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 const tabTypeClient = [
   { value: "cdip", label: "CDIP" },
@@ -224,8 +218,9 @@ export default function DepistageVihPage({
   const [client, setClient] = useState<Client | null>(null);
   const [prescripteur, setPrescripteur] = useState<User>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -258,17 +253,10 @@ export default function DepistageVihPage({
         setClient(cliniqueClient);
 
         // Étape 2: Requêtes dépendantes en parallèle
-        const [permissions, allPrestataire] = await Promise.all([
-          user ? getUserPermissionsById(user.id) : Promise.resolve([]),
-          cliniqueClient?.idClinique
-            ? getAllUserIncludedIdClinique(cliniqueClient.idClinique)
-            : Promise.resolve([]),
-        ]);
+        const allPrestataire = cliniqueClient?.idClinique
+          ? await getAllUserIncludedIdClinique(cliniqueClient.idClinique)
+          : [];
 
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.DEPISTAGE_VIH
-        );
-        setPermission(perm || null);
         setAllPrescripteur(allPrestataire as User[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -306,11 +294,9 @@ export default function DepistageVihPage({
   });
 
   const onSubmit: SubmitHandler<DepistageVih> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un dépistage VIH. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.DEPISTAGE_VIH)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

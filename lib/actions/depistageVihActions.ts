@@ -1,10 +1,12 @@
 "use server";
 // depistageVihActions.ts
-import { DepistageVih } from "@prisma/client";
+import { DepistageVih, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche de Dépistage VIH
 export async function createDepistageVih(data: DepistageVih) {
+  await requirePermission(TableName.DEPISTAGE_VIH, "canCreate");
   return await prisma.depistageVih.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneDepistageVih = async (id: string | null) => {
 
 // Suppression d'une Fiche de Dépistage VIH
 export async function deleteDepistageVih(id: string) {
+  await requirePermission(TableName.DEPISTAGE_VIH, "canDelete");
   return await prisma.depistageVih.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteDepistageVih(id: string) {
 
 //Mise à jour de la Fiche de Dépistage VIH
 export async function updateDepistageVih(id: string, data: DepistageVih) {
+  await requirePermission(TableName.DEPISTAGE_VIH, "canUpdate");
   return await prisma.depistageVih.update({
     where: { id },
     data,

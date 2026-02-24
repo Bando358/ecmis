@@ -34,7 +34,6 @@ import {
   TarifProduit,
   Produit,
   Clinique,
-  Permission,
   TableName,
   User,
 } from "@prisma/client";
@@ -46,12 +45,14 @@ import {
   getAllTarifProduits,
   updateTarifProduit,
 } from "@/lib/actions/tarifProduitActions";
-import { Pencil, Trash2, Search } from "lucide-react";
+import { Pencil, Trash2, Search, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import TarifProduitDialog from "@/components/tarifProduitDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { getOneUser } from "@/lib/actions/authActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
+import { useRouter } from "next/navigation";
 
 export default function PrixProduitPage() {
   const [listeTarifProduit, setListeTarifProduit] = useState<TarifProduit[]>(
@@ -62,7 +63,6 @@ export default function PrixProduitPage() {
   const [produits, setProduits] = useState<Produit[]>([]);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [editingTarif, setEditingTarif] = useState<TarifProduit | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isUpdatingTrue, setIsUpdatingTrue] = useState(false);
@@ -71,6 +71,8 @@ export default function PrixProduitPage() {
 
   const { data: session } = useSession();
   const idUser = session?.user?.id ?? "";
+  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -102,22 +104,6 @@ export default function PrixProduitPage() {
     };
     fetchData();
   }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.TARIF_PRODUIT
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error("Erreur permissions :", error);
-      }
-    };
-    fetchPermissions();
-  }, [user]);
 
   useEffect(() => {
     const trierParTypeProduit = (tarifs: TarifProduit[]) => {
@@ -169,10 +155,8 @@ export default function PrixProduitPage() {
   }, [recherche, selectedClinique, listeTarifProduit, produits, cliniques]);
 
   const onSubmit = async (data: TarifProduit) => {
-    if (!permission?.canCreate && user?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer ce tarif produit. Contactez un administrateur."
-      );
+    if (!canCreate(TableName.TARIF_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     try {
@@ -194,10 +178,8 @@ export default function PrixProduitPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && user?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer ce tarif produit. Contactez un administrateur."
-      );
+    if (!canDelete(TableName.TARIF_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
@@ -255,6 +237,9 @@ export default function PrixProduitPage() {
     user?.role === "ADMIN"
       ? cliniques
       : cliniques.filter((clinique) => user?.idCliniques.includes(clinique.id));
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.TARIF_PRODUIT)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-300 p-4 flex flex-col mx-auto">

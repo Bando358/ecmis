@@ -11,14 +11,9 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import {
-  Saa,
-  Grossesse,
-  User,
-  Visite,
-  TableName,
-  Permission,
-} from "@prisma/client";
+import { Saa, Grossesse, User, Visite, TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -44,7 +39,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -279,66 +273,52 @@ export default function ModifSaaPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
+  const { canUpdate } = usePermissionContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
+    if (!idUser) return;
+    const fetchData = async () => {
+      // Wave 1: all independent calls in parallel
+      const [user, oneSaa] = await Promise.all([
+        getOneUser(idUser),
+        getOneSaa(modifSaaId),
+      ]);
+
       setIsPrescripteur(user?.prescripteur ? true : false);
       setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore charg\u00e9, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.SAA,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la v\u00e9rification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const oneSaa = await getOneSaa(modifSaaId);
       setSelectedSaa(oneSaa as Saa);
 
-      const oneUser = await getOneUser(oneSaa?.saaIdUser as string);
-      setPrescripteur(oneUser?.name);
-
       if (oneSaa) {
-        let oneGrossesse = null;
-        if (oneSaa.saaIdGrossesse) {
-          oneGrossesse = await getOneGrossesse(oneSaa.saaIdGrossesse);
-        }
+        // Wave 2: calls that depend on oneSaa, but independent of each other
+        const parallelCalls: [
+          Promise<User | null>,
+          Promise<Grossesse | null>,
+          Promise<Visite[]>,
+          Promise<any>,
+        ] = [
+          getOneUser(oneSaa.saaIdUser as string),
+          oneSaa.saaIdGrossesse
+            ? getOneGrossesse(oneSaa.saaIdGrossesse)
+            : Promise.resolve(null),
+          getAllVisiteByIdClient(oneSaa.saaIdClient),
+          getOneClient(oneSaa.saaIdClient),
+        ];
+        const [oneUser, oneGrossesse, result, cliniqueClient] = await Promise.all(parallelCalls);
+
+        setPrescripteur(oneUser?.name);
         setGrossesses(oneGrossesse as Grossesse);
 
-        const result = await getAllVisiteByIdClient(oneSaa.saaIdClient);
         const visiteDate = result.find(
           (r: { id: string }) => r.id === oneSaa.saaIdVisite,
         );
 
-        const cliniqueClient = await getOneClient(oneSaa.saaIdClient);
+        // Wave 3: depends on cliniqueClient
         let allPrestataire: User[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
@@ -355,7 +335,7 @@ export default function ModifSaaPage({
       }
     };
     fetchData();
-  }, [modifSaaId, setSelectedClientId]);
+  }, [modifSaaId, idUser, setSelectedClientId]);
 
   const form = useForm<Saa>();
 
@@ -392,10 +372,8 @@ export default function ModifSaaPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un SAA. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.SAA)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedSaa) {

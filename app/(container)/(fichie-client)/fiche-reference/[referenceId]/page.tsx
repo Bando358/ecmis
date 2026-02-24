@@ -12,7 +12,6 @@ import {
 } from "@/lib/actions/referenceActions";
 import {
   Client,
-  Permission,
   Reference,
   TableName,
   User,
@@ -62,8 +61,9 @@ import { Spinner } from "@/components/ui/spinner";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import { Square } from "lucide-react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 const TabMotifReference = [
@@ -113,7 +113,6 @@ export default function ReferencePage({
   const [showForm, setShowForm] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdated, setIsUpdated] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -124,57 +123,42 @@ export default function ReferencePage({
   const idUser = session?.user.id as string;
   const router = useRouter();
 
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canCreate, canUpdate, canDelete } = usePermissionContext();
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
+    if (!idUser || !referenceId) return;
 
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.REFERENCE
-        );
-        setPermission(perm || null);
+        // Wave 1: toutes les requêtes indépendantes en parallèle
+        const [user, resultVisites, cliniqueClient, allRefByClient] = await Promise.all([
+          getOneUser(idUser),
+          getAllVisiteByIdClient(referenceId),
+          getOneClient(referenceId),
+          getAllReferenceByIdClient(referenceId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setPrescripteur(user!);
+        setVisites(resultVisites as Visite[]);
+        setClient(cliniqueClient);
+        setTabReference(allRefByClient as Reference[]);
+
+        // Wave 2: requête dépendante du client
+        let allPrestataire: User[] = [];
+        if (cliniqueClient?.idClinique) {
+          allPrestataire = await getAllUserIncludedIdClinique(
+            cliniqueClient.idClinique
+          );
+        }
+        setAllPrescripteur(allPrestataire as User[]);
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
+        console.error("Erreur lors du chargement des données:", error);
       }
     };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const result = await getAllVisiteByIdClient(referenceId);
-      setVisites(result as Visite[]);
-
-      const cliniqueClient = await getOneClient(referenceId);
-      setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
-      if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
-      }
-      setAllPrescripteur(allPrestataire as User[]);
-
-      const allRefByClient = await getAllReferenceByIdClient(referenceId);
-      setTabReference(allRefByClient as Reference[]);
-    };
-    fetchData();
-  }, [referenceId]);
+    fetchAllData();
+  }, [idUser, referenceId]);
 
   const form = useForm<Reference>({
     defaultValues: {
@@ -268,11 +252,9 @@ export default function ReferencePage({
   }, [selectedVisite, getReferenceByIdVisite, form]);
 
   const onSubmit: SubmitHandler<Reference> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une référence. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.REFERENCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       id: crypto.randomUUID(),
@@ -338,11 +320,9 @@ export default function ReferencePage({
 
   // ================== Fonction de modification ==================
   const handleUpdate = () => {
-    if (!permission?.canUpdate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une référence. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canUpdate(TableName.REFERENCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
+      return;
     }
     setShowForm(true);
     setSelectedReference(null);
@@ -388,11 +368,9 @@ export default function ReferencePage({
   const reactToPrintFn = useReactToPrint({ contentRef });
 
   const handleDeleteReference = async () => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer une référence. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canDelete(TableName.REFERENCE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
     }
     if (!idReference) return;
     const confirmDelete = window.confirm(

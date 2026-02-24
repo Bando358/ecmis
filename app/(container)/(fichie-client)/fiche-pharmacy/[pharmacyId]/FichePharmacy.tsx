@@ -88,7 +88,6 @@ import {
   TarifEchographie,
   FactureEchographie,
   TableName,
-  Permission,
   TarifPrestation,
   TypeEchographie,
 } from "@prisma/client";
@@ -121,7 +120,8 @@ import { getAllDemandeExamensByIdVisite } from "@/lib/actions/demandeExamenActio
 import { getAllDemandeEchographiesByIdVisite } from "@/lib/actions/demandeEchographieActions";
 import EchographiesModal from "@/components/echographieModal";
 import { deleteFactureEchographie } from "@/lib/actions/factureEchographieActions";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 import Retour from "@/components/retour";
 import CommissionsDialog from "@/components/CommissionsDialog";
@@ -257,8 +257,11 @@ export default function FichePharmacyClient({
   const [selectedProduits, setSelectedProduits] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [selectedIdVisite, setSelectedIdVisite] = useState<string>("");
+
+  const { canCreate, canDelete } = usePermissionContext();
+  // IDs des factures supprimées localement (pour exclure du filtrage serverData)
+  const deletedFactureIds = useRef<Set<string>>(new Set());
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
@@ -338,16 +341,15 @@ export default function FichePharmacyClient({
     idFacture: string,
     quantite: number,
   ) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de supprimer un produit. Contactez un administrateur.",
-      );
+    if (!canDelete(TableName.FACTURE_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
       await updateQuantiteStockTarifProduit(idProduit, quantite);
       await deleteFactureProduit(idFacture);
       toast.info("Produit supprimé avec succès !");
+      deletedFactureIds.current.add(idFacture);
       setProduitFacture(produitFacture.filter((p) => p.id !== idFacture));
       await updateRecapVisiteAfterDelete(
         selectedIdVisite,
@@ -360,15 +362,14 @@ export default function FichePharmacyClient({
   };
 
   const handleDeletePrestationFactureInBd = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de supprimer une prestation. Contactez un administrateur.",
-      );
+    if (!canDelete(TableName.FACTURE_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
       await deleteFacturePrestation(id);
       toast.info("Prestation supprimée avec succès !");
+      deletedFactureIds.current.add(id);
       setPrestationFacture(prestationfacture.filter((p) => p.id !== id));
       await updateRecapVisiteAfterDelete(
         selectedIdVisite,
@@ -381,15 +382,14 @@ export default function FichePharmacyClient({
   };
 
   const handleDeleteExamenFactureInBd = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de supprimer un examen. Contactez un administrateur.",
-      );
+    if (!canDelete(TableName.FACTURE_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
       await deleteFactureExamen(id);
       toast.info("Examen supprimé avec succès !");
+      deletedFactureIds.current.add(id);
       setExamensFacture(examensFacture.filter((e) => e.id !== id));
       await updateRecapVisiteAfterDelete(
         selectedIdVisite,
@@ -402,15 +402,14 @@ export default function FichePharmacyClient({
   };
 
   const handleDeleteEchographieFactureInBd = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de supprimer une échographie. Contactez un administrateur.",
-      );
+    if (!canDelete(TableName.FACTURE_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
       await deleteFactureEchographie(id);
       toast.info("Echographie supprimée avec succès !");
+      deletedFactureIds.current.add(id);
       setEchographiesFacture(echographiesFacture.filter((e) => e.id !== id));
       await updateRecapVisiteAfterDelete(
         selectedIdVisite,
@@ -540,30 +539,10 @@ export default function FichePharmacyClient({
     }
   }, [watchedIdVisite]);
 
-  // Chargement des permissions
-  useEffect(() => {
-    if (!session?.user) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.FACTURE_PRODUIT,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [session?.user]);
-
   // Filtrage local des factures pré-chargées côté serveur par visite sélectionnée
   useEffect(() => {
+    const deleted = deletedFactureIds.current;
+
     if (!selectedIdVisite) {
       setProduitFacture([]);
       setPrestationFacture([]);
@@ -575,13 +554,19 @@ export default function FichePharmacyClient({
     }
 
     setProduitFacture(
-      serverData.tabProduitFactureClient.filter((p) => p.idVisite === selectedIdVisite),
+      serverData.tabProduitFactureClient.filter(
+        (p) => p.idVisite === selectedIdVisite && !deleted.has(p.id),
+      ),
     );
     setPrestationFacture(
-      serverData.tabPrestationFactureClient.filter((p) => p.idVisite === selectedIdVisite),
+      serverData.tabPrestationFactureClient.filter(
+        (p) => p.idVisite === selectedIdVisite && !deleted.has(p.id),
+      ),
     );
     setExamensFacture(
-      serverData.tabExamenFactureClient.filter((e) => e.idVisite === selectedIdVisite),
+      serverData.tabExamenFactureClient.filter(
+        (e) => e.idVisite === selectedIdVisite && !deleted.has(e.id),
+      ),
     );
     setTabDemandeExamens(
       serverData.tabDemandeExamensClient.filter((d) => d.idVisite === selectedIdVisite),
@@ -590,9 +575,19 @@ export default function FichePharmacyClient({
       serverData.tabDemandeEchographiesClient.filter((d) => d.idVisite === selectedIdVisite),
     );
     setEchographiesFacture(
-      serverData.tabEchographieFactureClient.filter((e) => e.idVisite === selectedIdVisite),
+      serverData.tabEchographieFactureClient.filter(
+        (e) => e.idVisite === selectedIdVisite && !deleted.has(e.id),
+      ),
     );
-  }, [selectedIdVisite]);
+  }, [
+    selectedIdVisite,
+    serverData.tabProduitFactureClient,
+    serverData.tabPrestationFactureClient,
+    serverData.tabExamenFactureClient,
+    serverData.tabDemandeExamensClient,
+    serverData.tabDemandeEchographiesClient,
+    serverData.tabEchographieFactureClient,
+  ]);
 
   // Helper : vérifie si un produit est de type CONTRACEPTIF
   const isContraceptifProduit = (idTarifProduit: string): boolean => {
@@ -603,11 +598,9 @@ export default function FichePharmacyClient({
   };
 
   const handleFacturation = async () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      toast.error(
-        "Vous n'avez pas la permission de facturer un client. Contactez un administrateur.",
-      );
-      return router.back();
+    if (!canCreate(TableName.FACTURE_PRODUIT)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     if (!idUser) return;
 

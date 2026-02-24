@@ -23,7 +23,6 @@ import {
   Client,
   Clinique,
   User,
-  Permission,
   TableName,
 } from "@prisma/client";
 import { getAllExamen } from "@/lib/actions/examenActions";
@@ -54,8 +53,9 @@ import { useReactToPrint } from "react-to-print";
 import { useRouter } from "next/navigation";
 import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { useSession } from "next-auth/react";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import { createRecapVisite, removeFormulaireFromRecap } from "@/lib/actions/recapActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 export default function PageResultatExamen({
@@ -74,48 +74,17 @@ export default function PageResultatExamen({
   const [client, setClient] = useState<Client>();
   const [clinique, setClinique] = useState<Clinique>();
   const [laborantin, setLaborantin] = useState<User | null>();
-  const [prescripteur, setPrescripteur] = useState<User | null>(null);
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
 
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      // setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.RESULTAT_EXAMEN
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur, router]);
+  const { canCreate, canDelete } = usePermissionContext();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -230,11 +199,9 @@ export default function PageResultatExamen({
     // TODO: appeler l’API de suppression si nécessaire
   };
   const handleDeleteResultatExamenInBD = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un résultat d'examen. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canDelete(TableName.RESULTAT_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
     } else {
       try {
         const result = await deleteResultatExamen(id);
@@ -266,11 +233,9 @@ export default function PageResultatExamen({
   };
 
   const handlePushResultatExamenToBd = async () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un résultat d'examen. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.RESULTAT_EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     setIsSubmitting(true);
     // Envoyer chaque résultat d'examen au serveur

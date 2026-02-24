@@ -64,7 +64,6 @@ import {
   TarifEchographie,
   DemandeEchographie,
   Echographie,
-  Permission,
   TableName,
   TypeEchographie,
 } from "@prisma/client";
@@ -85,7 +84,8 @@ import {
   getAllDemandeEchographiesByIdVisite,
 } from "@/lib/actions/demandeEchographieActions";
 import DemandeEchographieModal from "@/components/DemandeEchogrophieDialog";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import {
   createRecapVisite,
   removeFormulaireFromRecap,
@@ -131,77 +131,52 @@ export default function PageDemandeEchographie({
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [selectedPrescripteur, setSelectedPrescripteur] = useState<string>("");
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
 
   const { data: session } = useSession();
   const router = useRouter();
+  const { canCreate, canDelete } = usePermissionContext();
   const idUser = session?.user.id as string;
 
+  // Chargement initial optimisé : requêtes en parallèle
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
+    if (!idUser || !demandeEchoId) return;
 
-  useEffect(() => {
-    if (prescripteur && client) {
-      const fetchPrescripteurs = async () => {
-        const prescripteursData = await getAllUserIncludedIdClinique(
-          client.cliniqueId
-        );
-        setTabPrescripteurs([...prescripteursData]);
-      };
-      fetchPrescripteurs();
-    }
-  }, [client, prescripteur]);
-
-  useEffect(() => {
-    if (!session?.user) return;
-    const fetchPermissions = async () => {
+    const fetchAllData = async () => {
       try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.DEMANDE_ECHOGRAPHIE
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error("Erreur lors de la vérification des permissions :", error);
-      }
-    };
-    fetchPermissions();
-  }, [session?.user, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [clientData, visitesData, echographiesData, clinique] =
+        // Wave 1: toutes les requêtes indépendantes en parallèle
+        const [user, clientData, visitesData, echographiesData, clinique] =
           await Promise.all([
+            getOneUser(idUser),
             getOneClient(demandeEchoId),
             getAllVisiteByIdClient(demandeEchoId),
             getAllEchographies(),
             getAllClinique(),
           ]);
 
+        setPrescripteur(user!);
+
         if (!clientData) return;
         setClient(clientData as Client);
-        const tarifEcho = await getAllTarifEchographieByClinique(
-          clientData.cliniqueId
-        );
         setVisites(visitesData as Visite[]);
-        setTabTarifEchographies(tarifEcho as TarifEchographie[]);
         setTabEchographies(echographiesData as Echographie[]);
         setTabClinique(clinique as Clinique[]);
+
+        // Wave 2: requêtes dépendantes du client en parallèle
+        const [tarifEcho, prescripteursData] = await Promise.all([
+          getAllTarifEchographieByClinique(clientData.cliniqueId),
+          getAllUserIncludedIdClinique(clientData.cliniqueId),
+        ]);
+        setTabTarifEchographies(tarifEcho as TarifEchographie[]);
+        setTabPrescripteurs([...prescripteursData]);
       } catch (error) {
         console.error("Erreur lors du chargement des données :", error);
       }
     };
-    fetchData();
-  }, [demandeEchoId]);
+    fetchAllData();
+  }, [idUser, demandeEchoId]);
 
   useEffect(() => {
     const fetchDemandes = async () => {
@@ -244,11 +219,9 @@ export default function PageDemandeEchographie({
   };
 
   const handleDeleteDemandeInBD = async (demandeId: string) => {
-    if (!permission?.canDelete && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer une demande. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canDelete(TableName.DEMANDE_ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
+      return;
     }
     try {
       await deleteDemandeEchographie(demandeId);
@@ -268,11 +241,9 @@ export default function PageDemandeEchographie({
   };
 
   const handleDemandeEchographie = async () => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de demander une échographie. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.DEMANDE_ECHOGRAPHIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     if (demandeEchographies.length === 0) {
       toast.error("Aucune demande à soumettre.");

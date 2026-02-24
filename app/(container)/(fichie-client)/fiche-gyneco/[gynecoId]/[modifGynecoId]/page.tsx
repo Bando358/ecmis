@@ -33,20 +33,16 @@ import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
-import {
-  Gynecologie,
-  Permission,
-  TableName,
-  User,
-  Visite,
-} from "@prisma/client";
+import { Gynecologie, User, Visite } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { getOneClient } from "@/lib/actions/clientActions";
 import {
   getAllUserIncludedIdClinique,
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -106,58 +102,42 @@ export default function GynecoPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
+    if (!idUser) return;
+    const fetchData = async () => {
+      // Wave 1: all independent calls in parallel
+      const [user, oneGyneco] = await Promise.all([
+        getOneUser(idUser),
+        getOneGyneco(modifGynecoId),
+      ]);
+
       setIsPrescripteur(user?.prescripteur ? true : false);
       setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.GYNECOLOGIE,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const oneGyneco = await getOneGyneco(modifGynecoId);
-      const oneUser = await getOneUser(oneGyneco?.idUser as string);
-      setPrescripteur(oneUser?.name);
       setSelectedGyneco(oneGyneco as Gynecologie);
+
       if (oneGyneco) {
-        const result = await getAllVisiteByIdClient(oneGyneco.idClient);
+        // Wave 2: calls that depend on oneGyneco, but independent of each other
+        const [oneUser, result, cliniqueClient] = await Promise.all([
+          getOneUser(oneGyneco.idUser as string),
+          getAllVisiteByIdClient(oneGyneco.idClient),
+          getOneClient(oneGyneco.idClient),
+        ]);
+
+        setPrescripteur(oneUser?.name);
+
         const visiteDate = result.find(
           (r: { id: string }) => r.id === oneGyneco.idVisite,
         );
 
-        const cliniqueClient = await getOneClient(oneGyneco.idClient);
+        // Wave 3: depends on cliniqueClient
         let allPrestataire: User[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
@@ -168,13 +148,13 @@ export default function GynecoPage({
 
         setVisites(
           result.filter((r: { id: string }) => r.id === oneGyneco.idVisite),
-        ); // Use oneGyneco instead of selectedGyneco
+        );
         setDateVisite(visiteDate?.dateVisite);
-        setSelectedClientId(oneGyneco.idClient); // Use oneGyneco instead of selectedGyneco
+        setSelectedClientId(oneGyneco.idClient);
       }
     };
     fetchData();
-  }, [modifGynecoId, setSelectedClientId]);
+  }, [modifGynecoId, idUser, setSelectedClientId]);
 
   const form = useForm<Gynecologie>({
     defaultValues: {
@@ -214,10 +194,8 @@ export default function GynecoPage({
     }
   };
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une gynécologie. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.GYNECOLOGIE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedGyneco) {

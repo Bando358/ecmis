@@ -1,10 +1,12 @@
 "use server";
 
-import { Gynecologie } from "@prisma/client";
+import { Gynecologie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
 
 // Création d'une Fiche Gynécologique
 export async function createGyneco(data: Gynecologie) {
+  await requirePermission(TableName.GYNECOLOGIE, "canCreate");
   return await prisma.gynecologie.create({
     data,
   });
@@ -43,6 +45,7 @@ export const getOneGyneco = async (id: string | null) => {
 
 // Suppression d'une Fiche Gynécologique
 export async function deleteGyneco(id: string) {
+  await requirePermission(TableName.GYNECOLOGIE, "canDelete");
   return await prisma.gynecologie.delete({
     where: { id },
   });
@@ -50,6 +53,7 @@ export async function deleteGyneco(id: string) {
 
 //Mise à jour de la Fiche Gynécologique
 export async function updateGyneco(id: string, data: Gynecologie) {
+  await requirePermission(TableName.GYNECOLOGIE, "canUpdate");
   return await prisma.gynecologie.update({
     where: { id },
     data,

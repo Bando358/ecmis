@@ -11,7 +11,10 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { Medecine, Visite, User, Permission, TableName } from "@prisma/client";
+import { Medecine, Visite, User } from "@prisma/client";
+import { TableName } from "@prisma/client";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -42,7 +45,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
 import {
   Card,
   CardHeader,
@@ -161,86 +163,58 @@ export default function MdgPage({
   const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
 
   const { setSelectedClientId } = useClientContext();
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
+  const { canUpdate } = usePermissionContext();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setOnePrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!onePrescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(onePrescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.MEDECINE,
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error,
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [onePrescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
       try {
-        // 1. Récupérer d'abord la médecine
-        const oneMedecine = await getOneMedecine(modifMdgId);
+        // Wave 1: all independent calls in parallel
+        const [user, oneMedecine] = await Promise.all([
+          getOneUser(idUser),
+          getOneMedecine(modifMdgId),
+        ]);
+
+        setIsPrescripteur(user?.prescripteur ? true : false);
+        setOnePrescripteur(user!);
+
         if (oneMedecine) {
           console.log("oneMedecine", oneMedecine);
           setSelectedMedecine(oneMedecine);
 
-          // 2. Récupérer le client pour obtenir son ID
-          const client = await getOneClient(oneMedecine.mdgIdClient);
-
-          // 3. Utiliser l'ID client pour récupérer les visites
-          const [result] = await Promise.all([
-            getAllVisiteByIdClient(oneMedecine.mdgIdClient), // Utiliser mdgIdClient au lieu de modifMdgId
+          // Wave 2: calls that depend on oneMedecine, but independent of each other
+          const [client, result, nomPrescripteur] = await Promise.all([
+            getOneClient(oneMedecine.mdgIdClient),
+            getAllVisiteByIdClient(oneMedecine.mdgIdClient),
+            getOneUser(oneMedecine.mdgIdUser ?? null),
           ]);
 
-          // setAllMedecine(resultMedecine as Medecine[]);
+          setPrescripteur(nomPrescripteur?.name);
+
           setVisites(
             result.filter(
               (r: { id: string }) => r.id === oneMedecine.mdgIdVisite,
             ),
           );
 
-          // 4. Trouver la visite spécifique associée à cette médecine
           const visiteDate = result.find(
             (r: { id: string }) => r.id === oneMedecine.mdgIdVisite,
           );
           console.log("Visite trouvée:", visiteDate);
           setDateVisite(visiteDate?.dateVisite);
 
+          // Wave 3: depends on client
           let allUser: User[] = [];
           if (client?.idClinique) {
             allUser = await getAllUserIncludedIdClinique(client.idClinique);
           }
           setAllPrescripteur(allUser);
-
-          const nomPrescripteur = await getOneUser(
-            oneMedecine.mdgIdUser ?? null,
-          );
-          setPrescripteur(nomPrescripteur?.name);
 
           setSelectedClientId(oneMedecine.mdgIdClient);
           const tabReverse = [...tabDiagnosticOptions].reverse();
@@ -253,7 +227,7 @@ export default function MdgPage({
     };
 
     fetchData();
-  }, [modifMdgId, setSelectedClientId]); // Retirer la dépendance circulaire
+  }, [modifMdgId, idUser, setSelectedClientId]);
   const form = useForm<Medecine>({
     defaultValues: {
       mdgDiagnostic: [], // Définit explicitement un tableau de chaînes comme valeur par défaut
@@ -310,10 +284,8 @@ export default function MdgPage({
   };
 
   const handleUpdateVisite = async () => {
-    if (!permission?.canUpdate && onePrescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier une médecine. Contactez un administrateur.",
-      );
+    if (!canUpdate(TableName.MEDECINE)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return router.back();
     }
     if (selectedMedecine) {

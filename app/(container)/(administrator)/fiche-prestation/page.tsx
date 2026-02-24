@@ -33,7 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState, useMemo } from "react";
-import { Permission, Prestation, TableName } from "@prisma/client";
+import { Prestation, TableName } from "@prisma/client";
 import {
   createPrestation,
   deletePrestation,
@@ -48,24 +48,23 @@ import {
   Search,
   ClipboardList,
   Stethoscope,
+  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 export default function PrestationPage() {
   const [listePrestation, setListePrestation] = useState<Prestation[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [permission, setPermission] = useState<Permission | null>(null);
-  const [hasAccess, setHasAccess] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user?.id ?? "";
+  const { canRead, canCreate: canCreatePerm, canUpdate: canUpdatePerm, canDelete: canDeletePerm, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const form = useForm<Prestation>({
     defaultValues: {
@@ -82,36 +81,6 @@ export default function PrestationPage() {
   }, [listePrestation, searchTerm]);
 
   useEffect(() => {
-    if (!session?.user) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.PRESTATION
-        );
-
-        if (perm?.canRead || session.user.role === "ADMIN") {
-          setHasAccess(true);
-          setPermission(perm || null);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-
-    fetchPermissions();
-  }, [session?.user, router]);
-
-  useEffect(() => {
     const fetchData = async () => {
       const prestation = await getAllPrestation();
       setListePrestation(prestation);
@@ -125,22 +94,12 @@ export default function PrestationPage() {
     }
   }, [idUser, form]);
 
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerBar />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.PRESTATION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   const onSubmit = async (data: Prestation) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer une prestation. Contactez un administrateur."
-      );
+    if (!canCreatePerm(TableName.PRESTATION)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     const formattedData = {
@@ -168,10 +127,8 @@ export default function PrestationPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer une prestation. Contactez un administrateur."
-      );
+    if (!canDeletePerm(TableName.PRESTATION)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
@@ -185,10 +142,8 @@ export default function PrestationPage() {
   };
 
   const handleUpdatePrestation = (id: string) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de mettre à jour une prestation. Contactez un administrateur."
-      );
+    if (!canUpdatePerm(TableName.PRESTATION)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
     const prestation = listePrestation.find((p) => p.id === id);

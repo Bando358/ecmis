@@ -12,6 +12,7 @@ import {
   Search,
   CircleDollarSign,
   Stethoscope,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Clinique,
-  Permission,
   Prestation,
   TableName,
   TarifPrestation,
@@ -68,8 +68,8 @@ import {
 import { useSession } from "next-auth/react";
 import TarifPrestationDialog from "@/components/TarifPrestationDialog";
 import { useRouter } from "next/navigation";
-import { SpinnerBar } from "@/components/ui/spinner-bar";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 
 export default function TarificationPrestation() {
   const [prestations, setPrestations] = useState<Prestation[]>([]);
@@ -79,14 +79,12 @@ export default function TarificationPrestation() {
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [selectedCliniques, setSelectedCliniques] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
-  const [permission, setPermission] = useState<Permission | null>(null);
-  const [hasAccess, setHasAccess] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const router = useRouter();
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
+  const { canRead, canCreate: canCreatePerm, canUpdate: canUpdatePerm, canDelete: canDeletePerm, isLoading: isLoadingPermissions } = usePermissionContext();
 
   // Filtrage combiné (recherche + clinique)
   const filteredTarifPrestations = useMemo(() => {
@@ -105,33 +103,6 @@ export default function TarificationPrestation() {
   }, [tarifPrestations, selectedCliniques, searchTerm, cliniques]);
 
   useEffect(() => {
-    if (!session?.user) return;
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(session.user.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.TARIF_PRESTATION
-        );
-        if (perm?.canRead || session.user.role === "ADMIN") {
-          setHasAccess(true);
-          setPermission(perm || null);
-        } else {
-          alert("Vous n'avez pas la permission d'accéder à cette page.");
-          router.back();
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      } finally {
-        setIsCheckingPermissions(false);
-      }
-    };
-    fetchPermissions();
-  }, [session?.user, router]);
-
-  useEffect(() => {
     const fetchData = async () => {
       const [prestationData, tarifData, cliniqueData] = await Promise.all([
         getAllPrestation(),
@@ -145,16 +116,8 @@ export default function TarificationPrestation() {
     fetchData();
   }, []);
 
-  if (isCheckingPermissions) {
-    return (
-      <div className="flex justify-center gap-2 items-center h-64">
-        <p className="text-gray-500">Vérification des permissions</p>
-        <SpinnerBar />
-      </div>
-    );
-  }
-
-  if (!hasAccess) return null;
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.TARIF_PRESTATION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   function nomCliniques(idClinique: string) {
     return (
@@ -171,10 +134,8 @@ export default function TarificationPrestation() {
   };
 
   const handleCreate = async (data: TarifPrestation) => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de fixer un tarif. Contactez un administrateur."
-      );
+    if (!canCreatePerm(TableName.TARIF_PRESTATION)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     const formattedData = {
@@ -189,10 +150,8 @@ export default function TarificationPrestation() {
   };
 
   const handleUpdate = async (data: TarifPrestation) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de modifier un tarif. Contactez un administrateur."
-      );
+    if (!canUpdatePerm(TableName.TARIF_PRESTATION)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
     const formattedData = {
@@ -207,10 +166,8 @@ export default function TarificationPrestation() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de supprimer un tarif. Contactez un administrateur."
-      );
+    if (!canDeletePerm(TableName.TARIF_PRESTATION)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {

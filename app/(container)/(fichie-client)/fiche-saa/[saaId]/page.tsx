@@ -15,15 +15,8 @@ import {
 } from "@/lib/actions/authActions";
 import { getAllSaaByIdClient, createSaa } from "@/lib/actions/saaActions";
 import { useSession } from "next-auth/react";
-import {
-  Saa,
-  Grossesse,
-  User,
-  Visite,
-  TableName,
-  Permission,
-  Client,
-} from "@prisma/client";
+import { Saa, Grossesse, User, Visite, Client } from "@prisma/client";
+import { TableName } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -49,7 +42,8 @@ import { useClientContext } from "@/components/ClientContext";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
 
 const tabTypeAvortement = [
@@ -266,8 +260,9 @@ export default function SaaPage({
   const [prescripteur, setPrescripteur] = useState<User>();
 
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [permission, setPermission] = useState<Permission | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+
+  const { canCreate } = usePermissionContext();
 
   const { setSelectedClientId } = useClientContext();
   useEffect(() => {
@@ -279,61 +274,36 @@ export default function SaaPage({
   const router = useRouter();
 
   useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setIsPrescripteur(user?.prescripteur ? true : false);
-      setPrescripteur(user!);
-    };
-    fetUser();
-  }, [idUser]);
-
-  useEffect(() => {
-    // Si l'utilisateur n'est pas encore chargé, on ne fait rien
-    if (!prescripteur) return;
-
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(prescripteur.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.SAA
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la vérification des permissions :",
-          error
-        );
-      }
-    };
-
-    fetchPermissions();
-  }, [prescripteur]);
-
-  useEffect(() => {
+    if (!idUser) return;
     const fetchData = async () => {
-      const resultSaa = await getAllSaaByIdClient(saaId);
+      // Wave 1: all independent calls in parallel
+      const [user, resultSaa, resultVisites, resultGrossesse, cliniqueClient] = await Promise.all([
+        getOneUser(idUser),
+        getAllSaaByIdClient(saaId),
+        getAllVisiteByIdClient(saaId),
+        getAllGrossesseByIdClient(saaId),
+        getOneClient(saaId),
+      ]);
+
+      setPrescripteur(user!);
+      setIsPrescripteur(!!user?.prescripteur);
       setSelectedSaa(resultSaa as Saa[]);
-      const result = await getAllVisiteByIdClient(saaId);
-      setVisites(result as Visite[]);
-      const resultGrossesse = await getAllGrossesseByIdClient(saaId);
+      setVisites(resultVisites as Visite[]);
       setGrossesses(
         Array.isArray(resultGrossesse)
           ? resultGrossesse.filter((g) => g.grossesseInterruption !== true)
           : []
       );
-
-      const cliniqueClient = await getOneClient(saaId);
       setClient(cliniqueClient);
-      let allPrestataire: User[] = [];
+
+      // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
-        allPrestataire = await getAllUserIncludedIdClinique(
-          cliniqueClient.idClinique
-        );
+        const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
+        setAllPrescripteur(prescripteurs as User[]);
       }
-      setAllPrescripteur(allPrestataire as User[]);
     };
     fetchData();
-  }, [saaId]);
+  }, [saaId, idUser]);
 
   const form = useForm<Saa>({
     defaultValues: {
@@ -343,11 +313,9 @@ export default function SaaPage({
   });
 
   const onSubmit: SubmitHandler<Saa> = async (data) => {
-    if (!permission?.canCreate && prescripteur?.role !== "ADMIN") {
-      alert(
-        "Vous n'avez pas la permission de créer un SAA. Contactez un administrateur."
-      );
-      return router.back();
+    if (!canCreate(TableName.SAA)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+      return;
     }
     const formattedData = {
       ...data,

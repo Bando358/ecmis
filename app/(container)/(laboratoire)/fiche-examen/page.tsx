@@ -23,12 +23,10 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
 import {
   Examen,
-  Permission,
   TableName,
   TypeExamen,
-  User,
 } from "@prisma/client";
-import { Plus, X, Pencil, Trash2, Search, FlaskConical } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Search, FlaskConical, Loader2 } from "lucide-react";
 import {
   createExamen,
   deleteExamen,
@@ -46,8 +44,8 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { getUserPermissionsById } from "@/lib/actions/permissionActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { usePermissionContext } from "@/contexts/PermissionContext";
+import { ERROR_MESSAGES } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -89,22 +87,13 @@ export default function ExamenPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [permission, setPermission] = useState<Permission | null>(null);
-  const [oneUser, setOneUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
   const router = useRouter();
-
-  useEffect(() => {
-    const fetUser = async () => {
-      const user = await getOneUser(idUser);
-      setOneUser(user);
-    };
-    fetUser();
-  }, [idUser]);
+  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
   const form = useForm<Examen>({
     defaultValues: {
@@ -133,22 +122,6 @@ export default function ExamenPage() {
   useEffect(() => {
     form.setValue("idUser", idUser);
   }, [idUser, form]);
-
-  useEffect(() => {
-    if (!oneUser) return;
-    const fetchPermissions = async () => {
-      try {
-        const permissions = await getUserPermissionsById(oneUser.id);
-        const perm = permissions.find(
-          (p: { table: string }) => p.table === TableName.EXAMEN
-        );
-        setPermission(perm || null);
-      } catch (error) {
-        console.error("Erreur lors de la vérification des permissions :", error);
-      }
-    };
-    fetchPermissions();
-  }, [oneUser, router]);
 
   // Compteurs par type
   const typeCounts = useMemo(() => {
@@ -202,9 +175,9 @@ export default function ExamenPage() {
         toast.success("Examen mis à jour avec succès !");
         setIsUpdating(false);
       } else {
-        if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-          alert("Vous n'avez pas la permission de créer un examen.");
-          return router.back();
+        if (!canCreate(TableName.EXAMEN)) {
+          toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+          return;
         }
         const id = crypto.randomUUID();
         await createExamen({ id, ...formattedData });
@@ -221,8 +194,8 @@ export default function ExamenPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!permission?.canDelete && session?.user.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission de supprimer un examen.");
+    if (!canDelete(TableName.EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
     try {
@@ -238,8 +211,8 @@ export default function ExamenPage() {
   };
 
   const handleUpdateExamen = (id: string) => {
-    if (!permission?.canUpdate && session?.user.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission de modifier un examen.");
+    if (!canUpdate(TableName.EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
     const exam = listeExamens.find((e) => e.id === id);
@@ -265,14 +238,17 @@ export default function ExamenPage() {
   };
 
   const handleOpenForm = () => {
-    if (!permission?.canCreate && session?.user.role !== "ADMIN") {
-      alert("Vous n'avez pas la permission d'ajouter un examen.");
+    if (!canCreate(TableName.EXAMEN)) {
+      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
     form.reset();
     setIsUpdating(false);
     setIsVisible(true);
   };
+
+  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!canRead(TableName.EXAMEN)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
     <div className="space-y-4 max-w-6xl mx-auto p-4">
