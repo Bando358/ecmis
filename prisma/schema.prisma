@@ -382,6 +382,7 @@ model Client {
   codeVih            String?
   tel_1              String
   tel_2              String
+  populationVulnerable String? @default("non")
   createdAt          DateTime @default(now())
   idUser             String?
   idClinique         String

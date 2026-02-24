@@ -1,6 +1,17 @@
 // formulaire-client
 "use client";
-import { BadgePlus } from "lucide-react";
+import {
+  BadgePlus,
+  Building2,
+  UserRound,
+  MapPin,
+  GraduationCap,
+  Phone,
+  Hash,
+  HeartPulse,
+  UserPlus,
+  Info,
+} from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
@@ -108,6 +119,114 @@ const statusClientOptions = [
   { label: "Nouveau", value: "nouveau" },
   { label: "Ancien", value: "ancien" },
 ];
+const populationVulnerableOptions = [
+  { label: "Non", value: "non" },
+  { label: "Population carcérale", value: "population_carcerale" },
+  { label: "Professionnel(le) du sexe", value: "professionnel_du_sexe" },
+  {
+    label: "HSH (Hommes ayant des rapports sexuels avec des hommes)",
+    value: "HSH",
+  },
+  { label: "UDI (Usagers de drogues injectables)", value: "UDI" },
+  { label: "Personnes transgenres", value: "personnes_transgenres" },
+  { label: "Migrants / Réfugiés", value: "migrants_refugies" },
+  { label: "Personnes handicapées", value: "personnes_handicapees" },
+  { label: "Adolescents / Jeunes vulnérables", value: "adolescents_jeunes" },
+  { label: "Femmes victimes de violences", value: "femmes_victimes_violences" },
+  { label: "Orphelins et enfants vulnérables (OEV)", value: "OEV" },
+  { label: "Populations autochtones", value: "populations_autochtones" },
+  { label: "Autres", value: "autres" },
+];
+
+/* ── Color map (Tailwind needs full class names, not dynamic interpolation) ── */
+const colorMap: Record<
+  string,
+  { bg: string; border: string; iconBg: string; text: string }
+> = {
+  blue: {
+    bg: "bg-blue-50",
+    border: "border-blue-100",
+    iconBg: "bg-blue-100",
+    text: "text-blue-700",
+  },
+  violet: {
+    bg: "bg-violet-50",
+    border: "border-violet-100",
+    iconBg: "bg-violet-100",
+    text: "text-violet-700",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-100",
+    iconBg: "bg-emerald-100",
+    text: "text-emerald-700",
+  },
+  amber: {
+    bg: "bg-amber-50",
+    border: "border-amber-100",
+    iconBg: "bg-amber-100",
+    text: "text-amber-700",
+  },
+  sky: {
+    bg: "bg-sky-50",
+    border: "border-sky-100",
+    iconBg: "bg-sky-100",
+    text: "text-sky-700",
+  },
+  indigo: {
+    bg: "bg-indigo-50",
+    border: "border-indigo-100",
+    iconBg: "bg-indigo-100",
+    text: "text-indigo-700",
+  },
+  rose: {
+    bg: "bg-rose-50",
+    border: "border-rose-100",
+    iconBg: "bg-rose-100",
+    text: "text-rose-700",
+  },
+};
+
+/* ── Reusable styled components ── */
+const sectionHeader = (icon: React.ReactNode, title: string, color: string) => {
+  const c = colorMap[color];
+  return (
+    <div className="col-span-2 mt-2">
+      <div
+        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${c.bg} border ${c.border}`}
+      >
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-md ${c.iconBg}`}
+        >
+          {icon}
+        </div>
+        <span
+          className={`text-sm font-bold ${c.text} uppercase tracking-wider`}
+        >
+          {title}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const fieldLabel = (label: string, required?: boolean) => (
+  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+    {label}
+    {required && <span className="text-red-500 ml-0.5">*</span>}
+  </label>
+);
+
+const selectClass =
+  "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 hover:border-gray-300";
+
+const inputClass =
+  "h-9 text-sm border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 hover:border-gray-300";
+
+const dateInputClass =
+  "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 hover:border-gray-300";
+
+const errorClass = "text-red-500 text-xs mt-1 flex items-center gap-1";
 
 export default function FormulaireClient() {
   const { data: session, status } = useSession();
@@ -130,13 +249,16 @@ export default function FormulaireClient() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const user = await getOneUser(idPrestataire);
+      const [user, adminClinique, allRegion] = await Promise.all([
+        getOneUser(idPrestataire),
+        getAllClinique(),
+        getAllRegion(),
+      ]);
       setOneUser(user);
+      setRegion(allRegion);
       if (!user) {
         throw new Error("Utilisateur non trouvé");
       }
-      const adminClinique = await getAllClinique();
-
       if (user.role === "ADMIN") {
         setClinique(adminClinique);
       } else {
@@ -148,9 +270,6 @@ export default function FormulaireClient() {
           ),
         );
       }
-
-      const allRegion = await getAllRegion();
-      setRegion(allRegion);
     };
     fetchData();
   }, [idPrestataire]);
@@ -163,7 +282,7 @@ export default function FormulaireClient() {
     formState: { errors, isSubmitting },
   } = useForm<Client>({
     defaultValues: {
-      cliniqueId: "", // Initialisez avec une valeur vide
+      cliniqueId: "",
       sourceInfo: "",
       statusClient: "",
       lieuNaissance: "",
@@ -182,9 +301,14 @@ export default function FormulaireClient() {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return router.back();
     }
-    if (!prenom || !selectedRegion || !selectedClinique) {
-      alert(
-        "Veuillez remplir la région, la clinique et le prénom avant de générer un code.",
+    if (
+      !watch("prenom") ||
+      !watch("nom") ||
+      !selectedRegion ||
+      !selectedClinique
+    ) {
+      toast.error(
+        "Veuillez remplir la région, la clinique, le nom et le prénom avant de générer un code.",
       );
       return;
     }
@@ -192,11 +316,10 @@ export default function FormulaireClient() {
     const date = new Date();
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    // Nettoyage du prénom : suppression des accents et des caractères spéciaux
     const cleanPrenom = prenom
-      .normalize("NFD") // transforme les caractères accentués en lettres + accents séparés
-      .replace(/[\u0300-\u036f]/g, "") // supprime les accents
-      .replace(/[^a-zA-Z]/g, ""); // supprime tout sauf les lettres
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z]/g, "");
 
     const initials = cleanPrenom.slice(0, 3).toUpperCase();
 
@@ -209,7 +332,7 @@ export default function FormulaireClient() {
       toast.success(codes);
       setNewCode(true);
     } catch (error) {
-      toast.error("Erreur lors de la génération du code :");
+      toast.error("Erreur lors de la génération du code");
       console.error("Erreur lors de la génération du code :", error);
     }
   };
@@ -237,136 +360,156 @@ export default function FormulaireClient() {
   };
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <SpinnerBar />
+      </div>
+    );
   }
   if (status === "authenticated") {
     return (
-      <React.Fragment>
-        <div className="w-full relative">
-          <Retour />
-          <div>
-            <h2 className="text-center text-xl font-bold uppercase">
-              Formulaire de création d un client
-            </h2>
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              className="space-y-4 max-w-225 mx-auto p-4 border rounded-md bg-white"
-            >
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <div className="w-full flex gap-4 justify-between items-center">
-                  <div className="w-full">
-                    <label className="block text-sm font-medium">
-                      Clinique<sup className="text-red-600 font-black">*</sup>
-                    </label>
-                    <select
-                      {...register("cliniqueId", {
-                        required: "Clinique est requise",
-                      })}
-                      className="w-full p-2 border rounded-md"
-                    >
-                      <option value="" disabled>
-                        Select
-                      </option>
-                      {clinique.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.nomClinique}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.cliniqueId && (
-                      <span className="text-red-500 text-sm">
-                        {errors.cliniqueId.message}
-                      </span>
-                    )}
-                  </div>
-                </div>
+      <div className="w-full relative">
+        <Retour />
+
+        {/* ── Header ── */}
+        <div className="max-w-4xl mx-auto mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+              <UserPlus className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">
+                Nouveau client
+              </h2>
+              <p className="text-sm text-gray-400">
+                Remplissez les informations ci-dessous pour enregistrer un
+                nouveau client
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Form ── */}
+        <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto">
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                {/* ═══ Section: Enregistrement ═══ */}
+                {sectionHeader(
+                  <Building2 className="h-4 w-4 text-blue-600" />,
+                  "Enregistrement",
+                  "blue",
+                )}
+
+                {/* 1. Clinique */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Date d enregistrement
-                    <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Clinique", true)}
+                  <select
+                    {...register("cliniqueId", {
+                      required: "Clinique est requise",
+                    })}
+                    className={selectClass}
+                  >
+                    <option value="" disabled>
+                      Sélectionner une clinique
+                    </option>
+                    {clinique.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.nomClinique}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.cliniqueId && (
+                    <span className={errorClass}>
+                      {errors.cliniqueId.message}
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. Date d'enregistrement */}
+                <div>
+                  {fieldLabel("Date d'enregistrement", true)}
                   <input
                     {...register("dateEnregistrement", {
                       required: "Date est requise",
                     })}
                     value={selectedDate}
                     onChange={handleDateChange}
-                    className="mt-1 p-1 w-full rounded-md border border-slate-200"
+                    className={dateInputClass}
                     type="date"
                     name="dateEnregistrement"
                   />
                   {errors.dateEnregistrement && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.dateEnregistrement.message}
                     </span>
                   )}
                 </div>
+
+                {/* ═══ Section: Identité ═══ */}
+                {sectionHeader(
+                  <UserRound className="h-4 w-4 text-violet-600" />,
+                  "Identité",
+                  "violet",
+                )}
+
+                {/* 3. Nom */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Nom<sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Nom", true)}
                   <Input
                     {...register("nom", { required: "Nom est requis" })}
-                    placeholder="Nom"
-                    className="mt-1 capitalize"
+                    placeholder="Nom du client"
+                    className={`${inputClass} capitalize`}
                     name="nom"
                   />
                   {errors.nom && (
-                    <span className="text-red-500 text-sm">
-                      {errors.nom.message}
-                    </span>
+                    <span className={errorClass}>{errors.nom.message}</span>
                   )}
                 </div>
 
+                {/* 4. Prénom */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Prénom<sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Prénom", true)}
                   <Input
                     {...register("prenom", { required: "Prénom est requis" })}
-                    placeholder="Prénom"
-                    className="mt-1 capitalize"
+                    placeholder="Prénom du client"
+                    className={`${inputClass} capitalize`}
                     name="prenom"
                   />
                   {errors.prenom && (
-                    <span className="text-red-500 text-sm">
-                      {errors.prenom.message}
-                    </span>
+                    <span className={errorClass}>{errors.prenom.message}</span>
                   )}
                 </div>
 
+                {/* 5. Date de naissance */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Date de naissance
-                    <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Date de naissance", true)}
                   <input
                     {...register("dateNaissance", {
                       required: "Date de naissance est requise",
                     })}
-                    className="mt-1 p-1 w-full rounded-md border border-slate-200"
+                    className={dateInputClass}
                     type="date"
                     name="dateNaissance"
                   />
                   {errors.dateNaissance && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.dateNaissance.message}
                     </span>
                   )}
                 </div>
 
+                {/* 6. Sexe */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Sexe<sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Sexe", true)}
                   <select
                     {...register("sexe", { required: "Sexe est requis" })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="sexe"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {sexeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -375,44 +518,61 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.sexe && (
-                    <span className="text-red-500 text-sm">
-                      {errors.sexe.message}
-                    </span>
+                    <span className={errorClass}>{errors.sexe.message}</span>
                   )}
                 </div>
 
+                {/* ═══ Section: Localisation ═══ */}
+                {sectionHeader(
+                  <MapPin className="h-4 w-4 text-emerald-600" />,
+                  "Localisation",
+                  "emerald",
+                )}
+
+                {/* 7. Lieu de naissance */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Lieu de naissance
-                  </label>
+                  {fieldLabel("Lieu de naissance")}
                   <Input
                     {...register("lieuNaissance")}
                     placeholder="Lieu de naissance"
-                    className="mt-1 capitalize"
+                    className={`${inputClass} capitalize`}
                     name="lieuNaissance"
-                    defaultValue={""}
+                    defaultValue=""
                   />
-                  {/* {errors.lieuNaissance && (
-                  <span className="text-red-500 text-sm">
-                    {errors.lieuNaissance.message}
-                  </span>
-                )} */}
                 </div>
 
+                {/* 8. Quartier */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Niveau scolaire
-                  </label>
+                  {fieldLabel("Quartier")}
+                  <Input
+                    {...register("quartier")}
+                    placeholder="Quartier de résidence"
+                    className={`${inputClass} capitalize`}
+                    name="quartier"
+                    defaultValue=""
+                  />
+                </div>
+
+                {/* ═══ Section: Situation socio-démographique ═══ */}
+                {sectionHeader(
+                  <GraduationCap className="h-4 w-4 text-amber-600" />,
+                  "Situation socio-démographique",
+                  "amber",
+                )}
+
+                {/* 9. Niveau scolaire */}
+                <div>
+                  {fieldLabel("Niveau scolaire")}
                   <select
                     {...register("niveauScolaire", {
                       required: "Niveau scolaire est requis",
                     })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="niveauScolaire"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {niveauScolaireOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -421,26 +581,25 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.niveauScolaire && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.niveauScolaire.message}
                     </span>
                   )}
                 </div>
+
+                {/* 10. État matrimonial */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    État matrimonial
-                    <sup className="text-red-600 font-black"> *</sup>
-                  </label>
+                  {fieldLabel("État matrimonial", true)}
                   <select
                     {...register("etatMatrimonial", {
                       required: "État matrimonial est requis",
                     })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="etatMatrimonial"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {etatMatrimonialOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -449,23 +608,23 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.etatMatrimonial && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.etatMatrimonial.message}
                     </span>
                   )}
                 </div>
+
+                {/* 11. Ethnie */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Ethnie <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Ethnie", true)}
                   <select
                     {...register("ethnie", { required: "Ethnie est requise" })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="ethnie"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {ethnieOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -474,26 +633,23 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.ethnie && (
-                    <span className="text-red-500 text-sm">
-                      {errors.ethnie.message}
-                    </span>
+                    <span className={errorClass}>{errors.ethnie.message}</span>
                   )}
                 </div>
 
+                {/* 12. Profession */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Profession <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Profession", true)}
                   <select
                     {...register("profession", {
                       required: "Profession est requise",
                     })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="profession"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {professionOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -502,99 +658,109 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.profession && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.profession.message}
                     </span>
                   )}
                 </div>
+
+                {/* ═══ Section: Contact ═══ */}
+                {sectionHeader(
+                  <Phone className="h-4 w-4 text-sky-600" />,
+                  "Contact",
+                  "sky",
+                )}
+
+                {/* 13. Téléphone 1 */}
                 <div>
-                  <label className="block text-sm font-medium">Quartier</label>
-                  {/* quartier n'est pas obligatoire */}
+                  {fieldLabel("Téléphone 1", true)}
                   <Input
-                    {...register("quartier")}
-                    placeholder="Quartier"
-                    className="mt-1 capitalize"
-                    name="quartier"
-                    defaultValue={""}
+                    {...register("tel_1")}
+                    placeholder="0X XX XX XX XX"
+                    className={inputClass}
+                    name="tel_1"
                   />
-                  {/* {errors.quartier && (
-                  <span className="text-red-500 text-sm">
-                    {errors.quartier.message}
-                  </span>
-                )} */}
+                  {errors.tel_1 && (
+                    <span className={errorClass}>{errors.tel_1.message}</span>
+                  )}
                 </div>
+
+                {/* 14. Téléphone 2 */}
                 <div>
-                  <label className="block text-sm font-medium ">
-                    Code<sup className="text-red-600 font-black">*</sup>
-                  </label>
-                  <div className="flex relative -m-1.25">
+                  {fieldLabel("Téléphone 2")}
+                  <Input
+                    {...register("tel_2")}
+                    placeholder="0X XX XX XX XX"
+                    className={inputClass}
+                    name="tel_2"
+                  />
+                </div>
+
+                {/* ═══ Section: Codes & Identifiants ═══ */}
+                {sectionHeader(
+                  <Hash className="h-4 w-4 text-indigo-600" />,
+                  "Codes & Identifiants",
+                  "indigo",
+                )}
+
+                {/* 15. Code */}
+                <div>
+                  {fieldLabel("Code", true)}
+                  <div className="relative">
                     <Input
                       {...register("code", { required: "Code est requis" })}
                       placeholder="AB/CA01/2025/01/00001-XXX"
-                      className="mt-1 uppercase"
+                      className={`${inputClass} uppercase pr-10`}
                       name="code"
                     />
-                    <span className="absolute right-1 top-2.5">
-                      {!newCode ? (
-                        <BadgePlus
-                          onClick={() => handleGenerateCode()}
-                          className="text-slate-800   font-bold text-3xl  cursor-pointer transition-all duration-300 scale-110 active:text-blue-900"
-                        />
-                      ) : (
-                        <BadgePlus className="text-blue-800   font-bold text-3xl" />
-                      )}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => !newCode && handleGenerateCode()}
+                      className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md transition-all duration-200 ${
+                        newCode
+                          ? "text-blue-600 cursor-default"
+                          : "text-gray-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer active:scale-95"
+                      }`}
+                    >
+                      <BadgePlus className="h-5 w-5" />
+                    </button>
                   </div>
                   {errors.code && (
-                    <span className="text-red-500 text-sm">
-                      {errors.code.message}
-                    </span>
+                    <span className={errorClass}>{errors.code.message}</span>
                   )}
                 </div>
+
+                {/* 16. Code VIH */}
                 <div>
-                  <label className="block text-sm font-medium">Code VIH</label>
+                  {fieldLabel("Code VIH")}
                   <Input
                     {...register("codeVih")}
                     placeholder="07060/01/25/00001"
-                    className="mt-1"
+                    className={inputClass}
                     name="codeVih"
                   />
-                  {errors.codeVih && (
-                    <span className="text-red-500 text-sm">
-                      {errors.codeVih.message}
-                    </span>
-                  )}
                 </div>
-                <div className="hidden">
-                  <label className="block text-sm font-medium">
-                    Téléphone 2
-                  </label>
-                  <Input
-                    {...register("tel_2")}
-                    placeholder="Téléphone 2"
-                    className="mt-1"
-                    name="tel_2"
-                  />
-                  {errors.tel_2?.message && (
-                    <span className="text-red-500 text-sm">
-                      {errors.tel_2.message}
-                    </span>
-                  )}
-                </div>
+
+                {/* ═══ Section: Santé & Statut ═══ */}
+                {sectionHeader(
+                  <HeartPulse className="h-4 w-4 text-rose-600" />,
+                  "Santé & Statut",
+                  "rose",
+                )}
+
+                {/* 17. Sérologie */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Sérologie <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Sérologie", true)}
                   <select
                     {...register("serologie", {
                       required: "Sérologie est requise",
                     })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="serologie"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {serologieOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -603,27 +769,42 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.serologie && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.serologie.message}
                     </span>
                   )}
                 </div>
 
+                {/* 18. Population vulnérable */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Source d information{" "}
-                    <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Population vulnérable")}
+                  <select
+                    {...register("populationVulnerable")}
+                    className={selectClass}
+                    name="populationVulnerable"
+                    defaultValue="non"
+                  >
+                    {populationVulnerableOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 19. Source d'information */}
+                <div>
+                  {fieldLabel("Source d'information", true)}
                   <select
                     {...register("sourceInfo", {
                       required: "Source d'information est requise",
                     })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="sourceInfo"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {sourceInfoOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -632,26 +813,25 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.sourceInfo && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.sourceInfo.message}
                     </span>
                   )}
                 </div>
+
+                {/* 20. Statut client */}
                 <div>
-                  <label className="block text-sm font-medium">
-                    Status client
-                    <sup className="text-red-600 font-black">*</sup>
-                  </label>
+                  {fieldLabel("Statut client", true)}
                   <select
                     {...register("statusClient", {
-                      required: "Status client est requis",
+                      required: "Statut client est requis",
                     })}
-                    className="w-full p-2 border rounded-md"
+                    className={selectClass}
                     name="statusClient"
-                    defaultValue={""}
+                    defaultValue=""
                   >
                     <option value="" disabled>
-                      Select
+                      Sélectionner
                     </option>
                     {statusClientOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -660,62 +840,40 @@ export default function FormulaireClient() {
                     ))}
                   </select>
                   {errors.statusClient && (
-                    <span className="text-red-500 text-sm">
+                    <span className={errorClass}>
                       {errors.statusClient.message}
                     </span>
                   )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium">
-                    Téléphone 1<sup className="text-red-600 font-black">*</sup>
-                  </label>
-                  <Input
-                    {...register("tel_1")}
-                    placeholder="Téléphone 1"
-                    className="mt-1"
-                    name="tel_1"
-                  />
-                  {errors.tel_1 && (
-                    <span className="text-red-500 text-sm">
-                      {errors.tel_1.message}
-                    </span>
-                  )}
-                </div>
 
-                <div>
-                  <Input
-                    // className="mt-1 hidden"
-                    type="hidden"
-                    name="idUser"
-                    value={idPrestataire}
-                  />
-                </div>
-
-                <div>
-                  <Input
-                    // className="mt-1 hidden"
-                    type="hidden"
-                    name="idClinique"
-                    value={clinic}
-                  />
-                </div>
+                {/* Hidden fields */}
+                <Input type="hidden" name="idUser" value={idPrestataire} />
+                <Input type="hidden" name="idClinique" value={clinic} />
               </div>
-              <Button
-                type="submit"
-                className="w-full mt-4"
-                disabled={isSubmitting}
-              >
-                <span className="flex flex-row items-center">
+            </div>
+
+            {/* ── Footer / Submit ── */}
+            <div className="px-6 py-4 bg-gray-50/80 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5" />
+                  Les champs marqués * sont obligatoires
+                </p>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-8 h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-md shadow-blue-500/20 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.98]"
+                >
                   {isSubmitting && (
-                    <SpinnerCustom className="mr-2 text-gray-300" />
+                    <SpinnerCustom className="mr-2 text-white/60" />
                   )}
                   Créer le client
-                </span>
-              </Button>
-            </form>
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
-      </React.Fragment>
+        </form>
+      </div>
     );
   }
 }

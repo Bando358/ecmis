@@ -224,6 +224,7 @@ export default function ClientVihUploadPage() {
           codeVih,
           tel_1: "00",
           tel_2: "",
+          populationVulnerable: "non",
           createdAt: new Date(),
           idUser: idUser || null,
         };
