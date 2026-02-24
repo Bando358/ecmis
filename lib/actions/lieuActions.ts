@@ -4,10 +4,21 @@
 import { Lieu, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { z } from "zod";
+import { validateServerData, IdSchema, RequiredStringSchema } from "@/lib/validations/base";
+
+const LieuSchema = z.object({
+  idActivite: IdSchema,
+  lieu: RequiredStringSchema,
+  localite: RequiredStringSchema,
+  dateDebut: z.coerce.date(),
+  dateFin: z.coerce.date(),
+}).passthrough();
 
 // Création d'une Fiche Lieu
 export async function createLieu(data: Lieu) {
   await requirePermission(TableName.LIEU, "canCreate");
+  validateServerData(LieuSchema, data);
   return await prisma.lieu.create({
     data,
   });

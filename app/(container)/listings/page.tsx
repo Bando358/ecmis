@@ -25,7 +25,8 @@ import {
   fetchClientsStatusProtege,
 } from "@/components/rapportPfActions";
 import { useEffect, useState } from "react";
-import { FactureExamen, User } from "@prisma/client";
+import { FactureExamen } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { useSession } from "next-auth/react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import PlanningFamilial from "@/components/listings/ListePlanningFamilial";
@@ -511,8 +512,8 @@ export default function Page() {
 // ✅ Fonction utilitaire stable
 const getPrescripteurName = (
   prescripteurIds: string[],
-  tabPrescripteur: User[],
-  tabAllUser: User[]
+  tabPrescripteur: SafeUser[],
+  tabAllUser: SafeUser[]
 ): string => {
   const prescripteur = tabPrescripteur.find((p) =>
     prescripteurIds.includes(p.id)

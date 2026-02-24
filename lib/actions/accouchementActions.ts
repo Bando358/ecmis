@@ -3,13 +3,26 @@
 import { Accouchement, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { AccouchementCreateSchema } from "@/lib/validations/clinical";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche Accouchement
 export async function createAccouchement(data: Accouchement) {
   await requirePermission(TableName.ACCOUCHEMENT, "canCreate");
-  return await prisma.accouchement.create({
-    data,
+  const validated = validateServerData(AccouchementCreateSchema, data);
+  const result = await prisma.accouchement.create({
+    data: validated,
   });
+  await logAction({
+    idUser: data.accouchementIdUser,
+    action: "CREATION",
+    entite: "Accouchement",
+    entiteId: result.id,
+    idClinique: data.accouchementIdClinique,
+    description: `Création fiche Accouchement pour client ${data.accouchementIdClient}`,
+  });
+  return result;
 }
 // export async function createAccouchement(data: Accouchement) {
 //   return await prisma.accouchement.create({
@@ -75,16 +88,38 @@ export const getOneAccouchement = async (id: string | null) => {
 // Suppression d'une Fiche Accouchement
 export async function deleteAccouchement(id: string) {
   await requirePermission(TableName.ACCOUCHEMENT, "canDelete");
-  return await prisma.accouchement.delete({
+  const existing = await prisma.accouchement.findUnique({ where: { id }, select: { accouchementIdUser: true, accouchementIdClinique: true, accouchementIdClient: true } });
+  const result = await prisma.accouchement.delete({
     where: { id },
   });
+  if (existing) {
+    await logAction({
+      idUser: existing.accouchementIdUser,
+      action: "SUPPRESSION",
+      entite: "Accouchement",
+      entiteId: id,
+      idClinique: existing.accouchementIdClinique,
+      description: `Suppression fiche Accouchement ${id} du client ${existing.accouchementIdClient}`,
+    });
+  }
+  return result;
 }
 
 //Mise à jour de la Fiche Accouchement
 export async function updateAccouchement(id: string, data: Accouchement) {
   await requirePermission(TableName.ACCOUCHEMENT, "canUpdate");
-  return await prisma.accouchement.update({
+  const validated = validateServerData(AccouchementCreateSchema.partial(), data);
+  const result = await prisma.accouchement.update({
     where: { id },
-    data,
+    data: validated,
   });
+  await logAction({
+    idUser: data.accouchementIdUser,
+    action: "MODIFICATION",
+    entite: "Accouchement",
+    entiteId: id,
+    idClinique: data.accouchementIdClinique,
+    description: `Modification fiche Accouchement ${id}`,
+  });
+  return result;
 }

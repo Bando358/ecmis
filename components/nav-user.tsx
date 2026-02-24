@@ -72,10 +72,6 @@ export function NavUser() {
     return firstNamesInitials + lastNameInitial;
   }
 
-  // Exemple d'utilisation
-  const fullName = "Jean Paul Sartre";
-  console.log(extractInitials(fullName)); // JPS
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>

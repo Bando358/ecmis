@@ -1,9 +1,12 @@
 "use server";
 
-import { TarifProduit, TableName } from "@prisma/client";
+import { TarifProduit, Prisma, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { TarifProduitCreateSchema } from "@/lib/validations/finance";
 
 // Création de TarifProduit
 export async function createTarifProduit(data: {
@@ -14,13 +17,14 @@ export async function createTarifProduit(data: {
   idUser: string;
 }) {
   await requirePermission(TableName.TARIF_PRODUIT, "canCreate");
+  const validated = validateServerData(TarifProduitCreateSchema, data);
   const result = await prisma.tarifProduit.create({
     data: {
-      prixUnitaire: data.prixUnitaire,
-      quantiteStock: data.quantiteStock,
-      Produit: { connect: { id: data.idProduit } },
-      Clinique: { connect: { id: data.idClinique } },
-      User: { connect: { id: data.idUser } },
+      prixUnitaire: validated.prixUnitaire,
+      quantiteStock: validated.quantiteStock,
+      Produit: { connect: { id: validated.idProduit } },
+      Clinique: { connect: { id: validated.idClinique } },
+      User: { connect: { id: validated.idUser } },
     },
   });
   await logAction({
@@ -76,8 +80,9 @@ export async function deleteTarifProduit(id: string) {
 //Mise à jour de TarifProduit
 export async function updateTarifProduit(id: string, data: TarifProduit) {
   await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
+  const validated = validateServerData(TarifProduitCreateSchema.partial(), data);
   const oldRecord = await prisma.tarifProduit.findUnique({ where: { id } });
-  const result = await prisma.tarifProduit.update({ where: { id }, data });
+  const result = await prisma.tarifProduit.update({ where: { id }, data: validated });
   await logAction({
     idUser: data.idUser,
     action: "MODIFICATION",
@@ -137,30 +142,21 @@ export async function updateQuantiteStockTarifProduitByDetailCommande(
 ) {
   await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
   try {
-    const tarif = await prisma.tarifProduit.findUnique({
+    // Opération atomique pour éviter les race conditions
+    const updated = await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
+      data: { quantiteStock: { increment: quantiteAjoutee } },
       select: { quantiteStock: true, idUser: true, idClinique: true },
     });
 
-    if (!tarif) {
-      throw new Error("Produit non trouvé");
-    }
-
-    const newStock = tarif.quantiteStock + quantiteAjoutee;
-    await prisma.tarifProduit.update({
-      where: { id: idTarifProduit },
-      data: { quantiteStock: newStock },
-    });
-
     await logAction({
-      idUser: tarif.idUser,
+      idUser: updated.idUser,
       action: "MODIFICATION",
       entite: "TarifProduit",
       entiteId: idTarifProduit,
-      idClinique: tarif.idClinique,
-      description: `Approvisionnement stock: +${quantiteAjoutee} unites | ${tarif.quantiteStock} -> ${newStock}`,
-      anciennesDonnees: { quantiteStock: tarif.quantiteStock },
-      nouvellesDonnees: { quantiteStock: newStock },
+      idClinique: updated.idClinique,
+      description: `Approvisionnement stock: +${quantiteAjoutee} unites -> ${updated.quantiteStock}`,
+      nouvellesDonnees: { quantiteStock: updated.quantiteStock },
     });
 
     return { success: true, quantiteAjoutee };
@@ -178,30 +174,21 @@ export async function updateTarifProduitByDetailCommandeAnnule(
 ) {
   await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
   try {
-    const tarif = await prisma.tarifProduit.findUnique({
+    // Opération atomique pour éviter les race conditions
+    const updated = await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
+      data: { quantiteStock: { decrement: quantiteAjoutee } },
       select: { quantiteStock: true, idUser: true, idClinique: true },
     });
 
-    if (!tarif) {
-      throw new Error("Produit non trouvé");
-    }
-
-    const newStock = tarif.quantiteStock - quantiteAjoutee;
-    await prisma.tarifProduit.update({
-      where: { id: idTarifProduit },
-      data: { quantiteStock: newStock },
-    });
-
     await logAction({
-      idUser: tarif.idUser,
+      idUser: updated.idUser,
       action: "MODIFICATION",
       entite: "TarifProduit",
       entiteId: idTarifProduit,
-      idClinique: tarif.idClinique,
-      description: `Annulation commande: -${quantiteAjoutee} unites | ${tarif.quantiteStock} -> ${newStock}`,
-      anciennesDonnees: { quantiteStock: tarif.quantiteStock },
-      nouvellesDonnees: { quantiteStock: newStock },
+      idClinique: updated.idClinique,
+      description: `Annulation commande: -${quantiteAjoutee} unites -> ${updated.quantiteStock}`,
+      nouvellesDonnees: { quantiteStock: updated.quantiteStock },
     });
 
     return { success: true, quantiteAjoutee };
@@ -212,4 +199,20 @@ export async function updateTarifProduitByDetailCommandeAnnule(
     );
     return { success: false };
   }
+}
+
+// ************* TarifProduit paginé **************
+export async function getTarifProduitsPaginated(
+  params?: PaginationParams & { idClinique?: string }
+): Promise<PaginatedResult<TarifProduit>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.TarifProduitWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+
+  const [data, total] = await Promise.all([
+    prisma.tarifProduit.findMany({ where, skip, take, orderBy: { createdAt: "desc" } }),
+    prisma.tarifProduit.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
 }

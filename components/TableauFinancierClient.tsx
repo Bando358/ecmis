@@ -12,8 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
-import TableauFinancierChart from "./TableauFinancierChart";
+import dynamic from "next/dynamic";
 import type { FinancialDashboardData } from "@/lib/actions/financialDashboardActions";
+
+const TableauFinancierChart = dynamic(() => import("./TableauFinancierChart"), {
+  loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />,
+  ssr: false,
+});
 
 interface TableauFinancierClientProps {
   tabClinique: { id: string; name: string }[];

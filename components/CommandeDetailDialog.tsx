@@ -31,13 +31,13 @@ import {
   CommandeFournisseur,
   Clinique,
   DetailCommande,
-  User,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 
 type CommandeFournisseurWithRelations = CommandeFournisseur & {
   Clinique?: Clinique | null;
   detailCommande: (DetailCommande & {
-    User?: User | null;
+    User?: SafeUser | null;
     tarifProduit?:
       | (TarifProduit & {
           produit?: Produit | null;

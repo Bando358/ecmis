@@ -18,7 +18,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Client, Planning, TableName, User, Visite } from "@prisma/client";
+import { Client, Planning, TableName, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 // import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -99,8 +100,8 @@ export default function PlanningPage({
 
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedPlanning, setSelectedPlanning] = useState<Planning[]>([]);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [clients, setAllClients] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
 
@@ -146,7 +147,7 @@ export default function PlanningPage({
         setAllClients(cliniqueClient);
 
         // Wave 2: requête dépendante du client
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique

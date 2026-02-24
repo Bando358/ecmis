@@ -19,9 +19,9 @@ import {
   Client,
   PecVih,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -69,8 +69,8 @@ export default function PecVihPage({
 
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedPecVih, setSelectedPecVih] = useState<PecVih[]>([]);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
@@ -104,7 +104,7 @@ export default function PecVihPage({
       // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
         const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
-        setAllPrescripteur(prescripteurs as User[]);
+        setAllPrescripteur(prescripteurs as SafeUser[]);
       }
     };
     fetchData();

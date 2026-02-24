@@ -4,10 +4,13 @@ import { Inventaire, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { InventaireCreateSchema } from "@/lib/validations/finance";
 
 // Création d'une Fiche Inventaire
 export async function createInventaire(data: Inventaire) {
   await requirePermission(TableName.INVENTAIRE, "canCreate");
+  const validated = validateServerData(InventaireCreateSchema, data);
   // Extraire la date sans l'heure pour comparaison
   const dateInventaire = new Date(data.dateInventaire);
   const startOfDay = new Date(dateInventaire);
@@ -33,7 +36,7 @@ export async function createInventaire(data: Inventaire) {
     );
   }
 
-  const result = await prisma.inventaire.create({ data });
+  const result = await prisma.inventaire.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",

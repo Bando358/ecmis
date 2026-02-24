@@ -3,6 +3,20 @@
 import { Activite, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { z } from "zod";
+import { validateServerData, IdSchema, RequiredStringSchema } from "@/lib/validations/base";
+import { logAction } from "./journalPharmacyActions";
+
+const ActiviteSchema = z.object({
+  idClinique: IdSchema,
+  libelle: RequiredStringSchema,
+  dateDebut: z.coerce.date(),
+  dateFin: z.coerce.date(),
+  objectifClt: z.number().int().optional().nullable(),
+  objectifSrv: z.number().int().optional().nullable(),
+  commentaire: z.string().optional().nullable(),
+  idUser: IdSchema,
+}).passthrough();
 
 // ************* Activité by tableau id Clinique **************
 
@@ -31,9 +45,19 @@ export const getAllActiviteByTabIdClinique = async (idClinique: string[]) => {
 // Création d'une activité
 export async function createActivite(data: Activite) {
   await requirePermission(TableName.ACTIVITE, "canCreate");
-  return await prisma.activite.create({
+  validateServerData(ActiviteSchema, data);
+  const activite = await prisma.activite.create({
     data,
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "Activite",
+    entiteId: activite.id,
+    idClinique: data.idClinique,
+    description: `Création activité: ${data.libelle}`,
+  });
+  return activite;
 }
 
 // Récupération de une seule activité
@@ -51,10 +75,20 @@ export const getOneActivite = async (id: string | null) => {
 //Mise à jour de l'activité
 export async function updateActivite(id: string, data: Activite) {
   await requirePermission(TableName.ACTIVITE, "canUpdate");
-  return await prisma.activite.update({
+  const updated = await prisma.activite.update({
     where: { id },
     data,
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "MODIFICATION",
+    entite: "Activite",
+    entiteId: id,
+    idClinique: data.idClinique,
+    description: `Modification activité: ${data.libelle}`,
+    nouvellesDonnees: data as unknown as Record<string, unknown>,
+  });
+  return updated;
 }
 
 // Suppression d'une activité
@@ -75,6 +109,18 @@ export async function deleteActivite(id: string) {
     throw new Error(
       `Impossible de supprimer cette activité : ${visitesCount} visite(s) y sont rattachée(s).`
     );
+  }
+  const existing = await prisma.activite.findUnique({ where: { id } });
+  if (existing) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "Activite",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression activité: ${existing.libelle}`,
+      anciennesDonnees: existing as unknown as Record<string, unknown>,
+    });
   }
   return await prisma.activite.delete({ where: { id } });
 }

@@ -7,12 +7,12 @@
 // AUTHENTIFICATION & SESSION
 // ============================================
 export const AUTH = {
-  /** Durée maximale d'une session en secondes (8 heures - journée de travail) */
-  SESSION_MAX_AGE: 8 * 60 * 60,
-  /** Intervalle de rafraîchissement de session en secondes (1h) */
-  SESSION_UPDATE_AGE: 1 * 60 * 60,
-  /** Durée d'inactivité avant déconnexion en millisecondes (15 min) */
-  INACTIVITY_TIMEOUT_MS: 15 * 60 * 1000,
+  /** Durée maximale d'une session en secondes (4 heures - standard médical) */
+  SESSION_MAX_AGE: 4 * 60 * 60,
+  /** Intervalle de rafraîchissement de session en secondes (5 min) */
+  SESSION_UPDATE_AGE: 5 * 60,
+  /** Durée d'inactivité avant déconnexion en millisecondes (30 min) */
+  INACTIVITY_TIMEOUT_MS: 30 * 60 * 1000,
   /** Nombre de rounds pour le hashage bcrypt */
   BCRYPT_ROUNDS: 10,
 } as const;

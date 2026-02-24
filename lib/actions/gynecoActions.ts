@@ -1,15 +1,29 @@
 "use server";
 
-import { Gynecologie, TableName } from "@prisma/client";
+import { Gynecologie, Prisma, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { GynecologieCreateSchema } from "@/lib/validations/clinical";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche Gynécologique
 export async function createGyneco(data: Gynecologie) {
   await requirePermission(TableName.GYNECOLOGIE, "canCreate");
-  return await prisma.gynecologie.create({
-    data,
+  const validated = validateServerData(GynecologieCreateSchema, data);
+  const result = await prisma.gynecologie.create({
+    data: validated,
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "Gynecologie",
+    entiteId: result.id,
+    idClinique: data.idClinique,
+    description: `Création fiche Gynécologie pour client ${data.idClient}`,
+  });
+  return result;
 }
 
 // ************* Fiche Gynécologique **************
@@ -46,16 +60,54 @@ export const getOneGyneco = async (id: string | null) => {
 // Suppression d'une Fiche Gynécologique
 export async function deleteGyneco(id: string) {
   await requirePermission(TableName.GYNECOLOGIE, "canDelete");
-  return await prisma.gynecologie.delete({
+  const existing = await prisma.gynecologie.findUnique({ where: { id }, select: { idUser: true, idClinique: true, idClient: true } });
+  const result = await prisma.gynecologie.delete({
     where: { id },
   });
+  if (existing) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "Gynecologie",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression fiche Gynécologie ${id} du client ${existing.idClient}`,
+    });
+  }
+  return result;
 }
 
 //Mise à jour de la Fiche Gynécologique
 export async function updateGyneco(id: string, data: Gynecologie) {
   await requirePermission(TableName.GYNECOLOGIE, "canUpdate");
-  return await prisma.gynecologie.update({
+  const validated = validateServerData(GynecologieCreateSchema.partial(), data);
+  const result = await prisma.gynecologie.update({
     where: { id },
-    data,
+    data: validated,
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "MODIFICATION",
+    entite: "Gynecologie",
+    entiteId: id,
+    idClinique: data.idClinique,
+    description: `Modification fiche Gynécologie ${id}`,
+  });
+  return result;
+}
+
+// ************* Gynécologie paginée **************
+export async function getGynecoPaginated(
+  params?: PaginationParams & { idClinique?: string }
+): Promise<PaginatedResult<Gynecologie>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.GynecologieWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+
+  const [data, total] = await Promise.all([
+    prisma.gynecologie.findMany({ where, skip, take, orderBy: { createdAt: "desc" } }),
+    prisma.gynecologie.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
 }

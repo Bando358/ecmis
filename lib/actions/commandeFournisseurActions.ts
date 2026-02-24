@@ -4,11 +4,14 @@ import { CommandeFournisseur, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { CommandeFournisseurCreateSchema } from "@/lib/validations/finance";
 
 // Création de CommandeFournisseur
 export async function createCommandeFournisseur(data: CommandeFournisseur) {
   await requirePermission(TableName.COMMANDE_FOURNISSEUR, "canCreate");
-  const result = await prisma.commandeFournisseur.create({ data });
+  const validated = validateServerData(CommandeFournisseurCreateSchema, data);
+  const result = await prisma.commandeFournisseur.create({ data: validated });
   await logAction({
     idUser: "system",
     action: "CREATION",

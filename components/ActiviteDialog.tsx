@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Activite, Clinique, User } from "@prisma/client";
+import { Activite, Clinique } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import {
@@ -41,7 +42,7 @@ import {
 
 interface ActiviteDialogProps {
   cliniques: Clinique[];
-  users: User[];
+  users: SafeUser[];
   userId?: string;
   activites: Activite[];
   selectedCliniqueId: string;

@@ -13,7 +13,8 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Activite, Lieu, TableName, User, Visite } from "@prisma/client";
+import { Activite, Lieu, TableName, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import {
@@ -68,7 +69,7 @@ export default function FormVisiteModification({
   const [lieus, setLieus] = useState<Lieu[]>([]);
   const [oneVisite, setOneVisite] = useState<Visite>();
   const [isVisible, setIsVisible] = useState(false);
-  const [prescripteur, setPrescripteur] = useState<User | null>(null);
+  const [prescripteur, setPrescripteur] = useState<SafeUser | null>(null);
   const [loadingLieu, setLoadingLieu] = useState(false);
   const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);

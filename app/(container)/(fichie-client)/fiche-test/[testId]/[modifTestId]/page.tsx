@@ -15,7 +15,8 @@ import {
   updateTestGrossesse,
 } from "@/lib/actions/testActions";
 import { useSession } from "next-auth/react";
-import { User, TestGrossesse, Visite, TableName } from "@prisma/client";
+import { TestGrossesse, Visite, TableName } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -77,8 +78,8 @@ export default function GynecoPage({
 
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -119,7 +120,7 @@ export default function GynecoPage({
         );
 
         // Wave 3: depends on user role and cliniqueClient
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique,
@@ -130,12 +131,12 @@ export default function GynecoPage({
           if (user?.role !== "ADMIN") {
             allPrestataire = await getAllUserIncludedTabIdClinique(
               user!.idCliniques,
-            ) as User[];
+            ) as SafeUser[];
           } else {
-            allPrestataire = await getAllUser() as User[];
+            allPrestataire = await getAllUser() as SafeUser[];
           }
         }
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
 
         setVisites(
           result.filter((r: { id: string }) => r.id === oneTest.testIdVisite),

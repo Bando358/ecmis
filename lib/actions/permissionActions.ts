@@ -3,6 +3,7 @@
 import { TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { logAction } from "./journalPharmacyActions";
 
 export async function getUserPermissions(id: string) {
   try {
@@ -84,6 +85,15 @@ export async function updatePermission(
       },
     });
 
+    await logAction({
+      idUser,
+      action: "MODIFICATION",
+      entite: "Permission",
+      entiteId: idUser,
+      description: `Modification permission: ${table}.${action} = ${value} pour utilisateur ${idUser}`,
+      nouvellesDonnees: { table, [action]: value },
+    });
+
     return permission;
   } catch (error) {
     console.error("Erreur lors de la mise à jour des permissions:", error);
@@ -151,6 +161,17 @@ export async function createPermissionBeforeChecked(
       data,
     });
 
+    if (filteredData.length > 0) {
+      await logAction({
+        idUser: filteredData[0].userId,
+        action: "CREATION",
+        entite: "Permission",
+        entiteId: filteredData[0].userId,
+        description: `Création de ${result.count} permission(s) pour utilisateur ${filteredData[0].userId}`,
+        nouvellesDonnees: { tables: filteredData.map((p) => p.table) } as unknown as Record<string, unknown>,
+      });
+    }
+
     return {
       createdCount: result.count,
       created: filteredData,
@@ -183,6 +204,17 @@ export async function createPermission(tablePermissions: permissionProps[]) {
       data,
     });
 
+    if (tablePermissions.length > 0) {
+      await logAction({
+        idUser: tablePermissions[0].userId,
+        action: "CREATION",
+        entite: "Permission",
+        entiteId: tablePermissions[0].userId,
+        description: `Création de ${result.count} permission(s) pour utilisateur ${tablePermissions[0].userId}`,
+        nouvellesDonnees: { tables: tablePermissions.map((p) => p.table) } as unknown as Record<string, unknown>,
+      });
+    }
+
     return result;
   } catch (error) {
     console.error("Erreur lors de la création des permissions:", error);
@@ -213,6 +245,20 @@ export async function getOnePermissionByUserIdAndTable(
 export async function deletePermissionByUserId(idUser: string) {
   await requirePermission(TableName.PERMISSION, "canDelete");
   try {
+    const existingPermissions = await prisma.permission.findMany({
+      where: { userId: idUser },
+      select: { table: true },
+    });
+
+    await logAction({
+      idUser,
+      action: "SUPPRESSION",
+      entite: "Permission",
+      entiteId: idUser,
+      description: `Suppression de ${existingPermissions.length} permission(s) pour utilisateur ${idUser}`,
+      anciennesDonnees: { tables: existingPermissions.map((p) => p.table) } as unknown as Record<string, unknown>,
+    });
+
     const permission = await prisma.permission.deleteMany({
       where: {
         userId: idUser,

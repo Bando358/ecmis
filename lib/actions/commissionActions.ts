@@ -1,7 +1,10 @@
 "use server";
 
-import { CommissionExamen, CommissionEchographie } from "@prisma/client";
+import { CommissionExamen, CommissionEchographie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { CommissionExamenCreateSchema, CommissionEchographieCreateSchema } from "@/lib/validations/finance";
 
 // ==================== COMMISSION EXAMEN ====================
 
@@ -9,8 +12,10 @@ import prisma from "@/lib/prisma";
 export async function createCommissionExamen(
   data: Omit<CommissionExamen, "createdAt" | "updatedAt">
 ) {
+  await requirePermission(TableName.COMMISSION_EXAMEN, "canCreate");
+  const validated = validateServerData(CommissionExamenCreateSchema, data);
   return await prisma.commissionExamen.create({
-    data,
+    data: validated,
   });
 }
 
@@ -41,6 +46,7 @@ export async function getCommissionsExamenNonPayees(idPrescripteur: string) {
 
 // Marquer une commission comme payée
 export async function payerCommissionExamen(id: string) {
+  await requirePermission(TableName.COMMISSION_EXAMEN, "canUpdate");
   return await prisma.commissionExamen.update({
     where: { id },
     data: {
@@ -55,6 +61,7 @@ export async function updateCommissionExamen(
   id: string,
   data: Partial<CommissionExamen>
 ) {
+  await requirePermission(TableName.COMMISSION_EXAMEN, "canUpdate");
   return await prisma.commissionExamen.update({
     where: { id },
     data,
@@ -63,6 +70,7 @@ export async function updateCommissionExamen(
 
 // Suppression d'une CommissionExamen
 export async function deleteCommissionExamen(id: string) {
+  await requirePermission(TableName.COMMISSION_EXAMEN, "canDelete");
   return await prisma.commissionExamen.delete({
     where: { id },
   });
@@ -81,8 +89,10 @@ export async function getCommissionByFactureExamen(idFactureExamen: string) {
 export async function createCommissionEchographie(
   data: Omit<CommissionEchographie, "createdAt" | "updatedAt">
 ) {
+  await requirePermission(TableName.COMMISSION_ECHOGRAPHIE, "canCreate");
+  const validated = validateServerData(CommissionEchographieCreateSchema, data);
   return await prisma.commissionEchographie.create({
-    data,
+    data: validated,
   });
 }
 
@@ -113,6 +123,7 @@ export async function getCommissionsEchographieNonPayees(idPrescripteur: string)
 
 // Marquer une commission comme payée
 export async function payerCommissionEchographie(id: string) {
+  await requirePermission(TableName.COMMISSION_ECHOGRAPHIE, "canUpdate");
   return await prisma.commissionEchographie.update({
     where: { id },
     data: {
@@ -127,6 +138,7 @@ export async function updateCommissionEchographie(
   id: string,
   data: Partial<CommissionEchographie>
 ) {
+  await requirePermission(TableName.COMMISSION_ECHOGRAPHIE, "canUpdate");
   return await prisma.commissionEchographie.update({
     where: { id },
     data,
@@ -135,6 +147,7 @@ export async function updateCommissionEchographie(
 
 // Suppression d'une CommissionEchographie
 export async function deleteCommissionEchographie(id: string) {
+  await requirePermission(TableName.COMMISSION_ECHOGRAPHIE, "canDelete");
   return await prisma.commissionEchographie.delete({
     where: { id },
   });
@@ -171,6 +184,7 @@ export async function getTotalCommissionsNonPayees(idPrescripteur: string) {
 
 // Payer toutes les commissions d'un prescripteur
 export async function payerToutesCommissions(idPrescripteur: string) {
+  await requirePermission(TableName.COMMISSION_EXAMEN, "canUpdate");
   const now = new Date();
 
   await Promise.all([

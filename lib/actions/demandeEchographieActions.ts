@@ -1,10 +1,15 @@
 "use server";
 
-import { DemandeEchographie } from "@prisma/client";
+import { DemandeEchographie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { DemandeEchographieCreateSchema } from "@/lib/validations/labo";
 
 // Création de DemandeEchographie
 export async function createDemandeEchographie(data: DemandeEchographie) {
+  await requirePermission(TableName.DEMANDE_ECHOGRAPHIE, "canCreate");
+  validateServerData(DemandeEchographieCreateSchema, data);
   const {
     id,
     idVisite,
@@ -52,6 +57,7 @@ export async function getAllDemandeEchographiesByIdVisite(idVisite: string) {
 
 // Suppression d'une DemandeEchographie
 export async function deleteDemandeEchographie(id: string) {
+  await requirePermission(TableName.DEMANDE_ECHOGRAPHIE, "canDelete");
   return await prisma.demandeEchographie.delete({
     where: { id },
   });
@@ -62,6 +68,7 @@ export async function updateDemandeEchographie(
   id: string,
   data: DemandeEchographie
 ) {
+  await requirePermission(TableName.DEMANDE_ECHOGRAPHIE, "canUpdate");
   return await prisma.demandeEchographie.update({
     where: { id },
     data,

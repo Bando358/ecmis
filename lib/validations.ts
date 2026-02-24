@@ -9,6 +9,9 @@
 
 import { z } from "zod";
 
+// Re-export du helper de validation serveur
+export { validateServerData } from "./validations/base";
+
 // ============================================
 // Schémas de base réutilisables
 // ============================================

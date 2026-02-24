@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Eye, FilePenLine, Trash2, Funnel, FunnelX, UserPlus, Users } from "lucide-react";
 
-import { Client, Clinique, User, TableName } from "@prisma/client";
+import { Client, Clinique, TableName } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { deleteClient, getAllClient } from "@/lib/actions/clientActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
@@ -137,7 +138,7 @@ export default function Clients() {
   const [selectedAntennes, setSelectedAntennes] = useState<string[]>([]);
   const [spinner, setSpinner] = useState(false);
   const [clients, setClients] = useState<Client[]>(cache?.clients ?? []);
-  const [utilisateur, setUtilisateur] = useState<User | null>(null);
+  const [utilisateur, setUtilisateur] = useState<SafeUser | null>(null);
   const [cliniques, setCliniques] = useState<Clinique[]>(cache?.cliniques ?? []);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [isLoading, setIsLoading] = useState(!cache);

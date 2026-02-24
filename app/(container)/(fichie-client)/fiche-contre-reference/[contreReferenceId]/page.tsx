@@ -21,9 +21,9 @@ import {
   ContreReference,
   Reference,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -101,8 +101,8 @@ export default function ContreReferencePage({
   const [client, setClient] = useState<Client | null>(null);
   const [selectedVisite, setSelectedVisite] = useState<string>();
   const [allReference, setAllReference] = useState<Reference[]>([]);
-  const [allPrestataire, setAllPrestataire] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrestataire, setAllPrestataire] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrestataire, setIsPrestataire] = useState<boolean>();
   const [showForm, setShowForm] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -155,13 +155,13 @@ export default function ContreReferencePage({
         setTabContreReference(allContreRefByClient as ContreReference[]);
 
         // Wave 2: requête dépendante du client
-        let allPrestataireData: User[] = [];
+        let allPrestataireData: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataireData = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique
           );
         }
-        setAllPrestataire(allPrestataireData as User[]);
+        setAllPrestataire(allPrestataireData as SafeUser[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
       }

@@ -21,7 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
-import { Client, TableName, User as PrismaUser } from "@prisma/client";
+import { Client, TableName } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { getOneClient, updateClient } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
@@ -210,7 +211,7 @@ export default function ModifFormulaireClient({
   const { modifClientId } = use(params);
   const [selectedClient, setSelectedClient] = useState<Client>();
   const [clinique, setClinique] = useState<CliniqueData[]>([]);
-  const [onePrescripteur, setOnePrescripteur] = useState<PrismaUser | null>(null);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();

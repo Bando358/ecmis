@@ -4,13 +4,26 @@
 import { ContreReference, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { ContreReferenceCreateSchema } from "@/lib/validations/clinical";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche ContreRéférence
 export const createContreReference = async (data: ContreReference) => {
   await requirePermission(TableName.CONTRE_REFERENCE, "canCreate");
-  return await prisma.contreReference.create({
-    data,
+  const validated = validateServerData(ContreReferenceCreateSchema, data);
+  const contreRef = await prisma.contreReference.create({
+    data: validated,
   });
+  await logAction({
+    idUser: validated.idUser,
+    action: "CREATION",
+    entite: "ContreReference",
+    entiteId: contreRef.id,
+    idClinique: validated.idClinique,
+    description: `Création contre-référence pour client ${validated.idClient}`,
+  });
+  return contreRef;
 };
 
 // ************* Fiche ContreRéférence **************
@@ -47,6 +60,18 @@ export const getOneContreReference = async (id: string | null) => {
 // Suppression d'une Fiche ContreRéférence
 export async function deleteContreReference(id: string) {
   await requirePermission(TableName.CONTRE_REFERENCE, "canDelete");
+  const existing = await prisma.contreReference.findUnique({ where: { id } });
+  if (existing) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "ContreReference",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression contre-référence pour client ${existing.idClient}`,
+      anciennesDonnees: existing as unknown as Record<string, unknown>,
+    });
+  }
   return await prisma.contreReference.delete({
     where: { id },
   });
@@ -55,8 +80,19 @@ export async function deleteContreReference(id: string) {
 //Mise à jour de la Fiche ContreRéférence
 export async function updateContreReference(id: string, data: ContreReference) {
   await requirePermission(TableName.CONTRE_REFERENCE, "canUpdate");
-  return await prisma.contreReference.update({
+  const validated = validateServerData(ContreReferenceCreateSchema.partial(), data);
+  const updated = await prisma.contreReference.update({
     where: { id },
-    data,
+    data: validated,
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "MODIFICATION",
+    entite: "ContreReference",
+    entiteId: id,
+    idClinique: data.idClinique,
+    description: `Modification contre-référence pour client ${data.idClient}`,
+    nouvellesDonnees: validated as unknown as Record<string, unknown>,
+  });
+  return updated;
 }

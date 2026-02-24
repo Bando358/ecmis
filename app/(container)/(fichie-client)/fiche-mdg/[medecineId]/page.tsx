@@ -20,10 +20,10 @@ import { useSession } from "next-auth/react";
 import {
   Medecine,
   Visite,
-  User,
   TableName,
   Client,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -165,8 +165,8 @@ export default function MdgPage({
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedMedecine, setSelectedMedecine] = useState<Medecine[]>([]);
   const [selectedDiagnostic, setSelectedDiagnostic] = useState<Option[]>([]);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();

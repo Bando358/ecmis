@@ -11,7 +11,8 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { Medecine, Visite, User } from "@prisma/client";
+import { Medecine, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { TableName } from "@prisma/client";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -159,8 +160,8 @@ export default function MdgPage({
   const [dateVisite, setDateVisite] = useState<Date>();
   const [selectedDiagnostic, setSelectedDiagnostic] = useState<Option[]>([]);
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
 
@@ -210,7 +211,7 @@ export default function MdgPage({
           setDateVisite(visiteDate?.dateVisite);
 
           // Wave 3: depends on client
-          let allUser: User[] = [];
+          let allUser: SafeUser[] = [];
           if (client?.idClinique) {
             allUser = await getAllUserIncludedIdClinique(client.idClinique);
           }

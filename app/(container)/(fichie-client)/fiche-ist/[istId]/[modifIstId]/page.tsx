@@ -12,7 +12,8 @@ import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneIst, updateIst } from "@/lib/actions/istActions";
 
 import { useSession } from "next-auth/react";
-import { Ist, User, Visite } from "@prisma/client";
+import { Ist, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { TableName } from "@prisma/client";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -104,8 +105,8 @@ export default function IstPage({
 
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -145,7 +146,7 @@ export default function IstPage({
           );
 
           // Wave 3: depends on cliniqueClient
-          let allPrestataire: User[] = [];
+          let allPrestataire: SafeUser[] = [];
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
               cliniqueClient.idClinique,

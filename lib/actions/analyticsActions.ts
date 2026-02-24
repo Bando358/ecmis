@@ -1,6 +1,8 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { TableName } from "@prisma/client";
+import { requirePermission } from "@/lib/auth/withPermission";
 import { AnalysisConfig, AnalysisResult, OrgUnitTreeNode } from "@/lib/analytics/types";
 import { executeAnalysis } from "@/lib/analytics/engine";
 import { INDICATOR_REGISTRY, getCategoryLabel } from "@/lib/analytics/indicators/registry";
@@ -203,6 +205,7 @@ export async function saveAnalysis(params: {
   userId: string;
   isShared?: boolean;
 }) {
+  await requirePermission(TableName.SAVED_ANALYSIS, "canCreate");
   const saved = await prisma.savedAnalysis.create({
     data: {
       name: params.name,
@@ -222,6 +225,7 @@ export async function updateAnalysis(params: {
   configuration?: AnalysisConfig;
   isShared?: boolean;
 }) {
+  await requirePermission(TableName.SAVED_ANALYSIS, "canUpdate");
   await prisma.savedAnalysis.update({
     where: { id: params.id },
     data: {
@@ -267,6 +271,7 @@ export async function loadSavedAnalysis(id: string) {
 }
 
 export async function deleteSavedAnalysis(id: string, userId: string) {
+  await requirePermission(TableName.SAVED_ANALYSIS, "canDelete");
   await prisma.savedAnalysis.delete({
     where: { id, createdByUserId: userId },
   });

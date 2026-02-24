@@ -3,12 +3,15 @@
 import { Echographie, TypeEchographie, RegionExaminee, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { EchographieCreateSchema } from "@/lib/validations/labo";
 
 // Création de Echographie
 export async function createEchographie(data: Echographie) {
   await requirePermission(TableName.ECHOGRAPHIE, "canCreate");
+  const validated = validateServerData(EchographieCreateSchema, data);
   return await prisma.echographie.create({
-    data,
+    data: validated,
   });
 }
 
@@ -39,9 +42,10 @@ export async function deleteEchographie(id: string) {
 //Mise à jour de echographie
 export async function updateEchographie(id: string, data: Echographie) {
   await requirePermission(TableName.ECHOGRAPHIE, "canUpdate");
+  const validated = validateServerData(EchographieCreateSchema.partial(), data);
   return await prisma.echographie.update({
     where: { id },
-    data,
+    data: validated,
   });
 }
 

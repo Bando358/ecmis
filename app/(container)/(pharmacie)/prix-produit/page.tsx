@@ -35,8 +35,8 @@ import {
   Produit,
   Clinique,
   TableName,
-  User,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { getAllProduits } from "@/lib/actions/produitActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import {
@@ -58,7 +58,7 @@ export default function PrixProduitPage() {
   const [listeTarifProduit, setListeTarifProduit] = useState<TarifProduit[]>(
     []
   );
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [tarifsFiltres, setTarifsFiltres] = useState<TarifProduit[]>([]);
   const [produits, setProduits] = useState<Produit[]>([]);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);

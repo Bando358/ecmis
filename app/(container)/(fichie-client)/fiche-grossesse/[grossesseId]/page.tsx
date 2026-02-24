@@ -22,9 +22,9 @@ import {
   Client,
   Grossesse,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -72,8 +72,8 @@ export default function GrossessePage({
   const [selectedGrossesse, setSelectedGrossesse] = useState<Grossesse[]>([]);
   const [client, setClient] = useState<Client | null>(null);
 
-  const [prescripteur, setPrescripteur] = useState<User>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +108,7 @@ export default function GrossessePage({
           ? await getAllUserIncludedIdClinique(cliniqueClient.idClinique)
           : [];
 
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
         toast.error("Erreur lors du chargement");

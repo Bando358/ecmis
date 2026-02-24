@@ -3,13 +3,26 @@
 import { PecVih, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { PecVihCreateSchema } from "@/lib/validations/clinical";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche de PEC VIH
 export async function createPecVih(data: PecVih) {
   await requirePermission(TableName.PEC_VIH, "canCreate");
-  return await prisma.pecVih.create({
-    data,
+  const validated = validateServerData(PecVihCreateSchema, data);
+  const result = await prisma.pecVih.create({
+    data: validated,
   });
+  await logAction({
+    idUser: data.pecVihIdUser,
+    action: "CREATION",
+    entite: "PecVih",
+    entiteId: result.id,
+    idClinique: data.pecVihIdClinique,
+    description: `Création fiche PEC VIH pour client ${data.pecVihIdClient}`,
+  });
+  return result;
 }
 // Création d'une Fiche de PEC VIH
 export async function createPecVihViaData(data: {
@@ -32,7 +45,7 @@ export async function createPecVihViaData(data: {
   pecVihIdClinique: string; // Ajout obligatoire
 }) {
   await requirePermission(TableName.PEC_VIH, "canCreate");
-  return await prisma.pecVih.create({
+  const result = await prisma.pecVih.create({
     data: {
       pecVihCreatedAt: data.pecVihCreatedAt,
       pecVihUpdatedAt: data.pecVihUpdatedAt,
@@ -62,6 +75,15 @@ export async function createPecVihViaData(data: {
       },
     },
   });
+  await logAction({
+    idUser: data.pecVihIdUser,
+    action: "CREATION",
+    entite: "PecVih",
+    entiteId: result.id,
+    idClinique: data.pecVihIdClinique,
+    description: `Création fiche PEC VIH (via data) pour client ${data.pecVihIdClient}`,
+  });
+  return result;
 }
 // check si une idVisite existe pour un PecVih. Si oui, on retourne true, sinon false
 export async function checkIdVisiteExists(idVisite: string | null) {
@@ -108,16 +130,38 @@ export const getOnePecVih = async (id: string | null) => {
 // Suppression d'une Fiche de PEC VIH
 export async function deletePecVih(id: string) {
   await requirePermission(TableName.PEC_VIH, "canDelete");
-  return await prisma.pecVih.delete({
+  const existing = await prisma.pecVih.findUnique({ where: { id }, select: { pecVihIdUser: true, pecVihIdClinique: true, pecVihIdClient: true } });
+  const result = await prisma.pecVih.delete({
     where: { id },
   });
+  if (existing) {
+    await logAction({
+      idUser: existing.pecVihIdUser,
+      action: "SUPPRESSION",
+      entite: "PecVih",
+      entiteId: id,
+      idClinique: existing.pecVihIdClinique,
+      description: `Suppression fiche PEC VIH ${id} du client ${existing.pecVihIdClient}`,
+    });
+  }
+  return result;
 }
 
 //Mise à jour de la Fiche de PEC VIH
 export async function updatePecVih(id: string, data: PecVih) {
   await requirePermission(TableName.PEC_VIH, "canUpdate");
-  return await prisma.pecVih.update({
+  const validated = validateServerData(PecVihCreateSchema.partial(), data);
+  const result = await prisma.pecVih.update({
     where: { id },
-    data,
+    data: validated,
   });
+  await logAction({
+    idUser: data.pecVihIdUser,
+    action: "MODIFICATION",
+    entite: "PecVih",
+    entiteId: id,
+    idClinique: data.pecVihIdClinique,
+    description: `Modification fiche PEC VIH ${id}`,
+  });
+  return result;
 }

@@ -4,11 +4,14 @@ import { Produit, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { ProduitCreateSchema } from "@/lib/validations/finance";
 
 // Création de Produit
 export async function createProduit(data: Produit) {
   await requirePermission(TableName.PRODUIT, "canCreate");
-  const result = await prisma.produit.create({ data });
+  const validated = validateServerData(ProduitCreateSchema, data);
+  const result = await prisma.produit.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",
@@ -58,8 +61,9 @@ export async function deleteProduit(id: string) {
 //Mise à jour de Produit
 export async function updateProduit(id: string, data: Produit) {
   await requirePermission(TableName.PRODUIT, "canUpdate");
+  const validated = validateServerData(ProduitCreateSchema.partial(), data);
   const oldRecord = await prisma.produit.findUnique({ where: { id } });
-  const result = await prisma.produit.update({ where: { id }, data });
+  const result = await prisma.produit.update({ where: { id }, data: validated });
   await logAction({
     idUser: data.idUser,
     action: "MODIFICATION",

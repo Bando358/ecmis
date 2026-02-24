@@ -3,13 +3,26 @@
 import { Saa, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { SaaCreateSchema } from "@/lib/validations/clinical";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche Saa
 export async function createSaa(data: Saa) {
   await requirePermission(TableName.SAA, "canCreate");
-  return await prisma.saa.create({
-    data,
+  const validated = validateServerData(SaaCreateSchema, data);
+  const result = await prisma.saa.create({
+    data: validated,
   });
+  await logAction({
+    idUser: data.saaIdUser,
+    action: "CREATION",
+    entite: "Saa",
+    entiteId: result.id,
+    idClinique: data.saaIdClinique,
+    description: `Création fiche SAA pour client ${data.saaIdClient}`,
+  });
+  return result;
 }
 
 // ************* Fiche Saa **************
@@ -46,16 +59,38 @@ export const getOneSaa = async (id: string | null) => {
 // Suppression d'une Fiche Saa
 export async function deleteSaa(id: string) {
   await requirePermission(TableName.SAA, "canDelete");
-  return await prisma.saa.delete({
+  const existing = await prisma.saa.findUnique({ where: { id }, select: { saaIdUser: true, saaIdClinique: true, saaIdClient: true } });
+  const result = await prisma.saa.delete({
     where: { id },
   });
+  if (existing) {
+    await logAction({
+      idUser: existing.saaIdUser,
+      action: "SUPPRESSION",
+      entite: "Saa",
+      entiteId: id,
+      idClinique: existing.saaIdClinique,
+      description: `Suppression fiche SAA ${id} du client ${existing.saaIdClient}`,
+    });
+  }
+  return result;
 }
 
 //Mise à jour de la Fiche Saa
 export async function updateSaa(id: string, data: Saa) {
   await requirePermission(TableName.SAA, "canUpdate");
-  return await prisma.saa.update({
+  const validated = validateServerData(SaaCreateSchema.partial(), data);
+  const result = await prisma.saa.update({
     where: { id },
-    data,
+    data: validated,
   });
+  await logAction({
+    idUser: data.saaIdUser,
+    action: "MODIFICATION",
+    entite: "Saa",
+    entiteId: id,
+    idClinique: data.saaIdClinique,
+    description: `Modification fiche SAA ${id}`,
+  });
+  return result;
 }

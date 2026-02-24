@@ -1,15 +1,29 @@
 "use server";
 
-import { Visite, TableName } from "@prisma/client";
+import { Visite, Prisma, TableName } from "@prisma/client";
 import prisma from "../prisma";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { VisiteCreateSchema } from "@/lib/validations";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Visite
 export async function createVisite(data: Visite) {
   await requirePermission(TableName.VISITE, "canCreate");
-  return await prisma.visite.create({
+  validateServerData(VisiteCreateSchema, data);
+  const visite = await prisma.visite.create({
     data,
   });
+  await logAction({
+    idUser: data.idUser,
+    action: "CREATION",
+    entite: "Visite",
+    entiteId: visite.id,
+    idClinique: data.idClinique,
+    description: `Création visite pour client ${data.idClient} - motif: ${data.motifVisite}`,
+  });
+  return visite;
 }
 
 // on va vérifier si un client à dejà une visite à une date donnée
@@ -82,6 +96,18 @@ export const getOneVisite = async (id: string | null) => {
 // Suppression d'un Visite
 export async function deleteVisite(id: string) {
   await requirePermission(TableName.VISITE, "canDelete");
+  const existing = await prisma.visite.findUnique({ where: { id } });
+  if (existing) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "Visite",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression visite pour client ${existing.idClient} - motif: ${existing.motifVisite}`,
+      anciennesDonnees: existing as unknown as Record<string, unknown>,
+    });
+  }
   return await prisma.visite.delete({
     where: { id },
   });
@@ -90,7 +116,7 @@ export async function deleteVisite(id: string) {
 //Mise à jour de la Visite
 export async function updateVisite(id: string, data: Partial<Visite>) {
   await requirePermission(TableName.VISITE, "canUpdate");
-  return await prisma.visite.update({
+  const updated = await prisma.visite.update({
     where: { id },
     data: {
       dateVisite: data.dateVisite,
@@ -102,6 +128,18 @@ export async function updateVisite(id: string, data: Partial<Visite>) {
       updatedAt: new Date(),
     },
   });
+  if (data.idUser) {
+    await logAction({
+      idUser: data.idUser,
+      action: "MODIFICATION",
+      entite: "Visite",
+      entiteId: id,
+      idClinique: data.idClinique,
+      description: `Modification visite pour client ${data.idClient} - motif: ${data.motifVisite}`,
+      nouvellesDonnees: data as unknown as Record<string, unknown>,
+    });
+  }
+  return updated;
 }
 
 export async function getAllVisiteByIdClient(idClient: string) {
@@ -137,3 +175,19 @@ export const getAllActiviteInVisite = async (date: string) => {
 
   return allActivite;
 };
+
+// ************* Visite paginée **************
+export async function getVisitesPaginated(
+  params?: PaginationParams & { idClinique?: string }
+): Promise<PaginatedResult<Visite>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.VisiteWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+
+  const [data, total] = await Promise.all([
+    prisma.visite.findMany({ where, skip, take, orderBy: { dateVisite: "desc" } }),
+    prisma.visite.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
+}

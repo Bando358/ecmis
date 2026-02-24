@@ -1,5 +1,11 @@
 // types/prisma.ts
-import { Prisma } from "@prisma/client";
+import { Prisma, User } from "@prisma/client";
+
+/**
+ * Type User sans le champ password (retourné par toutes les requêtes user).
+ * Utilisé côté client car les server actions ne renvoient jamais le password.
+ */
+export type SafeUser = Omit<User, "password">;
 
 // Type Inventaire avec toutes ses relations
 export type InventaireWithRelations = Prisma.InventaireGetPayload<{

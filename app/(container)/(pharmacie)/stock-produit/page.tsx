@@ -27,8 +27,8 @@ import {
   CommandeFournisseur,
   DetailCommande,
   TableName,
-  User,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { getAllProduits } from "@/lib/actions/produitActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import {
@@ -68,7 +68,7 @@ export default function GestionStockProduitPage() {
   const [currentCommande, setCurrentCommande] =
     useState<CommandeFournisseur | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [recherche, setRecherche] = useState<string>("");
   const [selectedClinique, setSelectedClinique] = useState<string>("");
 

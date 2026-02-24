@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
-import { Client, TableName, User } from "@prisma/client";
+import { Client, TableName } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 
 import {
   createClient,
@@ -231,7 +232,7 @@ const errorClass = "text-red-500 text-xs mt-1 flex items-center gap-1";
 export default function FormulaireClient() {
   const { data: session, status } = useSession();
   const [clinique, setClinique] = useState<CliniqueData[]>([]);
-  const [oneUser, setOneUser] = useState<User | null>(null);
+  const [oneUser, setOneUser] = useState<SafeUser | null>(null);
   const [region, setRegion] = useState<RegionData[]>([]);
   const [newCode, setNewCode] = useState(false);
   const idPrestataire = session?.user.id as string;

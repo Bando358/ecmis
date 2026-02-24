@@ -59,7 +59,6 @@ import { getOneClient } from "@/lib/actions/clientActions";
 import {
   Visite,
   Client,
-  User,
   Clinique,
   TarifEchographie,
   DemandeEchographie,
@@ -67,6 +66,7 @@ import {
   TableName,
   TypeEchographie,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import {
@@ -125,9 +125,9 @@ export default function PageDemandeEchographie({
   const [demandes, setDemandes] = useState<DemandeEchographie[]>([]);
   const [tabEchographies, setTabEchographies] = useState<Echographie[]>([]);
   const [tabClinique, setTabClinique] = useState<Clinique[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
-  const [prescripteurs, setPrescripteurs] = useState<User | null>(null);
-  const [tabPrescripteurs, setTabPrescripteurs] = useState<User[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
+  const [prescripteurs, setPrescripteurs] = useState<SafeUser | null>(null);
+  const [tabPrescripteurs, setTabPrescripteurs] = useState<SafeUser[]>([]);
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [selectedPrescripteur, setSelectedPrescripteur] = useState<string>("");

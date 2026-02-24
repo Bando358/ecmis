@@ -5,6 +5,9 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { PAGINATION, ERROR_MESSAGES } from "@/lib/constants";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { ClientCreateSchema } from "@/lib/validations";
+import { logAction } from "./journalPharmacyActions";
 
 // Types pour la pagination
 export interface PaginatedResult<T> {
@@ -27,9 +30,20 @@ export interface ClientFilterParams {
 // Création d'une client
 export async function createClient(data: Client) {
   await requirePermission(TableName.CLIENT, "canCreate");
+  validateServerData(ClientCreateSchema, data);
   const client = await prisma.client.create({
     data,
   });
+  if (data.idUser) {
+    await logAction({
+      idUser: data.idUser,
+      action: "CREATION",
+      entite: "Client",
+      entiteId: client.id,
+      idClinique: data.idClinique,
+      description: `Création client: ${data.nom} ${data.prenom} (${data.code})`,
+    });
+  }
   revalidatePath("/client");
   return client;
 }
@@ -209,6 +223,18 @@ export const getOneClient = async (id: string | null) => {
 // Suppression d'un client
 export async function deleteClient(id: string) {
   await requirePermission(TableName.CLIENT, "canDelete");
+  const existing = await prisma.client.findUnique({ where: { id } });
+  if (existing && existing.idUser) {
+    await logAction({
+      idUser: existing.idUser,
+      action: "SUPPRESSION",
+      entite: "Client",
+      entiteId: id,
+      idClinique: existing.idClinique,
+      description: `Suppression client: ${existing.nom} ${existing.prenom} (${existing.code})`,
+      anciennesDonnees: existing as unknown as Record<string, unknown>,
+    });
+  }
   return await prisma.client.delete({
     where: { id },
   });
@@ -217,10 +243,22 @@ export async function deleteClient(id: string) {
 //Mise à jour de la Client
 export async function updateClient(id: string, data: Client) {
   await requirePermission(TableName.CLIENT, "canUpdate");
-  return await prisma.client.update({
+  const updated = await prisma.client.update({
     where: { id },
     data,
   });
+  if (data.idUser) {
+    await logAction({
+      idUser: data.idUser,
+      action: "MODIFICATION",
+      entite: "Client",
+      entiteId: id,
+      idClinique: data.idClinique,
+      description: `Modification client: ${data.nom} ${data.prenom} (${data.code})`,
+      nouvellesDonnees: data as unknown as Record<string, unknown>,
+    });
+  }
+  return updated;
 }
 
 //***************incrementCounter*******/

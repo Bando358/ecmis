@@ -1,14 +1,18 @@
 "use server";
 
-import { FactureExamen, TableName } from "@prisma/client";
+import { FactureExamen, Prisma, TableName } from "@prisma/client";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { FactureExamenCreateSchema } from "@/lib/validations/finance";
 
 // Création de FactureExamen
 export async function createFactureExamen(data: FactureExamen) {
   await requirePermission(TableName.FACTURE_EXAMEN, "canCreate");
-  const result = await prisma.factureExamen.create({ data });
+  const validated = validateServerData(FactureExamenCreateSchema, data);
+  const result = await prisma.factureExamen.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",
@@ -54,8 +58,9 @@ export async function deleteFactureExamen(id: string) {
 //Mise à jour de FactureExamen
 export async function updateFactureExamen(id: string, data: FactureExamen) {
   await requirePermission(TableName.FACTURE_EXAMEN, "canUpdate");
+  const validated = validateServerData(FactureExamenCreateSchema.partial(), data);
   const oldRecord = await prisma.factureExamen.findUnique({ where: { id } });
-  const result = await prisma.factureExamen.update({ where: { id }, data });
+  const result = await prisma.factureExamen.update({ where: { id }, data: validated });
   await logAction({
     idUser: data.idUser,
     action: "MODIFICATION",
@@ -75,4 +80,20 @@ export async function getAllFactureExamenByIdVisite(idVisite: string) {
     where: { idVisite: idVisite },
     orderBy: { idVisite: "desc" },
   });
+}
+
+// ************* FactureExamen paginée **************
+export async function getFactureExamensPaginated(
+  params?: PaginationParams & { idClinique?: string }
+): Promise<PaginatedResult<FactureExamen>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.FactureExamenWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+
+  const [data, total] = await Promise.all([
+    prisma.factureExamen.findMany({ where, skip, take, orderBy: { id: "desc" } }),
+    prisma.factureExamen.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
 }

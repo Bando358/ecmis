@@ -14,7 +14,8 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { Accouchement, Grossesse, User, Visite } from "@prisma/client";
+import { Accouchement, Grossesse, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { TableName } from "@prisma/client";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -97,8 +98,8 @@ export default function ModifAccouchemtPage({
     useState<Accouchement>();
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [onePrescripteur, setOneAllPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [onePrescripteur, setOneAllPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -139,13 +140,13 @@ export default function ModifAccouchemtPage({
         );
 
         // Wave 3: depends on cliniqueClient
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique,
           );
         }
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
 
         setVisites(
           result.filter(

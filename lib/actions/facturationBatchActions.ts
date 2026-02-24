@@ -7,7 +7,9 @@ import {
   FactureExamen,
   FactureEchographie,
   TypeCouverture,
+  TableName,
 } from "@prisma/client";
+import { requirePermission } from "@/lib/auth/withPermission";
 import { logAction } from "./journalPharmacyActions";
 
 interface BatchFacturationData {
@@ -29,6 +31,7 @@ interface BatchFacturationData {
 }
 
 export async function batchFacturation(data: BatchFacturationData) {
+  await requirePermission(TableName.FACTURE_PRESTATION, "canCreate");
   await prisma.$transaction(
     async (tx) => {
       // 1. Couverture (skip si déjà existante)

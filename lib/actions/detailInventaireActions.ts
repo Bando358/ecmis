@@ -4,11 +4,14 @@ import { DetailInventaire, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { DetailInventaireCreateSchema } from "@/lib/validations/finance";
 
 // ************ Inventaire **********
 export async function createDetailInventaire(data: DetailInventaire) {
   await requirePermission(TableName.DETAIL_INVENTAIRE, "canCreate");
-  const result = await prisma.detailInventaire.create({ data });
+  const validated = validateServerData(DetailInventaireCreateSchema, data);
+  const result = await prisma.detailInventaire.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",

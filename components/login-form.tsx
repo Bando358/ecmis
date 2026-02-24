@@ -22,9 +22,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { signIn, signOut } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { getUserByUsername } from "@/lib/actions/authActions";
 import { loginSchema, type LoginInput } from "@/lib/schemas";
 import { authLogger } from "@/lib/logger";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -58,37 +57,28 @@ export function LoginForm({
       });
 
       if (res?.error) {
-        authLogger.warn("Échec de connexion - identifiants invalides", {
+        // Le serveur retourne null pour : identifiants invalides, compte banni, user inexistant
+        // Message générique pour empêcher l'énumération d'utilisateurs
+        authLogger.warn("Échec de connexion", {
           data: { username: data.username },
         });
         toast.error(ERROR_MESSAGES.INVALID_CREDENTIALS);
+        form.setValue("password", "");
         setIsPending(false);
         return;
       }
 
       if (res?.ok) {
-        const user = await getUser(data.username);
-        if (user?.banned) {
-          authLogger.warn("Connexion bloquée - compte banni", {
-            userId: user.id,
-            data: { username: data.username },
-          });
-          toast.error(ERROR_MESSAGES.ACCOUNT_BANNED);
-          await signOut({ redirect: false });
-          setIsPending(false);
-          return;
-        } else {
-          authLogger.info("Connexion réussie", {
-            userId: user?.id,
-            data: { username: data.username },
-          });
-          toast.success("Connexion réussie !");
-          router.replace("/");
-        }
+        authLogger.info("Connexion réussie", {
+          data: { username: data.username },
+        });
+        toast.success("Connexion réussie !");
+        router.replace("/");
       }
     } catch (error) {
       authLogger.error("Erreur lors de la connexion", error);
       toast.error(ERROR_MESSAGES.UNKNOWN_ERROR);
+      form.setValue("password", "");
       setIsPending(false);
     }
   };
@@ -154,10 +144,3 @@ export function LoginForm({
     </div>
   );
 }
-
-// -- getUser --
-
-const getUser = async (username: string) => {
-  const user = await getUserByUsername(username);
-  return user;
-};

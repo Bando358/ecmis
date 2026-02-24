@@ -3,12 +3,15 @@
 import { TarifEchographie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { TarifEchographieCreateSchema } from "@/lib/validations/labo";
 
 // Création de TarifEchographie
 export async function createTarifEchographie(data: TarifEchographie) {
   await requirePermission(TableName.TARIF_ECHOGRAPHIE, "canCreate");
+  const validated = validateServerData(TarifEchographieCreateSchema, data);
   return await prisma.tarifEchographie.create({
-    data,
+    data: validated,
   });
 }
 
@@ -52,8 +55,9 @@ export async function updateTarifEchographie(
   data: TarifEchographie
 ) {
   await requirePermission(TableName.TARIF_ECHOGRAPHIE, "canUpdate");
+  const validated = validateServerData(TarifEchographieCreateSchema.partial(), data);
   return await prisma.tarifEchographie.update({
     where: { id },
-    data,
+    data: validated,
   });
 }

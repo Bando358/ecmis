@@ -33,7 +33,8 @@ import { RefreshCw, Loader2, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckedFalse, CheckedTrue } from "@/components/checkedTrue";
-import { Gynecologie, User, Visite } from "@prisma/client";
+import { Gynecologie, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { TableName } from "@prisma/client";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -98,8 +99,8 @@ export default function GynecoPage({
   const [selectedGyneco, setSelectedGyneco] = useState<Gynecologie>();
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -138,13 +139,13 @@ export default function GynecoPage({
         );
 
         // Wave 3: depends on cliniqueClient
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique,
           );
         }
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
 
         setVisites(
           result.filter((r: { id: string }) => r.id === oneGyneco.idVisite),

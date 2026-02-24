@@ -4,12 +4,12 @@ import { Button } from "./ui/button";
 import { useSession } from "next-auth/react";
 import { SpinnerCustom } from "./ui/spinner";
 import { getOneUser } from "@/lib/actions/authActions";
-import { User } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { useRouter } from "next/navigation";
 
 export const GetStartedButton = () => {
   const [isPending, setIsPending] = React.useState(false);
-  const [oneUser, setOneUser] = React.useState<User | null>(null);
+  const [oneUser, setOneUser] = React.useState<SafeUser | null>(null);
   const [href, setHref] = React.useState<string>("");
   const { data: session, status } = useSession();
   const idPrestataire = session?.user?.id as string;

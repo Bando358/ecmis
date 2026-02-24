@@ -3,8 +3,11 @@
 
 import { Pool } from "pg";
 import archiver from "archiver";
+import { requirePermission } from "@/lib/auth/withPermission";
+import { TableName } from "@prisma/client";
 
 export async function neonBackup() {
+  await requirePermission(TableName.ADMINISTRATION, "canRead");
   const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
 
   try {
@@ -137,9 +140,7 @@ export async function neonBackup() {
     console.error("Backup failed:", error);
     return new Response(
       JSON.stringify({
-        error:
-          "Backup failed: " +
-          (error instanceof Error ? error.message : "Unknown error"),
+        error: "Erreur lors de la sauvegarde de la base de données",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

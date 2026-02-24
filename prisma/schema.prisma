@@ -424,6 +424,11 @@ model Client {
   ContreReference     ContreReference[]
   Ordonnance          Ordonnance[]
   ExamenPvVih         ExamenPvVih[]
+
+  @@index([idClinique])
+  @@index([dateEnregistrement])
+  @@index([code])
+  @@index([createdAt])
 }
 
 model IncrementCounter {
@@ -541,6 +546,10 @@ model Visite {
 
   // Nouvelle relation
   gestionVisites GestionVisite[]
+
+  @@index([idClinique])
+  @@index([idClient])
+  @@index([dateVisite])
 }
 
 model GestionVisite {
@@ -555,6 +564,9 @@ model GestionVisite {
 
   // Relation vers la visite
   Visite Visite @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+
+  @@index([idVisite])
+  @@index([dateAction])
 }
 
 enum TypeVisite {
@@ -626,6 +638,9 @@ model Planning {
   Visite   Visite   @relation(fields: [idVisite], references: [id], onDelete: Cascade)
   Client   Client   @relation(fields: [idClient], references: [id], onDelete: Cascade)
   User     User     @relation(fields: [idUser], references: [id], onDelete: Cascade)
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 // Fin Planning
@@ -663,6 +678,7 @@ model Gynecologie {
   @@index([idUser])
   @@index([idClient])
   @@index([idVisite])
+  @@index([idClinique])
 }
 
 // Fin Fiche Gynécologique
@@ -717,6 +733,7 @@ model Infertilite {
   @@index([infertIdUser])
   @@index([infertIdClient])
   @@index([infertIdVisite])
+  @@index([infertIdClinique])
 }
 
 // Fin Fiche Infertilité
@@ -746,6 +763,7 @@ model Vbg {
   @@index([vbgIdUser])
   @@index([vbgIdClient])
   @@index([vbgIdVisite])
+  @@index([vbgIdClinique])
 }
 
 // Fin Fiche Vbg
@@ -785,6 +803,7 @@ model Medecine {
   @@index([mdgIdUser])
   @@index([mdgIdClient])
   @@index([mdgIdVisite])
+  @@index([mdgIdClinique])
 }
 
 // Fin model Medecine
@@ -821,6 +840,9 @@ model Grossesse {
   Visite       Visite         @relation(fields: [grossesseIdVisite], references: [id], onDelete: Cascade)
   Client       Client         @relation(fields: [grossesseIdClient], references: [id])
   User         User           @relation(fields: [grossesseIdUser], references: [id])
+
+  @@index([grossesseIdClinique])
+  @@index([grossesseIdClient])
 }
 
 // Fin model Grossesse
@@ -864,6 +886,9 @@ model Obstetrique {
   Visite    Visite     @relation(fields: [obstIdVisite], references: [id], onDelete: Cascade)
   Client    Client     @relation(fields: [obstIdClient], references: [id], onDelete: Cascade)
   User      User       @relation(fields: [obstIdUser], references: [id], onDelete: Cascade)
+
+  @@index([obstIdClinique])
+  @@index([obstIdClient])
 }
 
 // Fin model Obstetrique
@@ -901,6 +926,9 @@ model Accouchement {
 
   Client Client @relation(fields: [accouchementIdClient], references: [id], onDelete: Cascade)
   Visite Visite @relation(fields: [accouchementIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([accouchementIdClinique])
+  @@index([accouchementIdClient])
 }
 
 // Fin model Accouchement
@@ -926,6 +954,9 @@ model Cpon {
   User      User       @relation(fields: [cponIdUser], references: [id])
   Client    Client     @relation(fields: [cponIdClient], references: [id], onDelete: Cascade)
   Visite    Visite     @relation(fields: [cponIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([cponIdClinique])
+  @@index([cponIdClient])
 }
 
 // Fin model Cpon
@@ -947,6 +978,9 @@ model TestGrossesse {
   User     User     @relation(fields: [testIdUser], references: [id], onDelete: Cascade)
   Client   Client   @relation(fields: [testIdClient], references: [id], onDelete: Cascade)
   Visite   Visite   @relation(fields: [testIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([testIdClinique])
+  @@index([testIdClient])
 }
 
 // Fin model TestGrossesse
@@ -979,6 +1013,9 @@ model Saa {
   User      User       @relation(fields: [saaIdUser], references: [id], onDelete: Cascade)
   Client    Client     @relation(fields: [saaIdClient], references: [id], onDelete: Cascade)
   Visite    Visite     @relation(fields: [saaIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([saaIdClinique])
+  @@index([saaIdClient])
 }
 
 // Fin model Saa
@@ -1005,6 +1042,9 @@ model DepistageVih {
   User     User     @relation(fields: [depistageVihIdUser], references: [id], onDelete: Cascade)
   Client   Client   @relation(fields: [depistageVihIdClient], references: [id], onDelete: Cascade)
   Visite   Visite   @relation(fields: [depistageVihIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([depistageVihIdClinique])
+  @@index([depistageVihIdClient])
 }
 
 // Fin model DépistageVih
@@ -1032,6 +1072,9 @@ model PecVih {
   User                      User     @relation(fields: [pecVihIdUser], references: [id])
   Client                    Client   @relation(fields: [pecVihIdClient], references: [id], onDelete: Cascade)
   Visite                    Visite   @relation(fields: [pecVihIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([pecVihIdClinique])
+  @@index([pecVihIdClient])
 }
 
 // Fin model Pec VIH
@@ -1072,6 +1115,9 @@ model ExamenPvVih {
   User                  User     @relation(fields: [examenPvVihIdUser], references: [id])
   Client                Client   @relation(fields: [examenPvVihIdClient], references: [id], onDelete: Cascade)
   Visite                Visite   @relation(fields: [examenPvVihIdVisite], references: [id], onDelete: Cascade)
+
+  @@index([examenPvVihIdClinique])
+  @@index([examenPvVihIdClient])
 }
 
 // Fin model Examen PVVIH
@@ -1119,6 +1165,9 @@ model Reference {
   Client          Client            @relation(fields: [idClient], references: [id])
   User            User              @relation(fields: [idUser], references: [id])
   ContreReference ContreReference[]
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 model ContreReference {
@@ -1151,6 +1200,9 @@ model ContreReference {
   Visite    Visite    @relation(fields: [refIdVisite], references: [id])
   Client    Client    @relation(fields: [idClient], references: [id])
   User      User      @relation(fields: [idUser], references: [id])
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 model Ordonnance {
@@ -1167,6 +1219,9 @@ model Ordonnance {
   Client   Client   @relation(fields: [ordonnanceIdClient], references: [id])
   User     User     @relation(fields: [ordonnanceIdUser], references: [id])
   Clinique Clinique @relation(fields: [ordonnanceIdClinique], references: [id])
+
+  @@index([ordonnanceIdClinique])
+  @@index([ordonnanceIdClient])
 }
 
 // Model Prestation et TarifPrestation
@@ -1211,6 +1266,9 @@ model FacturePrestation {
   Clinique   Clinique   @relation(fields: [idClinique], references: [id])
   Prestation Prestation @relation(fields: [idPrestation], references: [id])
   User       User       @relation(fields: [idUser], references: [id])
+
+  @@index([idClinique, dateFacture])
+  @@index([idVisite])
 }
 
 // Model Laboratoire
@@ -1267,6 +1325,9 @@ model DemandeExamen {
   Visite   Visite   @relation(fields: [idVisite], references: [id])
   Client   Client   @relation(fields: [idClient], references: [id])
   Clinique Clinique @relation(fields: [idClinique], references: [id])
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 model ResultatExamen {
@@ -1288,6 +1349,9 @@ model ResultatExamen {
   Visite        Visite        @relation(fields: [idVisite], references: [id])
   Clinique      Clinique      @relation(fields: [idClinique], references: [id])
   User          User          @relation(fields: [idUser], references: [id])
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 model FactureExamen {
@@ -1310,6 +1374,8 @@ model FactureExamen {
   User             User               @relation(fields: [idUser], references: [id], onDelete: Cascade)
   ResultatExamen   ResultatExamen[]
   CommissionExamen CommissionExamen[]
+
+  @@index([idClinique, idVisite])
 }
 
 // Model Echographie
@@ -1383,6 +1449,9 @@ model DemandeEchographie {
   Visite   Visite   @relation(fields: [idVisite], references: [id])
   Client   Client   @relation(fields: [idClient], references: [id])
   Clinique Clinique @relation(fields: [idClinique], references: [id])
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 enum ServiceEchographie {
@@ -1411,6 +1480,9 @@ model ResultatEchographie {
   Visite             Visite             @relation(fields: [idVisite], references: [id])
   Clinique           Clinique           @relation(fields: [idClinique], references: [id])
   User               User               @relation(fields: [idUser], references: [id])
+
+  @@index([idClinique])
+  @@index([idClient])
 }
 
 model FactureEchographie {
@@ -1433,6 +1505,8 @@ model FactureEchographie {
   User                  User                    @relation(fields: [idUser], references: [id], onDelete: Cascade)
   ResultatEchographie   ResultatEchographie[]
   CommissionEchographie CommissionEchographie[]
+
+  @@index([idClinique, idVisite])
 }
 
 // Modèle de produit
@@ -1472,6 +1546,9 @@ model TarifProduit {
   FactureProduit     FactureProduit[]
   DetailCommande     DetailCommande[]
   DetailInventaire   DetailInventaire[]
+
+  @@index([idClinique])
+  @@index([idProduit])
 }
 
 model Inventaire {
@@ -1482,6 +1559,9 @@ model Inventaire {
   Clinique         Clinique           @relation(fields: [idClinique], references: [id])
   User             User               @relation(fields: [idUser], references: [id])
   detailInventaire DetailInventaire[]
+
+  @@index([idClinique])
+  @@index([dateInventaire])
 }
 
 model DetailInventaire {
@@ -1498,6 +1578,8 @@ model DetailInventaire {
   inventaire         Inventaire           @relation(fields: [idInventaire], references: [id])
   tarifProduit       TarifProduit         @relation(fields: [idTarifProduit], references: [id])
   AnomalieInventaire AnomalieInventaire[]
+
+  @@index([idInventaire])
 }
 
 model AnomalieInventaire {
@@ -1512,6 +1594,8 @@ model AnomalieInventaire {
   tarifProduit     TarifProduit     @relation(fields: [idTarifProduit], references: [id])
   User             User             @relation(fields: [idUser], references: [id])
   detailInventaire DetailInventaire @relation(fields: [idDetailInventaire], references: [id])
+
+  @@index([idTarifProduit])
 }
 
 model FactureProduit {
@@ -1533,6 +1617,9 @@ model FactureProduit {
   tarifProduit TarifProduit @relation(fields: [idTarifProduit], references: [id])
   Client       Client       @relation(fields: [idClient], references: [id])
   Clinique     Clinique     @relation(fields: [idClinique], references: [id])
+
+  @@index([idClinique, dateFacture])
+  @@index([idClient])
 }
 
 model CommandeFournisseur {
@@ -1541,6 +1628,9 @@ model CommandeFournisseur {
   idClinique     String
   Clinique       Clinique         @relation(fields: [idClinique], references: [id])
   detailCommande DetailCommande[]
+
+  @@index([idClinique])
+  @@index([dateCommande])
 }
 
 model DetailCommande {
@@ -1557,6 +1647,9 @@ model DetailCommande {
 
   commande     CommandeFournisseur @relation(fields: [idCommande], references: [id])
   tarifProduit TarifProduit        @relation(fields: [idTarifProduit], references: [id])
+
+  @@index([idCommande])
+  @@index([idClinique])
 }
 
 model Couverture {
@@ -1609,6 +1702,8 @@ model Prescripteur {
   Clinique              Clinique                @relation(fields: [idClinique], references: [id], onDelete: Cascade)
   CommissionExamen      CommissionExamen[]
   CommissionEchographie CommissionEchographie[]
+
+  @@index([idClinique])
 }
 
 model CommissionExamen {
@@ -1625,6 +1720,9 @@ model CommissionExamen {
   FactureExamen FactureExamen @relation(fields: [idFactureExamen], references: [id], onDelete: Cascade)
   Prescripteur  Prescripteur  @relation(fields: [idPrescripteur], references: [id], onDelete: Cascade)
   Visite        Visite        @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+
+  @@index([idPrescripteur])
+  @@index([idVisite])
 }
 
 model CommissionEchographie {
@@ -1641,6 +1739,9 @@ model CommissionEchographie {
   FactureEchographie FactureEchographie @relation(fields: [idFactureEchographie], references: [id], onDelete: Cascade)
   Prescripteur       Prescripteur       @relation(fields: [idPrescripteur], references: [id], onDelete: Cascade)
   Visite             Visite             @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+
+  @@index([idPrescripteur])
+  @@index([idVisite])
 }
 
 enum AuditAction {

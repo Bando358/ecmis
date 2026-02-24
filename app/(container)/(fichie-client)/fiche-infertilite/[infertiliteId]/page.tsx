@@ -26,9 +26,9 @@ import {
   Client,
   Infertilite,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -73,8 +73,8 @@ export default function IstPage({
   const [selectedInfertilite, setSelectedInfertilite] = useState<Infertilite[]>(
     []
   );
-  const [prescripteur, setPrescripteur] = useState<User>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
 
@@ -107,7 +107,7 @@ export default function IstPage({
       // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
         const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
-        setAllPrescripteur(prescripteurs as User[]);
+        setAllPrescripteur(prescripteurs as SafeUser[]);
       }
     };
     fetchData();

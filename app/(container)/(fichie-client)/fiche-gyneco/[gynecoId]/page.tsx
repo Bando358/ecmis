@@ -19,9 +19,9 @@ import {
   Client,
   Gynecologie,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -97,8 +97,8 @@ export default function GynecoPage({
 
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedGyneco, setSelectedGyneco] = useState<Gynecologie[]>([]);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [client, setClient] = useState<Client | null>(null);
   const { canCreate } = usePermissionContext();
@@ -139,7 +139,7 @@ export default function GynecoPage({
           ? await getAllUserIncludedIdClinique(cliniqueClient.idClinique)
           : [];
 
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
         toast.error("Erreur lors du chargement");

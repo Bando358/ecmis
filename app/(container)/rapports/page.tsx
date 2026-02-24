@@ -72,7 +72,8 @@ import {
   getAllUserIncludedTabIdClinique,
   getAllUserTabIdClinique,
 } from "@/lib/actions/authActions";
-import { FactureExamen, Lieu, ResultatExamen, User } from "@prisma/client";
+import { FactureExamen, Lieu, ResultatExamen } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import TableRapportValidation from "@/components/tableRapport/tableRapportValidation";
 import TableRapportSigAccouchement from "@/components/tableRapport/tableRapportSigAccouchement";
 
@@ -877,8 +878,8 @@ export default AnalyseReportPlanning;
 // Fonction qui prend en paramètre une liste d'id prescripteur, tabPrescripteur et tabAllUser et retourne le name du premier correspondant
 const getPrescripteurName = (
   prescripteurIds: string[],
-  tabPrescripteur: User[],
-  tabAllUser: User[],
+  tabPrescripteur: SafeUser[],
+  tabAllUser: SafeUser[],
 ): string => {
   const prescripteur = tabPrescripteur.find((p) =>
     prescripteurIds.includes(p.id),

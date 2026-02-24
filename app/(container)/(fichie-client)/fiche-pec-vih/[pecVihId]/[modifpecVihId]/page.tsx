@@ -11,7 +11,8 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { Client, PecVih, TableName, User, Visite } from "@prisma/client";
+import { Client, PecVih, TableName, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -75,8 +76,8 @@ export default function ModifPecVihPage({
   const [selectedPecVih, setSelectedPecVih] = useState<PecVih>();
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
   const [client, setClient] = useState<Client | null>(null);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
@@ -117,7 +118,7 @@ export default function ModifPecVihPage({
           );
 
           // Wave 3: depends on cliniqueClient
-          let allPrestataire: User[] = [];
+          let allPrestataire: SafeUser[] = [];
           if (cliniqueClient?.idClinique) {
             allPrestataire = await getAllUserIncludedIdClinique(
               cliniqueClient.idClinique,

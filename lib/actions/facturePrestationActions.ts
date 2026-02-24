@@ -1,14 +1,18 @@
 "use server";
 
-import { FacturePrestation, TableName } from "@prisma/client";
+import { FacturePrestation, Prisma, TableName } from "@prisma/client";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { FacturePrestationCreateSchema } from "@/lib/validations/finance";
 
 // Création de FacturePrestation
 export async function createFacturePrestation(data: FacturePrestation) {
   await requirePermission(TableName.FACTURE_PRESTATION, "canCreate");
-  const result = await prisma.facturePrestation.create({ data });
+  const validated = validateServerData(FacturePrestationCreateSchema, data);
+  const result = await prisma.facturePrestation.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",
@@ -69,8 +73,9 @@ export async function updateFacturePrestation(
   data: FacturePrestation
 ) {
   await requirePermission(TableName.FACTURE_PRESTATION, "canUpdate");
+  const validated = validateServerData(FacturePrestationCreateSchema.partial(), data);
   const oldRecord = await prisma.facturePrestation.findUnique({ where: { id } });
-  const result = await prisma.facturePrestation.update({ where: { id }, data });
+  const result = await prisma.facturePrestation.update({ where: { id }, data: validated });
   await logAction({
     idUser: data.idUser,
     action: "MODIFICATION",
@@ -96,4 +101,25 @@ export async function getAllFacturePrestationByIdVisite(
   });
 
   return prestations;
+}
+
+// ************* FacturePrestation paginée **************
+export async function getFacturePrestationsPaginated(
+  params?: PaginationParams & { idClinique?: string; dateDebut?: Date; dateFin?: Date }
+): Promise<PaginatedResult<FacturePrestation>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.FacturePrestationWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+  if (params?.dateDebut || params?.dateFin) {
+    where.dateFacture = {};
+    if (params?.dateDebut) where.dateFacture.gte = params.dateDebut;
+    if (params?.dateFin) where.dateFacture.lte = params.dateFin;
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.facturePrestation.findMany({ where, skip, take, orderBy: { dateFacture: "desc" } }),
+    prisma.facturePrestation.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
 }

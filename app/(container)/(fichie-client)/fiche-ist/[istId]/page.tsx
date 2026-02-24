@@ -16,9 +16,9 @@ import {
   Client,
   Ist,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -97,8 +97,8 @@ export default function IstPage({
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedIst, setSelectedIst] = useState<Ist[]>([]);
   const [client, setClient] = useState<Client | null>(null);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
   const { setSelectedClientId } = useClientContext();

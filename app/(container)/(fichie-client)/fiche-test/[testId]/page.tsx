@@ -15,7 +15,8 @@ import {
 } from "@/lib/actions/testActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { useSession } from "next-auth/react";
-import { User, TestGrossesse, Visite, TableName, Client } from "@prisma/client";
+import { TestGrossesse, Visite, TableName, Client } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -57,8 +58,8 @@ export default function GynecoPage({
   const [selectedTest, setSelectedTest] = useState<TestGrossesse[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>(false);
   const [client, setClient] = useState<Client | null>(null);
 
@@ -100,13 +101,13 @@ export default function GynecoPage({
         setClient(cliniqueClient);
 
         // Wave 2: requête dépendante du client
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique
           );
         }
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
       }

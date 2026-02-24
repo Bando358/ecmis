@@ -1,14 +1,18 @@
 "use server";
 
-import { FactureEchographie, TableName } from "@prisma/client";
+import { FactureEchographie, Prisma, TableName } from "@prisma/client";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { FactureEchographieCreateSchema } from "@/lib/validations/finance";
 
 // Création de FactureEchographie
 export async function createFactureEchographie(data: FactureEchographie) {
   await requirePermission(TableName.FACTURE_ECHOGRAPHIE, "canCreate");
-  const result = await prisma.factureEchographie.create({ data });
+  const validated = validateServerData(FactureEchographieCreateSchema, data);
+  const result = await prisma.factureEchographie.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",
@@ -57,8 +61,9 @@ export async function updateFactureEchographie(
   data: FactureEchographie
 ) {
   await requirePermission(TableName.FACTURE_ECHOGRAPHIE, "canUpdate");
+  const validated = validateServerData(FactureEchographieCreateSchema.partial(), data);
   const oldRecord = await prisma.factureEchographie.findUnique({ where: { id } });
-  const result = await prisma.factureEchographie.update({ where: { id }, data });
+  const result = await prisma.factureEchographie.update({ where: { id }, data: validated });
   await logAction({
     idUser: data.idUser,
     action: "MODIFICATION",
@@ -78,4 +83,20 @@ export async function getAllFactureEchographieByIdVisite(idVisite: string) {
     where: { idVisite: idVisite },
     orderBy: { idVisite: "desc" },
   });
+}
+
+// ************* FactureEchographie paginée **************
+export async function getFactureEchographiesPaginated(
+  params?: PaginationParams & { idClinique?: string }
+): Promise<PaginatedResult<FactureEchographie>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.FactureEchographieWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+
+  const [data, total] = await Promise.all([
+    prisma.factureEchographie.findMany({ where, skip, take, orderBy: { id: "desc" } }),
+    prisma.factureEchographie.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
 }

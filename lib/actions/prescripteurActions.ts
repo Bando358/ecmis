@@ -1,12 +1,17 @@
 "use server";
 
-import { Prescripteur } from "@prisma/client";
+import { Prescripteur, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { PrescripteurCreateSchema } from "@/lib/validations/finance";
 
 // Création d'un Prescripteur
 export async function createPrescripteur(data: Omit<Prescripteur, "createdAt" | "updatedAt">) {
+  await requirePermission(TableName.PRESCRIPTEUR, "canCreate");
+  const validated = validateServerData(PrescripteurCreateSchema, data);
   return await prisma.prescripteur.create({
-    data,
+    data: validated,
   });
 }
 
@@ -34,14 +39,17 @@ export async function getPrescripteurById(id: string) {
 
 // Mise à jour d'un Prescripteur
 export async function updatePrescripteur(id: string, data: Partial<Prescripteur>) {
+  await requirePermission(TableName.PRESCRIPTEUR, "canUpdate");
+  const validated = validateServerData(PrescripteurCreateSchema.partial(), data);
   return await prisma.prescripteur.update({
     where: { id },
-    data,
+    data: validated,
   });
 }
 
 // Suppression d'un Prescripteur
 export async function deletePrescripteur(id: string) {
+  await requirePermission(TableName.PRESCRIPTEUR, "canDelete");
   return await prisma.prescripteur.delete({
     where: { id },
   });

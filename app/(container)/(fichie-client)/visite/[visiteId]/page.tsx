@@ -20,7 +20,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Activite, Client, Lieu, TableName, User, Visite } from "@prisma/client";
+import { Activite, Client, Lieu, TableName, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import {
   Form,
   FormControl,
@@ -66,7 +67,7 @@ export default function FormVisite({
   const [activite, setActivite] = useState<Activite[]>([]);
   const [lieus, setLieus] = useState<Lieu[]>([]);
   const [client, setClient] = useState<Client | null>(null);
-  const [prescripteur, setPrescripteur] = useState<User | null>(null);
+  const [prescripteur, setPrescripteur] = useState<SafeUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 

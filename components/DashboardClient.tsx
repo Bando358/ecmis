@@ -12,8 +12,13 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import DashboardChart from "./DashboardChart";
+import dynamic from "next/dynamic";
 import type { Client, Planning, Visite, Activite } from "@prisma/client";
+
+const DashboardChart = dynamic(() => import("./DashboardChart"), {
+  loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />,
+  ssr: false,
+});
 import type {
   FactureExamenType,
   FactureProduitType,
@@ -419,9 +424,7 @@ export default function DashboardClient({
           period={period}
           initialData={
             refreshKey === 0
-              ? (dashboardData as Parameters<
-                  typeof DashboardChart
-                >[0]["initialData"])
+              ? (dashboardData as Record<string, unknown>)
               : undefined
           }
         />

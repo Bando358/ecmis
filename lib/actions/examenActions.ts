@@ -3,12 +3,15 @@
 import { Examen, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { ExamenCreateSchema } from "@/lib/validations/labo";
 
 // Création de Examen
 export async function createExamen(data: Examen) {
   await requirePermission(TableName.EXAMEN, "canCreate");
+  const validated = validateServerData(ExamenCreateSchema, data);
   return await prisma.examen.create({
-    data,
+    data: validated,
   });
 }
 
@@ -39,8 +42,9 @@ export async function deleteExamen(id: string) {
 //Mise à jour de examen
 export async function updateExamen(id: string, data: Examen) {
   await requirePermission(TableName.EXAMEN, "canUpdate");
+  const validated = validateServerData(ExamenCreateSchema.partial(), data);
   return await prisma.examen.update({
     where: { id },
-    data,
+    data: validated,
   });
 }

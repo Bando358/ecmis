@@ -14,9 +14,9 @@ import {
   Client,
   Reference,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -105,8 +105,8 @@ export default function ReferencePage({
   );
   const [client, setClient] = useState<Client | null>(null);
   const [selectedVisite, setSelectedVisite] = useState<string>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [showIvaFields, setShowIvaFields] = useState(false);
   const [showAutreMotif, setShowAutreMotif] = useState(false);
@@ -146,13 +146,13 @@ export default function ReferencePage({
         setTabReference(allRefByClient as Reference[]);
 
         // Wave 2: requête dépendante du client
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique
           );
         }
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
       }

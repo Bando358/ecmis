@@ -5,11 +5,14 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { DetailCommandeCreateSchema } from "@/lib/validations/finance";
 
 // Création de DetailCommande
 export async function createDetailCommande(data: DetailCommande) {
   await requirePermission(TableName.DETAIL_COMMANDE, "canCreate");
-  const result = await prisma.detailCommande.create({ data });
+  const validated = validateServerData(DetailCommandeCreateSchema, data);
+  const result = await prisma.detailCommande.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",
@@ -67,40 +70,46 @@ export async function getAllDetailCommandeByCommandeId(idCommande: string) {
 export async function deleteDetailCommandesByIds(ids: string[]) {
   await requirePermission(TableName.DETAIL_COMMANDE, "canDelete");
   try {
-    // recupérer les détails à supprimer
-    const detailsToDelete = await prisma.detailCommande.findMany({
-      where: { id: { in: ids } },
-    });
-
-    // Soustraire les quantiteCommandee de detailsToDelete des tarifProduit correspondants dans le quantiteStock
-    for (const detail of detailsToDelete) {
-      await prisma.tarifProduit.update({
-        where: { id: detail.idTarifProduit },
-        data: {
-          quantiteStock: {
-            decrement: detail.quantiteCommandee,
-          },
-        },
+    const result = await prisma.$transaction(async (tx) => {
+      // recupérer les détails à supprimer
+      const detailsToDelete = await tx.detailCommande.findMany({
+        where: { id: { in: ids } },
       });
-    }
 
-    const result = await prisma.detailCommande.deleteMany({
-      where: { id: { in: ids } },
+      // Soustraire les quantiteCommandee atomiquement dans la transaction
+      await Promise.all(
+        detailsToDelete.map((detail) =>
+          tx.tarifProduit.update({
+            where: { id: detail.idTarifProduit },
+            data: {
+              quantiteStock: {
+                decrement: detail.quantiteCommandee,
+              },
+            },
+          })
+        )
+      );
+
+      const deleteResult = await tx.detailCommande.deleteMany({
+        where: { id: { in: ids } },
+      });
+
+      return { deleteResult, detailsToDelete };
     });
 
-    if (detailsToDelete.length > 0) {
+    if (result.detailsToDelete.length > 0) {
       await logAction({
-        idUser: detailsToDelete[0].idUser,
+        idUser: result.detailsToDelete[0].idUser,
         action: "SUPPRESSION",
         entite: "DetailCommande",
         entiteId: ids.join(","),
-        idClinique: detailsToDelete[0].idClinique,
-        description: `Suppression de ${detailsToDelete.length} details commande`,
+        idClinique: result.detailsToDelete[0].idClinique,
+        description: `Suppression de ${result.detailsToDelete.length} details commande`,
       });
     }
 
     revalidatePath("/commandes");
-    return result;
+    return result.deleteResult;
   } catch (error) {
     console.error("Erreur lors de la suppression des détails:", error);
     throw error;

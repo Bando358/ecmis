@@ -42,9 +42,12 @@ const signUpSchema = z.object({
   }),
   password: z
     .string()
-    .min(6, "Le mot de passe doit contenir au moins 8 caractères.")
-    .regex(/[A-Za-z0-9]/, {
-      message: "Le mot de passe doit inclure des lettres et des chiffres.",
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+    .regex(/[A-Za-z]/, {
+      message: "Le mot de passe doit inclure au moins une lettre.",
+    })
+    .regex(/[0-9]/, {
+      message: "Le mot de passe doit inclure au moins un chiffre.",
     }),
   idCliniques: z.array(z.string()),
 });
@@ -70,7 +73,6 @@ export function RegisterForm({
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
-  console.log("idUser : ", idUser);
   const userRole = session?.user.role as string;
 
   const form = useForm<FormData>({
@@ -99,7 +101,6 @@ export function RegisterForm({
             const filteredCliniques = clinique.filter((c: Clinique) =>
               oneUser.idCliniques.includes(c.id)
             );
-            console.log("filteredCliniques : ", filteredCliniques);
             setCliniques(filteredCliniques);
           }
         }
@@ -116,12 +117,10 @@ export function RegisterForm({
   const onSubmit = async (data: RegisterInput) => {
     try {
       await registerUser(data);
-      console.log(data);
 
-      toast.success("Compte créer avec succès! 🏆");
+      toast.success("Compte créer avec succès!");
       router.push("/dashboard");
     } catch (error) {
-      console.log(error);
       toast.error("Erreur lors de l'inscription");
     }
   };

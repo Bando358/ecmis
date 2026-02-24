@@ -4,7 +4,8 @@ import {
   getUserPermissionsById,
   updatePermission,
 } from "@/lib/actions/permissionActions";
-import { Permission, User } from "@prisma/client";
+import { Permission } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { use, useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,11 @@ export default function PermissionPage({
 }) {
   const { permissionId } = use(params);
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [userAdmin, setUserAdmin] = useState<User | null>(null);
+  const [userAdmin, setUserAdmin] = useState<SafeUser | null>(null);
   const [permissionsUserAdmin, setPermissionsUserAdmin] = useState<
     Permission[]
   >([]);
-  const [targetUser, setTargetUser] = useState<User | null>(null);
+  const [targetUser, setTargetUser] = useState<SafeUser | null>(null);
   const [filteredPermissions, setFilteredPermissions] = useState<Permission[]>(
     []
   );

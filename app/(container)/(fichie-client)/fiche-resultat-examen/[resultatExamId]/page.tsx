@@ -22,9 +22,9 @@ import {
   ResultatExamen,
   Client,
   Clinique,
-  User,
   TableName,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { getAllExamen } from "@/lib/actions/examenActions";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -73,7 +73,7 @@ export default function PageResultatExamen({
   const [tabExamens, setTabExamens] = useState<Examen[]>([]);
   const [client, setClient] = useState<Client>();
   const [clinique, setClinique] = useState<Clinique>();
-  const [laborantin, setLaborantin] = useState<User | null>();
+  const [laborantin, setLaborantin] = useState<SafeUser | null>();
 
   const [selectedVisite, setSelectedVisite] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);

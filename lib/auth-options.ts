@@ -3,8 +3,9 @@ import prisma from "@/lib/prisma";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
+import { authLogger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
-// Interface pour l'utilisateur étendu
 interface ExtendedUser {
   id: string;
   name: string | null;
@@ -13,14 +14,18 @@ interface ExtendedUser {
   role: string;
 }
 
-export const authOptions: NextAuthOptions = {
-  // Pas d'adapter nécessaire avec CredentialsProvider + JWT
-  // Cela permet les connexions simultanées sur plusieurs appareils
+// Validation au démarrage : crash immédiat si le secret est manquant
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    "NEXTAUTH_SECRET manquant. Ajoutez-le dans les variables d'environnement Vercel."
+  );
+}
 
+export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 heures (journée de travail)
-    updateAge: 1 * 60 * 60, // Rafraîchir toutes les heures
+    maxAge: 4 * 60 * 60,  // 4 heures (standard système médical)
+    updateAge: 5 * 60,    // Rafraîchir toutes les 5 min sur activité
   },
 
   pages: {
@@ -38,19 +43,36 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        try {
-          if (!credentials?.username || !credentials?.password) {
-            throw new Error(
-              "Veuillez fournir un nom d'utilisateur et un mot de passe"
-            );
-          }
+        if (!credentials?.username || !credentials?.password) {
+          return null;
+        }
 
+        // Rate limiting: max 5 tentatives par username par 15 minutes
+        if (!rateLimit(`login:${credentials.username}`, 5, 15 * 60 * 1000)) {
+          throw new Error("Trop de tentatives. Réessayez dans 15 minutes.");
+        }
+
+        try {
           const user = await prisma.user.findUnique({
             where: { username: credentials.username },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+              password: true,
+              role: true,
+              banned: true,
+            },
           });
 
           if (!user || !user.password) {
-            throw new Error("Nom d'utilisateur ou mot de passe incorrect");
+            return null;
+          }
+
+          // Bloquer les comptes bannis
+          if (user.banned) {
+            return null;
           }
 
           const isValid = await bcrypt.compare(
@@ -59,7 +81,7 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isValid) {
-            throw new Error("Nom d'utilisateur ou mot de passe incorrect");
+            return null;
           }
 
           return {
@@ -70,7 +92,7 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           };
         } catch (error) {
-          console.error("Erreur d'authentification:", error);
+          authLogger.error("Erreur d'authentification", error);
           return null;
         }
       },
@@ -79,13 +101,42 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
+      // Première connexion : copier les données utilisateur dans le token
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.username = (user as ExtendedUser).username;
         token.role = (user as ExtendedUser).role;
+        return token;
       }
+
+      // Refresh JWT : re-vérifier que l'utilisateur existe et n'est pas banni
+      // Exécuté toutes les updateAge (5 min) pour détecter ban/suppression mid-session
+      if (token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { id: true, banned: true, role: true, name: true, email: true },
+          });
+
+          // Utilisateur supprimé ou banni → invalider le token
+          if (!dbUser || dbUser.banned) {
+            authLogger.warn("Token invalidé (user supprimé ou banni)", {
+              userId: token.id as string,
+            });
+            return {} as typeof token;
+          }
+
+          // Synchroniser le rôle si modifié par un admin
+          token.role = dbUser.role;
+          token.name = dbUser.name;
+          token.email = dbUser.email;
+        } catch {
+          // En cas d'erreur DB, conserver le token existant pour éviter une déconnexion
+        }
+      }
+
       return token;
     },
 
@@ -102,5 +153,5 @@ export const authOptions: NextAuthOptions = {
   },
 
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  debug: false, // Jamais de debug en production
 };

@@ -3,12 +3,15 @@
 import { TarifExamen, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { TarifExamenCreateSchema } from "@/lib/validations/labo";
 
 // Création de TarifExamen
 export async function createTarifExamen(data: TarifExamen) {
   await requirePermission(TableName.TARIF_EXAMEN, "canCreate");
+  const validated = validateServerData(TarifExamenCreateSchema, data);
   return await prisma.tarifExamen.create({
-    data,
+    data: validated,
   });
 }
 
@@ -49,8 +52,9 @@ export async function deleteTarifExamen(id: string) {
 //Mise à jour de TarifExamen
 export async function updateTarifExamen(id: string, data: TarifExamen) {
   await requirePermission(TableName.TARIF_EXAMEN, "canUpdate");
+  const validated = validateServerData(TarifExamenCreateSchema.partial(), data);
   return await prisma.tarifExamen.update({
     where: { id },
-    data,
+    data: validated,
   });
 }

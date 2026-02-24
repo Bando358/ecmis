@@ -15,7 +15,8 @@ import {
 } from "@/lib/actions/authActions";
 import { getAllSaaByIdClient, createSaa } from "@/lib/actions/saaActions";
 import { useSession } from "next-auth/react";
-import { Saa, Grossesse, User, Visite, Client } from "@prisma/client";
+import { Saa, Grossesse, Visite, Client } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { TableName } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
@@ -256,8 +257,8 @@ export default function SaaPage({
   const [visites, setVisites] = useState<Visite[]>([]);
   const [grossesses, setGrossesses] = useState<Grossesse[]>([]);
   const [selectedSaa, setSelectedSaa] = useState<Saa[]>([]);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
 
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [client, setClient] = useState<Client | null>(null);
@@ -299,7 +300,7 @@ export default function SaaPage({
       // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
         const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
-        setAllPrescripteur(prescripteurs as User[]);
+        setAllPrescripteur(prescripteurs as SafeUser[]);
       }
     };
     fetchData();

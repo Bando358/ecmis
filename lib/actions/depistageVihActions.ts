@@ -3,13 +3,26 @@
 import { DepistageVih, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { DepistageVihCreateSchema } from "@/lib/validations/clinical";
+import { logAction } from "./journalPharmacyActions";
 
 // Création d'une Fiche de Dépistage VIH
 export async function createDepistageVih(data: DepistageVih) {
   await requirePermission(TableName.DEPISTAGE_VIH, "canCreate");
-  return await prisma.depistageVih.create({
-    data,
+  const validated = validateServerData(DepistageVihCreateSchema, data);
+  const result = await prisma.depistageVih.create({
+    data: validated,
   });
+  await logAction({
+    idUser: data.depistageVihIdUser,
+    action: "CREATION",
+    entite: "DepistageVih",
+    entiteId: result.id,
+    idClinique: data.depistageVihIdClinique,
+    description: `Création fiche Dépistage VIH pour client ${data.depistageVihIdClient}`,
+  });
+  return result;
 }
 
 // ************* Fiche de Dépistage VIH **************
@@ -46,16 +59,38 @@ export const getOneDepistageVih = async (id: string | null) => {
 // Suppression d'une Fiche de Dépistage VIH
 export async function deleteDepistageVih(id: string) {
   await requirePermission(TableName.DEPISTAGE_VIH, "canDelete");
-  return await prisma.depistageVih.delete({
+  const existing = await prisma.depistageVih.findUnique({ where: { id }, select: { depistageVihIdUser: true, depistageVihIdClinique: true, depistageVihIdClient: true } });
+  const result = await prisma.depistageVih.delete({
     where: { id },
   });
+  if (existing) {
+    await logAction({
+      idUser: existing.depistageVihIdUser,
+      action: "SUPPRESSION",
+      entite: "DepistageVih",
+      entiteId: id,
+      idClinique: existing.depistageVihIdClinique,
+      description: `Suppression fiche Dépistage VIH ${id} du client ${existing.depistageVihIdClient}`,
+    });
+  }
+  return result;
 }
 
 //Mise à jour de la Fiche de Dépistage VIH
 export async function updateDepistageVih(id: string, data: DepistageVih) {
   await requirePermission(TableName.DEPISTAGE_VIH, "canUpdate");
-  return await prisma.depistageVih.update({
+  const validated = validateServerData(DepistageVihCreateSchema.partial(), data);
+  const result = await prisma.depistageVih.update({
     where: { id },
-    data,
+    data: validated,
   });
+  await logAction({
+    idUser: data.depistageVihIdUser,
+    action: "MODIFICATION",
+    entite: "DepistageVih",
+    entiteId: id,
+    idClinique: data.depistageVihIdClinique,
+    description: `Modification fiche Dépistage VIH ${id}`,
+  });
+  return result;
 }

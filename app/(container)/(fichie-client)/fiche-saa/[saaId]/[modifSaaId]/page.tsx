@@ -11,7 +11,8 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { useSession } from "next-auth/react";
-import { Saa, Grossesse, User, Visite, TableName } from "@prisma/client";
+import { Saa, Grossesse, Visite, TableName } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -269,8 +270,8 @@ export default function ModifSaaPage({
   const [selectedSaa, setSelectedSaa] = useState<Saa>();
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -297,7 +298,7 @@ export default function ModifSaaPage({
       if (oneSaa) {
         // Wave 2: calls that depend on oneSaa, but independent of each other
         const parallelCalls: [
-          Promise<User | null>,
+          Promise<SafeUser | null>,
           Promise<Grossesse | null>,
           Promise<Visite[]>,
           Promise<any>,
@@ -319,13 +320,13 @@ export default function ModifSaaPage({
         );
 
         // Wave 3: depends on cliniqueClient
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique,
           );
         }
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
 
         setVisites(
           result.filter((r: { id: string }) => r.id === oneSaa.saaIdVisite),

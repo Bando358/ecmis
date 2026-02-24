@@ -1,6 +1,8 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { TableName } from "@prisma/client";
+import { requirePermission } from "@/lib/auth/withPermission";
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { AnalyticsSettingsConfig } from "@/lib/analytics/settings-types";
 import { DEFAULT_ANALYTICS_SETTINGS } from "@/lib/analytics/settings-defaults";
@@ -19,6 +21,7 @@ export async function updateAnalyticsSettings(
   settings: AnalyticsSettingsConfig,
   userId: string
 ): Promise<void> {
+  await requirePermission(TableName.ANALYTICS_SETTINGS, "canUpdate");
   await prisma.analyticsSettings.upsert({
     where: { id: "singleton" },
     create: {
@@ -37,6 +40,7 @@ export async function updateAnalyticsSettings(
  * Reinitialise les parametres aux valeurs par defaut.
  */
 export async function resetAnalyticsSettings(userId: string): Promise<void> {
+  await requirePermission(TableName.ANALYTICS_SETTINGS, "canUpdate");
   await prisma.analyticsSettings.upsert({
     where: { id: "singleton" },
     create: {

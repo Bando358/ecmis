@@ -38,11 +38,11 @@ import {
   CommandeFournisseur,
   DetailCommande,
   Clinique,
-  User,
   TarifProduit,
   Produit,
   TableName,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import {
   ChevronLeft,
   ChevronRight,
@@ -86,7 +86,7 @@ import { ERROR_MESSAGES } from "@/lib/constants";
 type CommandeFournisseurWithRelations = CommandeFournisseur & {
   Clinique: Clinique;
   detailCommande: (DetailCommande & {
-    User: User;
+    User: SafeUser;
     tarifProduit: TarifProduit & {
       produit?: Produit;
     };
@@ -100,7 +100,7 @@ export default function HistoriqueCommandesPage() {
   const [commandesFiltrees, setCommandesFiltrees] = useState<
     CommandeFournisseurWithRelations[]
   >([]);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [idCliniques, setIdCliniques] = useState<string[]>([]);
   const [produits, setProduits] = useState<Produit[]>([]);
@@ -196,7 +196,7 @@ export default function HistoriqueCommandesPage() {
 
                 return {
                   ...detail,
-                  User: detailUser || ({} as User),
+                  User: detailUser || ({} as SafeUser),
                   tarifProduit: tarifProduitData
                     ? {
                         ...tarifProduitData,

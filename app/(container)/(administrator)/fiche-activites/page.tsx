@@ -21,7 +21,8 @@ import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { getAllUser, getOneUser } from "@/lib/actions/authActions";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Lieu, Activite, TableName, Clinique, User } from "@prisma/client";
+import { Lieu, Activite, TableName, Clinique } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { toast } from "sonner";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -34,12 +35,6 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -49,9 +44,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Pencil,
-  ArrowBigLeftDash,
   Plus,
   Trash2,
   Search,
@@ -59,40 +55,32 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Eye,
-  EyeClosed,
-  Loader2,
+  ArrowLeft,
+  CalendarCheck,
+  MapPinned,
+  X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { ActiviteDialog } from "@/components/ActiviteDialog";
 import Select from "react-select";
-
-const TableRowSkeleton = () => (
-  <TableRow>
-    {Array.from({ length: 6 }).map((_, i) => (
-      <TableCell key={i}>
-        <div className="h-4 bg-gray-200 rounded animate-pulse" />
-      </TableCell>
-    ))}
-  </TableRow>
-);
+import { TableSkeleton, TableRowSkeleton } from "@/components/ui/loading";
 
 export default function ActivitePage() {
   const [activites, setActivites] = useState<Activite[]>([]);
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<SafeUser[]>([]);
   const [activitesForDialog, setActivitesForDialog] = useState<Activite[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [idLieu, setIdLieu] = useState<string>("");
-  const [oneUser, setOneUser] = useState<User | null>(null);
+  const [oneUser, setOneUser] = useState<SafeUser | null>(null);
   const [selectedCliniqueId, setSelectedCliniqueId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [deleteLieuId, setDeleteLieuId] = useState<string | null>(null);
   const [isDeletingLieu, setIsDeletingLieu] = useState(false);
 
-  // Recherche, filtre, pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [filterActiviteId, setFilterActiviteId] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -110,7 +98,6 @@ export default function ActivitePage() {
     { value: 50, label: "50 par page" },
   ];
 
-  // === Charger l'utilisateur connecté (pour filtrage des données) ===
   useEffect(() => {
     if (!idUser) return;
     const fetchUser = async () => {
@@ -120,7 +107,6 @@ export default function ActivitePage() {
     fetchUser();
   }, [idUser]);
 
-  // === Chargement des données en parallèle ===
   useEffect(() => {
     if (!oneUser) return;
 
@@ -136,9 +122,8 @@ export default function ActivitePage() {
           ]);
 
         setCliniques(resultCliniques as Clinique[]);
-        setUsers(resultUsers as User[]);
+        setUsers(resultUsers as SafeUser[]);
 
-        // Filtrer les activités selon le rôle
         if (oneUser.role !== "ADMIN") {
           const userCliniques = oneUser.idCliniques;
           setActivites(
@@ -154,7 +139,6 @@ export default function ActivitePage() {
 
         setLieux(resultLieux as Lieu[]);
 
-        // Configurer le dialog avec la première clinique
         if (resultCliniques.length > 0) {
           const firstCliniqueId = resultCliniques[0].id;
           setSelectedCliniqueId(firstCliniqueId);
@@ -174,11 +158,9 @@ export default function ActivitePage() {
     fetchData();
   }, [oneUser]);
 
-  // === Filtrage des lieux ===
   const filteredLieux = useMemo(() => {
     let filtered = lieux;
 
-    // Filtre par recherche texte
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter((lieu) => {
@@ -195,7 +177,6 @@ export default function ActivitePage() {
       });
     }
 
-    // Filtre par activité
     if (filterActiviteId) {
       filtered = filtered.filter(
         (lieu) => lieu.idActivite === filterActiviteId
@@ -205,7 +186,6 @@ export default function ActivitePage() {
     return filtered;
   }, [lieux, searchTerm, filterActiviteId, activites, cliniques]);
 
-  // === Pagination ===
   const paginatedLieux = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredLieux.slice(start, start + itemsPerPage);
@@ -213,7 +193,6 @@ export default function ActivitePage() {
 
   const totalPages = Math.ceil(filteredLieux.length / itemsPerPage);
 
-  // Reset page quand les filtres changent
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterActiviteId]);
@@ -229,7 +208,6 @@ export default function ActivitePage() {
 
   const watchDateDebut = watch("dateDebut");
 
-  // === Handlers ===
   const handleActivite = async (data: Activite, isUpdating: boolean) => {
     try {
       if (isUpdating) {
@@ -245,7 +223,7 @@ export default function ActivitePage() {
           idUser: data.idUser,
           createdAt: data.createdAt,
         });
-        toast.info("Activité modifiée avec succès !");
+        toast.success("Activité modifiée avec succès !");
       } else {
         await createActivite({
           id: crypto.randomUUID(),
@@ -268,13 +246,9 @@ export default function ActivitePage() {
         toast.success("Activité créée avec succès !");
       }
 
-      // Recharger les activités du dialog
-      const refreshed = await getAllActiviteByTabIdClinique([
-        data.idClinique,
-      ]);
+      const refreshed = await getAllActiviteByTabIdClinique([data.idClinique]);
       setActivitesForDialog(refreshed as Activite[]);
 
-      // Recharger toutes les activités pour la page
       const allRefreshed = await getAllActivite();
       if (oneUser?.role !== "ADMIN") {
         setActivites(
@@ -293,7 +267,6 @@ export default function ActivitePage() {
 
   const handleDeleteActivite = async (id: string) => {
     await deleteActivite(id);
-    // Recharger
     const refreshed = await getAllActiviteByTabIdClinique([selectedCliniqueId]);
     setActivitesForDialog(refreshed as Activite[]);
     const allRefreshed = await getAllActivite();
@@ -307,7 +280,6 @@ export default function ActivitePage() {
   };
 
   const onSubmit: SubmitHandler<Lieu> = async (data) => {
-    // Validation dates
     if (new Date(data.dateFin) <= new Date(data.dateDebut)) {
       toast.error("La date de fin doit être postérieure à la date de début.");
       return;
@@ -324,7 +296,7 @@ export default function ActivitePage() {
           dateDebut: new Date(data.dateDebut),
           dateFin: new Date(data.dateFin),
         });
-        toast.info("Lieu modifié avec succès !");
+        toast.success("Lieu modifié avec succès !");
         setIsUpdating(false);
       } else {
         await createLieu({
@@ -339,7 +311,6 @@ export default function ActivitePage() {
         toast.success("Lieu créé avec succès !");
       }
 
-      // Recharger les lieux
       const allLieux = await getAllLieu();
       setLieux(allLieux as Lieu[]);
       reset();
@@ -385,7 +356,6 @@ export default function ActivitePage() {
     reset();
   };
 
-  // === Helpers ===
   const getCliniqueNameByActivite = (idActivite: string) => {
     const activite = activites.find((a) => a.id === idActivite);
     if (!activite) return "Inconnue";
@@ -402,7 +372,6 @@ export default function ActivitePage() {
     return new Date(dateString).toLocaleDateString("fr-FR");
   };
 
-  // Options pour le filtre activité
   const activiteFilterOptions = [
     { value: "", label: "Toutes les activités" },
     ...activites.map((a) => ({
@@ -411,7 +380,6 @@ export default function ActivitePage() {
     })),
   ];
 
-  // === Pagination handlers ===
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
   const goToNextPage = () => {
@@ -421,33 +389,34 @@ export default function ActivitePage() {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
-  // === Rendu ===
-  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (isLoadingPermissions) return <TableSkeleton rows={6} columns={6} />;
   if (!canRead(TableName.ACTIVITE)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto p-4">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push("/administrator")}
-                className="h-8 w-8"
-                aria-label="Retour sur page administration"
-              >
-                <ArrowBigLeftDash className="h-5 w-5 text-blue-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Retour sur page administration</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/administrator")}
+            className="rounded-xl hover:bg-cyan-50"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100">
+              <CalendarCheck className="h-5 w-5 text-cyan-600" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">Activités & Lieux</h1>
+              <p className="text-sm text-muted-foreground">
+                {lieux.length} lieu{lieux.length > 1 ? "x" : ""} enregistré{lieux.length > 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="flex gap-2">
           <ActiviteDialog
             cliniques={cliniques}
@@ -462,219 +431,174 @@ export default function ActivitePage() {
             handleActivite={handleActivite}
             handleDeleteActivite={handleDeleteActivite}
           >
-            <Button className="flex items-center gap-2">
-              <Plus size={16} />
-              Gérer les Activités
+            <Button className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-md shadow-cyan-200">
+              <CalendarCheck className="h-4 w-4 mr-2" />
+              Gérer les activités
             </Button>
           </ActiviteDialog>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    if (isVisible) handleCancelForm();
-                    else setIsVisible(true);
-                  }}
-                  className="h-8 w-8"
-                  aria-label={
-                    isVisible
-                      ? "Fermer le formulaire des lieux"
-                      : "Ouvrir le formulaire des lieux"
-                  }
-                >
-                  {isVisible ? (
-                    <Eye className="h-5 w-5 text-blue-600" />
-                  ) : (
-                    <EyeClosed className="h-5 w-5 text-red-600" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isVisible ? "Fermer le formulaire" : "Ouvrir le formulaire"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            onClick={() => {
+              if (isVisible) handleCancelForm();
+              else setIsVisible(true);
+            }}
+            className={isVisible
+              ? "bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-none"
+              : "bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-200"
+            }
+          >
+            {isVisible ? (
+              <><X className="h-4 w-4 mr-2" /> Fermer</>
+            ) : (
+              <><Plus className="h-4 w-4 mr-2" /> Nouveau lieu</>
+            )}
+          </Button>
         </div>
       </div>
 
       {/* Formulaire Lieu */}
       {isVisible && (
-        <div className="p-4 border rounded-md max-w-3xl mx-auto bg-stone-50">
-          <h2 className="text-center text-xl font-bold uppercase mb-4">
-            {isUpdating
-              ? "Modifier un Lieu"
-              : "Créer un Lieu"}
-          </h2>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            <div>
-              <label className="block text-sm font-medium">Nom du lieu</label>
-              <Input
-                {...register("lieu", { required: "Nom du lieu est requis" })}
-                placeholder="Nom du lieu"
-                className="mt-1"
-              />
-              {errors.lieu && (
-                <span className="text-red-500 text-sm">
-                  {errors.lieu.message}
-                </span>
-              )}
-            </div>
+        <Card className="border-cyan-200/50 shadow-lg shadow-cyan-50 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-cyan-50 to-white pb-4">
+            <CardTitle className="text-base font-semibold text-cyan-900">
+              {isUpdating ? "Modifier le lieu" : "Nouveau lieu"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Nom du lieu</label>
+                  <Input
+                    {...register("lieu", { required: "Nom du lieu est requis" })}
+                    placeholder="Nom du lieu"
+                    className="h-10 border-gray-200 focus:border-cyan-400 focus:ring-cyan-400"
+                  />
+                  {errors.lieu && (
+                    <span className="text-red-500 text-xs">{errors.lieu.message}</span>
+                  )}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium">Localité</label>
-              <Input
-                {...register("localite", {
-                  required: "Localité est requise",
-                })}
-                placeholder="Localité"
-                className="mt-1"
-              />
-              {errors.localite && (
-                <span className="text-red-500 text-sm">
-                  {errors.localite.message}
-                </span>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Localité</label>
+                  <Input
+                    {...register("localite", { required: "Localité est requise" })}
+                    placeholder="Localité"
+                    className="h-10 border-gray-200 focus:border-cyan-400 focus:ring-cyan-400"
+                  />
+                  {errors.localite && (
+                    <span className="text-red-500 text-xs">{errors.localite.message}</span>
+                  )}
+                </div>
+              </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium">Activité</label>
-              <select
-                {...register("idActivite", {
-                  required: "Activité est requise",
-                })}
-                className="w-full p-2 border rounded-md"
-                defaultValue=""
-              >
-                <option value="" disabled>
-                  Sélectionner une activité
-                </option>
-                {activites.map((activite) => (
-                  <option key={activite.id} value={activite.id}>
-                    {getCliniqueNameByActivite(activite.id)} -{" "}
-                    {activite.libelle}{" "}
-                    ({formatDate(activite.dateDebut)} -{" "}
-                    {formatDate(activite.dateFin)})
-                  </option>
-                ))}
-              </select>
-              {errors.idActivite && (
-                <span className="text-red-500 text-sm">
-                  {errors.idActivite.message}
-                </span>
-              )}
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Activité</label>
+                <select
+                  {...register("idActivite", { required: "Activité est requise" })}
+                  className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 outline-none"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Sélectionner une activité</option>
+                  {activites.map((activite) => (
+                    <option key={activite.id} value={activite.id}>
+                      {getCliniqueNameByActivite(activite.id)} - {activite.libelle}{" "}
+                      ({formatDate(activite.dateDebut)} - {formatDate(activite.dateFin)})
+                    </option>
+                  ))}
+                </select>
+                {errors.idActivite && (
+                  <span className="text-red-500 text-xs">{errors.idActivite.message}</span>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium">
-                Date de début
-              </label>
-              <Input
-                type="datetime-local"
-                {...register("dateDebut", {
-                  required: "Date de début est requise",
-                })}
-                className="mt-1"
-              />
-              {errors.dateDebut && (
-                <span className="text-red-500 text-sm">
-                  {errors.dateDebut.message}
-                </span>
-              )}
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Date de début</label>
+                  <Input
+                    type="datetime-local"
+                    {...register("dateDebut", { required: "Date de début est requise" })}
+                    className="h-10 border-gray-200 focus:border-cyan-400 focus:ring-cyan-400"
+                  />
+                  {errors.dateDebut && (
+                    <span className="text-red-500 text-xs">{errors.dateDebut.message}</span>
+                  )}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium">Date de fin</label>
-              <Input
-                type="datetime-local"
-                {...register("dateFin", {
-                  required: "Date de fin est requise",
-                  validate: (value) => {
-                    if (
-                      watchDateDebut &&
-                      new Date(value) <= new Date(watchDateDebut)
-                    ) {
-                      return "La date de fin doit être postérieure à la date de début";
-                    }
-                    return true;
-                  },
-                })}
-                className="mt-1"
-              />
-              {errors.dateFin && (
-                <span className="text-red-500 text-sm">
-                  {errors.dateFin.message}
-                </span>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Date de fin</label>
+                  <Input
+                    type="datetime-local"
+                    {...register("dateFin", {
+                      required: "Date de fin est requise",
+                      validate: (value) => {
+                        if (watchDateDebut && new Date(value) <= new Date(watchDateDebut)) {
+                          return "La date de fin doit être postérieure à la date de début";
+                        }
+                        return true;
+                      },
+                    })}
+                    className="h-10 border-gray-200 focus:border-cyan-400 focus:ring-cyan-400"
+                  />
+                  {errors.dateFin && (
+                    <span className="text-red-500 text-xs">{errors.dateFin.message}</span>
+                  )}
+                </div>
+              </div>
 
-            <div className="md:col-span-2 flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancelForm}
-                className="flex-1"
-              >
-                Annuler
-              </Button>
-              <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                {isUpdating
-                  ? isSubmitting
-                    ? "Modification en cours..."
-                    : "Modifier le Lieu"
-                  : isSubmitting
-                  ? "Création en cours..."
-                  : "Créer le Lieu"}
-              </Button>
-            </div>
-          </form>
-        </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={handleCancelForm} className="text-gray-600">
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-md shadow-cyan-200 px-6"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Enregistrement..."
+                    : isUpdating ? "Modifier le lieu" : "Créer le lieu"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Section Liste des Lieux */}
-      <div className="flex-1">
-        <h2 className="text-center text-xl font-bold uppercase mb-4">
-          Liste des Lieux
-        </h2>
-
-        {/* Barre de recherche et filtres */}
-        <div className="mb-4 flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+      {/* Recherche + Table */}
+      <Card className="shadow-sm overflow-hidden">
+        <div className="p-4 border-b bg-gray-50/50 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Rechercher par lieu, localité, activité, clinique..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-10 h-9 bg-white border-gray-200"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-
-          <div className="w-full md:w-64">
+          <div className="w-full sm:w-64">
             <Select
               options={activiteFilterOptions}
-              value={activiteFilterOptions.find(
-                (opt) => opt.value === filterActiviteId
-              )}
+              value={activiteFilterOptions.find((opt) => opt.value === filterActiviteId)}
               onChange={(option) => setFilterActiviteId(option?.value || "")}
               className="basic-single"
               classNamePrefix="select"
               placeholder="Filtrer par activité"
             />
           </div>
-
-          <div className="w-full md:w-44">
+          <div className="w-full sm:w-44">
             <Select
               options={itemsPerPageOptions}
-              value={itemsPerPageOptions.find(
-                (opt) => opt.value === itemsPerPage
-              )}
+              value={itemsPerPageOptions.find((opt) => opt.value === itemsPerPage)}
               onChange={(option) => {
                 setItemsPerPage(option?.value || 10);
                 setCurrentPage(1);
@@ -686,204 +610,139 @@ export default function ActivitePage() {
           </div>
         </div>
 
-        {/* Nombre de résultats */}
-        <div className="text-sm text-gray-600 mb-2">
-          {filteredLieux.length} lieu(x) trouvé(s)
-          {searchTerm && (
-            <span>
-              {" "}
-              pour &quot;{searchTerm}&quot;
-            </span>
-          )}
-        </div>
-
-        {/* Tableau */}
-        <div className="border rounded-md bg-white overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-stone-50">
-                  <TableHead className="font-semibold">Lieu</TableHead>
-                  <TableHead className="font-semibold">Localité</TableHead>
-                  <TableHead className="font-semibold text-center">
-                    Période
-                  </TableHead>
-                  <TableHead className="font-semibold text-center">
-                    Activité
-                  </TableHead>
-                  <TableHead className="font-semibold">Antenne</TableHead>
-                  <TableHead className="font-semibold text-center">
-                    Actions
-                  </TableHead>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                <TableHead className="w-14 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">N°</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Lieu</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Localité</TableHead>
+                <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Période</TableHead>
+                <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Activité</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Antenne</TableHead>
+                <TableHead className="w-24 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <TableRowSkeleton key={index} columns={7} />
+                ))
+              ) : paginatedLieux.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <MapPinned className="h-8 w-8 text-gray-300" />
+                      <p className="text-sm">
+                        {searchTerm || filterActiviteId
+                          ? "Aucun lieu ne correspond aux filtres"
+                          : "Aucun lieu enregistré"}
+                      </p>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <TableRowSkeleton key={index} />
-                  ))
-                ) : paginatedLieux.length > 0 ? (
-                  paginatedLieux.map((lieu) => (
-                    <TableRow key={lieu.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{lieu.lieu}</TableCell>
-                      <TableCell>{lieu.localite}</TableCell>
-                      <TableCell className="text-center text-sm">
-                        {formatDate(lieu.dateDebut)} -{" "}
-                        {formatDate(lieu.dateFin)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {getActiviteName(lieu.idActivite)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {getCliniqueNameByActivite(lieu.idActivite)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center gap-1">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleUpdateLieu(lieu.id)}
-                                  aria-label="Modifier le lieu"
-                                >
-                                  <Pencil className="h-4 w-4 text-blue-600" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Modifier</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => setDeleteLieuId(lieu.id)}
-                                  aria-label="Supprimer le lieu"
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Supprimer</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-8 text-gray-500"
-                    >
-                      Aucun lieu trouvé
+              ) : (
+                paginatedLieux.map((lieu, index) => (
+                  <TableRow key={lieu.id} className="group hover:bg-cyan-50/30 transition-colors">
+                    <TableCell className="text-center text-gray-400 font-mono text-sm">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </TableCell>
+                    <TableCell className="font-medium text-gray-800">{lieu.lieu}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{lieu.localite}</TableCell>
+                    <TableCell className="text-center text-sm text-gray-500">
+                      {formatDate(lieu.dateDebut)} - {formatDate(lieu.dateFin)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary" className="bg-cyan-50 text-cyan-700 border-cyan-200">
+                        {getActiviteName(lieu.idActivite)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {getCliniqueNameByActivite(lieu.idActivite)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg hover:bg-cyan-100 hover:text-cyan-700"
+                          onClick={() => handleUpdateLieu(lieu.id)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg hover:bg-red-100 hover:text-red-700"
+                          onClick={() => setDeleteLieuId(lieu.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-            <div className="text-sm text-gray-600">
-              Affichage de {(currentPage - 1) * itemsPerPage + 1} à{" "}
+          <div className="px-4 py-3 border-t bg-gray-50/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm text-gray-500">
+              {(currentPage - 1) * itemsPerPage + 1} à{" "}
               {Math.min(currentPage * itemsPerPage, filteredLieux.length)} sur{" "}
-              {filteredLieux.length} lieux
+              {filteredLieux.length}
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToFirstPage}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-                aria-label="Première page"
-              >
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={goToFirstPage} disabled={currentPage === 1} className="h-8 w-8 p-0">
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-                aria-label="Page précédente"
-              >
+              <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={currentPage === 1} className="h-8 w-8 p-0">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) pageNum = i + 1;
+                else if (currentPage <= 3) pageNum = i + 1;
+                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                else pageNum = currentPage - 2 + i;
 
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={
-                        currentPage === pageNum ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="h-8 w-8 p-0"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0"
-                aria-label="Page suivante"
-              >
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={cn("h-8 w-8 p-0", currentPage === pageNum && "bg-cyan-600 hover:bg-cyan-700")}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              <Button variant="outline" size="sm" onClick={goToNextPage} disabled={currentPage === totalPages} className="h-8 w-8 p-0">
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToLastPage}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0"
-                aria-label="Dernière page"
-              >
+              <Button variant="outline" size="sm" onClick={goToLastPage} disabled={currentPage === totalPages} className="h-8 w-8 p-0">
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-500">
               Page {currentPage} sur {totalPages}
             </div>
           </div>
         )}
-      </div>
+
+        {filteredLieux.length > 0 && totalPages <= 1 && (
+          <div className="px-4 py-3 border-t bg-gray-50/30 text-sm text-gray-500 text-right">
+            {filteredLieux.length} résultat{filteredLieux.length > 1 ? "s" : ""}
+            {(searchTerm || filterActiviteId) && ` sur ${lieux.length}`}
+          </div>
+        )}
+      </Card>
 
       {/* Dialog de confirmation suppression lieu */}
       <AlertDialog

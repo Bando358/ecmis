@@ -5,11 +5,29 @@ import { Client } from "pg";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import archiver from "archiver";
+import { requirePermission } from "@/lib/auth/withPermission";
+import { TableName } from "@prisma/client";
 
 const BACKUP_DIR = os.tmpdir();
 
+// Liste blanche des préfixes SQL autorisés lors de la restauration
+const ALLOWED_SQL_PREFIXES = [
+  "INSERT INTO",
+  "SET ",
+  "CREATE TABLE IF NOT EXISTS",
+];
+
+function isSqlStatementAllowed(sql: string): boolean {
+  const trimmed = sql.trim().toUpperCase();
+  return ALLOWED_SQL_PREFIXES.some((prefix) =>
+    trimmed.startsWith(prefix.toUpperCase())
+  );
+}
+
 export async function backupDatabase() {
+  await requirePermission(TableName.ADMINISTRATION, "canRead");
   const fileName = `backup-${Date.now()}.zip`;
   const filePath = path.join(BACKUP_DIR, fileName);
 
@@ -111,7 +129,7 @@ export async function backupDatabase() {
             backupContent += `\n`;
           } catch (error) {
             console.error(`Error backing up table ${fullTableName}:`, error);
-            backupContent += `-- ERREUR lors de la sauvegarde de cette table: ${error}\n\n`;
+            backupContent += `-- ERREUR lors de la sauvegarde de cette table\n\n`;
             continue;
           }
         }
@@ -166,24 +184,42 @@ ${tablesResult.rows
   }
 }
 
+const MAX_RESTORE_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+const ALLOWED_MODES = ["safe", "merge", "overwrite"] as const;
+
 export async function restoreDatabase(formData: FormData) {
+  await requirePermission(TableName.ADMINISTRATION, "canCreate");
+
   const file = formData.get("backupFile") as File;
   const mode = formData.get("mode") as string;
 
   if (!file) {
-    return {
-      success: false,
-      error: "Aucun fichier sélectionné",
-    };
+    return { success: false, error: "Aucun fichier sélectionné" };
+  }
+
+  // Validation du fichier
+  if (!file.name.endsWith(".sql") && !file.name.endsWith(".zip")) {
+    return { success: false, error: "Type de fichier non autorisé. Seuls les fichiers .sql et .zip sont acceptés." };
+  }
+  if (file.size > MAX_RESTORE_FILE_SIZE) {
+    return { success: false, error: "Fichier trop volumineux (max 100 MB)." };
+  }
+
+  // Validation du mode
+  if (!ALLOWED_MODES.includes(mode as typeof ALLOWED_MODES[number])) {
+    return { success: false, error: "Mode de restauration invalide." };
   }
 
   const client = new Client({
     connectionString: process.env.DATABASE_URL!,
   });
 
+  // Utiliser un nom de fichier aléatoire
+  const tempFileName = `restore-${crypto.randomUUID()}.sql`;
+  const tempPath = path.join(BACKUP_DIR, tempFileName);
+
   try {
     const data = Buffer.from(await file.arrayBuffer());
-    const tempPath = path.join(BACKUP_DIR, "import.sql");
     fs.writeFileSync(tempPath, data);
 
     const content = fs.readFileSync(tempPath, "utf-8");
@@ -196,47 +232,47 @@ export async function restoreDatabase(formData: FormData) {
       .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"));
 
     let inserted = 0;
-    const ignored = 0;
-    const updated = 0;
+    let skipped = 0;
 
     for (let i = 0; i < statements.length; i++) {
       let sql = statements[i] + ";";
 
-      if (sql.startsWith("INSERT INTO")) {
+      // Seules les instructions autorisées sont exécutées
+      if (!isSqlStatementAllowed(sql)) {
+        skipped++;
+        continue;
+      }
+
+      if (sql.toUpperCase().startsWith("INSERT INTO")) {
         if (mode === "safe") {
           sql = sql.replace(/;$/, " ON CONFLICT DO NOTHING;");
         }
-        // Pour merge et overwrite, vous devrez adapter selon votre structure
       }
 
       try {
         await client.query(sql);
-        if (sql.startsWith("INSERT INTO")) {
+        if (sql.toUpperCase().startsWith("INSERT INTO")) {
           inserted++;
         }
       } catch (error) {
-        console.error(`Error executing SQL: ${sql}`, error);
+        console.error("Erreur SQL restauration:", error);
       }
     }
-
-    // Nettoyer le fichier temporaire
-    fs.unlinkSync(tempPath);
 
     return {
       success: true,
       inserted,
-      ignored,
-      updated,
+      skipped,
     };
   } catch (error) {
     console.error("Restore error:", error);
-
-    // Retourner un objet simple
     return {
       success: false,
       error: "Erreur lors de la restauration de la base de données",
     };
   } finally {
     await client.end();
+    // Nettoyage du fichier temporaire (toujours)
+    try { fs.unlinkSync(tempPath); } catch { /* ignore */ }
   }
 }

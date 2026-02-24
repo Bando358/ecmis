@@ -38,12 +38,12 @@ import {
   Inventaire,
   DetailInventaire,
   Clinique,
-  User,
   AnomalieInventaire,
   Produit,
   TarifProduit,
   TableName,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { ChevronLeft, ChevronRight, Trash2, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -80,7 +80,7 @@ export default function HistoriqueInventairePage() {
   const [inventairesFiltres, setInventairesFiltres] = useState<
     InventaireWithRelations[]
   >([]);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [idCliniques, setIdCliniques] = useState<string[]>([]);
   const [produits, setProduits] = useState<Produit[]>([]);
@@ -165,7 +165,7 @@ export default function HistoriqueInventairePage() {
         });
 
         // Créer une Map pour un accès rapide aux utilisateurs
-        const userMap = new Map<string, User>();
+        const userMap = new Map<string, SafeUser>();
         try {
           // NOTE: Vous devriez créer une action pour récupérer plusieurs utilisateurs à la fois
           // Pour l'instant, on garde l'approche actuelle mais on pourrait optimiser côté serveur
@@ -210,7 +210,7 @@ export default function HistoriqueInventairePage() {
           const details = allDetailsArrays[i] || [];
 
           // Récupérer l'utilisateur (on pourrait optimiser avec un cache)
-          let inventaireUser: User | null = null;
+          let inventaireUser: SafeUser | null = null;
           try {
             inventaireUser = await getOneUser(inventaire.idUser);
           } catch (error) {
@@ -224,7 +224,7 @@ export default function HistoriqueInventairePage() {
           const detailsWithUser = (await Promise.all(
             details.map(async (detail) => {
               // Récupérer l'utilisateur du détail
-              let detailUser: User | null = null;
+              let detailUser: SafeUser | null = null;
               try {
                 detailUser = await getOneUser(detail.idUser);
               } catch (error) {
@@ -247,7 +247,7 @@ export default function HistoriqueInventairePage() {
 
               return {
                 ...detail,
-                User: detailUser || ({} as User),
+                User: detailUser || ({} as SafeUser),
                 tarifProduit: {
                   ...tarifProduitData,
                   Produit:
@@ -265,7 +265,7 @@ export default function HistoriqueInventairePage() {
             Clinique:
               cliniquesData.find((c) => c.id === inventaire.idClinique) ||
               ({} as Clinique),
-            User: inventaireUser || ({} as User),
+            User: inventaireUser || ({} as SafeUser),
             detailInventaire: detailsWithUser,
           } as InventaireWithRelations);
         }

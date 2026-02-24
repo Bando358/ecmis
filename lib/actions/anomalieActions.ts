@@ -4,11 +4,14 @@ import { AnomalieInventaire, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { AnomalieInventaireCreateSchema } from "@/lib/validations/finance";
 
 // ************ Inventaire **********
 export async function createAnomalie(data: AnomalieInventaire) {
   await requirePermission(TableName.ANOMALIE_INVENTAIRE, "canCreate");
-  const result = await prisma.anomalieInventaire.create({ data });
+  const validated = validateServerData(AnomalieInventaireCreateSchema, data);
+  const result = await prisma.anomalieInventaire.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",

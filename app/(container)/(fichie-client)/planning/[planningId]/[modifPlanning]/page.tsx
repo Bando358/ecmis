@@ -15,7 +15,8 @@ import { getOneClient } from "@/lib/actions/clientActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOnePlanning, updatePlanning } from "@/lib/actions/planningActions";
 import { useSession } from "next-auth/react";
-import { Planning, TableName, User, Visite } from "@prisma/client";
+import { Planning, TableName, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -100,8 +101,8 @@ export default function ModifPlanningPage({
   const [selectedPlanning, setSelectedPlanning] = useState<Planning>();
   const [dateVisite, setDateVisite] = useState<Date>();
   const [prescripteur, setPrescripteur] = useState<string>();
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [onePrescripteur, setOnePrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [onePrescripteur, setOnePrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -150,7 +151,7 @@ export default function ModifPlanningPage({
         );
 
         // Wave 3: depends on cliniqueClient
-        let allPrestataire: User[] = [];
+        let allPrestataire: SafeUser[] = [];
         if (cliniqueClient?.idClinique) {
           allPrestataire = await getAllUserIncludedIdClinique(
             cliniqueClient.idClinique,

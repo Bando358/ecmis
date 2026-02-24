@@ -25,21 +25,24 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { registerAdmin } from "@/lib/actions/authActions";
-// import { signUpUsernameAction } from "@/actions/sign-up-actions";
+import { useState } from "react";
 
 const signUpSchema = z.object({
   name: z.string().min(5, {
-    message: "Name must be at least 5 characters.",
+    message: "Le nom doit contenir au moins 5 caractères.",
   }),
   email: z.email("L'adresse email est invalide."),
   username: z.string().min(5, {
-    message: "Username must be at least 5 characters.",
+    message: "Le nom d'utilisateur doit contenir au moins 5 caractères.",
   }),
   password: z
     .string()
-    .min(6, "Le mot de passe doit contenir au moins 8 caractères.")
-    .regex(/[A-Za-z0-9]/, {
-      message: "Le mot de passe doit inclure des lettres et des chiffres.",
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+    .regex(/[A-Za-z]/, {
+      message: "Le mot de passe doit inclure au moins une lettre.",
+    })
+    .regex(/[0-9]/, {
+      message: "Le mot de passe doit inclure au moins un chiffre.",
     }),
 });
 
@@ -56,6 +59,7 @@ export function RegisterAdminForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
   const form = useForm<FormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -67,28 +71,28 @@ export function RegisterAdminForm({
   });
 
   const onSubmit = async (data: RegisterInput) => {
+    if (isPending) return;
+    setIsPending(true);
+
     try {
-      const user = await registerAdmin(data);
-      if (!user) {
-        toast.error(
-          "Erreur lors de l'inscription. Seuls les emails admin peuvent créer un compte admin."
-        );
-      } else {
-        toast.success("Compte créer avec succès! 🏆");
-        router.push("/dashboard");
-      }
+      await registerAdmin(data);
+      toast.success("Compte créé avec succès !");
       router.push("/login");
-    } catch (error) {
-      console.log(error);
-      toast.error("Erreur lors de l'inscription");
+    } catch {
+      // Message générique — ne pas révéler pourquoi ça a échoué
+      toast.error("Impossible de créer le compte. Vérifiez vos informations.");
+      form.setValue("password", "");
+    } finally {
+      setIsPending(false);
     }
   };
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Création de compte</CardTitle>
-          <CardDescription>Entrer vos paramètre de compte</CardDescription>
+          <CardTitle>Création de compte administrateur</CardTitle>
+          <CardDescription>Entrez vos paramètres de compte</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -100,7 +104,7 @@ export function RegisterAdminForm({
                   <FormItem>
                     <FormLabel>Nom et Prénom</FormLabel>
                     <FormControl>
-                      <Input placeholder="John doe" {...field} />
+                      <Input placeholder="John doe" {...field} disabled={isPending} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -113,7 +117,7 @@ export function RegisterAdminForm({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="exemple@gmail.com" {...field} />
+                      <Input placeholder="exemple@gmail.com" {...field} disabled={isPending} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,7 +130,7 @@ export function RegisterAdminForm({
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="Johndoe33" {...field} />
+                      <Input placeholder="Johndoe33" {...field} disabled={isPending} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -139,14 +143,14 @@ export function RegisterAdminForm({
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input placeholder="*****" type="password" {...field} />
+                      <Input placeholder="*****" type="password" {...field} disabled={isPending} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Submit
+              <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? "Création..." : "Créer le compte"}
               </Button>
             </form>
           </Form>

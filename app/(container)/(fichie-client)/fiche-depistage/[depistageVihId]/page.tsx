@@ -15,7 +15,8 @@ import {
 } from "@/lib/actions/authActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { useSession } from "next-auth/react";
-import { Client, DepistageVih, TableName, User, Visite } from "@prisma/client";
+import { Client, DepistageVih, TableName, Visite } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -214,9 +215,9 @@ export default function DepistageVihPage({
   const [selectedDepistageVih, setSelectedDepistageVih] = useState<
     DepistageVih[]
   >([]);
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
   const [client, setClient] = useState<Client | null>(null);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -257,7 +258,7 @@ export default function DepistageVihPage({
           ? await getAllUserIncludedIdClinique(cliniqueClient.idClinique)
           : [];
 
-        setAllPrescripteur(allPrestataire as User[]);
+        setAllPrescripteur(allPrestataire as SafeUser[]);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
         toast.error("Erreur lors du chargement");

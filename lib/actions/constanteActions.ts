@@ -3,13 +3,27 @@
 import { Constante, TableName } from "@prisma/client";
 import prisma from "../prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { ConstanteCreateSchema } from "@/lib/validations";
+import { logAction } from "./journalPharmacyActions";
 
 // ************ Constante **********
 export async function createContante(data: Constante) {
   await requirePermission(TableName.CONSTANTE, "canCreate");
-  return await prisma.constante.create({
+  validateServerData(ConstanteCreateSchema, data);
+  const constante = await prisma.constante.create({
     data,
   });
+  if (data.idUser) {
+    await logAction({
+      idUser: data.idUser,
+      action: "CREATION",
+      entite: "Constante",
+      entiteId: constante.id,
+      description: `Création constante pour client ${data.idClient} - poids: ${data.poids}kg${data.taille ? `, taille: ${data.taille}cm` : ""}`,
+    });
+  }
+  return constante;
 }
 
 export async function getConstantesByClientId(idClient: string) {

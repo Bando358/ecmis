@@ -11,7 +11,8 @@ import {
 import { getAllUser, getOneUser } from "@/lib/actions/authActions";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Post, PostStatus, TableName, User } from "@prisma/client";
+import { Post, PostStatus, TableName } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { toast } from "sonner";
 import {
   Table,
@@ -19,55 +20,67 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Eye,
-  EyeClosed,
   Pencil,
-  ArrowBigLeftDash,
-  Scale,
+  Plus,
+  X,
   Search,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Trash2,
-  Loader2,
+  ArrowLeft,
+  Briefcase,
+  Scale,
+  Filter,
+  FilterX,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandGroup,
+} from "@/components/ui/command";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import {
   createPermissionBeforeChecked,
 } from "@/lib/actions/permissionActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
+import { TableSkeleton } from "@/components/ui/loading";
 import { dataPermission } from "@/lib/permissionData";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import Select from "react-select";
 
 export default function CreatePostForm() {
-  const [users, setUsers] = useState<User[]>([]); // Pour le formulaire
-  const [allUsers, setAllUsers] = useState<User[]>([]); // Pour l'affichage des noms
+  const [users, setUsers] = useState<SafeUser[]>([]);
+  const [allUsers, setAllUsers] = useState<SafeUser[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [idPost, setIdPost] = useState<string>("");
-  const [oneUser, setOneUser] = useState<User | null>(null);
+  const [oneUser, setOneUser] = useState<SafeUser | null>(null);
   const [positions, setPositions] = useState<number>(-1);
 
-  // États pour la pagination et la recherche
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [selectedUser, setSelectedUser] = useState<string>("");
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -93,7 +106,6 @@ export default function CreatePostForm() {
     { value: 50, label: "50 par page" },
   ];
 
-  // === Charger l'utilisateur connecté (pour filtrage des données) ===
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -103,7 +115,6 @@ export default function CreatePostForm() {
   }, [idUser]);
 
   useEffect(() => {
-    // Attendre que idUser et oneUser soient disponibles
     if (!idUser || !oneUser) return;
 
     const fetchData = async () => {
@@ -112,8 +123,7 @@ export default function CreatePostForm() {
         getAllPost(),
       ]);
 
-      // retirer tous les ADMIN de allUsers
-      const filteredUsers = (usersResult as User[]).filter(
+      const filteredUsers = (usersResult as SafeUser[]).filter(
         (user) => user.role !== "ADMIN"
       );
 
@@ -122,18 +132,12 @@ export default function CreatePostForm() {
           user.idCliniques?.some((id) => oneUser?.idCliniques.includes(id))
       );
 
-      console.log(" allUserFilter ", allUserFilter);
-      console.log(" filteredUsers ", filteredUsers);
-
-      // Garder tous les utilisateurs pour l'affichage des noms
       if (oneUser.role === "ADMIN") {
-        setAllUsers(filteredUsers as User[]);
-        // Pour ADMIN : utiliser tous les utilisateurs filtrés (sans les admins)
-        setUsers(filteredUsers.filter((user) => user.id !== idUser) as User[]);
+        setAllUsers(filteredUsers as SafeUser[]);
+        setUsers(filteredUsers.filter((user) => user.id !== idUser) as SafeUser[]);
       } else {
-        setAllUsers(allUserFilter as User[]);
-        // Pour non-ADMIN : utiliser seulement les utilisateurs des mêmes cliniques
-        setUsers(allUserFilter.filter((user) => user.id !== idUser) as User[]);
+        setAllUsers(allUserFilter as SafeUser[]);
+        setUsers(allUserFilter.filter((user) => user.id !== idUser) as SafeUser[]);
       }
       setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
       setFilteredPosts(
@@ -143,18 +147,15 @@ export default function CreatePostForm() {
     fetchData();
   }, [idUser, oneUser]);
 
-  // Filtrer les posts en fonction des critères de recherche
   useEffect(() => {
     let filtered = posts;
 
-    // Filtre par recherche texte
     if (searchTerm.trim() !== "") {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter((post) => {
         const userName = getUserName(post.userId).toLowerCase();
         const postContent = post.content?.toLowerCase() || "";
         const postTitle = getStatusLabel(post.title).toLowerCase();
-
         return (
           userName.includes(searchLower) ||
           postContent.includes(searchLower) ||
@@ -163,21 +164,14 @@ export default function CreatePostForm() {
       });
     }
 
-    // Filtre par statut
     if (selectedStatus) {
       filtered = filtered.filter((post) => post.title === selectedStatus);
     }
 
-    // Filtre par utilisateur
-    if (selectedUser) {
-      filtered = filtered.filter((post) => post.userId === selectedUser);
-    }
-
     setFilteredPosts(filtered);
-    setCurrentPage(1); // Retour à la première page lors du changement de filtre
-  }, [searchTerm, selectedStatus, selectedUser, posts]);
+    setCurrentPage(1);
+  }, [searchTerm, selectedStatus, posts]);
 
-  // Calcul des données pour la pagination
   const paginatedPosts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -186,7 +180,6 @@ export default function CreatePostForm() {
 
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
 
-  // Gestionnaires pour la pagination
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
   const goToNextPage = () => {
@@ -194,12 +187,6 @@ export default function CreatePostForm() {
   };
   const goToPreviousPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  // Gestionnaire pour changer le nombre d'éléments par page
-  const handleItemsPerPageChange = (value: number) => {
-    setItemsPerPage(value);
-    setCurrentPage(1);
   };
 
   const {
@@ -210,19 +197,20 @@ export default function CreatePostForm() {
     formState: { errors, isSubmitting },
   } = useForm<Post>();
 
-  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (isLoadingPermissions) return <TableSkeleton rows={5} columns={6} />;
   if (!canRead(TableName.POST)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   const handleHiddenForm = () => {
-    if (!isVisible) {
-      setIsVisible(true);
-    } else {
+    if (isVisible) {
       setIsVisible(false);
+      setIsUpdating(false);
+      reset();
+    } else {
+      setIsVisible(true);
     }
   };
 
   const onSubmit: SubmitHandler<Post> = async (data) => {
-    // Création des permissions pour ce poste
     const permissionsData = dataPermission.map((permission) => ({
       userId: data.userId,
       table: permission.table,
@@ -245,7 +233,7 @@ export default function CreatePostForm() {
         await updatePost(idPost, PostData);
         await createPermissionBeforeChecked(permissionsData);
 
-        toast.info("Poste modifié avec succès 🎉 !");
+        toast.success("Poste modifié avec succès !");
         setIsUpdating(false);
 
         const onePost = await getOnePost(idPost);
@@ -256,14 +244,11 @@ export default function CreatePostForm() {
         }
         reset();
       } else {
-        // Création du poste
         const newPost = await createPost(data);
 
         if (newPost) {
-          // await createPermission(permissionsData);
           await createPermissionBeforeChecked(permissionsData);
-          console.log("permissionsData ", permissionsData);
-          toast.success("Poste créé avec succès et permissions générées! 🎉 ");
+          toast.success("Poste créé avec succès et permissions générées !");
           const allPosts = await getAllPost();
           setPosts(allPosts as Post[]);
           setFilteredPosts(allPosts as Post[]);
@@ -282,16 +267,13 @@ export default function CreatePostForm() {
   const handleUpdatePost = async (id: string, position: number) => {
     setPositions(position);
     const postToUpdate = posts.find((post) => post.id === id);
-
     setIdPost(id);
 
     if (postToUpdate) {
       setIsUpdating(true);
-
       setValue("title", postToUpdate.title);
       setValue("content", postToUpdate.content);
       setValue("userId", postToUpdate.userId);
-
       setIsVisible(true);
     }
   };
@@ -308,6 +290,21 @@ export default function CreatePostForm() {
     return statusOption ? statusOption.label : status;
   };
 
+  const getStatusColor = (status: PostStatus) => {
+    const colors: Record<string, string> = {
+      [PostStatus.MEDECIN]: "bg-blue-50 text-blue-700 border-blue-200",
+      [PostStatus.SAGE_FEMME]: "bg-pink-50 text-pink-700 border-pink-200",
+      [PostStatus.INFIRMIER]: "bg-teal-50 text-teal-700 border-teal-200",
+      [PostStatus.LABORANTIN]: "bg-purple-50 text-purple-700 border-purple-200",
+      [PostStatus.CAISSIERE]: "bg-green-50 text-green-700 border-green-200",
+      [PostStatus.COMPTABLE]: "bg-indigo-50 text-indigo-700 border-indigo-200",
+      [PostStatus.AMD]: "bg-amber-50 text-amber-700 border-amber-200",
+      [PostStatus.ADMIN]: "bg-red-50 text-red-700 border-red-200",
+      [PostStatus.SUIVI_EVALLUATION]: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    };
+    return colors[status] || "bg-gray-50 text-gray-700 border-gray-200";
+  };
+
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("fr-FR", {
       day: "2-digit",
@@ -318,31 +315,7 @@ export default function CreatePostForm() {
     });
   };
 
-  // const handleDeletePost = async (postId: string) => {
-  //   if (confirm("Êtes-vous sûr de vouloir supprimer ce post ?")) {
-  //     try {
-  //       await deletePost(postId);
-  //       const allPosts = await getAllPosts();
-  //       setPosts(allPosts as Post[]);
-  //       setFilteredPosts(allPosts as Post[]);
-  //       toast.success("Post supprimé avec succès 🎉");
-  //     } catch (error) {
-  //       toast.error("Erreur lors de la suppression du post");
-  //       console.error(error);
-  //     }
-  //   }
-  // };
-
-  // Options pour les filtres
-  const userOptions = [
-    { value: "", label: "Tous les utilisateurs" },
-    ...allUsers.map((user) => ({
-      value: user.id,
-      label: `${user.name} (${user.email})`,
-    })),
-  ];
-
-  const statusOptions = [
+  const statusFilterOptions = [
     { value: "", label: "Tous les statuts" },
     ...postStatusOptions.map((option) => ({
       value: option.value,
@@ -351,410 +324,302 @@ export default function CreatePostForm() {
   ];
 
   return (
-    <div className="space-y-4 relative max-w-6xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-4">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push("/administrator")}
-                className="h-8 w-8"
-              >
-                <ArrowBigLeftDash className="h-5 w-5 text-blue-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Retour sur page administration</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleHiddenForm}
-                className="h-8 w-8"
-              >
-                {isVisible ? (
-                  <Eye className="h-5 w-5 text-blue-600" />
-                ) : (
-                  <EyeClosed className="h-5 w-5 text-red-600" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Ouvrir le formulaire</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/administrator")}
+            className="rounded-xl hover:bg-amber-50"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-amber-100">
+              <Briefcase className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">Gestion des postes</h1>
+              <p className="text-sm text-muted-foreground">
+                {posts.length} poste{posts.length > 1 ? "s" : ""} enregistré{posts.length > 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+        <Button
+          onClick={handleHiddenForm}
+          className={isVisible
+            ? "bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-none"
+            : "bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-200"
+          }
+        >
+          {isVisible ? (
+            <><X className="h-4 w-4 mr-2" /> Fermer</>
+          ) : (
+            <><Plus className="h-4 w-4 mr-2" /> Nouveau poste</>
+          )}
+        </Button>
       </div>
 
+      {/* Formulaire */}
       {isVisible && (
-        <>
-          <h2 className="text-center text-xl font-bold uppercase">
-            {isUpdating
-              ? "Formulaire de modification d'un Poste"
-              : "Formulaire de création d'un Poste"}
-          </h2>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="p-4 border rounded-md bg-stone-50 space-y-4"
-          >
-            <div className="flex flex-row space-x-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium">
-                  Titre du Poste
-                </label>
-                <select
-                  {...register("title", {
-                    required: "Le titre du poste est requis",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="title"
-                  defaultValue=""
-                >
-                  <option value="" disabled className="text-gray-200">
-                    Sélectionner un poste
-                  </option>
-                  {postStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.title && (
-                  <span className="text-red-500 text-sm">
-                    {errors.title.message}
-                  </span>
+        <Card className="border-amber-200/50 shadow-lg shadow-amber-50 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-amber-50 to-white pb-4">
+            <CardTitle className="text-base font-semibold text-amber-900">
+              {isUpdating ? "Modifier le poste" : "Nouveau poste"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Titre du poste</label>
+                  <select
+                    {...register("title", { required: "Le titre du poste est requis" })}
+                    className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Sélectionner un poste</option>
+                    {postStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.title && (
+                    <span className="text-red-500 text-xs">{errors.title.message}</span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Utilisateur</label>
+                  <select
+                    {...register("userId", { required: "L'utilisateur est requis" })}
+                    className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Sélectionner un utilisateur</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                  {errors.userId && (
+                    <span className="text-red-500 text-xs">{errors.userId.message}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Description du poste</label>
+                <Textarea
+                  {...register("content", { required: "La description du poste est requise" })}
+                  placeholder="Description du poste"
+                  className="border-gray-200 focus:border-amber-400 focus:ring-amber-400 min-h-[80px]"
+                />
+                {errors.content && (
+                  <span className="text-red-500 text-xs">{errors.content.message}</span>
                 )}
               </div>
 
-              <div className="flex-1">
-                <label className="block text-sm font-medium">Utilisateur</label>
-                <select
-                  {...register("userId", {
-                    required: "L'utilisateur est requis",
-                  })}
-                  className="w-full p-2 border rounded-md"
-                  name="userId"
-                  defaultValue=""
+              <div className="flex gap-3 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={handleHiddenForm} className="text-gray-600">
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-200 px-6"
+                  disabled={isSubmitting}
                 >
-                  <option value="" disabled className="text-gray-200">
-                    Sélectionner un utilisateur
-                  </option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.email})
-                    </option>
-                  ))}
-                </select>
-                {errors.userId && (
-                  <span className="text-red-500 text-sm">
-                    {errors.userId.message}
-                  </span>
-                )}
+                  {isSubmitting
+                    ? "Enregistrement..."
+                    : isUpdating ? "Modifier le poste" : "Créer le poste"}
+                </Button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium">
-                Description du Poste
-              </label>
-              <Textarea
-                {...register("content", {
-                  required: "La description du poste est requise",
-                })}
-                placeholder="Description du poste"
-                className="mt-1"
-                name="content"
-              />
-              {errors.content && (
-                <span className="text-red-500 text-sm">
-                  {errors.content.message}
-                </span>
-              )}
-            </div>
-
-            <Button type="submit" className="mt-4" disabled={isSubmitting}>
-              {isUpdating && isSubmitting
-                ? "Modification en cours ..."
-                : isUpdating
-                ? "Modifier le Poste"
-                : isSubmitting
-                ? "Création en cours ..."
-                : "Créer le Poste"}
-            </Button>
-          </form>
-        </>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="flex-1">
-        <h2 className="text-center text-xl font-bold uppercase mb-4">
-          Liste des Postes
-        </h2>
-
-        {/* Barres de recherche et filtres */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Barre de recherche principale */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Rechercher par utilisateur, contenu, titre..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Filtre par statut */}
-            <div className="w-full md:w-48">
-              <Select
-                options={statusOptions}
-                value={statusOptions.find(
-                  (opt) => opt.value === selectedStatus
-                )}
-                onChange={(option) => setSelectedStatus(option?.value || "")}
-                className="basic-single"
-                classNamePrefix="select"
-                placeholder="Filtrer par statut"
-              />
-            </div>
-
-            {/* Filtre par utilisateur */}
-            {/* <div className="w-full md:w-48">
-              <Select
-                options={userOptions}
-                value={userOptions.find((opt) => opt.value === selectedUser)}
-                onChange={(option) => setSelectedUser(option?.value || "")}
-                className="basic-single"
-                classNamePrefix="select"
-                placeholder="Filtrer par utilisateur"
-              />
-            </div> */}
-
-            {/* Sélecteur d'éléments par page */}
-            <div className="w-full md:w-48">
-              <Select
-                options={itemsPerPageOptions}
-                value={itemsPerPageOptions.find(
-                  (opt) => opt.value === itemsPerPage
-                )}
-                onChange={(option) =>
-                  handleItemsPerPageChange(option?.value || 5)
-                }
-                className="basic-single"
-                classNamePrefix="select"
-                placeholder="Éléments par page"
-              />
-            </div>
+      {/* Recherche + Table */}
+      <Card className="shadow-sm overflow-hidden">
+        <div className="p-4 border-b bg-gray-50/50 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Rechercher par utilisateur, contenu, titre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-10 h-9 bg-white border-gray-200"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-
-          {/* Affichage du nombre de résultats */}
-          {/* <div className="text-sm text-gray-600">
-            {filteredPosts.length} poste(s) trouvé(s)
-            {searchTerm && <span> pour "{searchTerm}"</span>}
-          </div> */}
+          <div className="w-full sm:w-48">
+            <Select
+              options={statusFilterOptions}
+              value={statusFilterOptions.find((opt) => opt.value === selectedStatus)}
+              onChange={(option) => setSelectedStatus(option?.value || "")}
+              className="basic-single"
+              classNamePrefix="select"
+              placeholder="Filtrer par statut"
+            />
+          </div>
+          <div className="w-full sm:w-44">
+            <Select
+              options={itemsPerPageOptions}
+              value={itemsPerPageOptions.find((opt) => opt.value === itemsPerPage)}
+              onChange={(option) => {
+                setItemsPerPage(option?.value || 10);
+                setCurrentPage(1);
+              }}
+              className="basic-single"
+              classNamePrefix="select"
+              placeholder="Par page"
+            />
+          </div>
         </div>
 
-        {/* Tableau des posts */}
-        <div className="border rounded-md shadow-md bg-white overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-stone-50">
-                  <TableCell className="font-semibold">Statut</TableCell>
-                  <TableCell className="font-semibold">Contenu</TableCell>
-                  <TableCell className="font-semibold">Utilisateur</TableCell>
-                  <TableCell className="font-semibold">Crée le</TableCell>
-                  <TableCell className="font-semibold">Modifié le</TableCell>
-                  <TableCell className="font-semibold text-center">
-                    Actions
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                <TableHead className="w-14 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">N°</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Statut</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Description</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Utilisateur</TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Créé le</TableHead>
+                <TableHead className="w-24 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedPosts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Briefcase className="h-8 w-8 text-gray-300" />
+                      <p className="text-sm">
+                        {searchTerm || selectedStatus
+                          ? "Aucun poste ne correspond aux filtres"
+                          : "Aucun poste enregistré"}
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedPosts.length > 0 ? (
-                  paginatedPosts.map((post, index) => (
-                    <TableRow key={post.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {getStatusLabel(post.title)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="line-clamp-2 text-sm">
-                          {post.content}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getUserName(post.userId)}</TableCell>
-                      <TableCell>{formatDate(post.createdAt)}</TableCell>
-                      <TableCell>{formatDate(post.updatedAt)}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-center gap-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    handleUpdatePost(post.id, index)
-                                  }
-                                  className="h-8 w-8"
-                                >
-                                  <Pencil className="h-4 w-4 text-blue-600" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Modifier le poste</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    router.push(
-                                      `/fiche-permissions/${post.userId}/`
-                                    )
-                                  }
-                                  className="h-8 w-8"
-                                >
-                                  <Scale className="h-4 w-4 text-green-600" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Ajouter les droits d'accès</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          {/* <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeletePost(post.id)}
-                                  className="h-8 w-8"
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Supprimer le poste</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider> */}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-8 text-gray-500"
-                    >
-                      Aucun post trouvé
+              ) : (
+                paginatedPosts.map((post, index) => (
+                  <TableRow key={post.id} className="group hover:bg-amber-50/30 transition-colors">
+                    <TableCell className="text-center text-gray-400 font-mono text-sm">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={getStatusColor(post.title)}>
+                        {getStatusLabel(post.title)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="line-clamp-2 text-sm text-gray-700">
+                        {post.content}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium text-gray-800 text-sm">
+                      {getUserName(post.userId)}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-500">
+                      {formatDate(post.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleUpdatePost(post.id, index)}
+                          className="h-8 w-8 rounded-lg hover:bg-amber-100 hover:text-amber-700"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => router.push(`/fiche-permissions/${post.userId}/`)}
+                          className="h-8 w-8 rounded-lg hover:bg-emerald-100 hover:text-emerald-700"
+                        >
+                          <Scale className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-            <div className="text-sm text-gray-600">
-              Affichage de {(currentPage - 1) * itemsPerPage + 1} à{" "}
+          <div className="px-4 py-3 border-t bg-gray-50/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm text-gray-500">
+              {(currentPage - 1) * itemsPerPage + 1} à{" "}
               {Math.min(currentPage * itemsPerPage, filteredPosts.length)} sur{" "}
-              {filteredPosts.length} postes
+              {filteredPosts.length}
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToFirstPage}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-              >
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={goToFirstPage} disabled={currentPage === 1} className="h-8 w-8 p-0">
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-              >
+              <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={currentPage === 1} className="h-8 w-8 p-0">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) pageNum = i + 1;
+                else if (currentPage <= 3) pageNum = i + 1;
+                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                else pageNum = currentPage - 2 + i;
 
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="h-8 w-8 p-0"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0"
-              >
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={cn("h-8 w-8 p-0", currentPage === pageNum && "bg-amber-600 hover:bg-amber-700")}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              <Button variant="outline" size="sm" onClick={goToNextPage} disabled={currentPage === totalPages} className="h-8 w-8 p-0">
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToLastPage}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0"
-              >
+              <Button variant="outline" size="sm" onClick={goToLastPage} disabled={currentPage === totalPages} className="h-8 w-8 p-0">
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-500">
               Page {currentPage} sur {totalPages}
             </div>
           </div>
         )}
-      </div>
+
+        {filteredPosts.length > 0 && totalPages <= 1 && (
+          <div className="px-4 py-3 border-t bg-gray-50/30 text-sm text-gray-500 text-right">
+            {filteredPosts.length} résultat{filteredPosts.length > 1 ? "s" : ""}
+            {(searchTerm || selectedStatus) && ` sur ${posts.length}`}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

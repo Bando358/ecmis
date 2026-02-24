@@ -1,10 +1,15 @@
 "use server";
 
-import { DemandeExamen } from "@prisma/client";
+import { DemandeExamen, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { DemandeExamenCreateSchema } from "@/lib/validations/labo";
 
 // Création de DemandeExamen
 export async function createDemandeExamen(data: DemandeExamen) {
+  await requirePermission(TableName.DEMANDE_EXAMEN, "canCreate");
+  validateServerData(DemandeExamenCreateSchema, data);
   const {
     id,
     idVisite,
@@ -49,6 +54,7 @@ export async function getAllDemandeExamensByIdVisite(idVisite: string) {
 }
 // Suppression d'un client
 export async function deleteDemandeExamen(id: string) {
+  await requirePermission(TableName.DEMANDE_EXAMEN, "canDelete");
   return await prisma.demandeExamen.delete({
     where: { id },
   });
@@ -56,6 +62,7 @@ export async function deleteDemandeExamen(id: string) {
 
 //Mise à jour de DemandeExamen
 export async function updateDemandeExamen(id: string, data: DemandeExamen) {
+  await requirePermission(TableName.DEMANDE_EXAMEN, "canUpdate");
   return await prisma.demandeExamen.update({
     where: { id },
     data,

@@ -22,9 +22,9 @@ import {
   Client,
   Cpon,
   TableName,
-  User,
   Visite,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -70,8 +70,8 @@ export default function CponPage({
   const [client, setClient] = useState<Client | null>(null);
   const [selectedCpon, setSelectedCpon] = useState<Cpon[]>([]);
 
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
 
@@ -103,7 +103,7 @@ export default function CponPage({
       // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
         const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
-        setAllPrescripteur(prescripteurs as User[]);
+        setAllPrescripteur(prescripteurs as SafeUser[]);
       }
     };
     fetchData();

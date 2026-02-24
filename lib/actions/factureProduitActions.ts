@@ -1,14 +1,18 @@
 "use server";
 
-import { FactureProduit, TableName } from "@prisma/client";
+import { FactureProduit, Prisma, TableName } from "@prisma/client";
+import { normalizePagination, buildPaginatedResult, type PaginatedResult, type PaginationParams } from "./paginationHelper";
 import prisma from "@/lib/prisma";
 import { logAction } from "./journalPharmacyActions";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { validateServerData } from "@/lib/validations";
+import { FactureProduitCreateSchema } from "@/lib/validations/finance";
 
 // Création de FactureProduit
 export async function createFactureProduit(data: FactureProduit) {
   await requirePermission(TableName.FACTURE_PRODUIT, "canCreate");
-  const result = await prisma.factureProduit.create({ data });
+  const validated = validateServerData(FactureProduitCreateSchema, data);
+  const result = await prisma.factureProduit.create({ data: validated });
   await logAction({
     idUser: data.idUser,
     action: "CREATION",
@@ -71,8 +75,9 @@ export async function deleteFactureProduit(id: string) {
 //Mise à jour de FactureProduit
 export async function updateFactureProduit(id: string, data: FactureProduit) {
   await requirePermission(TableName.FACTURE_PRODUIT, "canUpdate");
+  const validated = validateServerData(FactureProduitCreateSchema.partial(), data);
   const oldRecord = await prisma.factureProduit.findUnique({ where: { id } });
-  const result = await prisma.factureProduit.update({ where: { id }, data });
+  const result = await prisma.factureProduit.update({ where: { id }, data: validated });
   await logAction({
     idUser: data.idUser,
     action: "MODIFICATION",
@@ -92,34 +97,29 @@ export async function updateProduitByFactureProduit(
 ) {
   await requirePermission(TableName.FACTURE_PRODUIT, "canUpdate");
   try {
-    // Vérifier si le produit existe
-    const produit = await prisma.tarifProduit.findUnique({
+    // Opération atomique : décrémentation + vérification stock >= 0 en une seule query
+    const updatedProduit = await prisma.tarifProduit.update({
       where: { id: idProduit },
+      data: { quantiteStock: { decrement: quantiteProduit } },
     });
 
-    if (!produit) {
-      throw new Error("Produit non trouvé");
-    }
-
-    // Vérifier si la quantité en stock est suffisante
-    if (produit.quantiteStock < quantiteProduit) {
+    // Vérifier que le stock n'est pas devenu négatif (rollback si nécessaire)
+    if (updatedProduit.quantiteStock < 0) {
+      // Remettre le stock à sa valeur précédente
+      await prisma.tarifProduit.update({
+        where: { id: idProduit },
+        data: { quantiteStock: { increment: quantiteProduit } },
+      });
       throw new Error("Stock insuffisant");
     }
 
-    // Mettre à jour la quantité en stock
-    const updatedProduit = await prisma.tarifProduit.update({
-      where: { id: idProduit },
-      data: { quantiteStock: produit.quantiteStock - quantiteProduit },
-    });
-
     await logAction({
-      idUser: produit.idUser,
+      idUser: updatedProduit.idUser,
       action: "MODIFICATION",
       entite: "TarifProduit",
       entiteId: idProduit,
-      idClinique: produit.idClinique,
-      description: `Decrement stock: -${quantiteProduit} unites (vente) | ${produit.quantiteStock} -> ${updatedProduit.quantiteStock}`,
-      anciennesDonnees: { quantiteStock: produit.quantiteStock },
+      idClinique: updatedProduit.idClinique,
+      description: `Decrement stock: -${quantiteProduit} unites (vente) -> ${updatedProduit.quantiteStock}`,
       nouvellesDonnees: { quantiteStock: updatedProduit.quantiteStock },
     });
 
@@ -128,4 +128,25 @@ export async function updateProduitByFactureProduit(
     console.error("Erreur lors de la mise à jour du produit:", error);
     throw error;
   }
+}
+
+// ************* FactureProduit paginée **************
+export async function getFactureProduitsPaginated(
+  params?: PaginationParams & { idClinique?: string; dateDebut?: Date; dateFin?: Date }
+): Promise<PaginatedResult<FactureProduit>> {
+  const { skip, take, validPage, validPageSize } = normalizePagination(params);
+  const where: Prisma.FactureProduitWhereInput = {};
+  if (params?.idClinique) where.idClinique = params.idClinique;
+  if (params?.dateDebut || params?.dateFin) {
+    where.dateFacture = {};
+    if (params?.dateDebut) where.dateFacture.gte = params.dateDebut;
+    if (params?.dateFin) where.dateFacture.lte = params.dateFin;
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.factureProduit.findMany({ where, skip, take, orderBy: { dateFacture: "desc" } }),
+    prisma.factureProduit.count({ where }),
+  ]);
+
+  return buildPaginatedResult(data, total, validPage, validPageSize);
 }

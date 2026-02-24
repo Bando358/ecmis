@@ -13,11 +13,11 @@ import {
 } from "@/lib/actions/authActions";
 import {
   Vbg,
-  User,
   Visite,
   TableName,
   Client,
 } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -73,8 +73,8 @@ export default function VbgPage({
   const [visites, setVisites] = useState<Visite[]>([]);
   const [selectedVbg, setSelectedVbg] = useState<Vbg[]>([]);
 
-  const [allPrescripteur, setAllPrescripteur] = useState<User[]>([]);
-  const [prescripteur, setPrescripteur] = useState<User>();
+  const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
+  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
   const [client, setClient] = useState<Client | null>(null);

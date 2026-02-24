@@ -10,8 +10,13 @@ import { DimensionConfigurator } from "./toolbar/DimensionConfigurator";
 import { FilterConfigurator } from "./toolbar/FilterConfigurator";
 import { ChartTypeSelector } from "./visualization/ChartTypeSelector";
 import { PivotTableView } from "./visualization/PivotTableView";
-import { AnalyticsChart } from "./visualization/AnalyticsChart";
+import dynamic from "next/dynamic";
 import { suggestChartTypes } from "@/lib/analytics/visualization/chart-selector";
+
+const AnalyticsChart = dynamic(
+  () => import("./visualization/AnalyticsChart").then((mod) => ({ default: mod.AnalyticsChart })),
+  { loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />, ssr: false }
+);
 import {
   runAnalysis,
   saveAnalysis,

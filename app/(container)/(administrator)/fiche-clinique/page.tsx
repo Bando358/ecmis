@@ -20,14 +20,12 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Eye, EyeClosed, Pencil, ArrowBigLeftDash, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Pencil, ArrowLeft, Plus, X, Building2 } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/loading";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 
@@ -50,10 +48,12 @@ export default function CreateCliniqueForm() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const result = await getAllRegion();
-      setRegions(result as RegionData[]); // Assurez-vous que result est bien de type ClientData[]
-      const resultClinique = await getAllClinique();
-      setCliniques(resultClinique as Clinique[]); // Assurez-vous que result est bien de type ClientData[]
+      const [result, resultClinique] = await Promise.all([
+        getAllRegion(),
+        getAllClinique(),
+      ]);
+      setRegions(result as RegionData[]);
+      setCliniques(resultClinique as Clinique[]);
     };
     fetchData();
   }, []);
@@ -66,14 +66,20 @@ export default function CreateCliniqueForm() {
     formState: { errors, isSubmitting },
   } = useForm<Clinique>();
 
-  if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (!canRead(TableName.CLINIQUE)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
+  if (isLoading) return <TableSkeleton rows={5} columns={5} />;
+  if (!canRead(TableName.CLINIQUE)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   const handleHiddenForm = () => {
-    if (!isVisible) {
-      setIsVisible(true);
-    } else {
+    if (isVisible) {
       setIsVisible(false);
+      setIsUpdating(false);
+      reset();
+    } else {
+      setIsVisible(true);
     }
   };
 
@@ -90,241 +96,303 @@ export default function CreateCliniqueForm() {
         };
 
         await updateClinique(idClinique, CliniqueData);
-        toast.info("Clinique modifié avec succès 🎉 !");
+        toast.success("Clinique modifiée avec succès !");
         setIsUpdating(false);
 
         const oneClinique = await getOneClinique(idClinique);
         if (oneClinique) {
-          const updatedClinique = [...cliniques]; // Copie du tableau pour éviter la mutation
-          updatedClinique.splice(positions, 1, oneClinique); // Remplace l'élément
-          setCliniques(updatedClinique); // Met à jour l'état
+          const updatedClinique = [...cliniques];
+          updatedClinique.splice(positions, 1, oneClinique);
+          setCliniques(updatedClinique);
         }
         reset();
       } else {
         await createClinique(data);
-        toast.success("Clinique créée avec succès! 🎉 ");
-        const allCliniques = await getAllClinique(); // Récupérer les nouvelles données
-        setCliniques(allCliniques as Clinique[]); // Mettre à jour l'état
-        handleHiddenForm();
+        toast.success("Clinique créée avec succès !");
+        const allCliniques = await getAllClinique();
+        setCliniques(allCliniques as Clinique[]);
       }
 
-      reset(); // Réinitialisation du formulaire après soumission
+      reset();
       setIsVisible(false);
     } catch (error) {
-      toast.error("La création/modification de la clinique a échoué !");
+      toast.error("L'opération a échoué !");
       console.error(error);
     }
   };
 
-  const handleUpdateRegion = async (id: string, position: number) => {
+  const handleUpdateClinique = async (id: string, position: number) => {
     setPositions(position);
     const cliniqueToUpdate = cliniques.find((clinique) => clinique.id === id);
-
     setIdClinique(id);
 
     if (cliniqueToUpdate) {
-      setIsUpdating(true); // Activer le mode modification
-
+      setIsUpdating(true);
       setValue("nomClinique", cliniqueToUpdate.nomClinique);
       setValue("numClinique", cliniqueToUpdate.numClinique);
       setValue("codeClinique", cliniqueToUpdate.codeClinique);
       setValue("idRegion", cliniqueToUpdate.idRegion);
-
       setIsVisible(true);
     }
   };
 
   const nameRegion = (idRegion: string) => {
-    if (regions.length > 0) {
-      const region = regions.find((p) => p.id === idRegion);
-      return region ? region.nomRegion : "Région introuvable"; // Valeur par défaut si non trouvé
-    }
+    const region = regions.find((p) => p.id === idRegion);
+    return region ? region.nomRegion : "—";
   };
 
   return (
-    <div className="space-y-4 relative max-w-225 mx-auto p-4">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ArrowBigLeftDash
-              className="absolute top-2 text-blue-600"
-              onClick={() => {
-                router.push("/administrator");
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Retour sur page administration</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={"ghost"}
-              onClick={handleHiddenForm}
-              className="absolute right-2 -top-1"
-            >
-              {isVisible ? (
-                <Eye className="text-blue-600" />
-              ) : (
-                <EyeClosed className="text-red-600" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Ouvrir le formulaire</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      {isVisible && (
-        <>
-          <h2 className="text-center text-xl font-bold uppercase">
-            {isUpdating
-              ? "Formulaire de modification d'une Clinique"
-              : "Formulaire de création d'une Clinique"}
-          </h2>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="p-4 border rounded-md bg-stone-50"
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/administrator")}
+            className="rounded-xl hover:bg-blue-50"
           >
-            <div>
-              <label className="block text-sm font-medium">
-                Nom de la Clinique
-              </label>
-              <Input
-                {...register("nomClinique", {
-                  required: "Nom de la Clinique est requis",
-                })}
-                placeholder="Nom de la Clinique"
-                className="mt-1"
-                name="nomClinique"
-              />
-              {errors.nomClinique && (
-                <span className="text-red-500 text-sm">
-                  {errors.nomClinique.message}
-                </span>
-              )}
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-blue-50 to-blue-100">
+              <Building2 className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <label className="block text-sm font-medium">Type clinique</label>
-              <select
-                {...register("codeClinique", {
-                  required: "Région est requise",
-                })}
-                className="w-full p-2 border rounded-md"
-                name="codeClinique"
-                defaultValue=""
-              >
-                <>
-                  <option value="" disabled className="text-gray-200">
-                    Select
-                  </option>
-                  <option value="CA">Centre AIBEF</option>
-                  <option value="CF">Centre Franchisé</option>
-                </>
-              </select>
-              {errors.codeClinique && (
-                <span className="text-red-500 text-sm">
-                  {errors.codeClinique.message}
-                </span>
-              )}
+              <h1 className="text-lg font-bold text-gray-900">
+                Gestion des cliniques
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {cliniques.length} clinique{cliniques.length > 1 ? "s" : ""}{" "}
+                enregistrée{cliniques.length > 1 ? "s" : ""}
+              </p>
             </div>
+          </div>
+        </div>
+        <Button
+          onClick={handleHiddenForm}
+          className={
+            isVisible
+              ? "bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-none"
+              : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200"
+          }
+        >
+          {isVisible ? (
+            <>
+              <X className="h-4 w-4 mr-2" /> Fermer
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" /> Nouvelle clinique
+            </>
+          )}
+        </Button>
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium">
-                Numéro de la Clinique
-              </label>
-              <Input
-                {...register("numClinique", {
-                  required: "Numéro de la Clinique est requis",
-                })}
-                placeholder="Numéro de la Clinique"
-                className="mt-1"
-                name="numClinique"
-              />
-              {errors.numClinique && (
-                <span className="text-red-500 text-sm">
-                  {errors.numClinique.message}
-                </span>
-              )}
-            </div>
+      {/* Formulaire */}
+      {isVisible && (
+        <Card className="border-blue-200/50 shadow-lg shadow-blue-50 overflow-hidden">
+          <CardHeader className="bg-linear-to-br from-blue-50 to-white pb-4">
+            <CardTitle className="text-base font-semibold text-blue-900">
+              {isUpdating ? "Modifier la clinique" : "Nouvelle clinique"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Nom de la clinique
+                  </label>
+                  <Input
+                    {...register("nomClinique", {
+                      required: "Le nom est requis",
+                    })}
+                    placeholder="Ex: Clinique DALOA"
+                    className="h-10 border-gray-200 focus:border-blue-400 focus:ring-blue-400"
+                  />
+                  {errors.nomClinique && (
+                    <span className="text-red-500 text-xs">
+                      {errors.nomClinique.message}
+                    </span>
+                  )}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium">Région</label>
-              <select
-                {...register("idRegion", { required: "Région est requise" })}
-                className="w-full p-2 border rounded-md"
-                name="idRegion"
-                defaultValue=""
-              >
-                <option value="" disabled className="text-gray-200">
-                  Select
-                </option>
-                {regions.map((region) => (
-                  <option key={region.id} value={region.id}>
-                    {region.nomRegion}
-                  </option>
-                ))}
-              </select>
-              {errors.idRegion && (
-                <span className="text-red-500 text-sm">
-                  {errors.idRegion.message}
-                </span>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Numéro
+                  </label>
+                  <Input
+                    {...register("numClinique", {
+                      required: "Le numéro est requis",
+                    })}
+                    placeholder="Ex: 01"
+                    className="h-10 border-gray-200 focus:border-blue-400 focus:ring-blue-400"
+                  />
+                  {errors.numClinique && (
+                    <span className="text-red-500 text-xs">
+                      {errors.numClinique.message}
+                    </span>
+                  )}
+                </div>
 
-            <Button type="submit" className="mt-4">
-              {isUpdating && isSubmitting
-                ? "Modification en cours ..."
-                : isUpdating
-                ? "Modifier la Clinique"
-                : isSubmitting
-                ? "Création en cours ..."
-                : "Créer la Clinique"}
-            </Button>
-          </form>
-        </>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Type de clinique
+                  </label>
+                  <select
+                    {...register("codeClinique", {
+                      required: "Le type est requis",
+                    })}
+                    className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Sélectionner un type
+                    </option>
+                    <option value="CA">Centre AIBEF</option>
+                    <option value="CF">Centre Franchisé</option>
+                  </select>
+                  {errors.codeClinique && (
+                    <span className="text-red-500 text-xs">
+                      {errors.codeClinique.message}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Région
+                  </label>
+                  <select
+                    {...register("idRegion", {
+                      required: "La région est requise",
+                    })}
+                    className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Sélectionner une région
+                    </option>
+                    {regions.map((region) => (
+                      <option key={region.id} value={region.id}>
+                        {region.nomRegion}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.idRegion && (
+                    <span className="text-red-500 text-xs">
+                      {errors.idRegion.message}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleHiddenForm}
+                  className="text-gray-600"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 px-6"
+                >
+                  {isSubmitting
+                    ? "Enregistrement..."
+                    : isUpdating
+                      ? "Modifier"
+                      : "Créer la clinique"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="flex-1">
-        <h2 className="text-center text-xl font-bold uppercase">
-          Liste des Cliniques
-        </h2>
-        <Table className="border  bg-white rounded-md overflow-hidden">
-          <TableHeader>
-            <TableRow>
-              <TableCell>Nom Clinique</TableCell>
-              <TableCell>Numéro Clinique</TableCell>
-              <TableCell>Code Clinique</TableCell>
-              <TableCell>Région</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {cliniques.map((clinique, index) => (
-              <TableRow key={index}>
-                <TableCell>{clinique.nomClinique}</TableCell>
-                <TableCell>{clinique.numClinique}</TableCell>
-                <TableCell>{clinique.codeClinique}</TableCell>
-                <TableCell>{nameRegion(clinique.idRegion)}</TableCell>
-
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Pencil
-                      className="text-xl m-1 duration-300 hover:scale-150 active:scale-125 text-blue-600 cursor-pointer"
-                      size={16}
-                      onClick={() => handleUpdateRegion(clinique.id, index)}
-                    />
-                  </div>
-                </TableCell>
+      {/* Table */}
+      <Card className="shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Nom
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Numéro
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Type
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Région
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider w-20 text-center">
+                  Actions
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {cliniques.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Building2 className="h-8 w-8 text-gray-300" />
+                      <p className="text-sm">Aucune clinique enregistrée</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                cliniques.map((clinique, index) => (
+                  <TableRow
+                    key={clinique.id}
+                    className="group hover:bg-blue-50/30 transition-colors"
+                  >
+                    <TableCell className="font-medium text-gray-800">
+                      {clinique.nomClinique}
+                    </TableCell>
+                    <TableCell className="text-gray-600 font-mono text-sm">
+                      {clinique.numClinique}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          clinique.codeClinique === "CA"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }
+                      >
+                        {clinique.codeClinique === "CA"
+                          ? "Centre AIBEF"
+                          : "Centre Franchisé"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {nameRegion(clinique.idRegion)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleUpdateClinique(clinique.id, index)}
+                        className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-100 hover:text-blue-700"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </div>
   );
 }

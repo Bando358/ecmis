@@ -7,7 +7,8 @@ import {
   updatePermission,
 } from "@/lib/actions/permissionActions";
 import { getOneUser, getAllUser } from "@/lib/actions/authActions";
-import { Permission, User, TableName, Post } from "@prisma/client";
+import { Permission, TableName, Post } from "@prisma/client";
+import { SafeUser } from "@/types/prisma";
 import { getOnePostIdClient } from "@/lib/actions/postActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
@@ -15,13 +16,16 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ArrowBigLeftDash } from "lucide-react";
+  ArrowLeft,
+  Search,
+  User as UserIcon,
+  ShieldCheck,
+  Loader2,
+  X,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -37,26 +41,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search, User as UserIcon } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/loading";
 import { useRouter } from "next/navigation";
 
 export default function PermissionInitialPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<SafeUser[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [userAdmin, setUserAdmin] = useState<User | null>(null);
-  const [permissionsUserAdmin, setPermissionsUserAdmin] = useState<
-    Permission[]
-  >([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [filteredPermissions, setFilteredPermissions] = useState<Permission[]>(
-    []
-  );
+  const [userAdmin, setUserAdmin] = useState<SafeUser | null>(null);
+  const [permissionsUserAdmin, setPermissionsUserAdmin] = useState<Permission[]>([]);
+  const [selectedUser, setSelectedUser] = useState<SafeUser | null>(null);
+  const [filteredPermissions, setFilteredPermissions] = useState<Permission[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [modifiedPermissions, setModifiedPermissions] = useState<Set<string>>(
-    new Set()
-  );
-  const [oneUser, setOneUser] = useState<User | null>(null);
+  const [modifiedPermissions, setModifiedPermissions] = useState<Set<string>>(new Set());
+  const [oneUser, setOneUser] = useState<SafeUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPending, setIsPending] = useState(false);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -67,7 +65,6 @@ export default function PermissionInitialPage() {
   const idUser = session?.user.id as string;
   const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
-  // === Charger l'utilisateur admin connecté ===
   useEffect(() => {
     const fetUser = async () => {
       const user = await getOneUser(idUser);
@@ -75,18 +72,17 @@ export default function PermissionInitialPage() {
     };
     fetUser();
   }, [idUser]);
+
   useEffect(() => {
     const fetchUserAdmin = async () => {
       if (oneUser?.id) {
         const userData = await getOneUser(oneUser.id);
         setUserAdmin(userData);
 
-        // Récupérer le poste de l'utilisateur
         if (!userData) return;
         const postData = await getOnePostIdClient(userData.id);
         setUserPost(postData);
 
-        // Récupérer ses permissions
         const permsAdmin = await getUserPermissionsById(oneUser.id);
         setPermissionsUserAdmin(permsAdmin);
       }
@@ -94,12 +90,10 @@ export default function PermissionInitialPage() {
     fetchUserAdmin();
   }, [oneUser?.id]);
 
-  // === Charger tous les utilisateurs ===
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const allUsers = await getAllUser();
-        // retirer tous les ADMIN de allUsers
         const users = allUsers.filter(
           (user: { role: string }) => user.role !== "ADMIN"
         );
@@ -107,7 +101,6 @@ export default function PermissionInitialPage() {
           setUsers(users);
         } else {
           const filteredIclinicUsers = userAdmin?.idCliniques;
-          // On va vérifier si filteredIclinicUsers est inclue dans allUsers.idCliniques
           const filteredUsers = allUsers.filter(
             (user: { idCliniques: any[] }) =>
               user.idCliniques?.some((id: string) =>
@@ -131,7 +124,6 @@ export default function PermissionInitialPage() {
     }
   }, [userAdmin, oneUser]);
 
-  // === Charger les permissions quand un utilisateur est sélectionné ===
   useEffect(() => {
     const fetchPermissions = async () => {
       if (!selectedUserId) {
@@ -147,16 +139,13 @@ export default function PermissionInitialPage() {
         const userData = await getOneUser(selectedUserId);
         const perms = await getUserPermissionsById(selectedUserId);
 
-        // Récupérer le poste de l'utilisateur sélectionné
         const postData = await getOnePostIdClient(selectedUserId);
         setUserPost(postData);
 
-        // Trier par nom de table
         const sorted = perms.sort((a: { table: string }, b: { table: any }) =>
           a.table.localeCompare(b.table)
         );
 
-        // retirer bilan de sorted
         const filteredSorted = sorted.filter((perm) => perm.table !== "BILAN");
         setPermissions(filteredSorted);
         setFilteredPermissions(filteredSorted);
@@ -173,7 +162,6 @@ export default function PermissionInitialPage() {
     }
   }, [selectedUserId]);
 
-  // === Filtrage des permissions ===
   useEffect(() => {
     const filtered = permissions.filter((permission) =>
       permission.table.toLowerCase().includes(searchTerm.toLowerCase())
@@ -181,18 +169,16 @@ export default function PermissionInitialPage() {
     setFilteredPermissions(filtered);
   }, [searchTerm, permissions]);
 
-  // === Vérifie si l'admin a le droit d'accorder une action sur une table ===
   const canGrant = (
     table: TableName,
     action: "canCreate" | "canRead" | "canUpdate" | "canDelete"
   ): boolean => {
-    if (userAdmin?.role === "ADMIN") return true; // full access
+    if (userAdmin?.role === "ADMIN") return true;
     const adminPerm = permissionsUserAdmin.find((p) => p.table === table);
     if (!adminPerm) return false;
     return adminPerm[action];
   };
 
-  // === GESTION DES SWITCHS ===
   const handleSwitchChange = (
     permissionId: string,
     action: "canCreate" | "canRead" | "canUpdate" | "canDelete",
@@ -209,24 +195,17 @@ export default function PermissionInitialPage() {
     setModifiedPermissions(newModified);
   };
 
-  // Switch global "Tout" - tout sauf Delete
   const handleAllSwitchChange = (permissionId: string, value: boolean) => {
     const targetPerm = permissions.find((p) => p.id === permissionId);
     if (!targetPerm) return;
 
-    // Appliquer seulement les actions que l'admin peut accorder, SAUF canDelete
     const updatedPermissions = permissions.map((perm) =>
       perm.id === permissionId
         ? {
             ...perm,
-            canCreate: canGrant(perm.table, "canCreate")
-              ? value
-              : perm.canCreate,
+            canCreate: canGrant(perm.table, "canCreate") ? value : perm.canCreate,
             canRead: canGrant(perm.table, "canRead") ? value : perm.canRead,
-            canUpdate: canGrant(perm.table, "canUpdate")
-              ? value
-              : perm.canUpdate,
-            // NE PAS modifier canDelete - laisser sa valeur actuelle
+            canUpdate: canGrant(perm.table, "canUpdate") ? value : perm.canUpdate,
             canDelete: perm.canDelete,
           }
         : perm
@@ -238,35 +217,14 @@ export default function PermissionInitialPage() {
     setModifiedPermissions(newModified);
   };
 
-  // === MISE À JOUR D'UNE PERMISSION ===
   const handleUpdatePermission = async (permission: Permission) => {
     setIsPending(true);
     try {
       const updates = [
-        updatePermission(
-          permission.userId,
-          permission.table,
-          "canCreate",
-          permission.canCreate
-        ),
-        updatePermission(
-          permission.userId,
-          permission.table,
-          "canRead",
-          permission.canRead
-        ),
-        updatePermission(
-          permission.userId,
-          permission.table,
-          "canUpdate",
-          permission.canUpdate
-        ),
-        updatePermission(
-          permission.userId,
-          permission.table,
-          "canDelete",
-          permission.canDelete
-        ),
+        updatePermission(permission.userId, permission.table, "canCreate", permission.canCreate),
+        updatePermission(permission.userId, permission.table, "canRead", permission.canRead),
+        updatePermission(permission.userId, permission.table, "canUpdate", permission.canUpdate),
+        updatePermission(permission.userId, permission.table, "canDelete", permission.canDelete),
       ];
 
       await Promise.all(updates);
@@ -279,7 +237,6 @@ export default function PermissionInitialPage() {
     setIsPending(false);
   };
 
-  // === MISE À JOUR DE TOUTES LES PERMISSIONS ===
   const handleUpdateAll = async () => {
     setIsPending(true);
     try {
@@ -294,51 +251,47 @@ export default function PermissionInitialPage() {
     setIsPending(false);
   };
 
-  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (isLoadingPermissions) return <TableSkeleton rows={5} columns={7} />;
   if (!canRead(TableName.PERMISSION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
   if (usersLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        Chargement des utilisateurs...
-      </div>
-    );
+    return <TableSkeleton rows={5} columns={7} />;
   }
 
   return (
-    <div className="container mx-auto p-6 relative">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ArrowBigLeftDash
-              className="absolute top-2 text-blue-600"
-              onClick={() => {
-                router.back();
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Retour sur la page précédente</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <div className="mb-6  flex flex-col justify-center items-center">
-        <h1 className="text-2xl font-bold mb-2">Gestion des Permissions</h1>
-        <p className="text-gray-600">
-          Sélectionnez un utilisateur pour gérer ses permissions
-        </p>
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/administrator")}
+          className="rounded-xl hover:bg-rose-50"
+        >
+          <ArrowLeft className="h-5 w-5 text-gray-600" />
+        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-50 to-rose-100">
+            <ShieldCheck className="h-5 w-5 text-rose-600" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Gestion des permissions</h1>
+            <p className="text-sm text-muted-foreground">
+              Configurer les droits d&apos;accès par utilisateur
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Sélection de l'utilisateur */}
-      <div className="bg-white p-6 rounded-lg border shadow-sm mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">
+      {/* Sélection utilisateur */}
+      <Card className="border-rose-200/50 shadow-sm">
+        <CardContent className="p-4">
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">
               Sélectionner un utilisateur
             </label>
             <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10 border-gray-200">
                 <SelectValue placeholder="Choisir un utilisateur..." />
               </SelectTrigger>
               <SelectContent>
@@ -355,114 +308,113 @@ export default function PermissionInitialPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        </div>
 
-        {selectedUser && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm">
-              <span className="font-medium">Utilisateur sélectionné :</span>{" "}
-              {selectedUser.name} ({selectedUser.email})
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Poste : {userPost ? userPost.title : "Non défini"}
-            </p>
+            {selectedUser && (
+              <div className="p-3 bg-rose-50/50 rounded-lg border border-rose-100 flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-100">
+                  <UserIcon className="h-4 w-4 text-rose-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-800">
+                    {selectedUser.name} <span className="text-gray-500 font-normal">({selectedUser.email})</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Poste : <Badge variant="secondary" className="bg-rose-50 text-rose-700 border-rose-200 text-xs ml-1">
+                      {userPost ? userPost.title : "Non défini"}
+                    </Badge>
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Tableau des permissions (uniquement si un utilisateur est sélectionné) */}
+      {/* Tableau des permissions */}
       {selectedUserId && (
-        <>
-          {/* Barre de recherche + bouton global */}
-          <div className="flex justify-between items-center mb-6">
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Card className="shadow-sm overflow-hidden">
+          <div className="p-4 border-b bg-gray-50/50 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Rechercher une table..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className="pl-10 pr-10 h-9 bg-white border-gray-200"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
             {modifiedPermissions.size > 0 && (
-              <Button onClick={handleUpdateAll} disabled={isPending}>
+              <Button
+                onClick={handleUpdateAll}
+                disabled={isPending}
+                className="bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200"
+              >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Mettre à jour tout ({modifiedPermissions.size})
               </Button>
             )}
           </div>
 
-          {/* Tableau des permissions */}
-          <div className="border rounded-lg bg-gray-50 opacity-95">
+          <div className="overflow-x-auto">
             {loading ? (
               <div className="flex justify-center items-center h-32">
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                Chargement des permissions...
+                <Loader2 className="mr-2 h-6 w-6 animate-spin text-rose-500" />
+                <span className="text-sm text-gray-500">Chargement des permissions...</span>
               </div>
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-1/4">Table</TableHead>
-                    <TableHead className="text-center">Tout</TableHead>
-                    <TableHead className="text-center">Create</TableHead>
-                    <TableHead className="text-center">Read</TableHead>
-                    <TableHead className="text-center">Update</TableHead>
-                    <TableHead className="text-center">Delete</TableHead>
-                    <TableHead className="text-center">Action</TableHead>
+                  <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                    <TableHead className="w-1/4 font-semibold text-gray-600 text-xs uppercase tracking-wider">Table</TableHead>
+                    <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Tout</TableHead>
+                    <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Créer</TableHead>
+                    <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Lire</TableHead>
+                    <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Modifier</TableHead>
+                    <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Supprimer</TableHead>
+                    <TableHead className="text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Action</TableHead>
                   </TableRow>
                 </TableHeader>
 
                 <TableBody>
                   {filteredPermissions.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        {searchTerm
-                          ? "Aucune permission trouvée"
-                          : "Aucune permission configurée"}
+                      <TableCell colSpan={7} className="text-center py-12">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <ShieldCheck className="h-8 w-8 text-gray-300" />
+                          <p className="text-sm">
+                            {searchTerm ? "Aucune permission trouvée" : "Aucune permission configurée"}
+                          </p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredPermissions.map((permission) => {
-                      // CORRECTION: N'inclure que Create, Read et Update pour le switch "Tout"
                       const allActive =
                         permission.canCreate &&
                         permission.canRead &&
                         permission.canUpdate;
-                      // canDelete est exclu du calcul
 
-                      const disableCreate = !canGrant(
-                        permission.table,
-                        "canCreate"
-                      );
-                      const disableRead = !canGrant(
-                        permission.table,
-                        "canRead"
-                      );
-                      const disableUpdate = !canGrant(
-                        permission.table,
-                        "canUpdate"
-                      );
-                      const disableDelete = !canGrant(
-                        permission.table,
-                        "canDelete"
-                      );
-                      // CORRECTION: Ne pas inclure disableDelete dans disableAll
-                      const disableAll =
-                        disableCreate && disableRead && disableUpdate;
+                      const disableCreate = !canGrant(permission.table, "canCreate");
+                      const disableRead = !canGrant(permission.table, "canRead");
+                      const disableUpdate = !canGrant(permission.table, "canUpdate");
+                      const disableDelete = !canGrant(permission.table, "canDelete");
+                      const disableAll = disableCreate && disableRead && disableUpdate;
 
                       return (
-                        <TableRow key={permission.id}>
-                          <TableCell className="font-medium">
+                        <TableRow key={permission.id} className="group hover:bg-rose-50/30 transition-colors">
+                          <TableCell className="font-medium text-gray-800 text-sm">
                             {permission.table}
                           </TableCell>
 
-                          {/* Switch Tout */}
                           <TableCell className="text-center">
                             <Switch
                               checked={allActive}
@@ -473,81 +425,59 @@ export default function PermissionInitialPage() {
                             />
                           </TableCell>
 
-                          {/* Create */}
                           <TableCell className="text-center">
                             <Switch
                               checked={permission.canCreate}
                               disabled={disableCreate}
                               onCheckedChange={(checked) =>
-                                handleSwitchChange(
-                                  permission.id,
-                                  "canCreate",
-                                  checked
-                                )
+                                handleSwitchChange(permission.id, "canCreate", checked)
                               }
                             />
                           </TableCell>
 
-                          {/* Read */}
                           <TableCell className="text-center">
                             <Switch
                               checked={permission.canRead}
                               disabled={disableRead}
                               onCheckedChange={(checked) =>
-                                handleSwitchChange(
-                                  permission.id,
-                                  "canRead",
-                                  checked
-                                )
+                                handleSwitchChange(permission.id, "canRead", checked)
                               }
                             />
                           </TableCell>
 
-                          {/* Update */}
                           <TableCell className="text-center">
                             <Switch
                               checked={permission.canUpdate}
                               disabled={disableUpdate}
                               onCheckedChange={(checked) =>
-                                handleSwitchChange(
-                                  permission.id,
-                                  "canUpdate",
-                                  checked
-                                )
+                                handleSwitchChange(permission.id, "canUpdate", checked)
                               }
                             />
                           </TableCell>
 
-                          {/* Delete */}
                           <TableCell className="text-center">
                             <Switch
                               checked={permission.canDelete}
                               disabled={disableDelete}
                               onCheckedChange={(checked) =>
-                                handleSwitchChange(
-                                  permission.id,
-                                  "canDelete",
-                                  checked
-                                )
+                                handleSwitchChange(permission.id, "canDelete", checked)
                               }
                             />
                           </TableCell>
 
-                          {/* Bouton Mettre à jour */}
                           <TableCell className="text-center">
                             {modifiedPermissions.has(permission.id) && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 disabled={isPending}
-                                onClick={() =>
-                                  handleUpdatePermission(permission)
-                                }
+                                onClick={() => handleUpdatePermission(permission)}
+                                className="text-xs border-rose-200 hover:bg-rose-50 hover:text-rose-700"
                               >
                                 {isPending && (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                 )}
-                                Mettre à jour
+                                Sauvegarder
                               </Button>
                             )}
                           </TableCell>
@@ -559,13 +489,22 @@ export default function PermissionInitialPage() {
               </Table>
             )}
           </div>
-        </>
+
+          {filteredPermissions.length > 0 && (
+            <div className="px-4 py-3 border-t bg-gray-50/30 text-sm text-gray-500 text-right">
+              {filteredPermissions.length} permission{filteredPermissions.length > 1 ? "s" : ""}
+              {searchTerm && ` pour "${searchTerm}"`}
+            </div>
+          )}
+        </Card>
       )}
 
       {!selectedUserId && !loading && (
-        <div className="text-center py-12 text-muted-foreground">
-          <UserIcon className="mx-auto h-12 w-12 mb-4 opacity-50" />
-          <p>Veuillez sélectionner un utilisateur pour gérer ses permissions</p>
+        <div className="text-center py-16 text-muted-foreground">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 mx-auto mb-4">
+            <UserIcon className="h-8 w-8 text-gray-400" />
+          </div>
+          <p className="text-sm">Sélectionnez un utilisateur pour gérer ses permissions</p>
         </div>
       )}
     </div>
