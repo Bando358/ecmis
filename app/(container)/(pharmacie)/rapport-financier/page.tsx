@@ -1543,14 +1543,14 @@ export default function VentesPage() {
   }
 
   return (
-    <div className="p-4 space-y-8">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* En-tête */}
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-800">
+      <div>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
           Rapports Financiers
         </h1>
-        <p className="text-gray-600">
-          Générez et exportez vos rapports financiers
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          Générez et exportez vos rapports financiers par période et clinique
         </p>
       </div>
 
@@ -1575,7 +1575,7 @@ export default function VentesPage() {
       )}
 
       {/* Formulaire */}
-      <div className="bg-white rounded-xl shadow-sm border p-6 max-w-4xl mx-auto">
+      <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 max-w-4xl mx-auto">
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-6">
             {/* Dates */}
@@ -1701,7 +1701,7 @@ export default function VentesPage() {
       {selectedCliniqueIds.length > 0 && !spinner && (
         <>
           {/* Zone d'impression/PDF */}
-          <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-xl font-semibold text-gray-800">

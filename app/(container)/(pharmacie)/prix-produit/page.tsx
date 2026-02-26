@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +29,16 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import {
   TarifProduit,
@@ -45,7 +55,15 @@ import {
   getAllTarifProduits,
   updateTarifProduit,
 } from "@/lib/actions/tarifProduitActions";
-import { Pencil, Trash2, Search, Loader2 } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Search,
+  Loader2,
+  Tag,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import TarifProduitDialog from "@/components/tarifProduitDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +71,21 @@ import { getOneUser } from "@/lib/actions/authActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { useRouter } from "next/navigation";
+
+const typeLabels: Record<string, { label: string; color: string }> = {
+  CONTRACEPTIF: {
+    label: "Contraceptif",
+    color: "bg-pink-50 text-pink-700 border-pink-200",
+  },
+  MEDICAMENTS: {
+    label: "Médicament",
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  CONSOMMABLES: {
+    label: "Consommable",
+    color: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+};
 
 export default function PrixProduitPage() {
   const [listeTarifProduit, setListeTarifProduit] = useState<TarifProduit[]>(
@@ -68,10 +101,18 @@ export default function PrixProduitPage() {
   const [isUpdatingTrue, setIsUpdatingTrue] = useState(false);
   const [recherche, setRecherche] = useState<string>("");
   const [selectedClinique, setSelectedClinique] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { data: session } = useSession();
   const idUser = session?.user?.id ?? "";
-  const { canCreate, canUpdate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
+  const {
+    canCreate,
+    canUpdate,
+    canDelete,
+    canRead,
+    isLoading: isLoadingPermissions,
+  } = usePermissionContext();
   const router = useRouter();
 
   useEffect(() => {
@@ -122,21 +163,18 @@ export default function PrixProduitPage() {
           return indexA - indexB;
         }
 
-        // Si même type, trier par nom de produit
         return produitA.nomProduit.localeCompare(produitB.nomProduit);
       });
     };
 
     let filtres = [...listeTarifProduit];
 
-    // Filtrer par clinique (obligatoire)
     if (selectedClinique) {
       filtres = filtres.filter(
         (tarif) => tarif.idClinique === selectedClinique
       );
     }
 
-    // Filtrer par recherche
     if (recherche.trim() !== "") {
       const terme = recherche.toLowerCase();
       filtres = filtres.filter((tarif) => {
@@ -152,6 +190,7 @@ export default function PrixProduitPage() {
 
     const triees = trierParTypeProduit(filtres);
     setTarifsFiltres(triees);
+    setCurrentPage(1);
   }, [recherche, selectedClinique, listeTarifProduit, produits, cliniques]);
 
   const onSubmit = async (data: TarifProduit) => {
@@ -208,19 +247,28 @@ export default function PrixProduitPage() {
     if (!open) setEditingTarif(null);
   };
 
-  // Filtrer les produits qui n'ont pas encore de tarif pour la clinique sélectionnée
   const produitsDisponibles = produits.filter((produit) => {
-    // Si on est en mode édition, inclure le produit en cours d'édition
     if (editingTarif && editingTarif.idProduit === produit.id) {
       return true;
     }
-    // Vérifier si le produit a déjà un tarif pour cette clinique
     const aTarifExistant = listeTarifProduit.some(
       (tarif) =>
         tarif.idProduit === produit.id && tarif.idClinique === selectedClinique
     );
     return !aTarifExistant;
   });
+
+  const cliniquesAccessibles =
+    user?.role === "ADMIN"
+      ? cliniques
+      : cliniques.filter((clinique) => user?.idCliniques.includes(clinique.id));
+
+  // Pagination
+  const paginatedTarifs = tarifsFiltres.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(tarifsFiltres.length / itemsPerPage);
 
   const TableRowSkeleton = () => (
     <TableRow>
@@ -232,22 +280,33 @@ export default function PrixProduitPage() {
     </TableRow>
   );
 
-  // Filtrer les cliniques selon le rôle de l'utilisateur
-  const cliniquesAccessibles =
-    user?.role === "ADMIN"
-      ? cliniques
-      : cliniques.filter((clinique) => user?.idCliniques.includes(clinique.id));
-
-  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (!canRead(TableName.TARIF_PRODUIT)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
+  if (isLoadingPermissions)
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  if (!canRead(TableName.TARIF_PRODUIT)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   return (
-    <div className="space-y-4 max-w-300 p-4 flex flex-col mx-auto">
-      <div className="flex justify-between items-center sm:flex-row flex-col gap-4">
-        <h1 className="text-2xl font-bold">Gestion des tarifs produits</h1>
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">
+      {/* En-tête */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+            Tarification des Produits
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Gérez les prix unitaires par clinique et par produit
+          </p>
+        </div>
         <div className="flex gap-2 flex-wrap items-center">
           <Select value={selectedClinique} onValueChange={setSelectedClinique}>
-            <SelectTrigger className="w-full sm:w-62.5 bg-gray-50">
+            <SelectTrigger className="w-full sm:w-56 text-sm">
               <SelectValue placeholder="Sélectionner une clinique *" />
             </SelectTrigger>
             <SelectContent>
@@ -258,13 +317,16 @@ export default function PrixProduitPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            onClick={handleCreate}
-            className="w-full sm:w-auto"
-            disabled={!selectedClinique}
-          >
-            Ajouter un tarif
-          </Button>
+          {canCreate(TableName.TARIF_PRODUIT) && (
+            <Button
+              onClick={handleCreate}
+              className="w-full sm:w-auto"
+              disabled={!selectedClinique}
+            >
+              <Tag className="mr-2 h-4 w-4" />
+              Ajouter un tarif
+            </Button>
+          )}
         </div>
       </div>
 
@@ -273,141 +335,321 @@ export default function PrixProduitPage() {
         cliniques={cliniquesAccessibles}
         isUpdating={!!editingTarif}
         initialData={editingTarif || undefined}
-        // isUpdatingTrue={isUpdatingTrue}
         onSubmit={onSubmit}
         open={dialogOpen}
         onOpenChange={handleDialogClose}
       />
 
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher un produit ou une clinique..."
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Filtres */}
+      <Card>
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit, une clinique ou un prix..."
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              className="pl-10 text-sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {!selectedClinique ? (
-        <div className="bg-blue-50 border border-blue-200 p-8 rounded-lg text-center">
-          <p className="text-blue-700 text-lg">
-            Veuillez sélectionner une clinique pour afficher les tarifs
-          </p>
-        </div>
+        <Card>
+          <CardContent className="py-12 sm:py-16">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-blue-50 flex items-center justify-center mb-3 sm:mb-4">
+                <Tag className="h-8 w-8 sm:h-12 sm:w-12 text-blue-400" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold mb-2 text-blue-900">
+                Sélectionnez une clinique
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Veuillez sélectionner une clinique pour afficher les tarifs
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-gray-50 p-4 rounded-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell>N°</TableCell>
-                <TableCell>Produit</TableCell>
-                <TableCell>Clinique</TableCell>
-                <TableCell>Prix unitaire</TableCell>
-                <TableCell>Stock</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRowSkeleton key={i} />
-                ))
-              ) : tarifsFiltres.length ? (
-                (() => {
-                  let currentType = "";
-                  let globalIndex = 0;
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">
+              Liste des tarifs
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              {tarifsFiltres.length} tarif(s) trouvé(s)
+              {recherche && ` pour "${recherche}"`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-4 md:p-6">
+            {isLoading ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>N°</TableHead>
+                    <TableHead>Produit</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Clinique</TableHead>
+                    <TableHead>Prix unitaire</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <TableRowSkeleton key={i} />
+                  ))}
+                </TableBody>
+              </Table>
+            ) : tarifsFiltres.length ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm w-12">
+                        N°
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Produit
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Type
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Clinique
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Prix unitaire
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Stock
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm text-right">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      let currentType = "";
+                      let globalIndex = (currentPage - 1) * itemsPerPage;
 
-                  return tarifsFiltres.map((item) => {
-                    const produit = produits.find(
-                      (p) => p.id === item.idProduit
-                    );
-                    const clinique = cliniques.find(
-                      (c) => c.id === item.idClinique
-                    );
+                      return paginatedTarifs.map((item) => {
+                        const produit = produits.find(
+                          (p) => p.id === item.idProduit
+                        );
+                        const clinique = cliniques.find(
+                          (c) => c.id === item.idClinique
+                        );
 
-                    const showTypeHeader =
-                      produit && produit.typeProduit !== currentType;
-                    if (showTypeHeader) {
-                      currentType = produit.typeProduit;
-                    }
+                        const showTypeHeader =
+                          produit && produit.typeProduit !== currentType;
+                        if (showTypeHeader) {
+                          currentType = produit.typeProduit;
+                        }
 
-                    globalIndex++;
+                        globalIndex++;
 
-                    const typeLabels: Record<string, string> = {
-                      CONTRACEPTIF: "Contraceptifs",
-                      MEDICAMENTS: "Médicaments",
-                      CONSOMMABLES: "Consommables",
-                    };
+                        const typeInfo = produit
+                          ? typeLabels[produit.typeProduit] || {
+                              label: produit.typeProduit,
+                              color:
+                                "bg-gray-50 text-gray-700 border-gray-200",
+                            }
+                          : {
+                              label: "Inconnu",
+                              color:
+                                "bg-gray-50 text-gray-700 border-gray-200",
+                            };
 
-                    return (
-                      <React.Fragment key={item.id}>
-                        {showTypeHeader && (
-                          <TableRow className="bg-blue-50 hover:bg-blue-50">
-                            <TableCell
-                              colSpan={6}
-                              className="font-semibold text-blue-700"
-                            >
-                              {typeLabels[currentType] || currentType}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        <TableRow>
-                          <TableCell>{globalIndex}</TableCell>
-                          <TableCell>{produit?.nomProduit}</TableCell>
-                          <TableCell>{clinique?.nomClinique}</TableCell>
-                          <TableCell>{item.prixUnitaire} Fcfa</TableCell>
-                          <TableCell>{item.quantiteStock}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Pencil
-                                className="text-blue-600 cursor-pointer"
-                                size={16}
-                                onClick={() => handleEdit(item)}
-                              />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Trash2 className="text-red-600 cursor-pointer" />
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Supprimer ce tarif ?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Cette action est irréversible.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Annuler
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-red-600 text-white"
-                                      onClick={() => handleDelete(item.id)}
+                        return (
+                          <React.Fragment key={item.id}>
+                            {showTypeHeader && (
+                              <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                <TableCell
+                                  colSpan={7}
+                                  className="font-semibold text-slate-700 text-xs sm:text-sm"
+                                >
+                                  {typeLabels[currentType]?.label ||
+                                    currentType}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow>
+                              <TableCell className="text-xs sm:text-sm">
+                                {globalIndex}
+                              </TableCell>
+                              <TableCell className="font-medium text-xs sm:text-sm">
+                                {produit?.nomProduit}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] sm:text-xs ${typeInfo.color}`}
+                                >
+                                  {typeInfo.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                {clinique?.nomClinique}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm font-medium">
+                                {item.prixUnitaire.toLocaleString("fr-FR")}{" "}
+                                Fcfa
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                <span
+                                  className={
+                                    item.quantiteStock > 10
+                                      ? "text-green-600 font-medium"
+                                      : item.quantiteStock > 0
+                                      ? "text-amber-600 font-medium"
+                                      : "text-red-600 font-bold"
+                                  }
+                                >
+                                  {item.quantiteStock}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex gap-2 justify-end">
+                                  {canUpdate(TableName.TARIF_PRODUIT) && (
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleEdit(item)}
                                     >
-                                      Supprimer
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    );
-                  });
-                })()
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Aucun tarif trouvé.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                                      <Pencil className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                  )}
+                                  {canDelete(TableName.TARIF_PRODUIT) && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                        >
+                                          <Trash2 className="h-4 w-4 text-red-600" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Supprimer ce tarif ?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Cette action est irréversible.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Annuler
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            className="bg-red-600 text-white"
+                                            onClick={() =>
+                                              handleDelete(item.id)
+                                            }
+                                          >
+                                            Supprimer
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 sm:py-12">
+                <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-muted flex items-center justify-center mb-3 sm:mb-4">
+                  <Search className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold mb-2">
+                  Aucun tarif trouvé
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {recherche
+                    ? "Aucun tarif ne correspond à votre recherche."
+                    : "Aucun tarif produit pour cette clinique."}
+                </p>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {tarifsFiltres.length > 0 && !isLoading && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 px-2 py-3 sm:py-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                    Lignes par page:
+                  </Label>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-17.5 h-8 text-xs sm:text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6 w-full sm:w-auto">
+                  <div className="text-xs sm:text-sm text-muted-foreground">
+                    Page {currentPage} sur {totalPages} (
+                    {tarifsFiltres.length} résultat
+                    {tarifsFiltres.length > 1 ? "s" : ""})
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    >
+                      <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Précédent</span>
+                      <span className="sm:hidden">Préc.</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) =>
+                          Math.min(totalPages, prev + 1)
+                        )
+                      }
+                      disabled={currentPage >= totalPages}
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    >
+                      <span className="hidden sm:inline">Suivant</span>
+                      <span className="sm:hidden">Suiv.</span>
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

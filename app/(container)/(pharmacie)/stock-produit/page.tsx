@@ -17,7 +17,15 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableHead,
 } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import React from "react";
 import {
@@ -50,11 +58,34 @@ import {
   deleteDetailCommande,
   getAllDetailCommande,
 } from "@/lib/actions/detailCommandeActions";
-import { Search, Trash2, Loader2 } from "lucide-react";
+import {
+  Search,
+  Trash2,
+  Loader2,
+  PackagePlus,
+  Warehouse,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { getOneUser } from "@/lib/actions/authActions";
 import { Badge } from "@/components/ui/badge";
+
+const typeLabels: Record<string, { label: string; color: string }> = {
+  CONTRACEPTIF: {
+    label: "Contraceptifs",
+    color: "bg-pink-50 text-pink-700 border-pink-200",
+  },
+  MEDICAMENTS: {
+    label: "Médicaments",
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  CONSOMMABLES: {
+    label: "Consommables",
+    color: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+};
 
 export default function GestionStockProduitPage() {
   const [listeTarifProduit, setListeTarifProduit] = useState<TarifProduit[]>(
@@ -71,10 +102,17 @@ export default function GestionStockProduitPage() {
   const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [recherche, setRecherche] = useState<string>("");
   const [selectedClinique, setSelectedClinique] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
-  const { canCreate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
+  const {
+    canCreate,
+    canDelete,
+    canRead,
+    isLoading: isLoadingPermissions,
+  } = usePermissionContext();
   const router = useRouter();
 
   useEffect(() => {
@@ -123,7 +161,6 @@ export default function GestionStockProduitPage() {
     fetchData();
   }, [prescripteur?.role, prescripteur?.idCliniques, status]);
 
-  // Filtrage et tri des tarifs
   useEffect(() => {
     const trierParTypeProduit = (tarifs: TarifProduit[]) => {
       const ordreTypes = ["CONTRACEPTIF", "MEDICAMENTS", "CONSOMMABLES"];
@@ -147,14 +184,12 @@ export default function GestionStockProduitPage() {
 
     let filtres = [...listeTarifProduit];
 
-    // Filtrer par clinique (obligatoire)
     if (selectedClinique) {
       filtres = filtres.filter(
         (tarif) => tarif.idClinique === selectedClinique
       );
     }
 
-    // Filtrer par recherche
     if (recherche.trim() !== "") {
       const terme = recherche.toLowerCase();
       filtres = filtres.filter((tarif) => {
@@ -171,6 +206,7 @@ export default function GestionStockProduitPage() {
 
     const triees = trierParTypeProduit(filtres);
     setTarifsFiltres(triees);
+    setCurrentPage(1);
   }, [recherche, selectedClinique, listeTarifProduit, produits, cliniques]);
 
   const handleCreateCommande = async (data: Partial<CommandeFournisseur>) => {
@@ -229,13 +265,11 @@ export default function GestionStockProduitPage() {
     }
 
     try {
-      // Mettre à jour le stock
       await updateQuantiteStockTarifProduitByDetailCommande(
         tarifProduit.id,
         quantite
       );
 
-      // Créer le détail de commande
       const uuid =
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
@@ -252,7 +286,6 @@ export default function GestionStockProduitPage() {
         quantiteInitiale: tarifProduit.quantiteStock,
       });
 
-      // Rafraîchir les données
       const [updatedTarifs, updatedDetails] = await Promise.all([
         getAllTarifProduits(),
         getAllDetailCommande(),
@@ -287,7 +320,6 @@ export default function GestionStockProduitPage() {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_DELETE);
       return;
     }
-    //  Confirmer la suppression
     if (
       !confirm("Êtes-vous sûr de vouloir supprimer ce détail de commande ?")
     ) {
@@ -295,13 +327,11 @@ export default function GestionStockProduitPage() {
     }
 
     try {
-      // Mettre à jour le stock en soustrayant la quantité commandée
       await deleteDetailCommande(idDetail.id);
       await updateTarifProduitByDetailCommandeAnnule(
         idDetail.idTarifProduit,
         idDetail.quantiteCommandee
       );
-      // Rafraîchir les données
       setDetailCommande((prev) =>
         prev.filter((detail) => detail.id !== idDetail.id)
       );
@@ -334,7 +364,6 @@ export default function GestionStockProduitPage() {
     </TableRow>
   );
 
-  // Filtrer les cliniques selon le rôle de l'utilisateur
   const cliniquesAccessibles =
     prescripteur?.role === "ADMIN"
       ? cliniques
@@ -342,25 +371,21 @@ export default function GestionStockProduitPage() {
           prescripteur?.idCliniques.includes(clinique.id)
         );
 
-  // Réinitialiser la commande en cours si elle ne correspond plus à la clinique sélectionnée
   useEffect(() => {
     if (currentCommande && currentCommande.idClinique !== selectedClinique) {
       setCurrentCommande(null);
     }
   }, [selectedClinique, currentCommande]);
 
-  // Calculer la quantité commandée pour un produit
   const getQuantiteCommandee = (idTarifProduit: string) => {
     if (!currentCommande) return 0;
 
-    // Filtrer les détails de commande pour la commande actuelle et le produit
     const details = detailCommande.filter(
       (detail) =>
         detail.idCommande === currentCommande.id &&
         detail.idTarifProduit === idTarifProduit
     );
 
-    // Sommer toutes les quantités commandées pour ce produit
     const total = details.reduce(
       (sum, detail) => sum + detail.quantiteCommandee,
       0
@@ -368,10 +393,10 @@ export default function GestionStockProduitPage() {
 
     return total;
   };
+
   const getIdDetail = (idTarifProduit: string) => {
     if (!currentCommande) return 0;
 
-    // Filtrer les détails de commande pour la commande actuelle et le produit
     const details = detailCommande.find(
       (detail) =>
         detail.idCommande === currentCommande.id &&
@@ -381,20 +406,51 @@ export default function GestionStockProduitPage() {
     return details;
   };
 
+  // Pagination
+  const paginatedTarifs = tarifsFiltres.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(tarifsFiltres.length / itemsPerPage);
+
+  // Stats
+  const stockStats = {
+    totalProduits: tarifsFiltres.length,
+    enRupture: tarifsFiltres.filter((t) => t.quantiteStock === 0).length,
+    stockFaible: tarifsFiltres.filter(
+      (t) => t.quantiteStock > 0 && t.quantiteStock <= 10
+    ).length,
+    stockOk: tarifsFiltres.filter((t) => t.quantiteStock > 10).length,
+  };
+
   if (isLoadingPermissions || status === "loading") {
     return (
-      <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
     );
   }
-  if (!canRead(TableName.STOCK_PRODUIT)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
+  if (!canRead(TableName.STOCK_PRODUIT)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   return (
-    <div className="space-y-4 max-w-300 p-4 flex flex-col mx-auto">
-      <div className="flex justify-between items-center sm:flex-row flex-col gap-4">
-        <h1 className="text-2xl font-bold">Gestion des stocks produits</h1>
-        <div className="flex gap-2 flex-col sm:flex-row md:flex-row items-center">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">
+      {/* En-tête */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+            Gestion des Stocks
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Gérez les stocks et passez vos commandes fournisseur
+          </p>
+        </div>
+        <div className="flex gap-2 flex-col sm:flex-row items-stretch sm:items-center">
           <Select value={selectedClinique} onValueChange={setSelectedClinique}>
-            <SelectTrigger className="w-40.5 min-w-40.5 bg-gray-50 truncate">
+            <SelectTrigger className="w-full sm:w-56 text-sm">
               <SelectValue placeholder="Sélectionner une clinique *" />
             </SelectTrigger>
             <SelectContent>
@@ -412,241 +468,443 @@ export default function GestionStockProduitPage() {
             <Button
               className="w-full sm:w-auto"
               disabled={
-                !selectedClinique ||
-                (!canCreate(TableName.STOCK_PRODUIT))
+                !selectedClinique || !canCreate(TableName.STOCK_PRODUIT)
               }
             >
+              <PackagePlus className="mr-2 h-4 w-4" />
               Commande Fournisseur
             </Button>
           </CommandeFournisseurDialog>
         </div>
       </div>
 
-      {commandes && commandes.length > 0 && selectedClinique && (
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Label
-              htmlFor="select-commande"
-              className="font-semibold text-blue-900 whitespace-nowrap"
-            >
-              Commande en cours :
-            </Label>
-            <Select
-              value={currentCommande?.id || "none"}
-              onValueChange={handleCommandeChange}
-            >
-              <SelectTrigger
-                id="select-commande"
-                className="w-full sm:w-87.5 bg-white"
-              >
-                <SelectValue placeholder="Sélectionnez une commande fournisseur" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">
-                  Sélectionnez une commande fournisseur
-                </SelectItem>
-                {commandes
-                  .filter((cmd) => cmd.idClinique === selectedClinique)
-                  .map((commande) => {
-                    const clinique = cliniques.find(
-                      (c) => c.id === commande.idClinique
-                    );
-                    return (
-                      <SelectItem key={commande.id} value={commande.id}>
-                        {`${
-                          clinique?.nomClinique || "Clinique inconnue"
-                        } - ${new Date(
-                          commande.dateCommande
-                        ).toLocaleDateString("fr-FR")}`}
-                      </SelectItem>
-                    );
-                  })}
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Stats (visible seulement quand clinique sélectionnée) */}
+      {selectedClinique && !isLoading && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-slate-100 p-2">
+                  <Warehouse className="h-5 w-5 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-xl font-bold">{stockStats.totalProduits}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-green-100 p-2">
+                  <Warehouse className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Stock OK</p>
+                  <p className="text-xl font-bold text-green-600">
+                    {stockStats.stockOk}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-amber-100 p-2">
+                  <Warehouse className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Stock faible</p>
+                  <p className="text-xl font-bold text-amber-600">
+                    {stockStats.stockFaible}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-red-100 p-2">
+                  <Warehouse className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">En rupture</p>
+                  <p className="text-xl font-bold text-red-600">
+                    {stockStats.enRupture}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher un produit, prix ou stock..."
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Commande en cours */}
+      {commandes && commandes.length > 0 && selectedClinique && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Label
+                htmlFor="select-commande"
+                className="font-semibold text-blue-900 whitespace-nowrap text-sm"
+              >
+                Commande en cours :
+              </Label>
+              <Select
+                value={currentCommande?.id || "none"}
+                onValueChange={handleCommandeChange}
+              >
+                <SelectTrigger
+                  id="select-commande"
+                  className="w-full sm:w-80 bg-white text-sm"
+                >
+                  <SelectValue placeholder="Sélectionnez une commande fournisseur" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    Sélectionnez une commande fournisseur
+                  </SelectItem>
+                  {commandes
+                    .filter((cmd) => cmd.idClinique === selectedClinique)
+                    .map((commande) => {
+                      const clinique = cliniques.find(
+                        (c) => c.id === commande.idClinique
+                      );
+                      return (
+                        <SelectItem key={commande.id} value={commande.id}>
+                          {`${
+                            clinique?.nomClinique || "Clinique inconnue"
+                          } - ${new Date(
+                            commande.dateCommande
+                          ).toLocaleDateString("fr-FR")}`}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filtres */}
+      <Card>
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit, prix ou stock..."
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              className="pl-10 text-sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {!selectedClinique ? (
-        <div className="bg-blue-50 border border-blue-200 p-8 rounded-lg text-center">
-          <p className="text-blue-700 text-lg">
-            Veuillez sélectionner une clinique pour afficher les stocks
-          </p>
-        </div>
+        <Card>
+          <CardContent className="py-12 sm:py-16">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-blue-50 flex items-center justify-center mb-3 sm:mb-4">
+                <Warehouse className="h-8 w-8 sm:h-12 sm:w-12 text-blue-400" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold mb-2 text-blue-900">
+                Sélectionnez une clinique
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Veuillez sélectionner une clinique pour afficher les stocks
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-gray-50 p-4 rounded-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell>N°</TableCell>
-                <TableCell>Produit</TableCell>
-                <TableCell>Clinique</TableCell>
-                <TableCell>Prix unitaire</TableCell>
-                <TableCell>Stock</TableCell>
-                <TableCell>Qté commandée</TableCell>
-                <TableCell className="text-center">Actions</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRowSkeleton key={i} />
-                ))
-              ) : tarifsFiltres.length ? (
-                (() => {
-                  let currentType = "";
-                  let globalIndex = 0;
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">
+              État des stocks
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              {tarifsFiltres.length} produit(s) trouvé(s)
+              {recherche && ` pour "${recherche}"`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-4 md:p-6">
+            {isLoading ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>N°</TableHead>
+                    <TableHead>Produit</TableHead>
+                    <TableHead>Clinique</TableHead>
+                    <TableHead>Prix unitaire</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Qté commandée</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <TableRowSkeleton key={i} />
+                  ))}
+                </TableBody>
+              </Table>
+            ) : tarifsFiltres.length ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm w-12">
+                        N°
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Produit
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Clinique
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Prix unitaire
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm">
+                        Stock
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm text-center">
+                        Qté commandée
+                      </TableHead>
+                      <TableHead className="text-xs sm:text-sm text-center">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      let currentType = "";
+                      let globalIndex = (currentPage - 1) * itemsPerPage;
 
-                  return tarifsFiltres.map((item) => {
-                    const produit = produits.find(
-                      (p) => p.id === item.idProduit
-                    );
-                    const clinique = cliniques.find(
-                      (c) => c.id === item.idClinique
-                    );
+                      return paginatedTarifs.map((item) => {
+                        const produit = produits.find(
+                          (p) => p.id === item.idProduit
+                        );
+                        const clinique = cliniques.find(
+                          (c) => c.id === item.idClinique
+                        );
 
-                    const showTypeHeader =
-                      produit && produit.typeProduit !== currentType;
-                    if (showTypeHeader) {
-                      currentType = produit.typeProduit;
-                    }
+                        const showTypeHeader =
+                          produit && produit.typeProduit !== currentType;
+                        if (showTypeHeader) {
+                          currentType = produit.typeProduit;
+                        }
 
-                    globalIndex++;
+                        globalIndex++;
 
-                    const typeLabels: Record<string, string> = {
-                      CONTRACEPTIF: "Contraceptifs",
-                      MEDICAMENTS: "Médicaments",
-                      CONSOMMABLES: "Consommables",
-                    };
+                        const qteCommandee = getQuantiteCommandee(item.id);
 
-                    const qteCommandee = getQuantiteCommandee(item.id);
-                    const idDetail = getQuantiteCommandee(item.id);
-
-                    return (
-                      <React.Fragment key={item.id}>
-                        {showTypeHeader && (
-                          <TableRow className="bg-blue-50 hover:bg-blue-50">
-                            <TableCell
-                              colSpan={7}
-                              className="font-semibold text-blue-700"
-                            >
-                              {typeLabels[currentType] || currentType}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        <TableRow>
-                          <TableCell>{globalIndex}</TableCell>
-                          <TableCell>{produit?.nomProduit}</TableCell>
-                          <TableCell>{clinique?.nomClinique}</TableCell>
-                          <TableCell>{item.prixUnitaire} Fcfa</TableCell>
-                          <TableCell>
-                            <span
-                              className={
-                                item.quantiteStock > 10
-                                  ? ""
-                                  : "text-red-600 font-black"
-                              }
-                            >
-                              {item.quantiteStock}
-                            </span>{" "}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {qteCommandee > 0 ? (
-                              <span className="font-medium text-green-700 bg-green-50 py-1 rounded-full">
-                                <Badge
-                                  className="h-5 min-w-5 bg-green-600 rounded-full px-1 font-mono tabular-nums"
-                                  // variant=""
+                        return (
+                          <React.Fragment key={item.id}>
+                            {showTypeHeader && (
+                              <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                <TableCell
+                                  colSpan={7}
+                                  className="font-semibold text-slate-700 text-xs sm:text-sm"
                                 >
-                                  {qteCommandee}
-                                </Badge>
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">
-                                <Badge
-                                  className="h-5 min-w-5 rounded-full px-1 font-mono tabular-nums"
-                                  variant="secondary"
-                                >
-                                  --
-                                </Badge>
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex gap-2 justify-center items-center">
-                              {currentCommande ? (
-                                <DetailCommandeDialog
-                                  tarifProduit={item}
-                                  idCommande={currentCommande.id}
-                                  onAddDetail={handleAddDetailCommande}
-                                >
-                                  <Button
+                                  <Badge
                                     variant="outline"
-                                    className={
-                                      qteCommandee > 0
-                                        ? "opacity-50 cursor-not-allowed bg-green-600 w-30.5"
-                                        : "w-30.5"
-                                    }
-                                    size="sm"
-                                    disabled={
-                                      !canCreate(TableName.STOCK_PRODUIT) ||
-                                      qteCommandee > 0
-                                    }
+                                    className={`text-xs ${
+                                      typeLabels[currentType]?.color ||
+                                      "bg-gray-50 text-gray-700 border-gray-200"
+                                    }`}
                                   >
-                                    {qteCommandee > 0
-                                      ? "Déjà ajouté"
-                                      : "Ajouter produits"}
-                                  </Button>
-                                </DetailCommandeDialog>
-                              ) : (
-                                <Button variant="outline" size="sm" disabled>
-                                  Créez une commande
-                                </Button>
-                              )}
-                              {qteCommandee > 0 && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className={
-                                    canDelete(TableName.STOCK_PRODUIT)
-                                      ? ""
-                                      : "p-2 hidden"
-                                  }
-                                  onClick={() => handleDelete(item.id)}
+                                    {typeLabels[currentType]?.label ||
+                                      currentType}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow>
+                              <TableCell className="text-xs sm:text-sm">
+                                {globalIndex}
+                              </TableCell>
+                              <TableCell className="font-medium text-xs sm:text-sm">
+                                {produit?.nomProduit}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                {clinique?.nomClinique}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                {item.prixUnitaire.toLocaleString("fr-FR")}{" "}
+                                Fcfa
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs font-medium ${
+                                    item.quantiteStock > 10
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : item.quantiteStock > 0
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-red-50 text-red-700 border-red-200"
+                                  }`}
                                 >
-                                  <Trash2
-                                    className={qteCommandee > 0 ? "" : "hidden"}
-                                  />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    );
-                  });
-                })()
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    {recherche
-                      ? "Aucun produit trouvé."
-                      : "Aucun tarif produit trouvé."}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                                  {item.quantiteStock}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {qteCommandee > 0 ? (
+                                  <Badge className="h-5 min-w-5 bg-green-600 rounded-full px-2 font-mono tabular-nums text-xs">
+                                    {qteCommandee}
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    className="h-5 min-w-5 rounded-full px-2 font-mono tabular-nums text-xs"
+                                    variant="secondary"
+                                  >
+                                    --
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex gap-2 justify-center items-center">
+                                  {currentCommande ? (
+                                    <DetailCommandeDialog
+                                      tarifProduit={item}
+                                      idCommande={currentCommande.id}
+                                      onAddDetail={handleAddDetailCommande}
+                                    >
+                                      <Button
+                                        variant="outline"
+                                        className={`text-xs ${
+                                          qteCommandee > 0
+                                            ? "opacity-50 cursor-not-allowed bg-green-50"
+                                            : ""
+                                        }`}
+                                        size="sm"
+                                        disabled={
+                                          !canCreate(
+                                            TableName.STOCK_PRODUIT
+                                          ) || qteCommandee > 0
+                                        }
+                                      >
+                                        {qteCommandee > 0
+                                          ? "Déjà ajouté"
+                                          : "Ajouter"}
+                                      </Button>
+                                    </DetailCommandeDialog>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="text-xs"
+                                    >
+                                      Créez une commande
+                                    </Button>
+                                  )}
+                                  {qteCommandee > 0 &&
+                                    canDelete(TableName.STOCK_PRODUIT) && (
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => handleDelete(item.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 sm:py-12">
+                <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-muted flex items-center justify-center mb-3 sm:mb-4">
+                  <Search className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold mb-2">
+                  Aucun produit trouvé
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {recherche
+                    ? "Aucun produit trouvé pour votre recherche."
+                    : "Aucun tarif produit trouvé pour cette clinique."}
+                </p>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {tarifsFiltres.length > 0 && !isLoading && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 px-2 py-3 sm:py-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                    Lignes par page:
+                  </Label>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-17.5 h-8 text-xs sm:text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6 w-full sm:w-auto">
+                  <div className="text-xs sm:text-sm text-muted-foreground">
+                    Page {currentPage} sur {totalPages} (
+                    {tarifsFiltres.length} résultat
+                    {tarifsFiltres.length > 1 ? "s" : ""})
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    >
+                      <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Précédent</span>
+                      <span className="sm:hidden">Préc.</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((prev) =>
+                          Math.min(totalPages, prev + 1)
+                        )
+                      }
+                      disabled={currentPage >= totalPages}
+                      className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    >
+                      <span className="hidden sm:inline">Suivant</span>
+                      <span className="sm:hidden">Suiv.</span>
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

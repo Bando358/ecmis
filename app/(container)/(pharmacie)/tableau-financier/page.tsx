@@ -26,8 +26,15 @@ export default async function TableauFinancierPage({
 
   const params = await searchParams;
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold">Tableau Financier</h1>
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">
+      <div>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+          Tableau Financier
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          Vue d&apos;ensemble des recettes et dépenses par période
+        </p>
+      </div>
       <TableauFinancierServer searchParams={params} />
     </div>
   );

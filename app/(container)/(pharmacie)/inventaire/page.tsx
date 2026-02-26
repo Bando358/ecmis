@@ -48,6 +48,13 @@ import {
   getAllDetailInventaireByTabIdDetailInventaire,
 } from "@/lib/actions/detailInventaireActions";
 import { Search, Printer, Download, Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { AnomalieInventaireDialog } from "@/components/anomalieInventaireDialog";
@@ -917,15 +924,21 @@ export default function DetailInventairePage() {
   }
 
   return (
-    <div className="space-y-4 max-w-7xl p-2 sm:p-4 md:p-6 mx-auto">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl p-2 sm:p-4 md:p-6 mx-auto">
+      {/* En-tête */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold">
-          Détail de l'inventaire
-        </h1>
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+            Inventaire des Produits
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Réalisez et suivez les inventaires par clinique
+          </p>
+        </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
           <Select value={selectedClinique} onValueChange={setSelectedClinique}>
-            <SelectTrigger className="w-full sm:w-50 bg-gray-50">
-              <SelectValue placeholder="Sélectionner une clinique" />
+            <SelectTrigger className="w-full sm:w-56 text-sm">
+              <SelectValue placeholder="Sélectionner une clinique *" />
             </SelectTrigger>
             <SelectContent>
               {cliniques.map((clinique) => (
@@ -942,7 +955,7 @@ export default function DetailInventairePage() {
             disabled={
               !selectedClinique || isGeneratingPDF || tarifsFiltres.length === 0
             }
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-sm"
           >
             {isGeneratingPDF ? (
               <>
@@ -962,7 +975,7 @@ export default function DetailInventairePage() {
             onClick={handlePrintProducts}
             variant="outline"
             disabled={!selectedClinique || tarifsFiltres.length === 0}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-sm"
           >
             <Printer className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Imprimer</span>
@@ -975,106 +988,121 @@ export default function DetailInventairePage() {
             )}
             onCreateInventaire={handleCreateInventaire}
           >
-            <Button disabled={!selectedClinique} className="w-full sm:w-auto">
+            <Button disabled={!selectedClinique} className="w-full sm:w-auto text-sm">
               Nouvel Inventaire
             </Button>
           </InventaireDialog>
         </div>
       </div>
 
+      {/* Inventaire en cours */}
       {inventaires && inventaires.length > 0 && (
-        <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <Label
-              htmlFor="select-inventaire"
-              className="font-semibold text-blue-900 whitespace-nowrap text-sm sm:text-base"
-            >
-              Inventaire en cours :
-            </Label>
-            <Select
-              value={currentInventaire?.id || "none"}
-              onValueChange={handleInventaireChange}
-            >
-              <SelectTrigger
-                id="select-inventaire"
-                className="w-full sm:max-w-xs bg-white"
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <Label
+                htmlFor="select-inventaire"
+                className="font-semibold text-blue-900 whitespace-nowrap text-sm"
               >
-                <SelectValue placeholder="Sélectionnez un inventaire" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sélectionnez un inventaire</SelectItem>
-                {inventaires
-                  .filter((inventaire) =>
-                    selectedClinique
-                      ? inventaire.idClinique === selectedClinique
-                      : true
-                  )
-                  .map((inventaire) => {
-                    const clinique = cliniques.find(
-                      (c) => c.id === inventaire.idClinique
-                    );
-                    return (
-                      <SelectItem key={inventaire.id} value={inventaire.id}>
-                        {`${
-                          clinique?.nomClinique || "Clinique inconnue"
-                        } - ${new Date(
-                          inventaire.dateInventaire
-                        ).toLocaleDateString("fr-FR")}`}
-                      </SelectItem>
-                    );
-                  })}
-              </SelectContent>
-            </Select>
-          </div>
-          {currentInventaire && (
-            <p className="text-xs sm:text-sm text-blue-700 mt-2 wrap-break-word">
-              Inventaire sélectionné :{" "}
-              {
-                cliniques.find((c) => c.id === currentInventaire.idClinique)
-                  ?.nomClinique
-              }{" "}
-              -
-              {new Date(currentInventaire.dateInventaire).toLocaleDateString(
-                "fr-FR"
-              )}
-            </p>
-          )}
-        </div>
+                Inventaire en cours :
+              </Label>
+              <Select
+                value={currentInventaire?.id || "none"}
+                onValueChange={handleInventaireChange}
+              >
+                <SelectTrigger
+                  id="select-inventaire"
+                  className="w-full sm:max-w-xs bg-white text-sm"
+                >
+                  <SelectValue placeholder="Sélectionnez un inventaire" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sélectionnez un inventaire</SelectItem>
+                  {inventaires
+                    .filter((inventaire) =>
+                      selectedClinique
+                        ? inventaire.idClinique === selectedClinique
+                        : true
+                    )
+                    .map((inventaire) => {
+                      const clinique = cliniques.find(
+                        (c) => c.id === inventaire.idClinique
+                      );
+                      return (
+                        <SelectItem key={inventaire.id} value={inventaire.id}>
+                          {`${
+                            clinique?.nomClinique || "Clinique inconnue"
+                          } - ${new Date(
+                            inventaire.dateInventaire
+                          ).toLocaleDateString("fr-FR")}`}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+            {currentInventaire && (
+              <p className="text-xs sm:text-sm text-blue-700 mt-2 wrap-break-word">
+                Inventaire sélectionné :{" "}
+                {
+                  cliniques.find((c) => c.id === currentInventaire.idClinique)
+                    ?.nomClinique
+                }{" "}
+                -
+                {new Date(currentInventaire.dateInventaire).toLocaleDateString(
+                  "fr-FR"
+                )}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Barre de recherche */}
-      <div className="relative w-full sm:max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher..."
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          className="pl-10 text-sm sm:text-base"
-        />
-      </div>
-
-      {/* Affichage du nombre de résultats */}
-      {recherche && selectedClinique && (
-        <div className="text-xs sm:text-sm text-muted-foreground">
-          {tarifsFiltres.length} produit(s) trouvé(s) pour "{recherche}"
-        </div>
-      )}
+      <Card>
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit..."
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              className="pl-10 text-sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {!selectedClinique ? (
-        <div className="bg-blue-50 p-6 sm:p-8 rounded-lg border border-blue-200 text-center">
-          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-blue-100 flex items-center justify-center mb-3 sm:mb-4">
-            <Search className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
-          </div>
-          <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
-            Sélectionnez une clinique
-          </h3>
-          <p className="text-xs sm:text-sm text-blue-700">
-            Veuillez sélectionner une clinique pour afficher les produits
-            disponibles.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="py-12 sm:py-16">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-blue-50 flex items-center justify-center mb-3 sm:mb-4">
+                <Search className="h-8 w-8 sm:h-12 sm:w-12 text-blue-400" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
+                Sélectionnez une clinique
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Veuillez sélectionner une clinique pour afficher les produits
+                disponibles.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-gray-50 p-2 sm:p-4 rounded-lg overflow-x-auto">
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">
+              Détail de l&apos;inventaire
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              {tarifsFiltres.length} produit(s) à inventorier
+              {recherche && ` - filtre: "${recherche}"`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-4 md:p-6">
+          <div className="overflow-x-auto">
           <Table className="min-w-200">
             <TableHeader>
               <TableRow>
@@ -1270,7 +1298,9 @@ export default function DetailInventairePage() {
               )}
             </TableBody>
           </Table>
-        </div>
+          </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
