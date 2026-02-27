@@ -43,8 +43,8 @@ export const ClientCreateSchema = z.object({
     .max(100, "Le prénom ne peut pas dépasser 100 caractères"),
   dateNaissance: DateSchema,
   dateEnregistrement: DateSchema,
-  sexe: z.enum(["M", "F"], {
-    message: "Sexe invalide (M ou F requis)",
+  sexe: z.enum(["Masculin", "Féminin"], {
+    message: "Sexe invalide (Masculin ou Féminin requis)",
   }),
   tel_1: PhoneSchema,
   tel_2: z.string().optional().default(""),

@@ -101,8 +101,8 @@ const sourceInfoOptions = [
 ];
 
 const sexeOptions = [
-  { label: "Masculin", value: "Masculin" },
   { label: "Féminin", value: "Féminin" },
+  { label: "Masculin", value: "Masculin" },
 ];
 
 const serologieOptions = [
@@ -120,7 +120,10 @@ const populationVulnerableOptions = [
   { label: "Non", value: "non" },
   { label: "Population carcérale", value: "population_carcerale" },
   { label: "Professionnel(le) du sexe", value: "professionnel_du_sexe" },
-  { label: "HSH (Hommes ayant des rapports sexuels avec des hommes)", value: "HSH" },
+  {
+    label: "HSH (Hommes ayant des rapports sexuels avec des hommes)",
+    value: "HSH",
+  },
   { label: "UDI (Usagers de drogues injectables)", value: "UDI" },
   { label: "Personnes transgenres", value: "personnes_transgenres" },
   { label: "Migrants / Réfugiés", value: "migrants_refugies" },
@@ -133,14 +136,59 @@ const populationVulnerableOptions = [
 ];
 
 /* ── Color map (Tailwind needs full class names, not dynamic interpolation) ── */
-const colorMap: Record<string, { bg: string; border: string; iconBg: string; text: string; line: string }> = {
-  blue:    { bg: "bg-blue-50",    border: "border-blue-100",    iconBg: "bg-blue-100",    text: "text-blue-700",    line: "bg-blue-100" },
-  violet:  { bg: "bg-violet-50",  border: "border-violet-100",  iconBg: "bg-violet-100",  text: "text-violet-700",  line: "bg-violet-100" },
-  emerald: { bg: "bg-emerald-50", border: "border-emerald-100", iconBg: "bg-emerald-100", text: "text-emerald-700", line: "bg-emerald-100" },
-  amber:   { bg: "bg-amber-50",   border: "border-amber-100",   iconBg: "bg-amber-100",   text: "text-amber-700",   line: "bg-amber-100" },
-  sky:     { bg: "bg-sky-50",     border: "border-sky-100",     iconBg: "bg-sky-100",     text: "text-sky-700",     line: "bg-sky-100" },
-  indigo:  { bg: "bg-indigo-50",  border: "border-indigo-100",  iconBg: "bg-indigo-100",  text: "text-indigo-700",  line: "bg-indigo-100" },
-  rose:    { bg: "bg-rose-50",    border: "border-rose-100",    iconBg: "bg-rose-100",    text: "text-rose-700",    line: "bg-rose-100" },
+const colorMap: Record<
+  string,
+  { bg: string; border: string; iconBg: string; text: string; line: string }
+> = {
+  blue: {
+    bg: "bg-blue-50",
+    border: "border-blue-100",
+    iconBg: "bg-blue-100",
+    text: "text-blue-700",
+    line: "bg-blue-100",
+  },
+  violet: {
+    bg: "bg-violet-50",
+    border: "border-violet-100",
+    iconBg: "bg-violet-100",
+    text: "text-violet-700",
+    line: "bg-violet-100",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-100",
+    iconBg: "bg-emerald-100",
+    text: "text-emerald-700",
+    line: "bg-emerald-100",
+  },
+  amber: {
+    bg: "bg-amber-50",
+    border: "border-amber-100",
+    iconBg: "bg-amber-100",
+    text: "text-amber-700",
+    line: "bg-amber-100",
+  },
+  sky: {
+    bg: "bg-sky-50",
+    border: "border-sky-100",
+    iconBg: "bg-sky-100",
+    text: "text-sky-700",
+    line: "bg-sky-100",
+  },
+  indigo: {
+    bg: "bg-indigo-50",
+    border: "border-indigo-100",
+    iconBg: "bg-indigo-100",
+    text: "text-indigo-700",
+    line: "bg-indigo-100",
+  },
+  rose: {
+    bg: "bg-rose-50",
+    border: "border-rose-100",
+    iconBg: "bg-rose-100",
+    text: "text-rose-700",
+    line: "bg-rose-100",
+  },
 };
 
 /* ── Reusable styled components ── */
@@ -148,11 +196,19 @@ const sectionHeader = (icon: React.ReactNode, title: string, color: string) => {
   const c = colorMap[color];
   return (
     <div className="col-span-2 mt-2">
-      <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${c.bg} border ${c.border}`}>
-        <div className={`flex items-center justify-center w-7 h-7 rounded-md ${c.iconBg}`}>
+      <div
+        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${c.bg} border ${c.border}`}
+      >
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-md ${c.iconBg}`}
+        >
           {icon}
         </div>
-        <span className={`text-sm font-bold ${c.text} uppercase tracking-wider`}>{title}</span>
+        <span
+          className={`text-sm font-bold ${c.text} uppercase tracking-wider`}
+        >
+          {title}
+        </span>
       </div>
     </div>
   );
@@ -177,15 +233,25 @@ const dateInputClass =
 const errorClass = "text-red-500 text-xs mt-1 flex items-center gap-1";
 
 /* ── Display view helpers ── */
-const displaySectionHeader = (icon: React.ReactNode, title: string, color: string) => {
+const displaySectionHeader = (
+  icon: React.ReactNode,
+  title: string,
+  color: string,
+) => {
   const c = colorMap[color];
   return (
     <div className="col-span-2 mt-3 first:mt-0">
       <div className="flex items-center gap-2 px-2 py-1.5">
-        <div className={`flex items-center justify-center w-6 h-6 rounded-md ${c.iconBg}`}>
+        <div
+          className={`flex items-center justify-center w-6 h-6 rounded-md ${c.iconBg}`}
+        >
           {icon}
         </div>
-        <span className={`text-xs font-bold ${c.text} uppercase tracking-wider`}>{title}</span>
+        <span
+          className={`text-xs font-bold ${c.text} uppercase tracking-wider`}
+        >
+          {title}
+        </span>
         <div className={`flex-1 h-px ${c.line}`} />
       </div>
     </div>
@@ -195,10 +261,14 @@ const displaySectionHeader = (icon: React.ReactNode, title: string, color: strin
 const displayRow = (label: string, value: React.ReactNode) => (
   <>
     <div className="py-2 px-3">
-      <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</span>
+      <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+        {label}
+      </span>
     </div>
     <div className="py-2 px-3">
-      <span className="text-sm font-semibold text-gray-800">{value || "—"}</span>
+      <span className="text-sm font-semibold text-gray-800">
+        {value || "—"}
+      </span>
     </div>
   </>
 );
@@ -238,9 +308,9 @@ export default function ModifFormulaireClient({
           setClinique(
             adminClinique.filter((clin: { id: string }) =>
               user.idCliniques.some((userClin: string | string[]) =>
-                userClin.includes(clin.id)
-              )
-            )
+                userClin.includes(clin.id),
+              ),
+            ),
           );
         }
       } catch (error) {
@@ -330,7 +400,10 @@ export default function ModifFormulaireClient({
       setValue("nom", selectedClient.nom);
       setValue("prenom", selectedClient.prenom);
       setValue("dateNaissance", new Date(selectedClient.dateNaissance));
-      setValue("dateEnregistrement", new Date(selectedClient.dateEnregistrement));
+      setValue(
+        "dateEnregistrement",
+        new Date(selectedClient.dateEnregistrement),
+      );
       setValue("sexe", selectedClient.sexe);
       setValue("lieuNaissance", selectedClient.lieuNaissance || "");
       setValue("niveauScolaire", selectedClient.niveauScolaire);
@@ -342,7 +415,10 @@ export default function ModifFormulaireClient({
       setValue("codeVih", selectedClient.codeVih || "");
       setValue("tel_1", selectedClient.tel_1);
       setValue("tel_2", selectedClient.tel_2 || "");
-      setValue("populationVulnerable", selectedClient.populationVulnerable || "non");
+      setValue(
+        "populationVulnerable",
+        selectedClient.populationVulnerable || "non",
+      );
       setValue("serologie", selectedClient.serologie);
       setValue("sourceInfo", selectedClient.sourceInfo);
       setValue("statusClient", selectedClient.statusClient);
@@ -392,7 +468,9 @@ export default function ModifFormulaireClient({
               <Pencil className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Modifier le client</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                Modifier le client
+              </h2>
               <p className="text-sm text-gray-400">
                 {selectedClient?.nom} {selectedClient?.prenom}
               </p>
@@ -404,25 +482,28 @@ export default function ModifFormulaireClient({
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
               <div className="p-6">
                 <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-
                   {/* ═══ Section: Enregistrement ═══ */}
                   {sectionHeader(
                     <Building2 className="h-4 w-4 text-blue-600" />,
                     "Enregistrement",
-                    "blue"
+                    "blue",
                   )}
 
                   {/* 1. Clinique */}
                   <div>
                     {fieldLabel("Clinique", true)}
                     <select
-                      {...register("cliniqueId", { required: "Clinique est requise" })}
+                      {...register("cliniqueId", {
+                        required: "Clinique est requise",
+                      })}
                       className={selectClass}
                       name="cliniqueId"
                       value={watch("cliniqueId") || ""}
                       onChange={(e) => setValue("cliniqueId", e.target.value)}
                     >
-                      <option value="" disabled>Sélectionner une clinique</option>
+                      <option value="" disabled>
+                        Sélectionner une clinique
+                      </option>
                       {clinique.map((option) => (
                         <option key={option.id} value={option.id}>
                           {option.nomClinique}
@@ -430,7 +511,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.cliniqueId && (
-                      <span className={errorClass}>{errors.cliniqueId.message}</span>
+                      <span className={errorClass}>
+                        {errors.cliniqueId.message}
+                      </span>
                     )}
                   </div>
 
@@ -438,13 +521,17 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Date d'enregistrement", true)}
                     <input
-                      {...register("dateEnregistrement", { required: "Date est requise" })}
+                      {...register("dateEnregistrement", {
+                        required: "Date est requise",
+                      })}
                       className={dateInputClass}
                       type="date"
                       name="dateEnregistrement"
                     />
                     {errors.dateEnregistrement && (
-                      <span className={errorClass}>{errors.dateEnregistrement.message}</span>
+                      <span className={errorClass}>
+                        {errors.dateEnregistrement.message}
+                      </span>
                     )}
                   </div>
 
@@ -452,7 +539,7 @@ export default function ModifFormulaireClient({
                   {sectionHeader(
                     <UserRound className="h-4 w-4 text-violet-600" />,
                     "Identité",
-                    "violet"
+                    "violet",
                   )}
 
                   {/* 3. Nom */}
@@ -479,7 +566,9 @@ export default function ModifFormulaireClient({
                       name="prenom"
                     />
                     {errors.prenom && (
-                      <span className={errorClass}>{errors.prenom.message}</span>
+                      <span className={errorClass}>
+                        {errors.prenom.message}
+                      </span>
                     )}
                   </div>
 
@@ -487,13 +576,17 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Date de naissance", true)}
                     <input
-                      {...register("dateNaissance", { required: "Date de naissance est requise" })}
+                      {...register("dateNaissance", {
+                        required: "Date de naissance est requise",
+                      })}
                       className={dateInputClass}
                       type="date"
                       name="dateNaissance"
                     />
                     {errors.dateNaissance && (
-                      <span className={errorClass}>{errors.dateNaissance.message}</span>
+                      <span className={errorClass}>
+                        {errors.dateNaissance.message}
+                      </span>
                     )}
                   </div>
 
@@ -506,7 +599,9 @@ export default function ModifFormulaireClient({
                       name="sexe"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {sexeOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -522,7 +617,7 @@ export default function ModifFormulaireClient({
                   {sectionHeader(
                     <MapPin className="h-4 w-4 text-emerald-600" />,
                     "Localisation",
-                    "emerald"
+                    "emerald",
                   )}
 
                   {/* 7. Lieu de naissance */}
@@ -551,19 +646,23 @@ export default function ModifFormulaireClient({
                   {sectionHeader(
                     <GraduationCap className="h-4 w-4 text-amber-600" />,
                     "Situation socio-démographique",
-                    "amber"
+                    "amber",
                   )}
 
                   {/* 9. Niveau scolaire */}
                   <div>
                     {fieldLabel("Niveau scolaire")}
                     <select
-                      {...register("niveauScolaire", { required: "Niveau scolaire est requis" })}
+                      {...register("niveauScolaire", {
+                        required: "Niveau scolaire est requis",
+                      })}
                       className={selectClass}
                       name="niveauScolaire"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {niveauScolaireOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -571,7 +670,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.niveauScolaire && (
-                      <span className={errorClass}>{errors.niveauScolaire.message}</span>
+                      <span className={errorClass}>
+                        {errors.niveauScolaire.message}
+                      </span>
                     )}
                   </div>
 
@@ -579,12 +680,16 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("État matrimonial", true)}
                     <select
-                      {...register("etatMatrimonial", { required: "État matrimonial est requis" })}
+                      {...register("etatMatrimonial", {
+                        required: "État matrimonial est requis",
+                      })}
                       className={selectClass}
                       name="etatMatrimonial"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {etatMatrimonialOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -592,7 +697,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.etatMatrimonial && (
-                      <span className={errorClass}>{errors.etatMatrimonial.message}</span>
+                      <span className={errorClass}>
+                        {errors.etatMatrimonial.message}
+                      </span>
                     )}
                   </div>
 
@@ -600,12 +707,16 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Ethnie", true)}
                     <select
-                      {...register("ethnie", { required: "Ethnie est requise" })}
+                      {...register("ethnie", {
+                        required: "Ethnie est requise",
+                      })}
                       className={selectClass}
                       name="ethnie"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {ethnieOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -613,7 +724,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.ethnie && (
-                      <span className={errorClass}>{errors.ethnie.message}</span>
+                      <span className={errorClass}>
+                        {errors.ethnie.message}
+                      </span>
                     )}
                   </div>
 
@@ -621,12 +734,16 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Profession", true)}
                     <select
-                      {...register("profession", { required: "Profession est requise" })}
+                      {...register("profession", {
+                        required: "Profession est requise",
+                      })}
                       className={selectClass}
                       name="profession"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {professionOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -634,7 +751,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.profession && (
-                      <span className={errorClass}>{errors.profession.message}</span>
+                      <span className={errorClass}>
+                        {errors.profession.message}
+                      </span>
                     )}
                   </div>
 
@@ -642,7 +761,7 @@ export default function ModifFormulaireClient({
                   {sectionHeader(
                     <Phone className="h-4 w-4 text-sky-600" />,
                     "Contact",
-                    "sky"
+                    "sky",
                   )}
 
                   {/* 13. Téléphone 1 */}
@@ -674,7 +793,7 @@ export default function ModifFormulaireClient({
                   {sectionHeader(
                     <Hash className="h-4 w-4 text-indigo-600" />,
                     "Codes & Identifiants",
-                    "indigo"
+                    "indigo",
                   )}
 
                   {/* 15. Code */}
@@ -712,19 +831,23 @@ export default function ModifFormulaireClient({
                   {sectionHeader(
                     <HeartPulse className="h-4 w-4 text-rose-600" />,
                     "Santé & Statut",
-                    "rose"
+                    "rose",
                   )}
 
                   {/* 17. Sérologie */}
                   <div>
                     {fieldLabel("Sérologie", true)}
                     <select
-                      {...register("serologie", { required: "Sérologie est requise" })}
+                      {...register("serologie", {
+                        required: "Sérologie est requise",
+                      })}
                       className={selectClass}
                       name="serologie"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {serologieOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -732,7 +855,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.serologie && (
-                      <span className={errorClass}>{errors.serologie.message}</span>
+                      <span className={errorClass}>
+                        {errors.serologie.message}
+                      </span>
                     )}
                   </div>
 
@@ -757,12 +882,16 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Source d'information", true)}
                     <select
-                      {...register("sourceInfo", { required: "Source d'information est requise" })}
+                      {...register("sourceInfo", {
+                        required: "Source d'information est requise",
+                      })}
                       className={selectClass}
                       name="sourceInfo"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {sourceInfoOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -770,7 +899,9 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.sourceInfo && (
-                      <span className={errorClass}>{errors.sourceInfo.message}</span>
+                      <span className={errorClass}>
+                        {errors.sourceInfo.message}
+                      </span>
                     )}
                   </div>
 
@@ -778,12 +909,16 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Statut client", true)}
                     <select
-                      {...register("statusClient", { required: "Statut client est requis" })}
+                      {...register("statusClient", {
+                        required: "Statut client est requis",
+                      })}
                       className={selectClass}
                       name="statusClient"
                       defaultValue=""
                     >
-                      <option value="" disabled>Sélectionner</option>
+                      <option value="" disabled>
+                        Sélectionner
+                      </option>
                       {statusClientOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -791,13 +926,19 @@ export default function ModifFormulaireClient({
                       ))}
                     </select>
                     {errors.statusClient && (
-                      <span className={errorClass}>{errors.statusClient.message}</span>
+                      <span className={errorClass}>
+                        {errors.statusClient.message}
+                      </span>
                     )}
                   </div>
 
                   {/* Hidden fields */}
                   <Input type="hidden" name="idUser" value={idPrestataire} />
-                  <Input type="hidden" name="idClinique" value={watch("cliniqueId") || ""} />
+                  <Input
+                    type="hidden"
+                    name="idClinique"
+                    value={watch("cliniqueId") || ""}
+                  />
                 </div>
               </div>
 
@@ -823,7 +964,9 @@ export default function ModifFormulaireClient({
                       disabled={isSubmitting}
                       className="px-8 h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-md shadow-blue-500/20 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.98]"
                     >
-                      {isSubmitting && <SpinnerCustom className="mr-2 text-white/60" />}
+                      {isSubmitting && (
+                        <SpinnerCustom className="mr-2 text-white/60" />
+                      )}
                       Enregistrer
                     </Button>
                   </div>
@@ -862,11 +1005,21 @@ export default function ModifFormulaireClient({
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs text-white/60 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(selectedClient.dateNaissance).toLocaleDateString("fr-FR")}
-                        {" "}({Math.floor((new Date().getTime() - new Date(selectedClient.dateNaissance).getTime()) / (1000 * 60 * 60 * 24 * 365))} ans)
+                        {new Date(
+                          selectedClient.dateNaissance,
+                        ).toLocaleDateString("fr-FR")}{" "}
+                        (
+                        {Math.floor(
+                          (new Date().getTime() -
+                            new Date(selectedClient.dateNaissance).getTime()) /
+                            (1000 * 60 * 60 * 24 * 365),
+                        )}{" "}
+                        ans)
                       </span>
                       <span className="w-1 h-1 rounded-full bg-white/30" />
-                      <span className="text-xs text-white/60">{selectedClient.sexe}</span>
+                      <span className="text-xs text-white/60">
+                        {selectedClient.sexe}
+                      </span>
                       <span className="w-1 h-1 rounded-full bg-white/30" />
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/15 text-white/90 border border-white/10">
                         {selectedClient.code}
@@ -879,31 +1032,34 @@ export default function ModifFormulaireClient({
               {/* Data grid */}
               <div className="p-5">
                 <div className="grid grid-cols-2 gap-x-1 gap-y-0">
-
                   {displaySectionHeader(
                     <UserRound className="h-3.5 w-3.5 text-violet-600" />,
                     "Identité",
-                    "violet"
+                    "violet",
                   )}
                   {displayRow("Nom", selectedClient.nom)}
                   {displayRow("Prénom", selectedClient.prenom)}
-                  {displayRow("Date de naissance",
-                    `${new Date(selectedClient.dateNaissance).toLocaleDateString("fr-FR")} (${Math.floor((new Date().getTime() - new Date(selectedClient.dateNaissance).getTime()) / (1000 * 60 * 60 * 24 * 365))} ans)`
+                  {displayRow(
+                    "Date de naissance",
+                    `${new Date(selectedClient.dateNaissance).toLocaleDateString("fr-FR")} (${Math.floor((new Date().getTime() - new Date(selectedClient.dateNaissance).getTime()) / (1000 * 60 * 60 * 24 * 365))} ans)`,
                   )}
                   {displayRow("Sexe", selectedClient.sexe)}
 
                   {displaySectionHeader(
                     <MapPin className="h-3.5 w-3.5 text-emerald-600" />,
                     "Localisation",
-                    "emerald"
+                    "emerald",
                   )}
-                  {displayRow("Lieu de naissance", selectedClient.lieuNaissance)}
+                  {displayRow(
+                    "Lieu de naissance",
+                    selectedClient.lieuNaissance,
+                  )}
                   {displayRow("Quartier", selectedClient.quartier)}
 
                   {displaySectionHeader(
                     <Phone className="h-3.5 w-3.5 text-sky-600" />,
                     "Contact",
-                    "sky"
+                    "sky",
                   )}
                   {displayRow("Téléphone 1", selectedClient.tel_1)}
                   {displayRow("Téléphone 2", selectedClient.tel_2)}
@@ -911,7 +1067,7 @@ export default function ModifFormulaireClient({
                   {displaySectionHeader(
                     <Hash className="h-3.5 w-3.5 text-indigo-600" />,
                     "Identification",
-                    "indigo"
+                    "indigo",
                   )}
                   {displayRow("Code", selectedClient.code)}
                   {displayRow("Code VIH", selectedClient.codeVih)}
@@ -919,31 +1075,45 @@ export default function ModifFormulaireClient({
                   {displaySectionHeader(
                     <GraduationCap className="h-3.5 w-3.5 text-amber-600" />,
                     "Socio-professionnel",
-                    "amber"
+                    "amber",
                   )}
                   {displayRow("Profession", selectedClient.profession)}
-                  {displayRow("État matrimonial",
-                    etatMatrimonialOptions.find((e) => e.value === selectedClient.etatMatrimonial)?.label
+                  {displayRow(
+                    "État matrimonial",
+                    etatMatrimonialOptions.find(
+                      (e) => e.value === selectedClient.etatMatrimonial,
+                    )?.label,
                   )}
-                  {displayRow("Niveau scolaire",
-                    niveauScolaireOptions.find((n) => n.value === selectedClient.niveauScolaire)?.label
+                  {displayRow(
+                    "Niveau scolaire",
+                    niveauScolaireOptions.find(
+                      (n) => n.value === selectedClient.niveauScolaire,
+                    )?.label,
                   )}
-                  {displayRow("Ethnie",
-                    ethnieOptions.find((e) => e.value === selectedClient.ethnie)?.label || selectedClient.ethnie
+                  {displayRow(
+                    "Ethnie",
+                    ethnieOptions.find((e) => e.value === selectedClient.ethnie)
+                      ?.label || selectedClient.ethnie,
                   )}
 
                   {displaySectionHeader(
                     <HeartPulse className="h-3.5 w-3.5 text-rose-600" />,
                     "Santé & Statut",
-                    "rose"
+                    "rose",
                   )}
                   {displayRow("Sérologie VIH", selectedClient.serologie)}
-                  {displayRow("Population vulnérable",
-                    populationVulnerableOptions.find((p) => p.value === selectedClient.populationVulnerable)?.label || "Non"
+                  {displayRow(
+                    "Population vulnérable",
+                    populationVulnerableOptions.find(
+                      (p) => p.value === selectedClient.populationVulnerable,
+                    )?.label || "Non",
                   )}
                   {displayRow("Statut client", selectedClient.statusClient)}
-                  {displayRow("Source d'information",
-                    sourceInfoOptions.find((s) => s.value === selectedClient.sourceInfo)?.label || selectedClient.sourceInfo
+                  {displayRow(
+                    "Source d'information",
+                    sourceInfoOptions.find(
+                      (s) => s.value === selectedClient.sourceInfo,
+                    )?.label || selectedClient.sourceInfo,
                   )}
                 </div>
               </div>

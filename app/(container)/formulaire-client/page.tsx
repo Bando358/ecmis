@@ -108,8 +108,8 @@ const sourceInfoOptions = [
   { label: "Affiche/Prospect", value: "affiche" },
 ];
 const sexeOptions = [
-  { label: "Masculin", value: "Masculin" },
   { label: "Féminin", value: "Féminin" },
+  { label: "Masculin", value: "Masculin" },
 ];
 const serologieOptions = [
   { label: "Inconnu", value: "inconnu" },
@@ -351,12 +351,17 @@ export default function FormulaireClient() {
       idClinique: clinic,
     };
 
-    console.log("formattedData : ", formattedData);
     try {
       await createClient(formattedData as Client);
+      toast.success("Client créé avec succès !");
       router.push("/client");
     } catch (error) {
       console.error("Erreur lors de la création du client:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de la création du client",
+      );
     }
   };
 
