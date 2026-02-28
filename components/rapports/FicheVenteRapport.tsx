@@ -122,15 +122,19 @@ export default function FicheVenteRapport({
                       colSpan={2}
                       className="border border-gray-300 px-4 py-3 text-sm font-medium"
                     >
-                      Total Produits
+                      Total {type === "CONTRACEPTIF" ? "Contraceptifs" : type === "MEDICAMENTS" ? "Medicaments" : "Consommables"}
                     </td>
                     <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                      {totalProduitsQuantite}
+                      {produits.reduce((sum, p) => {
+                        const calc = produitsCalculations[p.nomProduit];
+                        return sum + (calc?.quantite ?? 0);
+                      }, 0)}
                     </td>
                     <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
-                      {facturesProduits
-                        .reduce((sum, f) => sum + f.prodMontantTotal, 0)
-                        .toLocaleString("fr-FR")}
+                      {produits.reduce((sum, p) => {
+                        const calc = produitsCalculations[p.nomProduit];
+                        return sum + (calc?.montant ?? 0);
+                      }, 0).toLocaleString("fr-FR")}
                     </td>
                     <td className="border border-gray-300 px-4 py-3"></td>
                   </tr>
@@ -139,6 +143,31 @@ export default function FicheVenteRapport({
             </div>
           </div>
         ))}
+
+        {/* Total global produits */}
+        <div className="overflow-x-auto mt-2">
+          <table className="min-w-full border border-gray-200">
+            <tfoot className="bg-gray-100 font-bold">
+              <tr>
+                <td
+                  colSpan={2}
+                  className="border border-gray-300 px-4 py-3 text-sm"
+                >
+                  Total Produits
+                </td>
+                <td className="border border-gray-300 px-4 py-3 text-sm text-right">
+                  {totalProduitsQuantite}
+                </td>
+                <td className="border border-gray-300 px-4 py-3 text-sm text-right">
+                  {facturesProduits
+                    .reduce((sum, f) => sum + f.prodMontantTotal, 0)
+                    .toLocaleString("fr-FR")}
+                </td>
+                <td className="border border-gray-300 px-4 py-3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
       {/* Prestations */}

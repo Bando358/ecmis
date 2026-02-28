@@ -979,46 +979,91 @@ export default function VentesPage() {
           72,
         );
 
-        /* ================= PRODUITS ================= */
-        const totalProduitsQte = Object.values(produitsCalculations).reduce(
-          (sum, calc) => sum + calc.quantite,
-          0,
-        );
-        const totalProduitsMontant = Object.values(produitsCalculations).reduce(
-          (sum, calc) => sum + calc.montant,
-          0,
-        );
+        /* ================= PRODUITS PAR CATÉGORIE ================= */
+        const typeLabels: Record<string, string> = {
+          CONTRACEPTIF: "Contraceptifs",
+          MEDICAMENTS: "Medicaments",
+          CONSOMMABLES: "Consommables",
+        };
 
+        let totalProduitsQte = 0;
+        let totalProduitsMontant = 0;
+
+        for (const [type, produits] of Object.entries(produitsGroupedByType)) {
+          const categoryBody = produits
+            .map((p) => {
+              const calc = produitsCalculations[p.nomProduit];
+              if (!calc) return null;
+              return [
+                p.nomProduit,
+                formatNumberForPDF(calc.prixUnitaire),
+                calc.quantite.toString(),
+                formatNumberForPDF(calc.montant),
+                calc.stockFinal.toString(),
+              ];
+            })
+            .filter(Boolean) as string[][];
+
+          const catQte = produits.reduce((sum, p) => {
+            const calc = produitsCalculations[p.nomProduit];
+            return sum + (calc?.quantite ?? 0);
+          }, 0);
+          const catMontant = produits.reduce((sum, p) => {
+            const calc = produitsCalculations[p.nomProduit];
+            return sum + (calc?.montant ?? 0);
+          }, 0);
+
+          totalProduitsQte += catQte;
+          totalProduitsMontant += catMontant;
+
+          autoTable(doc, {
+            startY,
+            head: [[{ content: typeLabels[type] || type, colSpan: 5, styles: { halign: "left", fillColor: [229, 231, 235], textColor: 60, fontStyle: "bold" } }],
+              ["Produit", "PU", "Qté", "Montant", "Stock Final"]],
+            body: categoryBody,
+            foot: [
+              [
+                `Total ${typeLabels[type] || type}`,
+                "",
+                catQte.toString(),
+                formatNumberForPDF(catMontant),
+                "",
+              ],
+            ],
+            headStyles: {
+              fillColor: [59, 130, 246],
+              textColor: 255,
+              fontStyle: "bold",
+            },
+            footStyles: {
+              fillColor: [240, 240, 240],
+              textColor: 0,
+              fontStyle: "bold",
+            },
+            styles: { fontSize: 9 },
+            didDrawPage: () => {
+              addFooter(doc);
+            },
+          });
+
+          startY = (doc as any).lastAutoTable.finalY + 6;
+        }
+
+        // Ligne Total Produits global
         autoTable(doc, {
           startY,
-          head: [["Produit", "PU", "Qté", "Montant", "Stock Final"]],
-          body: Object.entries(produitsCalculations).map(([libelle, calc]) => [
-            libelle,
-            formatNumberForPDF(calc.prixUnitaire),
-            calc.quantite.toString(),
-            formatNumberForPDF(calc.montant),
-            calc.stockFinal.toString(),
-          ]),
-          foot: [
+          body: [
             [
-              "TOTAL PRODUITS",
+              { content: "TOTAL PRODUITS", styles: { fontStyle: "bold" } },
               "",
-              totalProduitsQte.toString(),
-              formatNumberForPDF(totalProduitsMontant),
+              { content: totalProduitsQte.toString(), styles: { fontStyle: "bold", halign: "right" } },
+              { content: formatNumberForPDF(totalProduitsMontant), styles: { fontStyle: "bold", halign: "right" } },
               "",
             ],
           ],
-          headStyles: {
-            fillColor: [59, 130, 246],
-            textColor: 255,
-            fontStyle: "bold",
-          },
-          footStyles: {
-            fillColor: [240, 240, 240],
-            textColor: 0,
-            fontStyle: "bold",
-          },
-          styles: { fontSize: 9 },
+          columnStyles: { 0: { cellWidth: "auto" } },
+          styles: { fontSize: 9, fillColor: [220, 220, 220] },
+          theme: "grid",
           didDrawPage: () => {
             addFooter(doc);
           },
