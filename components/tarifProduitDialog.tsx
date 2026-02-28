@@ -41,6 +41,7 @@ interface TarifProduitDialogProps {
   onSubmit: (data: TarifProduit) => Promise<void>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canEditStock?: boolean;
 }
 
 export default function TarifProduitDialog({
@@ -51,6 +52,7 @@ export default function TarifProduitDialog({
   onSubmit,
   open,
   onOpenChange,
+  canEditStock = false,
 }: TarifProduitDialogProps) {
   const [isDisabled, setIsDisabled] = useState(false);
   const { data: session } = useSession();
@@ -193,7 +195,7 @@ export default function TarifProduitDialog({
                 control={form.control}
                 name="quantiteStock"
                 render={({ field }) => (
-                  <FormItem className={isUpdating ? "hidden" : ""}>
+                  <FormItem className={isUpdating && !canEditStock ? "hidden" : ""}>
                     <FormLabel>Quantité en stock</FormLabel>
                     <Input
                       type="number"

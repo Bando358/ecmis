@@ -240,6 +240,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession();
   const { permissionMap, isLoading: permissionsLoading } = usePermissionContext();
   const isAdmin = session?.user?.role === "ADMIN";
+  const isPurgeUser = session?.user?.email === "bando358@gmail.com";
 
   const allowedTables = useMemo(() => {
     if (isAdmin) return new Set(["ALL"]);
@@ -249,6 +250,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         .map(([table]) => table),
     );
   }, [permissionMap, isAdmin]);
+
+  const navItems = useMemo(() => {
+    if (!isPurgeUser) return data.navMain;
+    return data.navMain.map((item) => {
+      if (item.title !== "Settings") return item;
+      return {
+        ...item,
+        items: [
+          ...(item.items ?? []),
+          {
+            title: "Purge des clients",
+            url: "/purge-clients",
+            permission: TableName.ADMINISTRATION,
+          },
+        ],
+      };
+    });
+  }, [isPurgeUser]);
 
   const permissionsLoaded = !permissionsLoading;
 
@@ -286,7 +305,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
         <NavMain
-          items={data.navMain}
+          items={navItems}
           allowedTables={allowedTables}
           permissionsLoaded={permissionsLoaded}
         />

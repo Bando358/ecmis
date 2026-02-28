@@ -338,6 +338,7 @@ export default function PrixProduitPage() {
         onSubmit={onSubmit}
         open={dialogOpen}
         onOpenChange={handleDialogClose}
+        canEditStock={session?.user?.email === "bando358@gmail.com"}
       />
 
       {/* Filtres */}

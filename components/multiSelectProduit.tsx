@@ -44,8 +44,8 @@ const MultiSelectProduit: React.FC<MultiSelectProps> = ({
         productNameCache.get(produit.idProduit) || "Produit inconnu";
       return {
         value: produit.id,
-        label: nomProduit,
-        data: produit, // Stocker les données originales séparément
+        label: `${nomProduit}  (stock: ${produit.quantiteStock ?? 0})`,
+        data: produit,
       };
     });
   }, [produits, productNameCache]);
@@ -76,7 +76,7 @@ const MultiSelectProduit: React.FC<MultiSelectProps> = ({
       productNameCache.get(selected.idProduit) || "Produit inconnu";
     return {
       value: selected.id,
-      label: nomProduit,
+      label: `${nomProduit}  (stock: ${selected.quantiteStock ?? 0})`,
       data: selected,
     };
   }, [selectedOptions, productNameCache]);
