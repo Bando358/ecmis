@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react";
 import { useClientContext } from "@/components/ClientContext";
 import {
   createVisite,
-  getAllVisiteByIdClient,
+  getVisitePageData,
 } from "@/lib/actions/visiteActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Activite, Client, Lieu, TableName, Visite } from "@prisma/client";
-import { SafeUser } from "@/types/prisma";
+import { Activite, Lieu, TableName } from "@prisma/client";
 import {
   Form,
   FormControl,
@@ -34,11 +33,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { v4 as uuid } from "uuid";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
-import { getOneClient } from "@/lib/actions/clientActions";
-import { getActiveActivitesByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { ArrowBigLeftDash } from "lucide-react";
-import { getOneUser } from "@/lib/actions/authActions";
 
 // Type pour la création de visite
 type VisiteFormValues = {
@@ -63,11 +59,10 @@ export default function FormVisite({
   params: Promise<{ visiteId: string }>;
 }) {
   const { visiteId } = use(params);
-  const [allVisite, setAllVisite] = useState<Visite[]>([]);
+  const [allVisite, setAllVisite] = useState<{ id: string; dateVisite: Date; motifVisite: string }[]>([]);
   const [activite, setActivite] = useState<Activite[]>([]);
   const [lieus, setLieus] = useState<Lieu[]>([]);
-  const [client, setClient] = useState<Client | null>(null);
-  const [prescripteur, setPrescripteur] = useState<SafeUser | null>(null);
+  const [clientClinique, setClientClinique] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -78,30 +73,17 @@ export default function FormVisite({
   const router = useRouter();
   const idUser = session?.user?.id || "";
 
-  // Chargement initial optimisé : requêtes en parallèle
+  // Chargement initial optimisé : 1 seul appel réseau
   useEffect(() => {
     if (!idUser || !visiteId) return;
 
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        // Étape 1: Requêtes indépendantes en parallèle
-        const [user, clientData, visites] = await Promise.all([
-          getOneUser(idUser),
-          getOneClient(visiteId),
-          getAllVisiteByIdClient(visiteId),
-        ]);
-
-        setPrescripteur(user);
-        setClient(clientData);
-        setAllVisite(visites);
-
-        // Étape 2: Requêtes dépendantes
-        const activites = clientData?.idClinique
-          ? await getActiveActivitesByIdClinique(clientData.idClinique)
-          : [];
-
-        setActivite(activites);
+        const data = await getVisitePageData(visiteId);
+        setClientClinique(data.idClinique);
+        setAllVisite(data.visites);
+        setActivite(data.activites);
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
         toast.error("Erreur lors du chargement");
@@ -127,10 +109,10 @@ export default function FormVisite({
 
   // Remplit dynamiquement idUser dès que la session est disponible
   useEffect(() => {
-    if (prescripteur?.id) {
-      form.setValue("idUser", prescripteur.id);
+    if (idUser) {
+      form.setValue("idUser", idUser);
     }
-  }, [prescripteur?.id, form]);
+  }, [idUser, form]);
 
   useEffect(() => {
     if (visiteId) {
@@ -201,7 +183,7 @@ export default function FormVisite({
         dateVisite: parse(data.dateVisite, "yyyy-MM-dd", new Date()),
         motifVisite: data.motifVisite,
         idUser: data.idUser,
-        idClinique: client?.idClinique || "",
+        idClinique: clientClinique,
         idClient: data.idClient,
         idActivite: data.idActivite || null,
         idLieu: data.idLieu || null,

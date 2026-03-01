@@ -176,6 +176,70 @@ export const getAllActiviteInVisite = async (date: string) => {
   return allActivite;
 };
 
+// Chargement initial optimisé pour la page visite (1 seul appel réseau)
+export async function getVisitePageData(idClient: string) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [client, visites] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id: idClient },
+      select: { id: true, idClinique: true },
+    }),
+    prisma.visite.findMany({
+      where: { idClient },
+      orderBy: { dateVisite: "desc" },
+      select: { id: true, dateVisite: true, motifVisite: true },
+    }),
+  ]);
+
+  // Requête dépendante : activités de la clinique
+  const activites = client?.idClinique
+    ? await prisma.activite.findMany({
+        where: {
+          idClinique: client.idClinique,
+          dateFin: { gte: thirtyDaysAgo },
+        },
+        orderBy: { dateDebut: "desc" },
+      })
+    : [];
+
+  return {
+    idClinique: client?.idClinique || "",
+    visites,
+    activites,
+  };
+}
+
+// Chargement initial optimisé pour la page constante (1 seul appel réseau)
+export async function getConstantePageData(idClient: string) {
+  const [client, visites, visiteIdsWithConstante] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id: idClient },
+      select: { id: true, nom: true, prenom: true },
+    }),
+    prisma.visite.findMany({
+      where: { idClient },
+      orderBy: { dateVisite: "desc" },
+      select: { id: true, dateVisite: true, motifVisite: true },
+    }),
+    prisma.constante.findMany({
+      where: { idClient },
+      select: { idVisite: true },
+    }),
+  ]);
+
+  const usedVisiteIds = new Set(visiteIdsWithConstante.map((c) => c.idVisite));
+
+  return {
+    client: client ? { id: client.id, nom: client.nom, prenom: client.prenom } : null,
+    visites: visites.map((v) => ({
+      ...v,
+      hasConstante: usedVisiteIds.has(v.id),
+    })),
+  };
+}
+
 // ************* Visite paginée **************
 export async function getVisitesPaginated(
   params?: PaginationParams & { idClinique?: string }

@@ -4,15 +4,11 @@ import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { useClientContext } from "@/components/ClientContext";
-import {
-  createContante,
-  getAllContanteByIdClient,
-} from "@/lib/actions/constanteActions";
+import { createContante } from "@/lib/actions/constanteActions";
 import { createRecapVisite } from "@/lib/actions/recapActions";
-import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
-import { getOneClient } from "@/lib/actions/clientActions";
+import { getConstantePageData } from "@/lib/actions/visiteActions";
 import { useSession } from "next-auth/react";
-import { Visite, Constante, TableName } from "@prisma/client";
+import { Constante, TableName } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -47,8 +43,7 @@ export default function ConstantePage({
   params: Promise<{ constanteId: string }>;
 }) {
   const { constanteId } = use(params);
-  const [visites, setVisites] = useState<Visite[]>([]);
-  const [selectedConstante, setSelectedConstante] = useState<Constante[]>([]);
+  const [visites, setVisites] = useState<{ id: string; dateVisite: Date; motifVisite: string; hasConstante: boolean }[]>([]);
   const [resulImc, setResulImc] = useState<number>(0);
   const [etatImc, setEtatImc] = useState<string>("");
   const [styleImc, setStyleImc] = useState<string>("");
@@ -71,29 +66,17 @@ export default function ConstantePage({
     setSelectedClientId(constanteId);
   }, [constanteId, setSelectedClientId]);
 
-  // Chargement initial optimisé : requêtes en parallèle
+  // Chargement initial optimisé : 1 seul appel réseau
   useEffect(() => {
     if (!idUser || !constanteId) return;
 
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        // Requêtes indépendantes en parallèle
-        const [resultConstante, resultVisites, clientData] =
-          await Promise.all([
-            getAllContanteByIdClient(constanteId),
-            getAllVisiteByIdClient(constanteId),
-            getOneClient(constanteId),
-          ]);
-
-        setSelectedConstante(resultConstante as Constante[]);
-        setVisites(resultVisites as Visite[]);
-        if (clientData) {
-          setClient({
-            id: clientData.id,
-            nom: clientData.nom,
-            prenom: clientData.prenom,
-          });
+        const data = await getConstantePageData(constanteId);
+        setVisites(data.visites);
+        if (data.client) {
+          setClient(data.client);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
@@ -274,9 +257,7 @@ export default function ConstantePage({
                       <SelectItem
                         key={visite.id}
                         value={visite.id}
-                        disabled={selectedConstante.some(
-                          (p) => p.idVisite === visite.id,
-                        )}
+                        disabled={visite.hasConstante}
                       >
                         {new Date(visite.dateVisite).toLocaleDateString(
                           "fr-FR",
