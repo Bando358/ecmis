@@ -1281,109 +1281,124 @@ export const fetchClientsStatusProtege = async (
   );
   for (const client of clientsAvecMethodePrise) {
     for (const plan of client.Planning || []) {
-      if (plan.rdvPf) {
+      if (!plan.methodePrise) continue;
+
+      const isLongueDuree = !!(
+        plan.implanon ||
+        plan.jadelle ||
+        plan.sterilet
+      );
+      const retrait =
+        plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
+
+      // Récupérer la date de visite
+      let dateVisiste = "";
+      if (client.Visite?.[0]?.dateVisite) {
+        const rawDate = await getDateVisite(plan.idVisite);
+        if (rawDate instanceof Date) {
+          dateVisiste = rawDate.toLocaleDateString("fr-FR");
+        }
+      }
+
+      const status: ClientStatusInfo = {
+        nom: client.nom,
+        prenom: client.prenom,
+        age: calculerAge(client.dateNaissance),
+        sexe: client.sexe,
+        code: client.code,
+        dateVisiste: dateVisiste,
+        rdvPf: plan.rdvPf as Date | null,
+        statut: plan.statut || "",
+        courtDuree: plan.courtDuree,
+        implanon: plan.implanon,
+        jadelle: plan.jadelle,
+        sterilet: plan.sterilet,
+        methodePrise: plan.methodePrise,
+        protege: false,
+        perdueDeVue: false,
+        abandon: false,
+        arret: false,
+      };
+
+      // === MÉTHODES DE LONGUE DURÉE (Implant, DIU) ===
+      // Protection basée sur la durée de la méthode depuis l'insertion :
+      // Implanon = 3 ans, Jadelle = 5 ans, DIU (stérilet) = 10 ans
+      // Sauf retrait avant la fin de la période de protection
+      if (isLongueDuree) {
+        // Durée de protection selon la méthode
+        let dureeProtectionAnnees = 0;
+        if (plan.implanon) dureeProtectionAnnees = 3;
+        else if (plan.jadelle) dureeProtectionAnnees = 5;
+        else if (plan.sterilet) dureeProtectionAnnees = 10;
+
+        // Date d'insertion = date de la visite associée au Planning
+        const visiteInsertion = client.Visite.find(
+          (v) => v.id === plan.idVisite
+        );
+        if (!visiteInsertion) continue;
+        const dateInsertion = new Date(visiteInsertion.dateVisite);
+
+        // Date de fin de protection
+        const dateFinProtection = new Date(dateInsertion);
+        dateFinProtection.setFullYear(
+          dateFinProtection.getFullYear() + dureeProtectionAnnees
+        );
+
+        // Vérifier si un retrait a eu lieu dans une visite ultérieure
+        const hasRetraitUlterieur = client.Planning.some((otherPlan) => {
+          if (otherPlan.id === plan.id) return false;
+          const otherVisite = client.Visite.find(
+            (v) => v.id === otherPlan.idVisite
+          );
+          if (!otherVisite) return false;
+          const dateRetrait = new Date(otherVisite.dateVisite);
+          return (
+            dateRetrait > dateInsertion &&
+            dateRetrait <= dateVisite2 &&
+            (otherPlan.retraitImplanon ||
+              otherPlan.retraitJadelle ||
+              otherPlan.retraitSterilet)
+          );
+        });
+
+        if (retrait || hasRetraitUlterieur) {
+          status.arret = true;
+        } else if (dateVisite2 <= dateFinProtection) {
+          status.protege = true;
+        } else {
+          // Protection expirée → Abandon
+          status.abandon = true;
+        }
+      }
+      // === MÉTHODES DE COURTE DURÉE (Pilules, Injectables, Préservatifs, etc.) ===
+      else if (plan.rdvPf) {
         const rendezVous = new Date(plan.rdvPf);
         const diffJours = Math.floor(
           (dateVisite2.getTime() - rendezVous.getTime()) / (1000 * 60 * 60 * 24)
         );
 
-        // Exclusion si plus de 90 jours
+        // Exclusion si trop ancien (plus de 90 jours après le rdv)
         if (diffJours > 90) continue;
 
-        const isLongueDuree = !!(
-          plan.implanon ||
-          plan.jadelle ||
-          plan.sterilet
-        );
-        const dateDebutMethod = plan.implanon
-          ? new Date(plan.implanon)
-          : plan.jadelle
-          ? new Date(plan.jadelle)
-          : plan.sterilet
-          ? new Date(plan.sterilet)
-          : null;
-
-        const retrait =
-          plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
-
-        const visitesTriees = client.Visite.sort(
-          (a, b) =>
-            new Date(b.dateVisite).getTime() - new Date(a.dateVisite).getTime()
-        );
-
-        const visiteLaPlusRecente = visitesTriees[0]?.dateVisite
-          ? new Date(visitesTriees[0].dateVisite)
-          : null;
-
-        // Récupérer la date de visite
-        let dateVisiste = "";
-        if (client.Visite?.[0]?.dateVisite) {
-          const rawDate = await getDateVisite(plan.idVisite);
-          if (rawDate instanceof Date) {
-            dateVisiste = rawDate.toLocaleDateString("fr-FR"); // ou rawDate.toISOString(), selon ton besoin
-          }
-        }
-
-        const status: ClientStatusInfo = {
-          nom: client.nom,
-          prenom: client.prenom,
-          age: calculerAge(client.dateNaissance),
-          sexe: client.sexe,
-          code: client.code,
-          dateVisiste: dateVisiste,
-          rdvPf: plan.rdvPf as Date | null,
-          statut: plan.statut || "",
-          courtDuree: plan.courtDuree,
-          implanon: plan.implanon,
-          jadelle: plan.jadelle,
-          sterilet: plan.sterilet,
-          methodePrise: plan.methodePrise,
-          protege: false,
-          perdueDeVue: false,
-          abandon: false,
-          arret: false,
-        };
-
-        // Conditions pour déterminer le statut
         if (rendezVous >= dateVisite2) {
+          // RDV pas encore passé → cliente protégée
           status.protege = true;
         } else if (diffJours <= 30) {
+          // 1-30 jours de retard → Perdu de vue (peut encore revenir)
           status.perdueDeVue = true;
-        } else if (diffJours <= 60) {
-          status.abandon = true;
         } else if (diffJours <= 90) {
-          status.arret = true;
+          // 31-90 jours de retard → Abandon
+          status.abandon = true;
         }
-
-        // Condition spécifique pour les méthodes de longue durée
-        if (
-          isLongueDuree &&
-          retrait &&
-          dateDebutMethod &&
-          visiteLaPlusRecente &&
-          visiteLaPlusRecente > dateDebutMethod
-        ) {
-          status.arret = true;
-          status.protege = false;
-          status.perdueDeVue = false;
-          status.abandon = false;
-        }
-
-        // tu vas me créer un fonction checkClientStatus qui va me retourner un élément de type ClientStatusInfo
-        // cette fonction checkClientStatus va prendre en paramètre status.dateVisiste et va parcourir clientsAvecMethodePrise pour les verifications
-        // cette fonction checkClientStatus va vérifier si un client a une visite de planning entre status.dateVisiste et dateVisite2 et que :
-        //  planning.retraitImplanon === true || planning.retraitJadelle === true || planning.retraitSterilet === true alors tu vas mettre status.protege à false et status.arret à true
-        const newStatus = checkClientStatus(
-          status,
-          clientsAvecMethodePrise,
-          dateVisite2
-        );
-        clientsStatus.push(status);
-        if (newStatus) {
-          console.log("Ajout d'un newStatus :", newStatus);
-          clientsStatus.push(newStatus);
-        }
+      } else {
+        // Pas de rdvPf et méthode courte durée → non classifiable
+        continue;
       }
+
+      // Vérification supplémentaire : retrait dans une visite ultérieure
+      checkClientStatus(status, clientsAvecMethodePrise, dateVisite2);
+
+      clientsStatus.push(status);
     }
   }
 

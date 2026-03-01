@@ -1,7 +1,7 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, useWatch, SubmitHandler } from "react-hook-form";
 import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -186,6 +186,39 @@ export default function PlanningPage({
       idClinique: clients?.idClinique || "",
     },
   });
+
+  // Surveillance des champs pour la date de fin de protection
+  const watchImplanon = useWatch({ control: form.control, name: "implanon" });
+  const watchJadelle = useWatch({ control: form.control, name: "jadelle" });
+  const watchSterilet = useWatch({ control: form.control, name: "sterilet" });
+  const watchIdVisite = useWatch({ control: form.control, name: "idVisite" });
+
+  const dateFinProtection = (() => {
+    const isInsertion =
+      watchImplanon === "insertion" ||
+      watchJadelle === "insertion" ||
+      watchSterilet === "insertion";
+    if (!isInsertion || !watchIdVisite) return null;
+
+    const visite = visites.find((v) => v.id === watchIdVisite);
+    if (!visite) return null;
+
+    let duree = 0;
+    let methode = "";
+    if (watchImplanon === "insertion") { duree = 3; methode = "Implanon"; }
+    else if (watchJadelle === "insertion") { duree = 5; methode = "Jadelle"; }
+    else if (watchSterilet === "insertion") { duree = 10; methode = "DIU"; }
+
+    const dateFin = new Date(visite.dateVisite);
+    dateFin.setFullYear(dateFin.getFullYear() + duree);
+
+    const joursSemaine = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+    const moisNoms = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+    const dateFormatee = `${joursSemaine[dateFin.getDay()]} ${String(dateFin.getDate()).padStart(2, "0")} ${moisNoms[dateFin.getMonth()]} ${dateFin.getFullYear()}`;
+
+    return { methode, duree, dateFormatee };
+  })();
+
   const onSubmit: SubmitHandler<Planning> = async (data) => {
     // Déterminer methodePrise en fonction des données actuelles
     if (!canCreate(TableName.PLANNING)) {
@@ -736,6 +769,14 @@ export default function PlanningPage({
                 type="date"
                 name="rdvPf"
               />
+              {dateFinProtection && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm font-medium text-blue-800">
+                    Fin de protection ({dateFinProtection.methode} - {dateFinProtection.duree} ans)
+                  </p>
+                  <p className="text-sm font-bold text-blue-900">{dateFinProtection.dateFormatee}</p>
+                </div>
+              )}
             </div>
             <FormField
               control={form.control}

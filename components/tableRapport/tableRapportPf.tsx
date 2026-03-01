@@ -30,19 +30,22 @@ import { getAllTarifProduitsByTabIclinique } from "@/lib/actions/tarifProduitAct
 import { getAllFactureProduitByIdVisiteByData } from "@/lib/actions/factureProduitActions";
 import { FactureProduit, Produit, TarifProduit } from "@prisma/client";
 
-// Type unifié pour les données converties
+// Type unifié pour les données converties - classifié par méthode contraceptive
 type ConvertedClientStatus = Omit<
   ClientStatusInfo,
   "implanon" | "jadelle" | "sterilet"
 > & {
   microgynon: boolean;
   microlut: boolean;
-  noristera: boolean;
-  sayanaPress: boolean;
+  injectable2mois: boolean;
   depoProvera: boolean;
+  sayanaPress: boolean;
   implanon: boolean;
   jadelle: boolean;
   sterilet: boolean;
+  preservatif: boolean;
+  urgence: boolean;
+  spermicide: boolean;
 };
 
 type AgeRange = {
@@ -77,6 +80,35 @@ const PF_COLUMNS = [
   { header: "25+ ans", key: "25plus_au", width: 7 },
   { header: "Total", key: "total", width: 10 },
 ];
+
+// Méthodes PF pour les tableaux Protégés/PDV/Abandon
+const PF_METHODS = [
+  "microgynon",
+  "microlut",
+  "injectable2mois",
+  "depoProvera",
+  "sayanaPress",
+  "implanon",
+  "jadelle",
+  "sterilet",
+  "preservatif",
+  "urgence",
+  "spermicide",
+] as const;
+
+const PF_METHOD_LABELS: Record<string, string> = {
+  microgynon: "Microgynon (COC)",
+  microlut: "Microlut (COP)",
+  injectable2mois: "Injectable 2 mois (Noristerat)",
+  depoProvera: "Depo-Provera",
+  sayanaPress: "Sayana Press",
+  implanon: "Implant 3 ans (Implanon)",
+  jadelle: "Implant 5 ans (Jadelle)",
+  sterilet: "DIU (Stérilet)",
+  preservatif: "Préservatif (M/F)",
+  urgence: "Contraception d'urgence",
+  spermicide: "Spermicides",
+};
 
 // Labels des âges pour l'affichage
 const AGE_LABELS = [
@@ -519,98 +551,53 @@ export default function TableRapportPf({
     [clientData],
   );
 
-  // Fonction helper pour trouver la visite correspondante et vérifier les factures produits
-  const getProductMethodsForClient = useMemo(() => {
-    // Créer un map pour recherche rapide des visites par code client et date
-    const clientVisitMap = new Map<string, ClientData[]>();
-    clientData.forEach((cd) => {
-      const key = cd.code;
-      if (!clientVisitMap.has(key)) {
-        clientVisitMap.set(key, []);
+  // Créer un mapping code client → noms de produits facturés
+  const produitsByCode = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const cd of clientData) {
+      const factures = allFactureProduits.filter((f) => f.idVisite === cd.idVisite);
+      if (!map[cd.code]) map[cd.code] = [];
+      for (const f of factures) {
+        map[cd.code].push(f.nomProduit.toLowerCase());
       }
-      clientVisitMap.get(key)!.push(cd);
-    });
+    }
+    return map;
+  }, [clientData, allFactureProduits]);
 
-    // Créer un map pour les factures produits par idVisite
-    const facturesByVisite = new Map<string, FactureProduit[]>();
-    allFactureProduits.forEach((fp) => {
-      if (!facturesByVisite.has(fp.idVisite)) {
-        facturesByVisite.set(fp.idVisite, []);
-      }
-      facturesByVisite.get(fp.idVisite)!.push(fp);
-    });
-
-    // Créer un map pour les produits par idTarifProduit
-    const produitByTarifId = new Map<string, Produit>();
-    allTarifProduits.forEach((tp) => {
-      const produit = allProduits.find((p) => p.id === tp.idProduit);
-      if (produit) {
-        produitByTarifId.set(tp.id, produit);
-      }
-    });
-
-    return (client: ClientStatusInfo) => {
-      // Trouver les visites du client
-      const clientVisites = clientVisitMap.get(client.code) || [];
-
-      // Convertir la date de visite du client pour comparaison
-      const clientDateStr =
-        typeof client.dateVisiste === "string"
-          ? client.dateVisiste
-          : client.dateVisiste.toLocaleDateString("fr-FR");
-
-      // Trouver la visite correspondante par date
-      const matchingVisite = clientVisites.find((cv) => {
-        const cvDateStr = cv.dateVisite;
-        return cvDateStr === clientDateStr;
-      });
-
-      if (!matchingVisite) {
-        return {
-          microgynon: false,
-          microlut: false,
-          sayanaPress: false,
-          depoProvera: false,
-        };
-      }
-
-      // Récupérer les factures produits pour cette visite
-      const factures = facturesByVisite.get(matchingVisite.idVisite) || [];
-
-      // Vérifier les noms de produits facturés
-      const productNames = factures.map((f) => {
-        const produit = produitByTarifId.get(f.idTarifProduit);
-        return produit?.nomProduit?.toLowerCase() || "";
-      });
-
-      return {
-        microgynon: productNames.some((name) => name.includes("microgynon")),
-        microlut: productNames.some((name) => name.includes("microlut")),
-        sayanaPress: productNames.some(
-          (name) => name.includes("sayana") || name.includes("sayana press"),
-        ),
-        depoProvera: productNames.some(
-          (name) => name.includes("depo") || name.includes("provera"),
-        ),
-      };
-    };
-  }, [clientData, allFactureProduits, allProduits, allTarifProduits]);
-
-  // Convertir les données de clientDataProtege pour le tableau des protégés
+  // Convertir les données de clientDataProtege pour les tableaux Protégés/PDV/Abandon
   const convertedData = useMemo(() => {
     const createConverted = (filterFn: (client: ClientStatusInfo) => boolean) =>
       clientDataProtege.map((client) => {
-        const productMethods = getProductMethodsForClient(client);
+        const produits = produitsByCode[client.code] || [];
+        const isPilule = client.courtDuree === "pilule" && filterFn(client);
+        const isInjectable3 = client.courtDuree === "injectable" && filterFn(client);
+
+        // Pilule → microgynon (COC) ou microlut (COP) via les produits facturés
+        const hasMicrogynon = produits.some((p) => p.includes("microgynon"));
+        const hasMicrolut = produits.some((p) => p.includes("microlut"));
+
+        // Injectable 3 mois → depo-provera ou sayana press via les produits facturés
+        const hasSayana = produits.some((p) => p.includes("sayana"));
+        const hasDepo = produits.some((p) => p.includes("depo"));
+
+        // Norlevo (produit) → compté comme implanon
+        const hasNorlevo = produits.some((p) => p.includes("norlevo"));
+
         return {
           ...client,
-          microgynon: productMethods.microgynon && filterFn(client),
-          microlut: productMethods.microlut && filterFn(client),
-          noristera: client.courtDuree === "noristera" && filterFn(client),
-          sayanaPress: productMethods.sayanaPress && filterFn(client),
-          depoProvera: productMethods.depoProvera && filterFn(client),
-          implanon: client.implanon === "insertion" && filterFn(client),
-          jadelle: client.jadelle === "insertion" && filterFn(client),
-          sterilet: client.sterilet === "insertion" && filterFn(client),
+          // COC / COP : si produit identifié, sinon microgynon par défaut
+          microgynon: isPilule && (hasMicrogynon || !hasMicrolut),
+          microlut: isPilule && hasMicrolut && !hasMicrogynon,
+          injectable2mois: client.courtDuree === "noristera" && filterFn(client),
+          // Depo / Sayana : si produit identifié, sinon depo-provera par défaut
+          depoProvera: isInjectable3 && (hasDepo || !hasSayana),
+          sayanaPress: isInjectable3 && hasSayana && !hasDepo,
+          implanon: (!!client.implanon || hasNorlevo) && filterFn(client),
+          jadelle: !!client.jadelle && filterFn(client),
+          sterilet: !!client.sterilet && filterFn(client),
+          preservatif: client.courtDuree === "preservatif" && filterFn(client),
+          urgence: client.courtDuree === "urgence" && filterFn(client),
+          spermicide: client.courtDuree === "spermicide" && filterFn(client),
         };
       });
 
@@ -619,7 +606,7 @@ export default function TableRapportPf({
       pdv: createConverted((c) => c.perdueDeVue),
       abandon: createConverted((c) => c.abandon),
     };
-  }, [clientDataProtege, getProductMethodsForClient]);
+  }, [clientDataProtege, produitsByCode]);
 
   // Charger les données des produits
   useEffect(() => {
@@ -938,24 +925,30 @@ export default function TableRapportPf({
 
       // Génération des données pour les tableaux par méthode contraceptive
       const methodLabels: Record<string, string> = {
-        microgynon: "Microgynon",
-        microlut: "Microlut",
-        noristera: "Injectable 2 mois (Noristerat)",
+        microgynon: "Microgynon (COC)",
+        microlut: "Microlut (COP)",
+        injectable2mois: "Injectable 2 mois (Noristerat)",
+        depoProvera: "Depo-Provera",
         sayanaPress: "Sayana Press",
-        depoProvera: "Depo Provera",
-        implanon: "Implant 3 ans",
-        jadelle: "Implant 5 ans",
-        sterilet: "DIU",
+        implanon: "Implant 3 ans (Implanon)",
+        jadelle: "Implant 5 ans (Jadelle)",
+        sterilet: "DIU (Stérilet)",
+        preservatif: "Préservatif (M/F)",
+        urgence: "Contraception d'urgence",
+        spermicide: "Spermicides",
       };
       const methods = [
         "microgynon",
         "microlut",
-        "noristera",
-        "sayanaPress",
+        "injectable2mois",
         "depoProvera",
+        "sayanaPress",
         "implanon",
         "jadelle",
         "sterilet",
+        "preservatif",
+        "urgence",
+        "spermicide",
       ] as const;
 
       const generateMethodRows = (
@@ -1342,22 +1335,28 @@ export default function TableRapportPf({
       const methodLabelsPdf: Record<string, string> = {
         microgynon: "Microgynon (COC)",
         microlut: "Microlut (COP)",
-        noristera: "Injectable 2 mois (Noristerat)",
+        injectable2mois: "Injectable 2 mois (Noristerat)",
+        depoProvera: "Depo-Provera",
         sayanaPress: "Sayana Press",
-        depoProvera: "Depo Provera",
-        implanon: "Implant 3 ans",
-        jadelle: "Implant 5 ans",
-        sterilet: "DIU",
+        implanon: "Implant 3 ans (Implanon)",
+        jadelle: "Implant 5 ans (Jadelle)",
+        sterilet: "DIU (Stérilet)",
+        preservatif: "Préservatif (M/F)",
+        urgence: "Contraception d'urgence",
+        spermicide: "Spermicides",
       };
       const methodsPdf = [
         "microgynon",
         "microlut",
-        "noristera",
-        "sayanaPress",
+        "injectable2mois",
         "depoProvera",
+        "sayanaPress",
         "implanon",
         "jadelle",
         "sterilet",
+        "preservatif",
+        "urgence",
+        "spermicide",
       ] as const;
 
       const generateMethodData = (data: ConvertedClientStatus[]) => {
@@ -1632,18 +1631,7 @@ export default function TableRapportPf({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(
-              [
-                "microgynon",
-                "microlut",
-                "noristera",
-                "sayanaPress",
-                "depoProvera",
-                "implanon",
-                "jadelle",
-                "sterilet",
-              ] as const
-            ).map((method) => {
+            {(PF_METHODS).map((method) => {
               const counts = [
                 countByAgeAndMethod(convertedData.protege, 0, 9, method),
                 countByAgeAndMethod(convertedData.protege, 10, 14, method),
@@ -1652,19 +1640,9 @@ export default function TableRapportPf({
                 countByAgeAndMethod(convertedData.protege, 25, 120, method),
               ];
               const total = counts.reduce((a, b) => a + b, 0);
-              const methodLabelsProtege: Record<string, string> = {
-                microgynon: "Microgynon (COC)",
-                microlut: "Microlut (COP)",
-                noristera: "Injectable 2 mois (Noristerat)",
-                sayanaPress: "Sayana Press",
-                depoProvera: "Depo Provera",
-                implanon: "Implant 3 ans",
-                jadelle: "Implant 5 ans",
-                sterilet: "DIU",
-              };
               return (
                 <TableRow key={method}>
-                  <TableCell>{methodLabelsProtege[method]}</TableCell>
+                  <TableCell>{PF_METHOD_LABELS[method]}</TableCell>
                   {counts.map((count, idx) => (
                     <TableCell key={idx}>{count}</TableCell>
                   ))}
@@ -1692,18 +1670,7 @@ export default function TableRapportPf({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(
-              [
-                "microgynon",
-                "microlut",
-                "noristera",
-                "sayanaPress",
-                "depoProvera",
-                "implanon",
-                "jadelle",
-                "sterilet",
-              ] as const
-            ).map((method) => {
+            {(PF_METHODS).map((method) => {
               const counts = [
                 countByAgeAndMethod(convertedData.pdv, 0, 9, method),
                 countByAgeAndMethod(convertedData.pdv, 10, 14, method),
@@ -1712,19 +1679,9 @@ export default function TableRapportPf({
                 countByAgeAndMethod(convertedData.pdv, 25, 120, method),
               ];
               const total = counts.reduce((a, b) => a + b, 0);
-              const methodLabelsPdv: Record<string, string> = {
-                microgynon: "Microgynon (COC)",
-                microlut: "Microlut (COP)",
-                noristera: "Injectable 2 mois (Noristerat)",
-                sayanaPress: "Sayana Press",
-                depoProvera: "Depo Provera",
-                implanon: "Implant 3 ans",
-                jadelle: "Implant 5 ans",
-                sterilet: "DIU",
-              };
               return (
                 <TableRow key={method}>
-                  <TableCell>{methodLabelsPdv[method]}</TableCell>
+                  <TableCell>{PF_METHOD_LABELS[method]}</TableCell>
                   {counts.map((count, idx) => (
                     <TableCell key={idx}>{count}</TableCell>
                   ))}
@@ -1750,18 +1707,7 @@ export default function TableRapportPf({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(
-              [
-                "microgynon",
-                "microlut",
-                "noristera",
-                "sayanaPress",
-                "depoProvera",
-                "implanon",
-                "jadelle",
-                "sterilet",
-              ] as const
-            ).map((method) => {
+            {(PF_METHODS).map((method) => {
               const counts = [
                 countByAgeAndMethod(convertedData.abandon, 0, 9, method),
                 countByAgeAndMethod(convertedData.abandon, 10, 14, method),
@@ -1770,19 +1716,9 @@ export default function TableRapportPf({
                 countByAgeAndMethod(convertedData.abandon, 25, 120, method),
               ];
               const total = counts.reduce((a, b) => a + b, 0);
-              const methodLabelsAbandon: Record<string, string> = {
-                microgynon: "Microgynon (COC)",
-                microlut: "Microlut (COP)",
-                noristera: "Injectable 2 mois (Noristerat)",
-                sayanaPress: "Sayana Press",
-                depoProvera: "Depo Provera",
-                implanon: "Implant 3 ans",
-                jadelle: "Implant 5 ans",
-                sterilet: "DIU",
-              };
               return (
                 <TableRow key={method}>
-                  <TableCell>{methodLabelsAbandon[method]}</TableCell>
+                  <TableCell>{PF_METHOD_LABELS[method]}</TableCell>
                   {counts.map((count, idx) => (
                     <TableCell key={idx}>{count}</TableCell>
                   ))}
@@ -1884,7 +1820,7 @@ function setupPeriodHeader(
   }
 }
 
-// Fonction utilitaire pour compter par âge et méthode
+// Fonction utilitaire pour compter par âge et méthode contraceptive
 export const countByAgeAndMethod = (
   data: ConvertedClientStatus[],
   minAge: number,
@@ -1893,12 +1829,15 @@ export const countByAgeAndMethod = (
     ConvertedClientStatus,
     | "microgynon"
     | "microlut"
-    | "noristera"
-    | "sayanaPress"
+    | "injectable2mois"
     | "depoProvera"
+    | "sayanaPress"
     | "implanon"
     | "jadelle"
     | "sterilet"
+    | "preservatif"
+    | "urgence"
+    | "spermicide"
   >,
 ): number => {
   return data.filter((item) => {
