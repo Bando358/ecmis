@@ -187,6 +187,8 @@ export default function PlanningPage({
     },
   });
 
+  const isHomme = clients?.sexe === "Masculin";
+
   // Surveillance des champs pour la date de fin de protection
   const watchImplanon = useWatch({ control: form.control, name: "implanon" });
   const watchJadelle = useWatch({ control: form.control, name: "jadelle" });
@@ -511,7 +513,7 @@ export default function PlanningPage({
                             value={field.value ?? ""}
                             className="grid grid-cols-2 space-y-1 gap-2 items-center"
                           >
-                            {Mcd.map((option) => (
+                            {(isHomme ? Mcd.filter(m => m.value === "preservatif") : Mcd).map((option) => (
                               <FormItem
                                 key={option.value}
                                 className="flex items-center space-x-3 space-y-0"
@@ -533,7 +535,7 @@ export default function PlanningPage({
                 </div>
               </div>
             </div>
-            <div className="flex flex-col shadow-sm border-blue-200/50 rounded-md p-2">
+            {!isHomme && (<div className="flex flex-col shadow-sm border-blue-200/50 rounded-md p-2">
               <div className="flex justify-between">
                 <Label className="font-sans">Méthode de longue durée</Label>
                 <RefreshCw
@@ -758,7 +760,7 @@ export default function PlanningPage({
               ) : (
                 ""
               )}
-            </div>
+            </div>)}
             <div>
               <label className="block text-sm font-medium">
                 Date de Rendez-vous
