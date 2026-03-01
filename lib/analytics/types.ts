@@ -135,7 +135,14 @@ export type DataSource =
   | "facturePrestation"
   | "factureProduit"
   | "factureExamen"
-  | "factureEchographie";
+  | "factureEchographie"
+  | "examenPvVih"
+  | "examen"
+  | "reference"
+  | "contreReference"
+  | "ordonnance"
+  | "constante"
+  | "couverture";
 
 export type FetchedData = {
   [K in DataSource]?: Record<string, unknown>[];

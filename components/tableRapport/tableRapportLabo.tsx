@@ -1172,6 +1172,32 @@ export default function TableRapportLabo({
         }));
       });
 
+      // SRV - Total service laboratoire
+      const srvRow = ["SRV - Total service laboratoire"];
+      let srvPdfAll = 0;
+      ageRanges.forEach((_, i) => {
+        const v = pdfSectionSums.reduce((s, sec) => s + sec[i].m, 0);
+        srvPdfAll += v;
+        srvRow.push(pdfVal(v));
+      });
+      ageRanges.forEach((_, i) => {
+        const v = pdfSectionSums.reduce((s, sec) => s + sec[i].f, 0);
+        srvPdfAll += v;
+        srvRow.push(pdfVal(v));
+      });
+      srvRow.push(pdfVal(srvPdfAll));
+
+      autoTable(doc, {
+        startY: currentY,
+        body: [srvRow],
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1, fontStyle: "bold" },
+        bodyStyles: { fillColor: [220, 220, 220], textColor: 0 },
+        columnStyles: { 0: { cellWidth: 50 } },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+
       const gtRow = ["TOTAL GÉNÉRAL"];
       let gtPdfAll = 0;
       ageRanges.forEach((_, i) => {
@@ -1455,6 +1481,26 @@ export default function TableRapportLabo({
           {renderServiceSection("OBSTÉTRIQUE", "OBST", obstetriqueLabo, listeExamenObstetrique)}
           {renderServiceSection("GYNÉCOLOGIE", "GYN", gynecoLabo, listeExamenGyneco)}
           {renderServiceSection("MÉDECINE GÉNÉRALE", "MG", medecineLabo, listeExamenMedecine)}
+
+          {/* === SRV - Total service laboratoire === */}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell className="border border-gray-200 pl-4" style={labelCellStyle}>
+              SRV - Total service laboratoire
+            </TableCell>
+            {grandTotalResults.map((r, i) => (
+              <TableCell key={`srv-m-${i}`} className="text-center border border-gray-200 px-2 py-1 font-bold">
+                {displayValue(r.masculin)}
+              </TableCell>
+            ))}
+            {grandTotalResults.map((r, i) => (
+              <TableCell key={`srv-f-${i}`} className="text-center border border-gray-200 px-2 py-1 font-bold">
+                {displayValue(r.feminin)}
+              </TableCell>
+            ))}
+            <TableCell className="text-center border border-gray-200 px-2 py-1 font-bold">
+              {displayValue(grandTotal)}
+            </TableCell>
+          </TableRow>
 
           {/* === Total Général === */}
           <TableRow className="bg-slate-800 text-white">

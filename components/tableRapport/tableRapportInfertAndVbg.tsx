@@ -381,6 +381,12 @@ export default function TableRapportAutreSsr({
       return [item.label, ...masculinValues.map(String), ...femininValues.map(String), total.toString()];
     });
 
+    // Ajouter la ligne total service
+    const srvTotalMasc = ageRanges.map((range) => tabServiceAutre.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin"), 0));
+    const srvTotalFem = ageRanges.map((range) => tabServiceAutre.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin"), 0));
+    const srvGrandTotal = srvTotalMasc.reduce((a, b) => a + b, 0) + srvTotalFem.reduce((a, b) => a + b, 0);
+    bodyServicesAutre.push(["SRV - Total service INF/VBG", ...srvTotalMasc.map(String), ...srvTotalFem.map(String), srvGrandTotal.toString()]);
+
     autoTable(doc, {
       startY: currentY,
       head: headers,
@@ -390,6 +396,12 @@ export default function TableRapportAutreSsr({
       headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" },
       columnStyles: {
         0: { cellWidth: 60 },
+      },
+      didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+        if (data.section === "body" && data.row.index === bodyServicesAutre.length - 1) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [220, 220, 220];
+        }
       },
     });
 
@@ -643,6 +655,24 @@ export default function TableRapportAutreSsr({
               </TableCell>
             </TableRow>
           ))}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell>SRV - Total service INF/VBG</TableCell>
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-m-${index}`} className="text-center">
+                {tabServiceAutre.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin"), 0)}
+              </TableCell>
+            ))}
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-f-${index}`} className="text-center">
+                {tabServiceAutre.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin"), 0)}
+              </TableCell>
+            ))}
+            <TableCell className="text-center">
+              {tabServiceAutre.reduce((gt, item) => gt + ageRanges.reduce((sum, range) =>
+                sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin")
+                    + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin"), 0), 0)}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

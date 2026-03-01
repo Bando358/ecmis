@@ -14,8 +14,16 @@ import dynamic from "next/dynamic";
 import { suggestChartTypes } from "@/lib/analytics/visualization/chart-selector";
 
 const AnalyticsChart = dynamic(
-  () => import("./visualization/AnalyticsChart").then((mod) => ({ default: mod.AnalyticsChart })),
-  { loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />, ssr: false }
+  () =>
+    import("./visualization/AnalyticsChart").then((mod) => ({
+      default: mod.AnalyticsChart,
+    })),
+  {
+    loading: () => (
+      <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />
+    ),
+    ssr: false,
+  },
 );
 import {
   runAnalysis,
@@ -507,10 +515,10 @@ export function AnalyserClient({
           className={`lg:shrink-0 lg:grow-0 transition-all duration-300 ease-in-out overflow-hidden ${
             sidebarCollapsed
               ? "lg:basis-0 lg:w-0 lg:p-0 lg:border-0 opacity-0 pointer-events-none"
-              : "lg:basis-100 opacity-100"
+              : "lg:basis-140 opacity-100"
           }`}
         >
-          <CardContent className="p-4 space-y-1 min-w-100">
+          <CardContent className="py-4 px-1 space-y-1 min-w-140">
             <OrgUnitSelector
               tree={orgUnitTree}
               value={state.config.orgUnits}
@@ -558,7 +566,11 @@ export function AnalyserClient({
                   size="sm"
                   className="h-7 w-7 p-0"
                   onClick={() => setSidebarCollapsed((v) => !v)}
-                  title={sidebarCollapsed ? "Afficher les selecteurs" : "Masquer les selecteurs"}
+                  title={
+                    sidebarCollapsed
+                      ? "Afficher les selecteurs"
+                      : "Masquer les selecteurs"
+                  }
                 >
                   <PanelLeftOpen className="h-4 w-4" />
                 </Button>

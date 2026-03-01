@@ -653,6 +653,96 @@ export default function TableRapportPf({
     };
   }, [clientData, ageRanges]);
 
+  // Totaux pour le tableau Clients par sexe
+  const sexeTotals = useMemo(() => {
+    const nuValues = ageRanges.map((_, i) =>
+      sexeRowsData.masculin.nuValues[i] + sexeRowsData.feminin.nuValues[i],
+    );
+    const auValues = ageRanges.map((_, i) =>
+      sexeRowsData.masculin.auValues[i] + sexeRowsData.feminin.auValues[i],
+    );
+    return {
+      nuValues,
+      auValues,
+      total: sexeRowsData.masculin.total + sexeRowsData.feminin.total,
+    };
+  }, [sexeRowsData, ageRanges]);
+
+  // Totaux pour le tableau Clients PF
+  const clientPfTotals = useMemo(() => {
+    const allRows = CLIENT_INDICATORS.map((ind) =>
+      generateExcelRowData(clientData, ageRanges, ind),
+    );
+    const nuKeys = ["moins10", "10a14", "15a19", "20a24", "25plus"] as const;
+    const auKeys = ["moins10_au", "10a14_au", "15a19_au", "20a24_au", "25plus_au"] as const;
+    return {
+      nuValues: nuKeys.map((k) => allRows.reduce((sum, r) => sum + (Number(r[k as keyof typeof r]) || 0), 0)),
+      auValues: auKeys.map((k) => allRows.reduce((sum, r) => sum + (Number(r[k as keyof typeof r]) || 0), 0)),
+      total: allRows.reduce((sum, r) => sum + (Number(r.total) || 0), 0),
+    };
+  }, [clientData, ageRanges]);
+
+  // Totaux pour le tableau Services PF
+  const serviceTotals = useMemo(() => {
+    const allRows = SERVICE_INDICATORS.map((ind) =>
+      generateExcelRowData(clientData, ageRanges, ind),
+    );
+    const nuKeys = ["moins10", "10a14", "15a19", "20a24", "25plus"] as const;
+    const auKeys = ["moins10_au", "10a14_au", "15a19_au", "20a24_au", "25plus_au"] as const;
+    return {
+      nuValues: nuKeys.map((k) => allRows.reduce((sum, r) => sum + (Number(r[k as keyof typeof r]) || 0), 0)),
+      auValues: auKeys.map((k) => allRows.reduce((sum, r) => sum + (Number(r[k as keyof typeof r]) || 0), 0)),
+      total: allRows.reduce((sum, r) => sum + (Number(r.total) || 0), 0),
+    };
+  }, [clientData, ageRanges]);
+
+  // Totaux pour le tableau Protégés
+  const protegeTotals = useMemo(() => {
+    const ranges: [number, number][] = [[0, 9], [10, 14], [15, 19], [20, 24], [25, 120]];
+    const values = ranges.map(([min, max]) =>
+      PF_METHODS.reduce((sum, method) => sum + countByAgeAndMethod(convertedData.protege, min, max, method), 0),
+    );
+    return { values, total: values.reduce((a, b) => a + b, 0) };
+  }, [convertedData.protege]);
+
+  // Totaux pour le tableau Perdu de vue
+  const pdvTotals = useMemo(() => {
+    const ranges: [number, number][] = [[0, 9], [10, 14], [15, 19], [20, 24], [25, 120]];
+    const values = ranges.map(([min, max]) =>
+      PF_METHODS.reduce((sum, method) => sum + countByAgeAndMethod(convertedData.pdv, min, max, method), 0),
+    );
+    return { values, total: values.reduce((a, b) => a + b, 0) };
+  }, [convertedData.pdv]);
+
+  // Totaux pour le tableau Abandon
+  const abandonTotals = useMemo(() => {
+    const ranges: [number, number][] = [[0, 9], [10, 14], [15, 19], [20, 24], [25, 120]];
+    const values = ranges.map(([min, max]) =>
+      PF_METHODS.reduce((sum, method) => sum + countByAgeAndMethod(convertedData.abandon, min, max, method), 0),
+    );
+    return { values, total: values.reduce((a, b) => a + b, 0) };
+  }, [convertedData.abandon]);
+
+  // Totaux pour le tableau Produits PF distribués
+  const produitsTotals = useMemo(() => {
+    const contraceptifs = allProduits.filter((p) => p.typeProduit === "CONTRACEPTIF");
+    const getFactures = (idVisite: string) =>
+      allFactureProduits.filter((f) => f.idVisite === idVisite);
+    const nuValues = ageRanges.map((range) =>
+      contraceptifs.reduce((sum, produit) =>
+        sum + countProduitByOldSync(clientData, range.min, range.max, false, produit.nomProduit, "nu", allProduits, allTarifProduits, allFactureProduits, getFactures), 0),
+    );
+    const auValues = ageRanges.map((range) =>
+      contraceptifs.reduce((sum, produit) =>
+        sum + countProduitByOldSync(clientData, range.min, range.max, false, produit.nomProduit, "au", allProduits, allTarifProduits, allFactureProduits, getFactures), 0),
+    );
+    return {
+      nuValues,
+      auValues,
+      total: nuValues.reduce((a, b) => a + b, 0) + auValues.reduce((a, b) => a + b, 0),
+    };
+  }, [clientData, ageRanges, allProduits, allTarifProduits, allFactureProduits]);
+
   const exportToExcel = async () => {
     setSpinner(true);
 
@@ -776,18 +866,63 @@ export default function TableRapportPf({
         },
       ];
 
+      // Ajouter la ligne Total clients par sexe
+      sexeRows.push({
+        indicateurs: "Total",
+        moins10: sexeTotals.nuValues[0],
+        "10a14": sexeTotals.nuValues[1],
+        "15a19": sexeTotals.nuValues[2],
+        "20a24": sexeTotals.nuValues[3],
+        "25plus": sexeTotals.nuValues[4],
+        moins10_au: sexeTotals.auValues[0],
+        "10a14_au": sexeTotals.auValues[1],
+        "15a19_au": sexeTotals.auValues[2],
+        "20a24_au": sexeTotals.auValues[3],
+        "25plus_au": sexeTotals.auValues[4],
+        total: sexeTotals.total,
+      });
       let nextRow = createTable(6, "Clients par sexe", sexeRows);
 
       // Tableau des clients PF
       const clientPfRows = CLIENT_INDICATORS.map((indicator) =>
         generateExcelRowData(clientData, ageRanges, indicator),
       );
+      // Ajouter la ligne Total client PF
+      clientPfRows.push({
+        indicateurs: "CLT - PF - Total client PF",
+        moins10: clientPfTotals.nuValues[0],
+        "10a14": clientPfTotals.nuValues[1],
+        "15a19": clientPfTotals.nuValues[2],
+        "20a24": clientPfTotals.nuValues[3],
+        "25plus": clientPfTotals.nuValues[4],
+        moins10_au: clientPfTotals.auValues[0],
+        "10a14_au": clientPfTotals.auValues[1],
+        "15a19_au": clientPfTotals.auValues[2],
+        "20a24_au": clientPfTotals.auValues[3],
+        "25plus_au": clientPfTotals.auValues[4],
+        total: clientPfTotals.total,
+      });
       nextRow = createTable(nextRow, "Tableau des clients PF", clientPfRows);
 
       // Tableau des services clients PF
       const servicePfRows = SERVICE_INDICATORS.map((indicator) =>
         generateExcelRowData(clientData, ageRanges, indicator),
       );
+      // Ajouter la ligne Total service PF
+      servicePfRows.push({
+        indicateurs: "SRV - PF - Total service PF",
+        moins10: serviceTotals.nuValues[0],
+        "10a14": serviceTotals.nuValues[1],
+        "15a19": serviceTotals.nuValues[2],
+        "20a24": serviceTotals.nuValues[3],
+        "25plus": serviceTotals.nuValues[4],
+        moins10_au: serviceTotals.auValues[0],
+        "10a14_au": serviceTotals.auValues[1],
+        "15a19_au": serviceTotals.auValues[2],
+        "20a24_au": serviceTotals.auValues[3],
+        "25plus_au": serviceTotals.auValues[4],
+        total: serviceTotals.total,
+      });
       nextRow = createTable(
         nextRow,
         "Tableau des services clients PF",
@@ -846,6 +981,21 @@ export default function TableRapportPf({
               auValues.reduce((a, b) => a + b, 0),
           };
         });
+      // Ajouter la ligne Total produits PF distribués
+      produitsPfRows.push({
+        indicateurs: "Total produits PF distribués",
+        moins10: produitsTotals.nuValues[0],
+        "10a14": produitsTotals.nuValues[1],
+        "15a19": produitsTotals.nuValues[2],
+        "20a24": produitsTotals.nuValues[3],
+        "25plus": produitsTotals.nuValues[4],
+        moins10_au: produitsTotals.auValues[0],
+        "10a14_au": produitsTotals.auValues[1],
+        "15a19_au": produitsTotals.auValues[2],
+        "20a24_au": produitsTotals.auValues[3],
+        "25plus_au": produitsTotals.auValues[4],
+        total: produitsTotals.total,
+      });
       nextRow = createTable(
         nextRow,
         "Tableau des Produits PF distribués",
@@ -983,10 +1133,29 @@ export default function TableRapportPf({
 
       // Tableau Protégés
       const protegeRows = generateMethodRows(convertedData.protege);
+      // Ajouter la ligne Total client protégé
+      protegeRows.push({
+        methode: "Total client protégé",
+        moins10: protegeTotals.values[0],
+        "10a14": protegeTotals.values[1],
+        "15a19": protegeTotals.values[2],
+        "20a24": protegeTotals.values[3],
+        "25plus": protegeTotals.values[4],
+        total: protegeTotals.total,
+      });
       nextRow = createSimpleTable(nextRow, "Protégés", protegeRows, "C6EFCE");
 
       // Tableau Perdu de vue
       const pdvRows = generateMethodRows(convertedData.pdv);
+      pdvRows.push({
+        methode: "Total perdu de vue",
+        moins10: pdvTotals.values[0],
+        "10a14": pdvTotals.values[1],
+        "15a19": pdvTotals.values[2],
+        "20a24": pdvTotals.values[3],
+        "25plus": pdvTotals.values[4],
+        total: pdvTotals.total,
+      });
       nextRow = createSimpleTable(
         nextRow,
         "Perdu de vue (PDV)",
@@ -996,6 +1165,15 @@ export default function TableRapportPf({
 
       // Tableau Abandon
       const abandonRows = generateMethodRows(convertedData.abandon);
+      abandonRows.push({
+        methode: "Total abandon",
+        moins10: abandonTotals.values[0],
+        "10a14": abandonTotals.values[1],
+        "15a19": abandonTotals.values[2],
+        "20a24": abandonTotals.values[3],
+        "25plus": abandonTotals.values[4],
+        total: abandonTotals.total,
+      });
       createSimpleTable(nextRow, "Abandon", abandonRows, "FFC7CE");
 
       // Nettoyer la première ligne
@@ -1224,6 +1402,12 @@ export default function TableRapportPf({
           ...sexeRowsData.feminin.auValues,
           sexeRowsData.feminin.total,
         ],
+        [
+          "Total",
+          ...sexeTotals.nuValues,
+          ...sexeTotals.auValues,
+          sexeTotals.total,
+        ],
       ];
 
       autoTable(doc, {
@@ -1241,6 +1425,13 @@ export default function TableRapportPf({
       checkPageBreak(80);
       addTitle("Clients PF par méthode");
       const clientPfData = generateTableData(CLIENT_INDICATORS);
+      // Ajouter la ligne Total client PF
+      clientPfData.push([
+        "CLT - PF - Total client PF",
+        ...clientPfTotals.nuValues,
+        ...clientPfTotals.auValues,
+        clientPfTotals.total,
+      ]);
 
       autoTable(doc, {
         startY: currentY,
@@ -1257,6 +1448,13 @@ export default function TableRapportPf({
       checkPageBreak(100);
       addTitle("Services PF");
       const servicePfData = generateTableData(SERVICE_INDICATORS);
+      // Ajouter la ligne Total service PF
+      servicePfData.push([
+        "SRV - PF - Total service PF",
+        ...serviceTotals.nuValues,
+        ...serviceTotals.auValues,
+        serviceTotals.total,
+      ]);
 
       autoTable(doc, {
         startY: currentY,
@@ -1318,6 +1516,13 @@ export default function TableRapportPf({
               auValues.reduce((a, b) => a + b, 0),
           ];
         });
+        // Ajouter la ligne Total produits PF distribués
+        produitsData.push([
+          "Total produits PF distribués",
+          ...produitsTotals.nuValues,
+          ...produitsTotals.auValues,
+          produitsTotals.total,
+        ]);
 
         autoTable(doc, {
           startY: currentY,
@@ -1383,10 +1588,17 @@ export default function TableRapportPf({
 
       // Protégés
       addTitle("Protégés", 10);
+      const protegeDataPdf = generateMethodData(convertedData.protege);
+      // Ajouter la ligne Total client protégé
+      protegeDataPdf.push([
+        "Total client protégé",
+        ...protegeTotals.values,
+        protegeTotals.total,
+      ]);
       autoTable(doc, {
         startY: currentY,
         head: headersSimple,
-        body: generateMethodData(convertedData.protege),
+        body: protegeDataPdf,
         styles: tableStyles,
         headStyles: {
           ...headStyles,
@@ -1400,10 +1612,16 @@ export default function TableRapportPf({
       // Perdu de vue
       checkPageBreak(50);
       addTitle("Perdu de vue (PDV)", 10);
+      const pdvDataPdf = generateMethodData(convertedData.pdv);
+      pdvDataPdf.push([
+        "Total perdu de vue",
+        ...pdvTotals.values,
+        pdvTotals.total,
+      ]);
       autoTable(doc, {
         startY: currentY,
         head: headersSimple,
-        body: generateMethodData(convertedData.pdv),
+        body: pdvDataPdf,
         styles: tableStyles,
         headStyles: {
           ...headStyles,
@@ -1417,10 +1635,16 @@ export default function TableRapportPf({
       // Abandon
       checkPageBreak(50);
       addTitle("Abandon", 10);
+      const abandonDataPdf = generateMethodData(convertedData.abandon);
+      abandonDataPdf.push([
+        "Total abandon",
+        ...abandonTotals.values,
+        abandonTotals.total,
+      ]);
       autoTable(doc, {
         startY: currentY,
         head: headersSimple,
-        body: generateMethodData(convertedData.abandon),
+        body: abandonDataPdf,
         styles: tableStyles,
         headStyles: {
           ...headStyles,
@@ -1510,6 +1734,16 @@ export default function TableRapportPf({
               ))}
               <TableCell>{sexeRowsData.feminin.total}</TableCell>
             </TableRow>
+            <TableRow className="font-bold bg-slate-200">
+              <TableCell>Total</TableCell>
+              {sexeTotals.nuValues.map((v, i) => (
+                <TableCell key={`nu-${i}`}>{v}</TableCell>
+              ))}
+              {sexeTotals.auValues.map((v, i) => (
+                <TableCell key={`au-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{sexeTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
 
@@ -1528,6 +1762,16 @@ export default function TableRapportPf({
                 ageRanges={ageRanges}
               />
             ))}
+            <TableRow className="font-bold bg-slate-200">
+              <TableCell>CLT - PF - Total client PF</TableCell>
+              {clientPfTotals.nuValues.map((v, i) => (
+                <TableCell key={`nu-${i}`}>{v}</TableCell>
+              ))}
+              {clientPfTotals.auValues.map((v, i) => (
+                <TableCell key={`au-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{clientPfTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
 
@@ -1546,6 +1790,16 @@ export default function TableRapportPf({
                 ageRanges={ageRanges}
               />
             ))}
+            <TableRow className="font-bold bg-slate-200">
+              <TableCell>SRV - PF - Total service PF</TableCell>
+              {serviceTotals.nuValues.map((v, i) => (
+                <TableCell key={`nu-${i}`}>{v}</TableCell>
+              ))}
+              {serviceTotals.auValues.map((v, i) => (
+                <TableCell key={`au-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{serviceTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
 
@@ -1611,6 +1865,16 @@ export default function TableRapportPf({
                   </TableRow>
                 );
               })}
+            <TableRow className="font-bold bg-slate-200">
+              <TableCell>Total produits PF distribués</TableCell>
+              {produitsTotals.nuValues.map((v, i) => (
+                <TableCell key={`nu-${i}`}>{v}</TableCell>
+              ))}
+              {produitsTotals.auValues.map((v, i) => (
+                <TableCell key={`au-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{produitsTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
 
@@ -1650,6 +1914,13 @@ export default function TableRapportPf({
                 </TableRow>
               );
             })}
+            <TableRow className="font-bold bg-green-200">
+              <TableCell>Total client protégé</TableCell>
+              {protegeTotals.values.map((v, i) => (
+                <TableCell key={`tot-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{protegeTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
 
@@ -1689,6 +1960,13 @@ export default function TableRapportPf({
                 </TableRow>
               );
             })}
+            <TableRow className="font-bold bg-orange-200">
+              <TableCell>Total perdu de vue</TableCell>
+              {pdvTotals.values.map((v, i) => (
+                <TableCell key={`tot-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{pdvTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
 
@@ -1726,6 +2004,13 @@ export default function TableRapportPf({
                 </TableRow>
               );
             })}
+            <TableRow className="font-bold bg-red-200">
+              <TableCell>Total abandon</TableCell>
+              {abandonTotals.values.map((v, i) => (
+                <TableCell key={`tot-${i}`}>{v}</TableCell>
+              ))}
+              <TableCell>{abandonTotals.total}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
         <Separator className="bg-green-300" />

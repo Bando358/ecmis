@@ -384,6 +384,11 @@ export default function TableRapportSaa({
       const total = values.reduce((a, b) => a + b, 0);
       return [item.label, ...values.map(String), total.toString()];
     });
+    // Ajouter la ligne total service
+    const srvTotalValues = ageRanges.map((range) =>
+      tabServiceSaa.reduce((sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0)
+    );
+    bodyServicesSaa.push(["SRV - Total service SAA", ...srvTotalValues.map(String), srvTotalValues.reduce((a, b) => a + b, 0).toString()]);
 
     autoTable(doc, {
       startY: currentY,
@@ -394,6 +399,12 @@ export default function TableRapportSaa({
       headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: "bold" },
       columnStyles: {
         0: { cellWidth: 80 },
+      },
+      didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+        if (data.section === "body" && data.row.index === bodyServicesSaa.length - 1) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [220, 220, 220];
+        }
       },
     });
 
@@ -572,6 +583,19 @@ export default function TableRapportSaa({
               </TableCell>
             </TableRow>
           ))}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell>SRV - Total service SAA</TableCell>
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-${index}`} className="text-center border border-gray-300">
+                {tabServiceSaa.reduce(
+                  (sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0
+                )}
+              </TableCell>
+            ))}
+            <TableCell className="text-center border border-gray-300">
+              {tabServiceSaa.reduce((gt, item) => gt + ageRanges.reduce((sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0), 0)}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

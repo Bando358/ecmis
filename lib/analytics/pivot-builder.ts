@@ -67,15 +67,15 @@ export function buildPivotTable(
     // Ajouter les indicateurs manquants
     for (const indId of config.indicators) {
       const ind = getIndicator(indId, indicatorRegistry);
-      if (!ind || existingNames.has(ind.shortName)) continue;
+      if (!ind || existingNames.has(ind.name)) continue;
 
       if (otherCombos.length === 0) {
         // Seul "indicator" en colonnes
-        columnKeysSet.set(ind.shortName, { indicator: ind.shortName });
+        columnKeysSet.set(ind.name, { indicator: ind.name });
       } else {
         // Composite : creer les croisements avec les autres dimensions
         for (const combo of otherCombos) {
-          const dv = { ...combo, indicator: ind.shortName };
+          const dv = { ...combo, indicator: ind.name };
           const key = buildKey(dv, config.columns);
           if (!columnKeysSet.has(key)) columnKeysSet.set(key, dv);
         }
@@ -92,7 +92,7 @@ export function buildPivotTable(
       if (dimId === "indicator" && config.indicators.length > 1) {
         const indValues = config.indicators.map((id) => {
           const ind = tryGetIndicator(id, indicatorRegistry);
-          return ind?.shortName ?? id;
+          return ind?.name ?? id;
         });
         dimValueSets.push({ dimId, values: indValues });
       } else if (allColumnDimValues[dimId]) {
@@ -121,7 +121,7 @@ export function buildPivotTable(
   if (config.indicators.length > 1) {
     for (let i = 0; i < config.indicators.length; i++) {
       const ind = tryGetIndicator(config.indicators[i], indicatorRegistry);
-      if (ind) indicatorOrder.set(ind.shortName, i);
+      if (ind) indicatorOrder.set(ind.name, i);
     }
   }
 
@@ -207,14 +207,14 @@ export function buildPivotTable(
 
     for (const indId of config.indicators) {
       const ind = getIndicator(indId, indicatorRegistry);
-      if (!ind || existingRowNames.has(ind.shortName)) continue;
+      if (!ind || existingRowNames.has(ind.name)) continue;
 
       if (otherRowCombos.length === 0) {
-        const key = ind.shortName;
-        rowGroupsMap.set(key, { dimValues: { indicator: ind.shortName }, points: [] });
+        const key = ind.name;
+        rowGroupsMap.set(key, { dimValues: { indicator: ind.name }, points: [] });
       } else {
         for (const combo of otherRowCombos) {
-          const dv = { ...combo, indicator: ind.shortName };
+          const dv = { ...combo, indicator: ind.name };
           const key = buildKey(dv, config.rows);
           if (!rowGroupsMap.has(key)) {
             rowGroupsMap.set(key, { dimValues: dv, points: [] });
@@ -229,12 +229,12 @@ export function buildPivotTable(
     rowGroupsMap.set("total", { dimValues: { total: "Total" }, points: computedData });
   }
 
-  // 3. Map shortName -> IndicatorDefinition pour le formatage par colonne
-  const indByShortName = new Map<string, IndicatorDefinition>();
+  // 3. Map name -> IndicatorDefinition pour le formatage par colonne
+  const indByName = new Map<string, IndicatorDefinition>();
   if (config.indicators.length > 1) {
     for (const indId of config.indicators) {
       const ind = tryGetIndicator(indId, indicatorRegistry);
-      if (ind) indByShortName.set(ind.shortName, ind);
+      if (ind) indByName.set(ind.name, ind);
     }
   }
 
@@ -251,7 +251,7 @@ export function buildPivotTable(
       const sum = matching.reduce((s, p) => s + p.value, 0);
       // Si la colonne correspond a un indicateur specifique, utiliser son format
       const colInd = col.dimensionValues?.indicator
-        ? indByShortName.get(col.dimensionValues.indicator)
+        ? indByName.get(col.dimensionValues.indicator)
         : null;
       cells[col.key] = {
         value: sum,
@@ -287,7 +287,7 @@ export function buildPivotTable(
   for (const col of columns) {
     const sum = rows.reduce((s, r) => s + (r.cells[col.key]?.value ?? 0), 0);
     const colInd = col.dimensionValues?.indicator
-      ? indByShortName.get(col.dimensionValues.indicator)
+      ? indByName.get(col.dimensionValues.indicator)
       : null;
     columnTotals[col.key] = {
       value: sum,

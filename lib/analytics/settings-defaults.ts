@@ -17,16 +17,9 @@ export const DEFAULT_ANALYTICS_SETTINGS: AnalyticsSettingsConfig = {
       {
         value: "planning",
         label: "Planification Familiale",
-        enabled: true,
+        enabled: false,
         totalLabel: "Total PF",
-        properties: [
-          { key: "consultation", label: "Consultation", includedInTotal: true },
-          { key: "counsellingPf", label: "Counselling PF", includedInTotal: false },
-          { key: "methodePrise", label: "Methode prise", includedInTotal: false },
-          { key: "typeContraception", label: "Type de contraception", includedInTotal: false },
-          { key: "statut", label: "Statut", includedInTotal: false },
-          { key: "motifVisite", label: "Motif de visite", includedInTotal: false },
-        ],
+        properties: [],
       },
       {
         value: "gynecologie",
@@ -197,6 +190,6 @@ export const DEFAULT_ANALYTICS_SETTINGS: AnalyticsSettingsConfig = {
   },
   display: {
     pivotTableMaxHeight: "600px",
-    indicatorSelectorMaxHeight: "250px",
+    indicatorSelectorMaxHeight: "500px",
   },
 };

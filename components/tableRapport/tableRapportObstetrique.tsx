@@ -521,14 +521,25 @@ export default function TableRapportObstetrique({
       // 2. Tableau services Avant/Après l'accouchement
       checkPageBreak(60);
       addTitle("Rapport services offerts Avant/Après l'accouchement");
+      const serviceDataObst = generateTableData(tabServiceObstetrique);
+      const srvTotalObstValues = ageRanges.map((range) =>
+        tabServiceObstetrique.reduce((sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0)
+      );
+      serviceDataObst.push(["SRV - Total service obstétrique", ...srvTotalObstValues, srvTotalObstValues.reduce((a, b) => a + b, 0)]);
       autoTable(doc, {
         startY: currentY,
         head: headers,
-        body: generateTableData(tabServiceObstetrique),
+        body: serviceDataObst,
         styles: tableStyles,
         headStyles: headStyles,
         columnStyles: { 0: { halign: "left" } },
         pageBreak: "avoid",
+        didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+          if (data.section === "body" && data.row.index === serviceDataObst.length - 1) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [220, 220, 220];
+          }
+        },
       });
       currentY = doc.lastAutoTable.finalY + 10;
 
@@ -549,14 +560,25 @@ export default function TableRapportObstetrique({
       // 4. Tableau services Maternité
       checkPageBreak(40);
       addTitle("Rapport Services offerts à la Maternité");
+      const serviceDataMat = generateTableData(tabServiceMaternite);
+      const srvTotalMatValues = ageRanges.map((range) =>
+        tabServiceMaternite.reduce((sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0)
+      );
+      serviceDataMat.push(["SRV - Total service maternité", ...srvTotalMatValues, srvTotalMatValues.reduce((a, b) => a + b, 0)]);
       autoTable(doc, {
         startY: currentY,
         head: headers,
-        body: generateTableData(tabServiceMaternite),
+        body: serviceDataMat,
         styles: tableStyles,
         headStyles: headStyles,
         columnStyles: { 0: { halign: "left" } },
         pageBreak: "avoid",
+        didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+          if (data.section === "body" && data.row.index === serviceDataMat.length - 1) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [220, 220, 220];
+          }
+        },
       });
 
       currentY = doc.lastAutoTable.finalY + 20;
@@ -735,6 +757,19 @@ export default function TableRapportObstetrique({
               </TableCell>
             </TableRow>
           ))}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell>SRV - Total service obstétrique</TableCell>
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-obst-${index}`} className="text-center border border-l-gray-400 border-r-gray-400">
+                {tabServiceObstetrique.reduce(
+                  (sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0
+                )}
+              </TableCell>
+            ))}
+            <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+              {tabServiceObstetrique.reduce((gt, item) => gt + ageRanges.reduce((sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0), 0)}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
       <Separator className="bg-green-300"></Separator>
@@ -875,6 +910,19 @@ export default function TableRapportObstetrique({
               </TableCell>
             </TableRow>
           ))}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell>SRV - Total service maternité</TableCell>
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-mat-${index}`} className="text-center border border-l-gray-400 border-r-gray-400">
+                {tabServiceMaternite.reduce(
+                  (sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0
+                )}
+              </TableCell>
+            ))}
+            <TableCell className="text-center border font-semibold border-l-gray-400 border-r-gray-400">
+              {tabServiceMaternite.reduce((gt, item) => gt + ageRanges.reduce((sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0), 0)}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

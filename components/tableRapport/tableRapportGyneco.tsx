@@ -408,6 +408,13 @@ export default function TableRapportGyneco({
       addTitle("Rapport services gynécologiques offerts");
       const serviceData = generateTableData(tabServiceGyneco);
 
+      // Ajouter la ligne total service
+      const srvTotalValues = ageRanges.map((range) =>
+        tabServiceGyneco.reduce((sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true), 0)
+      );
+      const srvGrandTotal = srvTotalValues.reduce((a, b) => a + b, 0);
+      serviceData.push(["SRV - Total service gynécologique", ...srvTotalValues, srvGrandTotal]);
+
       autoTable(doc, {
         startY: currentY,
         head: headers,
@@ -416,6 +423,12 @@ export default function TableRapportGyneco({
         headStyles: headStyles,
         columnStyles: { 0: { halign: "left" } },
         pageBreak: "avoid",
+        didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+          if (data.section === "body" && data.row.index === serviceData.length - 1) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [220, 220, 220];
+          }
+        },
       });
 
       // Section signature
@@ -591,6 +604,27 @@ export default function TableRapportGyneco({
               </TableCell>
             </TableRow>
           ))}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell>SRV - Total service gynécologique</TableCell>
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-${index}`} className="text-center">
+                {tabServiceGyneco.reduce(
+                  (sum, item) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+                  0
+                )}
+              </TableCell>
+            ))}
+            <TableCell className="text-center">
+              {tabServiceGyneco.reduce(
+                (grandTotal, item) =>
+                  grandTotal + ageRanges.reduce(
+                    (sum, range) => sum + countClientBoolean(converted, range.min, range.max, item.value, true),
+                    0
+                  ),
+                0
+              )}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

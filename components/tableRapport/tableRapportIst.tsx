@@ -412,14 +412,26 @@ export default function TableRapportIst({
 
       checkPageBreak(80);
       addTitle("Rapport services IST");
+      const serviceDataIst = generateTableDataMF(tabServiceIst);
+      // Ajouter la ligne total service
+      const srvTotalMasc = ageRanges.map((range) => tabServiceIst.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin"), 0));
+      const srvTotalFem = ageRanges.map((range) => tabServiceIst.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin"), 0));
+      const srvGrandTotal = srvTotalMasc.reduce((a, b) => a + b, 0) + srvTotalFem.reduce((a, b) => a + b, 0);
+      serviceDataIst.push(["SRV - Total service IST", ...srvTotalMasc, ...srvTotalFem, srvGrandTotal]);
       autoTable(doc, {
         startY: currentY,
         head: headersMF,
-        body: generateTableDataMF(tabServiceIst),
+        body: serviceDataIst,
         styles: tableStyles,
         headStyles: headStyles,
         columnStyles: { 0: { halign: "left" } },
         pageBreak: "avoid",
+        didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+          if (data.section === "body" && data.row.index === serviceDataIst.length - 1) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [220, 220, 220];
+          }
+        },
       });
 
       currentY = doc.lastAutoTable.finalY + 20;
@@ -604,69 +616,46 @@ export default function TableRapportIst({
         <TableBody>
           {tabServiceIst.map((client) => (
             <TableRow key={client.label}>
-              {/* Nom du produit */}
               <TableCell>{client.label}</TableCell>
-
-              {/* Colonnes "Masculin" */}
               {ageRanges.map((range, index) => (
-                <TableCell
-                  key={`masculin-${client.label}-${index}`}
-                  className="text-center"
-                >
-                  {countClientBooleanBySexe(
-                    converted,
-                    range.min,
-                    range.max,
-                    client.value,
-                    true,
-                    "Masculin"
-                  )}
+                <TableCell key={`masculin-${client.label}-${index}`} className="text-center">
+                  {countClientBooleanBySexe(converted, range.min, range.max, client.value, true, "Masculin")}
                 </TableCell>
               ))}
-
-              {/* Colonnes "Féminin" */}
               {ageRanges.map((range, index) => (
-                <TableCell
-                  key={`feminin-${client.label}-${index}`}
-                  className="text-center"
-                >
-                  {countClientBooleanBySexe(
-                    converted,
-                    range.min,
-                    range.max,
-                    client.value,
-                    true,
-                    "Féminin"
-                  )}
+                <TableCell key={`feminin-${client.label}-${index}`} className="text-center">
+                  {countClientBooleanBySexe(converted, range.min, range.max, client.value, true, "Féminin")}
                 </TableCell>
               ))}
-
-              {/* Colonne Total */}
               <TableCell className="text-center font-semibold">
                 {ageRanges.reduce(
                   (sum, range) =>
                     sum +
-                    countClientBooleanBySexe(
-                      converted,
-                      range.min,
-                      range.max,
-                      client.value,
-                      true,
-                      "Masculin"
-                    ) +
-                    countClientBooleanBySexe(
-                      converted,
-                      range.min,
-                      range.max,
-                      client.value,
-                      true,
-                      "Féminin"
-                    ),
+                    countClientBooleanBySexe(converted, range.min, range.max, client.value, true, "Masculin") +
+                    countClientBooleanBySexe(converted, range.min, range.max, client.value, true, "Féminin"),
                   0
                 )}
               </TableCell>
             </TableRow>
           ))}
+          <TableRow className="font-bold bg-slate-200">
+            <TableCell>SRV - Total service IST</TableCell>
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-m-${index}`} className="text-center">
+                {tabServiceIst.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin"), 0)}
+              </TableCell>
+            ))}
+            {ageRanges.map((range, index) => (
+              <TableCell key={`srv-total-f-${index}`} className="text-center">
+                {tabServiceIst.reduce((sum, item) => sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin"), 0)}
+              </TableCell>
+            ))}
+            <TableCell className="text-center">
+              {tabServiceIst.reduce((gt, item) => gt + ageRanges.reduce((sum, range) =>
+                sum + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Masculin")
+                    + countClientBooleanBySexe(converted, range.min, range.max, item.value, true, "Féminin"), 0), 0)}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

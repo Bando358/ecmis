@@ -260,7 +260,11 @@ export async function fetchAnalyticsData(params: {
         idClinique: { in: cliniqueIds },
         dateFacture: { gte: startDate, lte: endDate },
       },
-      include: { Client: clientSelect, User: userSelect },
+      include: {
+        Client: clientSelect,
+        User: userSelect,
+        tarifProduit: { select: { Produit: { select: { typeProduit: true } } } },
+      },
     }) as Promise<Record<string, unknown>[]>;
   }
 
@@ -278,6 +282,25 @@ export async function fetchAnalyticsData(params: {
     }) as Promise<Record<string, unknown>[]>;
   }
 
+  if (requiredSources.has("examenPvVih")) {
+    queries.examenPvVih = prisma.examenPvVih.findMany({
+      where: {
+        examenPvVihIdClinique: { in: cliniqueIds },
+        Visite: { dateVisite: { gte: startDate, lte: endDate } },
+      },
+      include: {
+        Visite: { select: { dateVisite: true } },
+        Client: clientSelect,
+        User: userSelect,
+      },
+    }) as Promise<Record<string, unknown>[]>;
+  }
+
+  if (requiredSources.has("examen")) {
+    // Table de reference des examens (pas de filtre date/clinique)
+    queries.examen = prisma.examen.findMany() as Promise<Record<string, unknown>[]>;
+  }
+
   if (requiredSources.has("factureEchographie")) {
     queries.factureEchographie = prisma.factureEchographie.findMany({
       where: {
@@ -288,6 +311,79 @@ export async function fetchAnalyticsData(params: {
         Visite: { select: { dateVisite: true } },
         Client: clientSelect,
         User: userSelect,
+      },
+    }) as Promise<Record<string, unknown>[]>;
+  }
+
+  if (requiredSources.has("reference")) {
+    queries.reference = prisma.reference.findMany({
+      where: {
+        idClinique: { in: cliniqueIds },
+        Visite: { dateVisite: { gte: startDate, lte: endDate } },
+      },
+      include: {
+        Visite: { select: { dateVisite: true } },
+        Client: clientSelect,
+        User: userSelect,
+      },
+    }) as Promise<Record<string, unknown>[]>;
+  }
+
+  if (requiredSources.has("contreReference")) {
+    queries.contreReference = prisma.contreReference.findMany({
+      where: {
+        idClinique: { in: cliniqueIds },
+        Visite: { dateVisite: { gte: startDate, lte: endDate } },
+      },
+      include: {
+        Visite: { select: { dateVisite: true } },
+        Client: clientSelect,
+        User: userSelect,
+      },
+    }) as Promise<Record<string, unknown>[]>;
+  }
+
+  if (requiredSources.has("ordonnance")) {
+    queries.ordonnance = prisma.ordonnance.findMany({
+      where: {
+        ordonnanceIdClinique: { in: cliniqueIds },
+        Visite: { dateVisite: { gte: startDate, lte: endDate } },
+      },
+      include: {
+        Visite: { select: { dateVisite: true } },
+        Client: clientSelect,
+        User: userSelect,
+      },
+    }) as Promise<Record<string, unknown>[]>;
+  }
+
+  if (requiredSources.has("constante")) {
+    queries.constante = prisma.constante.findMany({
+      where: {
+        Visite: {
+          idClinique: { in: cliniqueIds },
+          dateVisite: { gte: startDate, lte: endDate },
+        },
+      },
+      include: {
+        Visite: { select: { dateVisite: true, idClinique: true } },
+        Client: clientSelect,
+        User: userSelect,
+      },
+    }) as Promise<Record<string, unknown>[]>;
+  }
+
+  if (requiredSources.has("couverture")) {
+    queries.couverture = prisma.couverture.findMany({
+      where: {
+        Visite: {
+          idClinique: { in: cliniqueIds },
+          dateVisite: { gte: startDate, lte: endDate },
+        },
+      },
+      include: {
+        Visite: { select: { dateVisite: true, idClinique: true } },
+        Client: clientSelect,
       },
     }) as Promise<Record<string, unknown>[]>;
   }

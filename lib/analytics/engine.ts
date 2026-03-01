@@ -86,7 +86,7 @@ export async function executeAnalysis(
       for (const dimId of allDimIds) {
         if (dimId === "indicator") {
           // Traitement special pour la dimension indicateur
-          dimensions.indicator = indicator.shortName;
+          dimensions.indicator = indicator.name;
         } else if (dimId === "period") {
           // Traitement special pour la dimension periode
           const date = record ? resolveDateField(record) : null;

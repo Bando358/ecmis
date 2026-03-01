@@ -303,7 +303,7 @@ export function IndicatorSelector({
           </div>
 
           {/* List */}
-          <div className="flex-1 max-h-70 overflow-y-auto px-1 pb-1 space-y-1">
+          <div className="flex-1 max-h-125 overflow-y-auto px-1 pb-1 space-y-1">
             {leftGroups.map((group) => (
               <div key={group.category}>
                 <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-1 py-0.5 sticky top-0 bg-background/95 backdrop-blur-sm">
@@ -432,7 +432,7 @@ export function IndicatorSelector({
           </div>
 
           {/* List */}
-          <div className="flex-1 max-h-70 overflow-y-auto px-1 pb-1">
+          <div className="flex-1 max-h-125 overflow-y-auto px-1 pb-1">
             {rightItems.map((ind) => (
               <div
                 key={ind.id}
@@ -457,7 +457,7 @@ export function IndicatorSelector({
                   className="h-3 w-3"
                 />
                 <span className="text-[11px] leading-tight truncate">
-                  {ind.shortName}
+                  {ind.name}
                 </span>
               </div>
             ))}
