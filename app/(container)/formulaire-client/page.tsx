@@ -384,7 +384,7 @@ export default function FormulaireClient() {
         {/* ── Header ── */}
         <div className="max-w-4xl mx-auto mb-6">
           <div className="flex items-center gap-3 mb-1">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
               <UserPlus className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -872,7 +872,7 @@ export default function FormulaireClient() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-8 h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-md shadow-blue-500/20 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.98]"
+                  className="px-8 h-10 bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg shadow-md shadow-blue-500/20 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.98]"
                 >
                   {isSubmitting && (
                     <SpinnerCustom className="mr-2 text-white/60" />
