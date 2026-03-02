@@ -5,8 +5,6 @@ import prisma from "../prisma";
 import * as bcrypt from "bcrypt";
 import { requirePermission } from "@/lib/auth/withPermission";
 import { authLogger } from "@/lib/logger";
-import { validateServerData } from "@/lib/validations";
-import { UserCreateSchema } from "@/lib/validations";
 import { logAction } from "./journalPharmacyActions";
 
 type RegisterInput = {
@@ -19,7 +17,6 @@ type RegisterInput = {
 // ************* Create User **************
 export async function createUser(user: User) {
   await requirePermission(TableName.USER, "canCreate");
-  validateServerData(UserCreateSchema, user);
   const { password, role, banned, banReason, banExpires, ...safeFields } = user;
   const hashedPassword = await bcrypt.hash(password, 10);
   const newUser = await prisma.user.create({

@@ -423,7 +423,7 @@ export default function TableRapportGyneco({
         headStyles: headStyles,
         columnStyles: { 0: { halign: "left" } },
         pageBreak: "avoid",
-        didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+        didParseCell: (data: any) => {
           if (data.section === "body" && data.row.index === serviceData.length - 1) {
             data.cell.styles.fontStyle = "bold";
             data.cell.styles.fillColor = [220, 220, 220];

@@ -486,7 +486,7 @@ export default function TableRapportPediatrie({
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: "bold" },
         columnStyles: { 0: { cellWidth: 70 } },
-        didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+        didParseCell: (data: any) => {
           if (data.section === "body" && data.row.index === serviceRows.length - 1) {
             data.cell.styles.fontStyle = "bold";
             data.cell.styles.fillColor = [220, 220, 220];

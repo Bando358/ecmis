@@ -407,7 +407,7 @@ export default function TableRapportPecVih({
       columnStyles: {
         0: { cellWidth: 60 },
       },
-      didParseCell: (data: { row: { index: number }; section: string; cell: { styles: { fontStyle: string; fillColor: number[] } } }) => {
+      didParseCell: (data: any) => {
         if (data.section === "body" && data.row.index === bodyServicesPecVih.length - 1) {
           data.cell.styles.fontStyle = "bold";
           data.cell.styles.fillColor = [220, 220, 220];
