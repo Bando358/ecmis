@@ -31,6 +31,16 @@ export interface ClientFilterParams {
 export async function createClient(data: Client) {
   await requirePermission(TableName.CLIENT, "canCreate");
   validateServerData(ClientCreateSchema, data);
+
+  if (data.code) {
+    const codeTaken = await prisma.client.findFirst({ where: { code: data.code }, select: { id: true } });
+    if (codeTaken) throw new Error("Ce code client est déjà utilisé par un autre client.");
+  }
+  if (data.codeVih) {
+    const codeVihTaken = await prisma.client.findFirst({ where: { codeVih: data.codeVih }, select: { id: true } });
+    if (codeVihTaken) throw new Error("Ce code VIH est déjà utilisé par un autre client.");
+  }
+
   const client = await prisma.client.create({
     data,
   });
@@ -49,23 +59,35 @@ export async function createClient(data: Client) {
 }
 
 /**
+ * Vérifie si un code client existe déjà (en excluant un id pour les mises à jour)
+ */
+export async function checkClientCode(code: string, excludeId?: string): Promise<boolean> {
+  if (!code || typeof code !== "string") return false;
+  const client = await prisma.client.findFirst({
+    where: { code, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
+    select: { id: true },
+  });
+  return !!client;
+}
+
+/**
  * Vérifie si un codeVih existe déjà dans la table Client
  * @param codeVih - string à vérifier
+ * @param excludeId - id du client à exclure (pour les mises à jour)
  * @returns boolean - true si trouvé, false sinon
  */
-export async function checkCodeVih(codeVih: string): Promise<boolean> {
+export async function checkCodeVih(codeVih: string, excludeId?: string): Promise<boolean> {
   if (!codeVih || typeof codeVih !== "string") {
     return false;
   }
 
   const client = await prisma.client.findFirst({
-    where: { codeVih },
+    where: { codeVih, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
     select: { id: true },
   });
 
-  return client ? true : false;
+  return !!client;
 }
-// fin checkCodeVih
 
 // ************* Client **************
 export const getAllClientIncludedInDate = async ({
@@ -245,6 +267,16 @@ export async function deleteClient(id: string) {
 //Mise à jour de la Client
 export async function updateClient(id: string, data: Client) {
   await requirePermission(TableName.CLIENT, "canUpdate");
+
+  if (data.code) {
+    const codeTaken = await prisma.client.findFirst({ where: { code: data.code, NOT: { id } }, select: { id: true } });
+    if (codeTaken) throw new Error("Ce code client est déjà utilisé par un autre client.");
+  }
+  if (data.codeVih) {
+    const codeVihTaken = await prisma.client.findFirst({ where: { codeVih: data.codeVih, NOT: { id } }, select: { id: true } });
+    if (codeVihTaken) throw new Error("Ce code VIH est déjà utilisé par un autre client.");
+  }
+
   const updated = await prisma.client.update({
     where: { id },
     data,

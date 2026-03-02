@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { Client, TableName } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
-import { getOneClient, updateClient } from "@/lib/actions/clientActions";
+import { getOneClient, updateClient, checkCodeVih } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
@@ -825,11 +825,20 @@ export default function ModifFormulaireClient({
                   <div>
                     {fieldLabel("Code VIH")}
                     <Input
-                      {...register("codeVih")}
+                      {...register("codeVih", {
+                        validate: async (value) => {
+                          if (!value) return true;
+                          const taken = await checkCodeVih(value, modifClientId);
+                          return !taken || "Ce code VIH est déjà utilisé par un autre client.";
+                        },
+                      })}
                       placeholder="07060/01/25/00001"
                       className={inputClass}
                       name="codeVih"
                     />
+                    {errors.codeVih && (
+                      <span className={errorClass}>{errors.codeVih.message}</span>
+                    )}
                   </div>
 
                   {/* ═══ Section: Santé & Statut ═══ */}

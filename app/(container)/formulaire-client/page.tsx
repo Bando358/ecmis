@@ -26,6 +26,8 @@ import { SafeUser } from "@/types/prisma";
 import {
   createClient,
   fetchIncrementCounter,
+  checkClientCode,
+  checkCodeVih,
 } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
 import {
@@ -718,7 +720,14 @@ export default function FormulaireClient() {
                   {fieldLabel("Code", true)}
                   <div className="relative">
                     <Input
-                      {...register("code", { required: "Code est requis" })}
+                      {...register("code", {
+                        required: "Code est requis",
+                        validate: async (value) => {
+                          if (!value) return true;
+                          const taken = await checkClientCode(value);
+                          return !taken || "Ce code est déjà utilisé par un autre client.";
+                        },
+                      })}
                       placeholder="AB/CA01/2025/01/00001-XXX"
                       className={`${inputRequiredClass} uppercase pr-10`}
                       name="code"
@@ -744,11 +753,20 @@ export default function FormulaireClient() {
                 <div>
                   {fieldLabel("Code VIH")}
                   <Input
-                    {...register("codeVih")}
+                    {...register("codeVih", {
+                      validate: async (value) => {
+                        if (!value) return true;
+                        const taken = await checkCodeVih(value);
+                        return !taken || "Ce code VIH est déjà utilisé par un autre client.";
+                      },
+                    })}
                     placeholder="07060/01/25/00001"
                     className={inputClass}
                     name="codeVih"
                   />
+                  {errors.codeVih && (
+                    <span className={errorClass}>{errors.codeVih.message}</span>
+                  )}
                 </div>
 
                 {/* ═══ Section: Santé & Statut ═══ */}
