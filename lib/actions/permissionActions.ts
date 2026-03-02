@@ -101,6 +101,50 @@ export async function updatePermission(
   }
 }
 
+// ============ Bulk update (une seule requête par permission) ============
+interface BulkPermissionUpdate {
+  userId: string;
+  table: TableName;
+  canCreate: boolean;
+  canRead: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+}
+
+export async function updatePermissionsBulk(updates: BulkPermissionUpdate[]) {
+  await requirePermission(TableName.PERMISSION, "canUpdate");
+  if (!updates.length) return { count: 0 };
+
+  const results = await prisma.$transaction(
+    updates.map((u) =>
+      prisma.permission.updateMany({
+        where: { userId: u.userId, table: u.table },
+        data: {
+          canCreate: u.canCreate,
+          canRead: u.canRead,
+          canUpdate: u.canUpdate,
+          canDelete: u.canDelete,
+        },
+      })
+    )
+  );
+
+  const totalUpdated = results.reduce((sum, r) => sum + r.count, 0);
+
+  await logAction({
+    idUser: updates[0].userId,
+    action: "MODIFICATION",
+    entite: "Permission",
+    entiteId: updates[0].userId,
+    description: `Mise à jour groupée de ${totalUpdated} permission(s)`,
+    nouvellesDonnees: {
+      tables: updates.map((u) => u.table),
+    } as unknown as Record<string, unknown>,
+  });
+
+  return { count: totalUpdated };
+}
+
 // Définition de l'interface
 interface permissionProps {
   userId: string;

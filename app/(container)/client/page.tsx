@@ -145,6 +145,8 @@ export default function Clients() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(8);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; nom: string; prenom: string } | null>(null);
+  const [showSecondConfirm, setShowSecondConfirm] = useState(false);
 
   const router = useRouter();
   const { setSelectedClientId } = useClientContext();
@@ -505,7 +507,7 @@ export default function Clients() {
                                       <span className="font-bold">
                                         {row.nom} {row.prenom}
                                       </span>{" "}
-                                      sera définitivement supprimé.
+                                      sera définitivement supprimé avec toutes ses données associées.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -513,10 +515,13 @@ export default function Clients() {
                                       Annuler
                                     </AlertDialogCancel>
                                     <AlertDialogAction
-                                      className="bg-red-600"
-                                      onClick={() => handleDelete(row.id)}
+                                      className="bg-orange-500 hover:bg-orange-600"
+                                      onClick={() => {
+                                        setDeleteTarget({ id: row.id, nom: row.nom, prenom: row.prenom });
+                                        setShowSecondConfirm(true);
+                                      }}
                                     >
-                                      Supprimer
+                                      Continuer
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
@@ -669,6 +674,44 @@ export default function Clients() {
           </Card>
         </motion.div>
       </AnimatePresence>
+
+      {/* Deuxième confirmation de suppression */}
+      <AlertDialog open={showSecondConfirm} onOpenChange={setShowSecondConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">
+              Confirmation finale requise
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous êtes sur le point de supprimer définitivement{" "}
+              <span className="font-bold text-red-600">
+                {deleteTarget?.nom} {deleteTarget?.prenom}
+              </span>
+              . Toutes les visites, fiches médicales et données associées seront
+              perdues. Cette opération est irréversible.
+              <br />
+              <br />
+              Êtes-vous vraiment certain de vouloir continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setDeleteTarget(null)}
+            >
+              Non, conserver
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (deleteTarget) handleDelete(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Oui, supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

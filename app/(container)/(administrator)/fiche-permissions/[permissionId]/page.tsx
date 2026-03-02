@@ -2,7 +2,7 @@
 
 import {
   getUserPermissionsById,
-  updatePermission,
+  updatePermissionsBulk,
 } from "@/lib/actions/permissionActions";
 import { Permission, TableName } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
@@ -147,12 +147,14 @@ export default function PermissionPage({
   const handleUpdatePermission = async (permission: Permission) => {
     setIsPending(true);
     try {
-      await Promise.all([
-        updatePermission(permission.userId, permission.table, "canCreate", permission.canCreate),
-        updatePermission(permission.userId, permission.table, "canRead", permission.canRead),
-        updatePermission(permission.userId, permission.table, "canUpdate", permission.canUpdate),
-        updatePermission(permission.userId, permission.table, "canDelete", permission.canDelete),
-      ]);
+      await updatePermissionsBulk([{
+        userId: permission.userId,
+        table: permission.table as TableName,
+        canCreate: permission.canCreate,
+        canRead: permission.canRead,
+        canUpdate: permission.canUpdate,
+        canDelete: permission.canDelete,
+      }]);
       const newModified = new Set(modifiedPermissions);
       newModified.delete(permission.id);
       setModifiedPermissions(newModified);
@@ -167,10 +169,18 @@ export default function PermissionPage({
   const handleUpdateAll = async () => {
     setIsPending(true);
     try {
-      for (const permId of modifiedPermissions) {
-        const permission = permissions.find((p) => p.id === permId);
-        if (permission) await handleUpdatePermission(permission);
-      }
+      const updates = [...modifiedPermissions]
+        .map((permId) => permissions.find((p) => p.id === permId))
+        .filter(Boolean)
+        .map((p) => ({
+          userId: p!.userId,
+          table: p!.table as TableName,
+          canCreate: p!.canCreate,
+          canRead: p!.canRead,
+          canUpdate: p!.canUpdate,
+          canDelete: p!.canDelete,
+        }));
+      await updatePermissionsBulk(updates);
       setModifiedPermissions(new Set());
       toast.success("Toutes les permissions ont été mises à jour");
     } catch (error) {

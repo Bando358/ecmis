@@ -118,11 +118,9 @@ export const fetchVentesData = async (
     prisma.factureProduit.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
+        dateFacture: {
+          gte: dateFrom,
+          lte: dateTo,
         },
       },
       include: {
@@ -137,11 +135,9 @@ export const fetchVentesData = async (
     prisma.facturePrestation.findMany({
       where: {
         idClinique: { in: clinicIds },
-        Visite: {
-          dateVisite: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
+        dateFacture: {
+          gte: dateFrom,
+          lte: dateTo,
         },
       },
       include: {

@@ -449,8 +449,8 @@ model RecapVisite {
   formulaires   String[] // Tableau contenant les noms des formulaires saisis
   updatedAt     DateTime @updatedAt
 
-  Visite Visite @relation(fields: [idVisite], references: [id])
-  Client Client @relation(fields: [idClient], references: [id])
+  Visite Visite @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+  Client Client @relation(fields: [idClient], references: [id], onDelete: Cascade)
 }
 
 model Activite {

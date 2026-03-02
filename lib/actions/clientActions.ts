@@ -235,6 +235,8 @@ export async function deleteClient(id: string) {
       anciennesDonnees: existing as unknown as Record<string, unknown>,
     });
   }
+  // Supprimer RecapVisite d'abord (FK sans cascade dans les données existantes)
+  await prisma.recapVisite.deleteMany({ where: { idClient: id } });
   return await prisma.client.delete({
     where: { id },
   });
