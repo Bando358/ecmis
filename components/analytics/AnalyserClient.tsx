@@ -404,7 +404,7 @@ export function AnalyserClient({
                         {a.isShared && " (partage)"}
                       </span>
                       {a.description && (
-                        <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                        <span className="text-[10px] text-muted-foreground truncate max-w-45">
                           {a.description}
                         </span>
                       )}
@@ -591,7 +591,7 @@ export function AnalyserClient({
           <CardContent>
             {/* Loading */}
             {isPending && (
-              <div className="flex items-center justify-center h-[400px] gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center h-100 gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Analyse en cours...
               </div>
@@ -599,14 +599,14 @@ export function AnalyserClient({
 
             {/* Erreur */}
             {state.error && (
-              <div className="flex items-center justify-center h-[400px] text-sm text-destructive">
+              <div className="flex items-center justify-center h-100 text-sm text-destructive">
                 {state.error}
               </div>
             )}
 
             {/* Resultat vide */}
             {!isPending && !state.error && !state.result && (
-              <div className="flex flex-col items-center justify-center h-[400px] gap-2 text-sm text-muted-foreground">
+              <div className="flex flex-col items-center justify-center h-100 gap-2 text-sm text-muted-foreground">
                 <Play className="h-8 w-8 opacity-30" />
                 <p>
                   Selectionnez des indicateurs et cliquez sur

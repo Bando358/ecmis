@@ -219,13 +219,17 @@ const fieldLabel = (label: string, required?: boolean) => (
 );
 
 const selectClass =
-  "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 hover:border-gray-300";
+  "w-full h-9 px-3 text-sm border border-blue-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all duration-200 hover:border-blue-400";
+const selectRequiredClass =
+  "w-full h-9 px-3 text-sm border border-red-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all duration-200 hover:border-red-400";
 
 const inputClass =
-  "h-9 text-sm border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 hover:border-gray-300";
+  "h-9 text-sm border-blue-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all duration-200 hover:border-blue-400";
+const inputRequiredClass =
+  "h-9 text-sm border-red-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all duration-200 hover:border-red-400";
 
-const dateInputClass =
-  "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 hover:border-gray-300";
+const dateInputRequiredClass =
+  "w-full h-9 px-3 text-sm border border-red-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all duration-200 hover:border-red-400";
 
 const errorClass = "text-red-500 text-xs mt-1 flex items-center gap-1";
 
@@ -414,7 +418,7 @@ export default function FormulaireClient() {
                     {...register("cliniqueId", {
                       required: "Clinique est requise",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                   >
                     <option value="" disabled>
                       Sélectionner une clinique
@@ -441,7 +445,7 @@ export default function FormulaireClient() {
                     })}
                     value={selectedDate}
                     onChange={handleDateChange}
-                    className={dateInputClass}
+                    className={dateInputRequiredClass}
                     type="date"
                     name="dateEnregistrement"
                   />
@@ -465,7 +469,7 @@ export default function FormulaireClient() {
                   <Input
                     {...register("nom", { required: "Nom est requis" })}
                     placeholder="Nom du client"
-                    className={`${inputClass} capitalize`}
+                    className={`${inputRequiredClass} capitalize`}
                     name="nom"
                   />
                   {errors.nom && (
@@ -479,7 +483,7 @@ export default function FormulaireClient() {
                   <Input
                     {...register("prenom", { required: "Prénom est requis" })}
                     placeholder="Prénom du client"
-                    className={`${inputClass} capitalize`}
+                    className={`${inputRequiredClass} capitalize`}
                     name="prenom"
                   />
                   {errors.prenom && (
@@ -494,7 +498,7 @@ export default function FormulaireClient() {
                     {...register("dateNaissance", {
                       required: "Date de naissance est requise",
                     })}
-                    className={dateInputClass}
+                    className={dateInputRequiredClass}
                     type="date"
                     name="dateNaissance"
                   />
@@ -510,7 +514,7 @@ export default function FormulaireClient() {
                   {fieldLabel("Sexe", true)}
                   <select
                     {...register("sexe", { required: "Sexe est requis" })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="sexe"
                     defaultValue=""
                   >
@@ -568,12 +572,12 @@ export default function FormulaireClient() {
 
                 {/* 9. Niveau scolaire */}
                 <div>
-                  {fieldLabel("Niveau scolaire")}
+                  {fieldLabel("Niveau scolaire", true)}
                   <select
                     {...register("niveauScolaire", {
                       required: "Niveau scolaire est requis",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="niveauScolaire"
                     defaultValue=""
                   >
@@ -600,7 +604,7 @@ export default function FormulaireClient() {
                     {...register("etatMatrimonial", {
                       required: "État matrimonial est requis",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="etatMatrimonial"
                     defaultValue=""
                   >
@@ -625,7 +629,7 @@ export default function FormulaireClient() {
                   {fieldLabel("Ethnie", true)}
                   <select
                     {...register("ethnie", { required: "Ethnie est requise" })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="ethnie"
                     defaultValue=""
                   >
@@ -650,7 +654,7 @@ export default function FormulaireClient() {
                     {...register("profession", {
                       required: "Profession est requise",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="profession"
                     defaultValue=""
                   >
@@ -716,7 +720,7 @@ export default function FormulaireClient() {
                     <Input
                       {...register("code", { required: "Code est requis" })}
                       placeholder="AB/CA01/2025/01/00001-XXX"
-                      className={`${inputClass} uppercase pr-10`}
+                      className={`${inputRequiredClass} uppercase pr-10`}
                       name="code"
                     />
                     <button
@@ -761,7 +765,7 @@ export default function FormulaireClient() {
                     {...register("serologie", {
                       required: "Sérologie est requise",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="serologie"
                     defaultValue=""
                   >
@@ -805,7 +809,7 @@ export default function FormulaireClient() {
                     {...register("sourceInfo", {
                       required: "Source d'information est requise",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="sourceInfo"
                     defaultValue=""
                   >
@@ -832,7 +836,7 @@ export default function FormulaireClient() {
                     {...register("statusClient", {
                       required: "Statut client est requis",
                     })}
-                    className={selectClass}
+                    className={selectRequiredClass}
                     name="statusClient"
                     defaultValue=""
                   >
