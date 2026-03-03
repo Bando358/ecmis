@@ -6,9 +6,8 @@ import { requirePermission } from "@/lib/auth/withPermission";
 import { validateServerData } from "@/lib/validations";
 import { PrescripteurCreateSchema } from "@/lib/validations/finance";
 
-// Création d'un Prescripteur
+// Création d'un Prescripteur (accessible à tous les utilisateurs authentifiés)
 export async function createPrescripteur(data: Omit<Prescripteur, "createdAt" | "updatedAt">) {
-  await requirePermission(TableName.PRESCRIPTEUR, "canCreate");
   const validated = validateServerData(PrescripteurCreateSchema, data);
   return await prisma.prescripteur.create({
     data: validated,
