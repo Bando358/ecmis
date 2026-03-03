@@ -79,10 +79,31 @@ export default function PermissionPage({
     const fetchPermissions = async () => {
       const userData = await getOneUser(permissionId);
       const perms = await getUserPermissionsById(permissionId);
-      const sorted = perms.sort((a, b) => a.table.localeCompare(b.table));
-      const filteredSorted = sorted.filter((perm) => perm.table !== "BILAN");
-      setPermissions(filteredSorted);
-      setFilteredPermissions(filteredSorted);
+
+      // Construire la liste complète : toutes les TableName, même sans enregistrement
+      const allTables = Object.values(TableName).filter((t) => t !== "BILAN");
+      const existingMap = new Map(perms.map((p) => [p.table, p]));
+
+      const fullPerms: Permission[] = allTables.map((table) => {
+        const existing = existingMap.get(table);
+        if (existing) return existing;
+        // Permission virtuelle pour les tables sans enregistrement
+        return {
+          id: `virtual-${table}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          table,
+          canCreate: false,
+          canRead: false,
+          canUpdate: false,
+          canDelete: false,
+          userId: permissionId,
+        };
+      });
+
+      const sorted = fullPerms.sort((a, b) => a.table.localeCompare(b.table));
+      setPermissions(sorted);
+      setFilteredPermissions(sorted);
       setUser(userData);
       setLoading(false);
     };
@@ -144,6 +165,35 @@ export default function PermissionPage({
     setModifiedPermissions(newModified);
   };
 
+  // Rafraîchir les permissions après sauvegarde (pour récupérer les vrais IDs)
+  const refreshPermissions = async () => {
+    const perms = await getUserPermissionsById(permissionId);
+    const allTables = Object.values(TableName).filter((t) => t !== "BILAN");
+    const existingMap = new Map(perms.map((p) => [p.table, p]));
+
+    const fullPerms: Permission[] = allTables.map((table) => {
+      const existing = existingMap.get(table);
+      if (existing) return existing;
+      return {
+        id: `virtual-${table}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        table,
+        canCreate: false,
+        canRead: false,
+        canUpdate: false,
+        canDelete: false,
+        userId: permissionId,
+      };
+    });
+
+    const sorted = fullPerms.sort((a, b) => a.table.localeCompare(b.table));
+    setPermissions(sorted);
+    setFilteredPermissions(
+      sorted.filter((p) => p.table.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  };
+
   const handleUpdatePermission = async (permission: Permission) => {
     setIsPending(true);
     try {
@@ -158,6 +208,7 @@ export default function PermissionPage({
       const newModified = new Set(modifiedPermissions);
       newModified.delete(permission.id);
       setModifiedPermissions(newModified);
+      await refreshPermissions();
       toast.success("Permission mise à jour");
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
@@ -182,6 +233,7 @@ export default function PermissionPage({
         }));
       await updatePermissionsBulk(updates);
       setModifiedPermissions(new Set());
+      await refreshPermissions();
       toast.success("Toutes les permissions ont été mises à jour");
     } catch (error) {
       console.error("Erreur lors de la mise à jour globale:", error);

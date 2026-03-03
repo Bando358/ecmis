@@ -115,8 +115,19 @@ export async function updatePermissionsBulk(updates: BulkPermissionUpdate[]) {
   await requirePermission(TableName.PERMISSION, "canUpdate");
   if (!updates.length) return { count: 0 };
 
-  const results = await prisma.$transaction(
-    updates.map((u) =>
+  // Déterminer quelles permissions existent déjà
+  const userId = updates[0].userId;
+  const existing = await prisma.permission.findMany({
+    where: { userId, table: { in: updates.map((u) => u.table) } },
+    select: { table: true },
+  });
+  const existingTables = new Set(existing.map((p) => p.table));
+
+  const toUpdate = updates.filter((u) => existingTables.has(u.table));
+  const toCreate = updates.filter((u) => !existingTables.has(u.table));
+
+  const ops = [
+    ...toUpdate.map((u) =>
       prisma.permission.updateMany({
         where: { userId: u.userId, table: u.table },
         data: {
@@ -126,23 +137,41 @@ export async function updatePermissionsBulk(updates: BulkPermissionUpdate[]) {
           canDelete: u.canDelete,
         },
       })
-    )
+    ),
+    ...(toCreate.length > 0
+      ? [
+          prisma.permission.createMany({
+            data: toCreate.map((u) => ({
+              userId: u.userId,
+              table: u.table,
+              canCreate: u.canCreate,
+              canRead: u.canRead,
+              canUpdate: u.canUpdate,
+              canDelete: u.canDelete,
+            })),
+          }),
+        ]
+      : []),
+  ];
+
+  const results = await prisma.$transaction(ops);
+  const totalAffected = results.reduce(
+    (sum, r) => sum + ("count" in r ? r.count : 0),
+    0
   );
 
-  const totalUpdated = results.reduce((sum, r) => sum + r.count, 0);
-
   await logAction({
-    idUser: updates[0].userId,
+    idUser: userId,
     action: "MODIFICATION",
     entite: "Permission",
-    entiteId: updates[0].userId,
-    description: `Mise à jour groupée de ${totalUpdated} permission(s)`,
+    entiteId: userId,
+    description: `Mise à jour groupée de ${totalAffected} permission(s) (${toUpdate.length} modifiée(s), ${toCreate.length} créée(s))`,
     nouvellesDonnees: {
       tables: updates.map((u) => u.table),
     } as unknown as Record<string, unknown>,
   });
 
-  return { count: totalUpdated };
+  return { count: totalAffected };
 }
 
 // Définition de l'interface
@@ -428,4 +457,130 @@ export async function assignMenuPermissionsToAllUsers() {
     console.error("Erreur assignMenuPermissionsToAllUsers:", error);
     return { success: false, message: "Erreur lors de l'attribution des permissions." };
   }
+}
+
+/**
+ * Nettoie les doublons de permissions et fusionne BILAN → EXAMEN.
+ * Pour chaque paire (userId, table) ayant N>1 lignes :
+ *   - conserve un seul enregistrement avec le OR de tous les droits
+ *   - supprime les autres
+ * Pour BILAN :
+ *   - fusionne les droits dans EXAMEN (crée EXAMEN si absent)
+ *   - supprime toutes les lignes BILAN
+ */
+export async function cleanupDuplicatePermissions() {
+  await requirePermission(TableName.PERMISSION, "canUpdate");
+
+  let duplicatesRemoved = 0;
+  let bilanMerged = 0;
+
+  // 1. Récupérer toutes les permissions
+  const allPerms = await prisma.permission.findMany();
+
+  // Regrouper par userId + table
+  const grouped = new Map<string, typeof allPerms>();
+  for (const p of allPerms) {
+    const key = `${p.userId}::${p.table}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(p);
+  }
+
+  const idsToDelete: string[] = [];
+  const upserts: { userId: string; table: TableName; canCreate: boolean; canRead: boolean; canUpdate: boolean; canDelete: boolean; keepId: string }[] = [];
+
+  for (const [, perms] of grouped) {
+    if (perms.length <= 1) continue;
+    // OR de tous les droits
+    const merged = {
+      canCreate: perms.some((p) => p.canCreate),
+      canRead: perms.some((p) => p.canRead),
+      canUpdate: perms.some((p) => p.canUpdate),
+      canDelete: perms.some((p) => p.canDelete),
+    };
+    // Garder le premier, supprimer les autres
+    const [keep, ...rest] = perms;
+    idsToDelete.push(...rest.map((p) => p.id));
+    upserts.push({
+      userId: keep.userId,
+      table: keep.table as TableName,
+      keepId: keep.id,
+      ...merged,
+    });
+    duplicatesRemoved += rest.length;
+  }
+
+  // 2. Fusionner BILAN → EXAMEN
+  const bilanPerms = allPerms.filter((p) => p.table === "BILAN");
+  for (const bilan of bilanPerms) {
+    // Chercher si EXAMEN existe déjà pour cet user (après dédoublonnage)
+    const existingExamen = allPerms.find(
+      (p) => p.userId === bilan.userId && p.table === "EXAMEN" && !idsToDelete.includes(p.id)
+    );
+
+    if (existingExamen) {
+      // Fusionner les droits BILAN dans EXAMEN
+      upserts.push({
+        userId: existingExamen.userId,
+        table: TableName.EXAMEN,
+        keepId: existingExamen.id,
+        canCreate: existingExamen.canCreate || bilan.canCreate,
+        canRead: existingExamen.canRead || bilan.canRead,
+        canUpdate: existingExamen.canUpdate || bilan.canUpdate,
+        canDelete: existingExamen.canDelete || bilan.canDelete,
+      });
+    } else {
+      // Pas d'EXAMEN : créer un enregistrement EXAMEN avec les droits BILAN
+      upserts.push({
+        userId: bilan.userId,
+        table: TableName.EXAMEN,
+        keepId: "", // à créer
+        canCreate: bilan.canCreate,
+        canRead: bilan.canRead,
+        canUpdate: bilan.canUpdate,
+        canDelete: bilan.canDelete,
+      });
+    }
+
+    if (!idsToDelete.includes(bilan.id)) {
+      idsToDelete.push(bilan.id);
+    }
+    bilanMerged++;
+  }
+
+  // 3. Exécuter en transaction
+  const ops = [];
+
+  // Supprimer les doublons et BILAN
+  if (idsToDelete.length > 0) {
+    ops.push(prisma.permission.deleteMany({ where: { id: { in: idsToDelete } } }));
+  }
+
+  // Mettre à jour les droits fusionnés
+  for (const u of upserts) {
+    if (u.keepId) {
+      ops.push(
+        prisma.permission.update({
+          where: { id: u.keepId },
+          data: { canCreate: u.canCreate, canRead: u.canRead, canUpdate: u.canUpdate, canDelete: u.canDelete },
+        })
+      );
+    } else {
+      ops.push(
+        prisma.permission.create({
+          data: { userId: u.userId, table: u.table, canCreate: u.canCreate, canRead: u.canRead, canUpdate: u.canUpdate, canDelete: u.canDelete },
+        })
+      );
+    }
+  }
+
+  if (ops.length > 0) {
+    await prisma.$transaction(ops);
+  }
+
+  return {
+    success: true,
+    duplicatesRemoved,
+    bilanMerged,
+    message: `${duplicatesRemoved} doublon(s) supprimé(s), ${bilanMerged} permission(s) BILAN fusionnée(s) dans EXAMEN.`,
+  };
 }
