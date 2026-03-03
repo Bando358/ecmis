@@ -38,28 +38,11 @@ import {
   ArrowLeft,
   Briefcase,
   Scale,
-  Filter,
-  FilterX,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandGroup,
-} from "@/components/ui/command";
-import { Check } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
-import {
-  createPermissionBeforeChecked,
-} from "@/lib/actions/permissionActions";
+import { createPermissionBeforeChecked } from "@/lib/actions/permissionActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { TableSkeleton } from "@/components/ui/loading";
@@ -91,6 +74,8 @@ export default function CreatePostForm() {
     { value: PostStatus.AMD, label: "AMD" },
     { value: PostStatus.INFIRMIER, label: "Infirmier" },
     { value: PostStatus.SAGE_FEMME, label: "Sage-femme" },
+    { value: PostStatus.CONSEILLER, label: "Conseiller" },
+    { value: PostStatus.AIDE_SOIGNANT, label: "Aide-soignant" },
     { value: PostStatus.MEDECIN, label: "Médecin" },
     { value: PostStatus.LABORANTIN, label: "Laborantin" },
     { value: PostStatus.CAISSIERE, label: "Caissière" },
@@ -124,24 +109,28 @@ export default function CreatePostForm() {
       ]);
 
       const filteredUsers = (usersResult as SafeUser[]).filter(
-        (user) => user.role !== "ADMIN"
+        (user) => user.role !== "ADMIN",
       );
 
       const allUserFilter = filteredUsers.filter(
         (user: { idCliniques: string[] }) =>
-          user.idCliniques?.some((id) => oneUser?.idCliniques.includes(id))
+          user.idCliniques?.some((id) => oneUser?.idCliniques.includes(id)),
       );
 
       if (oneUser.role === "ADMIN") {
         setAllUsers(filteredUsers as SafeUser[]);
-        setUsers(filteredUsers.filter((user) => user.id !== idUser) as SafeUser[]);
+        setUsers(
+          filteredUsers.filter((user) => user.id !== idUser) as SafeUser[],
+        );
       } else {
         setAllUsers(allUserFilter as SafeUser[]);
-        setUsers(allUserFilter.filter((user) => user.id !== idUser) as SafeUser[]);
+        setUsers(
+          allUserFilter.filter((user) => user.id !== idUser) as SafeUser[],
+        );
       }
       setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
       setFilteredPosts(
-        postsResult.filter((post) => post.userId !== idUser) as Post[]
+        postsResult.filter((post) => post.userId !== idUser) as Post[],
       );
     };
     fetchData();
@@ -198,7 +187,11 @@ export default function CreatePostForm() {
   } = useForm<Post>();
 
   if (isLoadingPermissions) return <TableSkeleton rows={5} columns={6} />;
-  if (!canRead(TableName.POST)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
+  if (!canRead(TableName.POST)) {
+    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
+    router.back();
+    return null;
+  }
 
   const handleHiddenForm = () => {
     if (isVisible) {
@@ -285,7 +278,7 @@ export default function CreatePostForm() {
 
   const getStatusLabel = (status: PostStatus) => {
     const statusOption = postStatusOptions.find(
-      (option) => option.value === status
+      (option) => option.value === status,
     );
     return statusOption ? statusOption.label : status;
   };
@@ -300,7 +293,8 @@ export default function CreatePostForm() {
       [PostStatus.COMPTABLE]: "bg-indigo-50 text-indigo-700 border-indigo-200",
       [PostStatus.AMD]: "bg-amber-50 text-amber-700 border-amber-200",
       [PostStatus.ADMIN]: "bg-red-50 text-red-700 border-red-200",
-      [PostStatus.SUIVI_EVALLUATION]: "bg-cyan-50 text-cyan-700 border-cyan-200",
+      [PostStatus.SUIVI_EVALLUATION]:
+        "bg-cyan-50 text-cyan-700 border-cyan-200",
     };
     return colors[status] || "bg-gray-50 text-gray-700 border-gray-200";
   };
@@ -341,24 +335,32 @@ export default function CreatePostForm() {
               <Briefcase className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Gestion des postes</h1>
+              <h1 className="text-lg font-bold text-gray-900">
+                Gestion des postes
+              </h1>
               <p className="text-sm text-muted-foreground">
-                {posts.length} poste{posts.length > 1 ? "s" : ""} enregistré{posts.length > 1 ? "s" : ""}
+                {posts.length} poste{posts.length > 1 ? "s" : ""} enregistré
+                {posts.length > 1 ? "s" : ""}
               </p>
             </div>
           </div>
         </div>
         <Button
           onClick={handleHiddenForm}
-          className={isVisible
-            ? "bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-none"
-            : "bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-200"
+          className={
+            isVisible
+              ? "bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-none"
+              : "bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-200"
           }
         >
           {isVisible ? (
-            <><X className="h-4 w-4 mr-2" /> Fermer</>
+            <>
+              <X className="h-4 w-4 mr-2" /> Fermer
+            </>
           ) : (
-            <><Plus className="h-4 w-4 mr-2" /> Nouveau poste</>
+            <>
+              <Plus className="h-4 w-4 mr-2" /> Nouveau poste
+            </>
           )}
         </Button>
       </div>
@@ -375,13 +377,19 @@ export default function CreatePostForm() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Titre du poste</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Titre du poste
+                  </label>
                   <select
-                    {...register("title", { required: "Le titre du poste est requis" })}
+                    {...register("title", {
+                      required: "Le titre du poste est requis",
+                    })}
                     className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
                     defaultValue=""
                   >
-                    <option value="" disabled>Sélectionner un poste</option>
+                    <option value="" disabled>
+                      Sélectionner un poste
+                    </option>
                     {postStatusOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -389,18 +397,26 @@ export default function CreatePostForm() {
                     ))}
                   </select>
                   {errors.title && (
-                    <span className="text-red-500 text-xs">{errors.title.message}</span>
+                    <span className="text-red-500 text-xs">
+                      {errors.title.message}
+                    </span>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Utilisateur</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Utilisateur
+                  </label>
                   <select
-                    {...register("userId", { required: "L'utilisateur est requis" })}
+                    {...register("userId", {
+                      required: "L'utilisateur est requis",
+                    })}
                     className="w-full h-10 px-3 border border-gray-200 rounded-md text-sm bg-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
                     defaultValue=""
                   >
-                    <option value="" disabled>Sélectionner un utilisateur</option>
+                    <option value="" disabled>
+                      Sélectionner un utilisateur
+                    </option>
                     {users.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.name} ({user.email})
@@ -408,25 +424,38 @@ export default function CreatePostForm() {
                     ))}
                   </select>
                   {errors.userId && (
-                    <span className="text-red-500 text-xs">{errors.userId.message}</span>
+                    <span className="text-red-500 text-xs">
+                      {errors.userId.message}
+                    </span>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Description du poste</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Description du poste
+                </label>
                 <Textarea
-                  {...register("content", { required: "La description du poste est requise" })}
+                  {...register("content", {
+                    required: "La description du poste est requise",
+                  })}
                   placeholder="Description du poste"
                   className="border-gray-200 focus:border-amber-400 focus:ring-amber-400 min-h-[80px]"
                 />
                 {errors.content && (
-                  <span className="text-red-500 text-xs">{errors.content.message}</span>
+                  <span className="text-red-500 text-xs">
+                    {errors.content.message}
+                  </span>
                 )}
               </div>
 
               <div className="flex gap-3 justify-end pt-2">
-                <Button type="button" variant="ghost" onClick={handleHiddenForm} className="text-gray-600">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleHiddenForm}
+                  className="text-gray-600"
+                >
                   Annuler
                 </Button>
                 <Button
@@ -436,7 +465,9 @@ export default function CreatePostForm() {
                 >
                   {isSubmitting
                     ? "Enregistrement..."
-                    : isUpdating ? "Modifier le poste" : "Créer le poste"}
+                    : isUpdating
+                      ? "Modifier le poste"
+                      : "Créer le poste"}
                 </Button>
               </div>
             </form>
@@ -467,7 +498,9 @@ export default function CreatePostForm() {
           <div className="w-full sm:w-48">
             <Select
               options={statusFilterOptions}
-              value={statusFilterOptions.find((opt) => opt.value === selectedStatus)}
+              value={statusFilterOptions.find(
+                (opt) => opt.value === selectedStatus,
+              )}
               onChange={(option) => setSelectedStatus(option?.value || "")}
               className="basic-single"
               classNamePrefix="select"
@@ -477,7 +510,9 @@ export default function CreatePostForm() {
           <div className="w-full sm:w-44">
             <Select
               options={itemsPerPageOptions}
-              value={itemsPerPageOptions.find((opt) => opt.value === itemsPerPage)}
+              value={itemsPerPageOptions.find(
+                (opt) => opt.value === itemsPerPage,
+              )}
               onChange={(option) => {
                 setItemsPerPage(option?.value || 10);
                 setCurrentPage(1);
@@ -493,12 +528,24 @@ export default function CreatePostForm() {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
-                <TableHead className="w-14 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">N°</TableHead>
-                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Statut</TableHead>
-                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Description</TableHead>
-                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Utilisateur</TableHead>
-                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">Créé le</TableHead>
-                <TableHead className="w-24 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">Actions</TableHead>
+                <TableHead className="w-14 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  N°
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Statut
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Description
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Utilisateur
+                </TableHead>
+                <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Créé le
+                </TableHead>
+                <TableHead className="w-24 text-center font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -517,12 +564,18 @@ export default function CreatePostForm() {
                 </TableRow>
               ) : (
                 paginatedPosts.map((post, index) => (
-                  <TableRow key={post.id} className="group hover:bg-amber-50/30 transition-colors">
+                  <TableRow
+                    key={post.id}
+                    className="group hover:bg-amber-50/30 transition-colors"
+                  >
                     <TableCell className="text-center text-gray-400 font-mono text-sm">
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={getStatusColor(post.title)}>
+                      <Badge
+                        variant="secondary"
+                        className={getStatusColor(post.title)}
+                      >
                         {getStatusLabel(post.title)}
                       </Badge>
                     </TableCell>
@@ -550,7 +603,9 @@ export default function CreatePostForm() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => router.push(`/fiche-permissions/${post.userId}/`)}
+                          onClick={() =>
+                            router.push(`/fiche-permissions/${post.userId}/`)
+                          }
                           className="h-8 w-8 rounded-lg hover:bg-emerald-100 hover:text-emerald-700"
                         >
                           <Scale className="h-4 w-4" />
@@ -574,17 +629,30 @@ export default function CreatePostForm() {
             </div>
 
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={goToFirstPage} disabled={currentPage === 1} className="h-8 w-8 p-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={currentPage === 1} className="h-8 w-8 p-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum;
                 if (totalPages <= 5) pageNum = i + 1;
                 else if (currentPage <= 3) pageNum = i + 1;
-                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                else if (currentPage >= totalPages - 2)
+                  pageNum = totalPages - 4 + i;
                 else pageNum = currentPage - 2 + i;
 
                 return (
@@ -593,16 +661,32 @@ export default function CreatePostForm() {
                     variant={currentPage === pageNum ? "default" : "outline"}
                     size="sm"
                     onClick={() => setCurrentPage(pageNum)}
-                    className={cn("h-8 w-8 p-0", currentPage === pageNum && "bg-amber-600 hover:bg-amber-700")}
+                    className={cn(
+                      "h-8 w-8 p-0",
+                      currentPage === pageNum &&
+                        "bg-amber-600 hover:bg-amber-700",
+                    )}
                   >
                     {pageNum}
                   </Button>
                 );
               })}
-              <Button variant="outline" size="sm" onClick={goToNextPage} disabled={currentPage === totalPages} className="h-8 w-8 p-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={goToLastPage} disabled={currentPage === totalPages} className="h-8 w-8 p-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
