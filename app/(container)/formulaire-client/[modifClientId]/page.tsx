@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { Client, TableName } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
-import { getOneClient, updateClient, checkCodeVih } from "@/lib/actions/clientActions";
+import { getOneClient, updateClient, checkCodeVih, checkClientCode } from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
@@ -289,6 +289,10 @@ export default function ModifFormulaireClient({
   const [onePrescripteur, setOnePrescripteur] = useState<SafeUser | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCodeEdit, setShowCodeEdit] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [isUpdatingCode, setIsUpdatingCode] = useState(false);
   const router = useRouter();
   const { data: session } = useSession();
   const { canUpdate } = usePermissionContext();
@@ -804,19 +808,103 @@ export default function ModifFormulaireClient({
                   {/* 15. Code */}
                   <div>
                     {fieldLabel("Code", true)}
-                    <div className="relative">
-                      <Input
-                        {...register("code", { required: "Code est requis" })}
-                        placeholder="AB/CA01/2025/01/00001-XXX"
-                        className={`${inputRequiredClass} uppercase pr-10`}
-                        name="code"
-                        readOnly
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
-                        <BadgePlus className="h-5 w-5" />
-                      </span>
-                    </div>
-                    {errors.code && (
+                    {!showCodeEdit ? (
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            {...register("code", { required: "Code est requis" })}
+                            placeholder="AB/CA01/2025/01/00001-XXX"
+                            className={`${inputRequiredClass} uppercase pr-10`}
+                            name="code"
+                            readOnly
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
+                            <BadgePlus className="h-5 w-5" />
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-50"
+                          onClick={() => {
+                            setNewCode(watch("code") || "");
+                            setCodeError("");
+                            setShowCodeEdit(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Modifier
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 p-3 border border-amber-200 rounded-lg bg-amber-50/50">
+                        <Input
+                          value={newCode}
+                          onChange={(e) => {
+                            setNewCode(e.target.value.toUpperCase());
+                            setCodeError("");
+                          }}
+                          placeholder="Nouveau code"
+                          className="uppercase h-9 text-sm border-amber-300"
+                        />
+                        {codeError && (
+                          <span className={errorClass}>{codeError}</span>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isUpdatingCode}
+                            className="bg-amber-600 hover:bg-amber-700"
+                            onClick={async () => {
+                              const trimmed = newCode.trim();
+                              if (!trimmed) {
+                                setCodeError("Le code est requis");
+                                return;
+                              }
+                              const codeRegex = /^[A-Z]{2}\/[A-Z]{2}\d{2}\/\d{4}\/\d{2}\/\d{5}-[A-Z]{3}$/;
+                              if (!codeRegex.test(trimmed)) {
+                                setCodeError("Format invalide. Ex: AB/CA01/2026/03/00001-XXX (25 caractères)");
+                                return;
+                              }
+                              setIsUpdatingCode(true);
+                              try {
+                                const taken = await checkClientCode(trimmed, modifClientId);
+                                if (taken) {
+                                  setCodeError("Ce code est déjà utilisé par un autre client.");
+                                  return;
+                                }
+                                await updateClient(modifClientId, {
+                                  ...selectedClient!,
+                                  code: trimmed,
+                                });
+                                setValue("code", trimmed);
+                                setSelectedClient((prev) => prev ? { ...prev, code: trimmed } : prev);
+                                setShowCodeEdit(false);
+                                toast.success("Code modifié avec succès");
+                              } catch {
+                                toast.error("Erreur lors de la modification du code");
+                              } finally {
+                                setIsUpdatingCode(false);
+                              }
+                            }}
+                          >
+                            {isUpdatingCode ? <SpinnerCustom className="h-4 w-4" /> : "Enregistrer"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowCodeEdit(false)}
+                            disabled={isUpdatingCode}
+                          >
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {errors.code && !showCodeEdit && (
                       <span className={errorClass}>{errors.code.message}</span>
                     )}
                   </div>

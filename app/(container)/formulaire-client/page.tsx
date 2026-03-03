@@ -722,6 +722,10 @@ export default function FormulaireClient() {
                     <Input
                       {...register("code", {
                         required: "Code est requis",
+                        pattern: {
+                          value: /^[A-Z]{2}\/[A-Z]{2}\d{2}\/\d{4}\/\d{2}\/\d{5}-[A-Z]{3}$/,
+                          message: "Format invalide. Ex: AB/CA01/2026/03/00001-XXX (25 caractères)",
+                        },
                         validate: async (value) => {
                           if (!value) return true;
                           const taken = await checkClientCode(value);
