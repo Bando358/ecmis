@@ -47,8 +47,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Rate limiting: max 5 tentatives par username par 15 minutes
-        if (!rateLimit(`login:${credentials.username}`, 5, 15 * 60 * 1000)) {
+        // Rate limiting: max 10 tentatives par username par 15 minutes
+        if (!rateLimit(`login:${credentials.username}`, 10, 15 * 60 * 1000)) {
           throw new Error("Trop de tentatives. Réessayez dans 15 minutes.");
         }
 

@@ -57,12 +57,13 @@ export function LoginForm({
       });
 
       if (res?.error) {
-        // Le serveur retourne null pour : identifiants invalides, compte banni, user inexistant
-        // Message générique pour empêcher l'énumération d'utilisateurs
         authLogger.warn("Échec de connexion", {
           data: { username: data.username },
         });
-        toast.error(ERROR_MESSAGES.INVALID_CREDENTIALS);
+        // Afficher le message du rate limiter s'il est explicite,
+        // sinon message générique (empêche l'énumération d'utilisateurs)
+        const isRateLimited = res.error.includes("Trop de tentatives");
+        toast.error(isRateLimited ? res.error : ERROR_MESSAGES.INVALID_CREDENTIALS);
         form.setValue("password", "");
         setIsPending(false);
         return;
@@ -74,7 +75,10 @@ export function LoginForm({
         });
         toast.success("Connexion réussie !");
         router.replace("/");
+        return;
       }
+
+      setIsPending(false);
     } catch (error) {
       authLogger.error("Erreur lors de la connexion", error);
       toast.error(ERROR_MESSAGES.UNKNOWN_ERROR);

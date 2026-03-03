@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import {
   getUserPermissionsById,
   updatePermission,
-  cleanupDuplicatePermissions,
 } from "@/lib/actions/permissionActions";
 import { getOneUser, getAllUser } from "@/lib/actions/authActions";
 import { Permission, TableName, Post } from "@prisma/client";
@@ -26,7 +25,6 @@ import {
   ShieldCheck,
   Loader2,
   X,
-  Wrench,
 } from "lucide-react";
 import {
   Select,
@@ -61,7 +59,6 @@ export default function PermissionInitialPage() {
   const [isPending, setIsPending] = useState(false);
   const [usersLoading, setUsersLoading] = useState(true);
   const [userPost, setUserPost] = useState<Post | null>(null);
-  const [isCleaning, setIsCleaning] = useState(false);
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -254,27 +251,6 @@ export default function PermissionInitialPage() {
     setIsPending(false);
   };
 
-  const handleCleanup = async () => {
-    setIsCleaning(true);
-    try {
-      const result = await cleanupDuplicatePermissions();
-      if (result.success) {
-        toast.success(result.message);
-        // Rafraîchir les permissions si un user est sélectionné
-        if (selectedUserId) {
-          setSelectedUserId("");
-          setTimeout(() => setSelectedUserId(selectedUserId), 100);
-        }
-      } else {
-        toast.error("Erreur lors du nettoyage");
-      }
-    } catch (error) {
-      console.error("Erreur cleanup:", error);
-      toast.error("Erreur lors du nettoyage des permissions");
-    }
-    setIsCleaning(false);
-  };
-
   if (isLoadingPermissions) return <TableSkeleton rows={5} columns={7} />;
   if (!canRead(TableName.PERMISSION)) { toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ); router.back(); return null; }
 
@@ -285,45 +261,26 @@ export default function PermissionInitialPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/administrator")}
-            className="rounded-xl hover:bg-rose-50"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-50 to-rose-100">
-              <ShieldCheck className="h-5 w-5 text-rose-600" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">Gestion des permissions</h1>
-              <p className="text-sm text-muted-foreground">
-                Configurer les droits d&apos;accès par utilisateur
-              </p>
-            </div>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/administrator")}
+          className="rounded-xl hover:bg-rose-50"
+        >
+          <ArrowLeft className="h-5 w-5 text-gray-600" />
+        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-50 to-rose-100">
+            <ShieldCheck className="h-5 w-5 text-rose-600" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Gestion des permissions</h1>
+            <p className="text-sm text-muted-foreground">
+              Configurer les droits d&apos;accès par utilisateur
+            </p>
           </div>
         </div>
-
-        {oneUser?.role === "ADMIN" && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isCleaning}
-            onClick={handleCleanup}
-            className="border-amber-200 text-amber-700 hover:bg-amber-50"
-          >
-            {isCleaning ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Wrench className="mr-2 h-4 w-4" />
-            )}
-            Nettoyer doublons
-          </Button>
-        )}
       </div>
 
       {/* Sélection utilisateur */}
