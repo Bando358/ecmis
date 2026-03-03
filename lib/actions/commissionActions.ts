@@ -3,16 +3,44 @@
 import { CommissionExamen, CommissionEchographie, TableName } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth/withPermission";
+import { PermissionError } from "@/lib/auth/errors";
 import { validateServerData } from "@/lib/validations";
 import { CommissionExamenCreateSchema, CommissionEchographieCreateSchema } from "@/lib/validations/finance";
+
+/**
+ * Vérifie que l'utilisateur a au moins l'une des permissions listées.
+ * Utilisé pour permettre aux users avec permission facturation
+ * de créer des commissions.
+ */
+async function requireAnyPermission(
+  checks: Array<{ table: TableName; action: "canCreate" | "canRead" | "canUpdate" | "canDelete" }>
+) {
+  let lastError: PermissionError | null = null;
+  for (const { table, action } of checks) {
+    try {
+      return await requirePermission(table, action);
+    } catch (e) {
+      if (e instanceof PermissionError) {
+        lastError = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError ?? new PermissionError("Permission refusée");
+}
 
 // ==================== COMMISSION EXAMEN ====================
 
 // Création d'une CommissionExamen
+// Accessible si l'utilisateur a la permission COMMISSION_EXAMEN ou FACTURE_EXAMEN
 export async function createCommissionExamen(
   data: Omit<CommissionExamen, "createdAt" | "updatedAt">
 ) {
-  await requirePermission(TableName.COMMISSION_EXAMEN, "canCreate");
+  await requireAnyPermission([
+    { table: TableName.COMMISSION_EXAMEN, action: "canCreate" },
+    { table: TableName.FACTURE_EXAMEN, action: "canCreate" },
+  ]);
   const validated = validateServerData(CommissionExamenCreateSchema, data);
   return await prisma.commissionExamen.create({
     data: validated,
@@ -86,10 +114,14 @@ export async function getCommissionByFactureExamen(idFactureExamen: string) {
 // ==================== COMMISSION ECHOGRAPHIE ====================
 
 // Création d'une CommissionEchographie
+// Accessible si l'utilisateur a la permission COMMISSION_ECHOGRAPHIE ou FACTURE_ECHOGRAPHIE
 export async function createCommissionEchographie(
   data: Omit<CommissionEchographie, "createdAt" | "updatedAt">
 ) {
-  await requirePermission(TableName.COMMISSION_ECHOGRAPHIE, "canCreate");
+  await requireAnyPermission([
+    { table: TableName.COMMISSION_ECHOGRAPHIE, action: "canCreate" },
+    { table: TableName.FACTURE_ECHOGRAPHIE, action: "canCreate" },
+  ]);
   const validated = validateServerData(CommissionEchographieCreateSchema, data);
   return await prisma.commissionEchographie.create({
     data: validated,
