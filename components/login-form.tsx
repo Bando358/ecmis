@@ -22,7 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 import { loginSchema, type LoginInput } from "@/lib/schemas";
 import { authLogger } from "@/lib/logger";
@@ -74,7 +74,9 @@ export function LoginForm({
           data: { username: data.username },
         });
         toast.success("Connexion réussie !");
-        router.replace("/");
+        const session = await getSession();
+        const dest = session?.user?.role === "ADMIN" ? "/dashboard" : "/client";
+        router.replace(dest);
         return;
       }
 

@@ -234,7 +234,7 @@ export default function FormVisiteModification({
 
       const formattedData = {
         id: modifvisiteId,
-        dateVisite: new Date(data.dateVisite),
+        dateVisite: new Date(data.dateVisite + "T12:00:00"),
         motifVisite: data.motifVisite,
         idActivite: data.idActivite?.trim() !== "" ? data.idActivite : null,
         idLieu: data.idLieu?.trim() !== "" ? data.idLieu : null,

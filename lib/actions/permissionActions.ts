@@ -404,6 +404,9 @@ const MENU_TABLES: TableName[] = [
   TableName.PRESTATION,
   TableName.TARIF_PRESTATION,
   TableName.ADMINISTRATION,
+  TableName.PRESCRIPTEUR,
+  TableName.COMMISSION_EXAMEN,
+  TableName.COMMISSION_ECHOGRAPHIE,
 ];
 
 /**

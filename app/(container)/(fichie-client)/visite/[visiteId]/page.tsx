@@ -180,7 +180,7 @@ export default function FormVisite({
 
       const visiteData = {
         id: uuid(),
-        dateVisite: parse(data.dateVisite, "yyyy-MM-dd", new Date()),
+        dateVisite: new Date(data.dateVisite + "T12:00:00"),
         motifVisite: data.motifVisite,
         idUser: data.idUser,
         idClinique: clientClinique,
