@@ -858,7 +858,8 @@ export default function ModifFormulaireClient({
                             disabled={isUpdatingCode}
                             className="bg-amber-600 hover:bg-amber-700"
                             onClick={async () => {
-                              const trimmed = newCode.trim();
+                              const trimmed = newCode.trim().toUpperCase();
+                              setNewCode(trimmed);
                               if (!trimmed) {
                                 setCodeError("Le code est requis");
                                 return;
