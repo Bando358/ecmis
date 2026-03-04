@@ -1,10 +1,13 @@
 // components/ActivityTracker.tsx
 "use client";
 import { useEffect, useCallback } from "react";
+import { useInactivityGuard } from "@/hooks/useInactivityGuard";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
 export default function ActivityTracker() {
+  // Active la déconnexion automatique après 30 min d'inactivité
+  useInactivityGuard();
   const updateActivity = useCallback(() => {
     const now = Date.now();
 
