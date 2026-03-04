@@ -11,11 +11,20 @@ import { ERROR_MESSAGES } from "@/lib/constants";
 import { TableName } from "@prisma/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2, CalendarRange, FileText, ListFilter } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 import {
   getAllUserIncludedTabIdClinique,
   getAllUserTabIdClinique,
+  getOneUser,
 } from "@/lib/actions/authActions";
 import {
   ClientData,
@@ -110,21 +119,8 @@ export default function Page() {
   const [tabExament, setTabExament] = useState<string[]>([]);
 
   const { data: session } = useSession();
-
-  // ✅ Chargement des cliniques au montage
-  useEffect(() => {
-    const fetchData = async () => {
-      const allCliniques = await getAllClinique();
-      const cliniqueOptions = allCliniques.map(
-        (clinique: { id: string; nomClinique: string }) => ({
-          value: clinique.id,
-          label: clinique.nomClinique,
-        })
-      );
-      setCliniques(cliniqueOptions);
-    };
-    fetchData();
-  }, []);
+  const isAdmin = session?.user?.role === "ADMIN";
+  const userId = session?.user?.id;
 
   const {
     watch,
@@ -142,6 +138,39 @@ export default function Page() {
       dateFin: new Date().toISOString().split("T")[0],
     },
   });
+
+  // ✅ Chargement des cliniques au montage (filtrées par user)
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userId) return;
+      const [allCliniques, user] = await Promise.all([
+        getAllClinique(),
+        getOneUser(userId),
+      ]);
+
+      const filteredCliniques = isAdmin
+        ? allCliniques
+        : allCliniques.filter((clin: { id: string }) =>
+            user?.idCliniques?.some((userClin: string) =>
+              userClin.includes(clin.id)
+            )
+          );
+
+      const cliniqueOptions = filteredCliniques.map(
+        (clinique: { id: string; nomClinique: string }) => ({
+          value: clinique.id,
+          label: clinique.nomClinique,
+        })
+      );
+      setCliniques(cliniqueOptions);
+
+      // Auto-sélection pour les non-admin
+      if (!isAdmin && cliniqueOptions.length > 0) {
+        setValue("idCliniques", cliniqueOptions, { shouldValidate: true });
+      }
+    };
+    fetchData();
+  }, [userId, isAdmin, setValue]);
 
   // watch the idCliniques value for changes and use a stable variable in dependencies
   const watchedIdCliniques = watch("idCliniques");
@@ -334,168 +363,173 @@ export default function Page() {
   }
 
   return (
-    <div className="flex flex-col p-6 w-full">
-      <h1 className="text-xl font-bold mb-4 text-center">
-        Générer les listings
-      </h1>
+    <div className="flex flex-col p-2 sm:p-4 md:p-6 w-full max-w-7xl mx-auto space-y-6">
+      {/* En-tête */}
+      <div>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+          Listings
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          Générez et consultez les listings par période et clinique
+        </p>
+      </div>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="mx-auto p-4 border rounded-md max-w-150"
-      >
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-sm font-medium">Date début :</label>
-              <input
-                type="date"
-                {...register("dateDebut")}
-                className="w-full border px-3 py-2 rounded-md text-sm"
-              />
-              {errors.dateDebut && (
-                <span className="text-red-500 text-sm">
-                  {errors.dateDebut.message}
-                </span>
-              )}
+      {/* Formulaire */}
+      <Card className="mx-auto w-full max-w-150">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <ListFilter className="h-5 w-5 text-blue-600" />
+            Paramètres du listing
+          </CardTitle>
+          <CardDescription>
+            Renseignez les filtres puis cliquez sur Générer
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="flex flex-col gap-4">
+              {/* Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+                    Date début
+                  </label>
+                  <input
+                    type="date"
+                    {...register("dateDebut")}
+                    className="w-full border px-3 py-2 rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                  />
+                  {errors.dateDebut && (
+                    <span className="text-red-500 text-xs">
+                      {errors.dateDebut.message}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+                    Date fin
+                  </label>
+                  <input
+                    type="date"
+                    {...register("dateFin")}
+                    className="w-full border px-3 py-2 rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                  />
+                  {errors.dateFin && (
+                    <span className="text-red-500 text-xs">
+                      {errors.dateFin.message}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Type de Rapport */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  Type de Rapport
+                </label>
+                <Select
+                  instanceId="rapport-select"
+                  options={tabListing}
+                  classNamePrefix="select"
+                  placeholder="Sélectionner le rapport"
+                  value={
+                    tabListing.find((opt) => opt.value === watch("rapport")) || null
+                  }
+                  onChange={(selectedOption) => {
+                    setValue(
+                      "rapport",
+                      (selectedOption as { value: string; label: string } | null)
+                        ?.value || ""
+                    );
+                  }}
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      fontSize: "14px",
+                      minHeight: "42px",
+                    }),
+                  }}
+                />
+                {errors.rapport && (
+                  <span className="text-red-500 text-xs">
+                    {errors.rapport.message}
+                  </span>
+                )}
+              </div>
+
+              {/* Cliniques */}
+              {(isAdmin || cliniques.length > 1) ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Cliniques
+                  </label>
+                  <Select
+                    instanceId="clinique-select"
+                    isMulti
+                    options={cliniques}
+                    classNamePrefix="select"
+                    placeholder="Sélectionner une ou plusieurs cliniques"
+                    value={watch("idCliniques")}
+                    onChange={(selectedOptions) => {
+                      setValue(
+                        "idCliniques",
+                        Array.isArray(selectedOptions) ? selectedOptions : []
+                      );
+                      setValue("idActivite", []);
+                    }}
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        fontSize: "14px",
+                        minHeight: "42px",
+                      }),
+                    }}
+                  />
+                  {errors.idCliniques && (
+                    <span className="text-red-500 text-xs">
+                      {errors.idCliniques.message}
+                    </span>
+                  )}
+                </div>
+              ) : cliniques.length === 1 ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Clinique
+                  </label>
+                  <div className="mt-0.5">
+                    <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                      <Building2 className="h-3.5 w-3.5" />{cliniques[0].label}
+                    </Badge>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Bouton */}
+              <button
+                type="submit"
+                disabled={spinner}
+                className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 mt-2 font-medium text-sm transition-colors"
+              >
+                {spinner ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                {spinner ? "Génération en cours..." : "Générer le listing"}
+              </button>
             </div>
-
-            <div className="flex-1">
-              <label className="text-sm font-medium">Date fin :</label>
-              <input
-                type="date"
-                {...register("dateFin")}
-                className="w-full border px-3 py-2 rounded-md text-sm"
-              />
-              {errors.dateFin && (
-                <span className="text-red-500 text-sm">
-                  {errors.dateFin.message}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Type de Rapport :</label>
-            <Select
-              instanceId="rapport-select"
-              options={tabListing}
-              classNamePrefix="select"
-              placeholder="Sélectionner le rapport"
-              value={
-                tabListing.find((opt) => opt.value === watch("rapport")) || null
-              }
-              onChange={(selectedOption) => {
-                setValue(
-                  "rapport",
-                  (selectedOption as { value: string; label: string } | null)
-                    ?.value || ""
-                );
-              }}
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  fontSize: "14px",
-                  minHeight: "42px",
-                }),
-              }}
-            />
-            {errors.rapport && (
-              <span className="text-red-500 text-sm">
-                {errors.rapport.message}
-              </span>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Cliniques :</label>
-            <Select
-              instanceId="clinique-select"
-              isMulti
-              options={cliniques}
-              classNamePrefix="select"
-              placeholder="Sélectionner une ou plusieurs cliniques"
-              value={watch("idCliniques")}
-              onChange={(selectedOptions) => {
-                setValue(
-                  "idCliniques",
-                  Array.isArray(selectedOptions) ? selectedOptions : []
-                );
-                // Réinitialiser les activités quand les cliniques changent
-                setValue("idActivite", []);
-              }}
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  fontSize: "14px",
-                  minHeight: "42px",
-                }),
-              }}
-            />
-            {errors.idCliniques && (
-              <span className="text-red-500 text-sm">
-                {errors.idCliniques.message}
-              </span>
-            )}
-          </div>
-
-          {/* Activités - Nouveau champ ajouté */}
-          {/* <div className="space-y-2">
-            <label className="text-sm font-medium">Activités :</label>
-            <Select
-              instanceId="activite-select"
-              isMulti
-              options={activites}
-              classNamePrefix="select"
-              placeholder={
-                watch("idCliniques").length === 0
-                  ? "Sélectionnez d'abord une clinique"
-                  : "Sélectionner une ou plusieurs activités"
-              }
-              isDisabled={watch("idCliniques").length === 0}
-              value={watch("idActivite")}
-              onChange={(selectedOptions) => {
-                setValue(
-                  "idActivite",
-                  Array.isArray(selectedOptions) ? selectedOptions : []
-                );
-              }}
-              getOptionValue={(option: unknown) =>
-                (option as ActiviteOption).value
-              }
-              getOptionLabel={(option: unknown) =>
-                (option as ActiviteOption).label
-              }
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  fontSize: "14px",
-                  minHeight: "42px",
-                }),
-              }}
-            />
-            {watch("idCliniques").length === 0 && (
-              <span className="text-gray-500 text-sm">
-                Veuillez {"d'abord"} sélectionner une clinique
-              </span>
-            )}
-          </div> */}
-
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex justify-center gap-2 mt-2"
-          >
-            <Spinner
-              show={spinner}
-              size={"small"}
-              className="text-white dark:text-slate-400"
-            />
-            <div>Générer</div>
-          </button>
-        </div>
-      </form>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Affichage des résultats */}
-      <div className="mt-6 w-full">
+      <div className="w-full">
         {rapportClinique === "planning" && (
           <PlanningFamilial clients={clientData} />
         )}

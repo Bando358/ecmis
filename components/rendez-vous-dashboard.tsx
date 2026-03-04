@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Spinner } from "@/components/ui/spinner";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -24,9 +23,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Eye, EyeClosed } from "lucide-react";
+import { Eye, EyeClosed, Building2, CalendarRange, FileText, CalendarCheck, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { getOneUser } from "@/lib/actions/authActions";
 import { getAllActiviteByTabIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { Clinique, Lieu } from "@prisma/client";
@@ -103,19 +104,8 @@ export default function GestionRdv() {
   });
 
   const { data: session } = useSession();
-
-  // ✅ Chargement des cliniques au montage
-  useEffect(() => {
-    const fetchData = async () => {
-      const allCliniques = await getAllClinique();
-      const cliniqueOptions = allCliniques.map((clinique: Clinique) => ({
-        value: clinique.id,
-        label: clinique.nomClinique,
-      }));
-      setCliniques(cliniqueOptions);
-    };
-    fetchData();
-  }, []);
+  const isAdmin = session?.user?.role === "ADMIN";
+  const userId = session?.user?.id;
 
   const {
     watch,
@@ -133,6 +123,32 @@ export default function GestionRdv() {
       dateFin: new Date().toISOString().split("T")[0],
     },
   });
+
+  // ✅ Chargement des cliniques au montage (filtrées par user)
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userId) return;
+      const [allCliniques, user] = await Promise.all([
+        getAllClinique(),
+        getOneUser(userId),
+      ]);
+      const filteredCliniques = isAdmin
+        ? allCliniques
+        : allCliniques.filter((clin) =>
+            user?.idCliniques?.some((userClin) => userClin.includes(clin.id))
+          );
+      const cliniqueOptions = filteredCliniques.map((clinique: Clinique) => ({
+        value: clinique.id,
+        label: clinique.nomClinique,
+      }));
+      setCliniques(cliniqueOptions);
+      // Auto-sélection pour les non-admin
+      if (!isAdmin && cliniqueOptions.length > 0) {
+        setValue("idCliniques", cliniqueOptions, { shouldValidate: true });
+      }
+    };
+    fetchData();
+  }, [userId, isAdmin, setValue]);
 
   // watch the idCliniques value for changes and use a stable variable in dependencies
   const watchedIdCliniques = watch("idCliniques");
@@ -274,74 +290,94 @@ export default function GestionRdv() {
   const currentTypeRapport = watch("typeRapport");
 
   return (
-    <div className="flex flex-col p-6 w-full">
-      <h1 className="text-xl font-bold mb-4 flex items-center gap-2 justify-between">
-        <span></span>
-        <span>Gestion des Rendez-vous</span>
+    <div className="flex flex-col p-2 sm:p-4 md:p-6 w-full max-w-7xl mx-auto space-y-6">
+      {/* En-tête */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+            Gestion des Rendez-vous
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Consultez les rendez-vous par période, clinique et type de rapport
+          </p>
+        </div>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant={"ghost"}
+                variant="outline"
+                size="icon"
                 onClick={handleHiddenForm}
-                // className="absolute right-2 -top-1"
               >
                 {isVisible ? (
-                  <Eye className="text-blue-600 font-extrabold text-3xl" />
+                  <Eye className="h-4 w-4 text-blue-600" />
                 ) : (
-                  <EyeClosed className="text-red-600 font-extrabold text-3xl" />
+                  <EyeClosed className="h-4 w-4 text-muted-foreground" />
                 )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Ouvrir le formulaire</p>
+              <p>{isVisible ? "Masquer le formulaire" : "Afficher le formulaire"}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      </h1>
+      </div>
 
       {/* Formulaire de filtres */}
       {isVisible && (
-        <Card className="mb-6 bg-transparent border-none">
-          <CardContent className=" ">
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              className="mx-auto max-w-150"
-            >
+        <Card className="mx-auto w-full max-w-150">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-blue-600" />
+              Paramètres de consultation
+            </CardTitle>
+            <CardDescription>
+              Renseignez les filtres puis cliquez sur Générer
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Dates */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date début :</label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+                    Date début
+                  </label>
                   <input
                     type="date"
                     {...register("dateDebut")}
-                    className="w-full border px-3 py-2 rounded-md text-sm"
+                    className="w-full border px-3 py-2 rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
                   />
                   {errors.dateDebut && (
-                    <span className="text-red-500 text-sm">
+                    <span className="text-red-500 text-xs">
                       {errors.dateDebut.message}
                     </span>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date fin :</label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+                    Date fin
+                  </label>
                   <input
                     type="date"
                     {...register("dateFin")}
-                    className="w-full border px-3 py-2 rounded-md text-sm"
+                    className="w-full border px-3 py-2 rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
                   />
                   {errors.dateFin && (
-                    <span className="text-red-500 text-sm">
+                    <span className="text-red-500 text-xs">
                       {errors.dateFin.message}
                     </span>
                   )}
                 </div>
 
                 {/* Type de Rapport */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Type de Rapport :
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    Type de Rapport
                   </label>
                   <Select
                     instanceId="type-rapport-select"
@@ -373,48 +409,67 @@ export default function GestionRdv() {
                     }}
                   />
                   {errors.typeRapport && (
-                    <span className="text-red-500 text-sm">
+                    <span className="text-red-500 text-xs">
                       {errors.typeRapport.message}
                     </span>
                   )}
                 </div>
 
                 {/* Cliniques */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Cliniques :</label>
-                  <Select
-                    instanceId="clinique-select"
-                    isMulti
-                    options={cliniques}
-                    classNamePrefix="select"
-                    placeholder="Sélectionner la ou les cliniques"
-                    value={watch("idCliniques")}
-                    onChange={(selectedOptions) => {
-                      setValue(
-                        "idCliniques",
-                        Array.isArray(selectedOptions) ? selectedOptions : []
-                      );
-                      // Réinitialiser les activités quand les cliniques changent
-                      setValue("idActivite", []);
-                    }}
-                    styles={{
-                      control: (base) => ({
-                        ...base,
-                        fontSize: "14px",
-                        minHeight: "42px",
-                      }),
-                    }}
-                  />
-                  {errors.idCliniques && (
-                    <span className="text-red-500 text-sm">
-                      {errors.idCliniques.message}
-                    </span>
-                  )}
-                </div>
+                {(isAdmin || cliniques.length > 1) ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      Cliniques
+                    </label>
+                    <Select
+                      instanceId="clinique-select"
+                      isMulti
+                      options={cliniques}
+                      classNamePrefix="select"
+                      placeholder="Sélectionner la ou les cliniques"
+                      value={watch("idCliniques")}
+                      onChange={(selectedOptions) => {
+                        setValue(
+                          "idCliniques",
+                          Array.isArray(selectedOptions) ? selectedOptions : []
+                        );
+                        setValue("idActivite", []);
+                      }}
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          fontSize: "14px",
+                          minHeight: "42px",
+                        }),
+                      }}
+                    />
+                    {errors.idCliniques && (
+                      <span className="text-red-500 text-xs">
+                        {errors.idCliniques.message}
+                      </span>
+                    )}
+                  </div>
+                ) : cliniques.length === 1 ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      Clinique
+                    </label>
+                    <div className="mt-0.5">
+                      <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                        <Building2 className="h-3.5 w-3.5" />{cliniques[0].label}
+                      </Badge>
+                    </div>
+                  </div>
+                ) : null}
 
-                {/* Activités - Nouveau champ ajouté */}
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-medium">Activités :</label>
+                {/* Activités */}
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    Activités
+                  </label>
                   <Select
                     instanceId="activite-select"
                     isMulti
@@ -448,7 +503,7 @@ export default function GestionRdv() {
                     }}
                   />
                   {watch("idCliniques").length === 0 && (
-                    <span className="text-gray-500 text-sm">
+                    <span className="text-muted-foreground text-xs">
                       Veuillez {"d'abord"} sélectionner une clinique
                     </span>
                   )}
@@ -456,20 +511,18 @@ export default function GestionRdv() {
               </div>
 
               {/* Bouton de soumission */}
-              <div className="flex justify-center mt-6">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300 flex items-center gap-2 min-w-30 justify-center"
-                >
-                  <Spinner
-                    show={loading}
-                    size={"small"}
-                    className="text-white"
-                  />
-                  <div>{loading ? "Chargement..." : "Générer"}</div>
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-6 px-4 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 font-medium text-sm transition-colors"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CalendarCheck className="h-4 w-4" />
+                )}
+                {loading ? "Chargement..." : "Générer les rendez-vous"}
+              </button>
             </form>
           </CardContent>
         </Card>
@@ -477,10 +530,13 @@ export default function GestionRdv() {
 
       {/* Affichage des résultats */}
       {filters.clinicIds.length > 0 ? (
-        <Card className="max-w-240 min-w-240 mx-auto bg-transparent border-none">
+        <Card className="max-w-240 min-w-240 mx-auto">
           <CardHeader>
-            <CardTitle>Consultation des Rendez-vous</CardTitle>
-            <CardDescription className="text-slate-600 font-medium">
+            <CardTitle className="flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-blue-600" />
+              Consultation des Rendez-vous
+            </CardTitle>
+            <CardDescription>
               Période du {filters.dateDebut.toLocaleDateString()} au{" "}
               {filters.dateFin.toLocaleDateString()} -{" "}
               {
@@ -502,7 +558,7 @@ export default function GestionRdv() {
               onValueChange={setActiveTab}
               className="space-y-4"
             >
-              <TabsList className="grid w-full grid-cols-3 bg-gray-200">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="planning">
                   Planification Familiale
                 </TabsTrigger>
@@ -543,11 +599,14 @@ export default function GestionRdv() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-muted-foreground">
-              Veuillez sélectionner au moins une clinique et générer le rapport
-              pour afficher les rendez-vous.
+        <Card className="mx-auto w-full max-w-150">
+          <CardContent className="py-12">
+            <div className="text-center space-y-2">
+              <CalendarCheck className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+              <p className="text-sm text-muted-foreground">
+                Veuillez sélectionner au moins une clinique et générer le rapport
+                pour afficher les rendez-vous.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -23,11 +23,23 @@ export default async function JournalPharmacyPage() {
   }
 
   try {
-    const [cliniques, journalData, stats] = await Promise.all([
+    const [allCliniques, journalData, stats, user] = await Promise.all([
       getAllClinique(),
       fetchJournalEntries({ page: 1, pageSize: 50 }),
       fetchJournalStats(),
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { idCliniques: true, role: true },
+      }),
     ]);
+
+    // Filtrer les cliniques selon le rôle
+    const cliniques =
+      session.user.role === "ADMIN"
+        ? allCliniques
+        : allCliniques.filter((c) =>
+            user?.idCliniques?.includes(c.id)
+          );
 
     return (
       <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">

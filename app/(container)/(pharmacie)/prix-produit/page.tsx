@@ -63,6 +63,7 @@ import {
   Tag,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import TarifProduitDialog from "@/components/tarifProduitDialog";
@@ -263,6 +264,13 @@ export default function PrixProduitPage() {
       ? cliniques
       : cliniques.filter((clinique) => user?.idCliniques.includes(clinique.id));
 
+  // Auto-sélection pour les utilisateurs avec une seule clinique
+  useEffect(() => {
+    if (cliniquesAccessibles.length === 1 && !selectedClinique) {
+      setSelectedClinique(cliniquesAccessibles[0].id);
+    }
+  }, [cliniquesAccessibles, selectedClinique]);
+
   // Pagination
   const paginatedTarifs = tarifsFiltres.slice(
     (currentPage - 1) * itemsPerPage,
@@ -305,18 +313,22 @@ export default function PrixProduitPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <Select value={selectedClinique} onValueChange={setSelectedClinique}>
-            <SelectTrigger className="w-full sm:w-56 text-sm">
-              <SelectValue placeholder="Sélectionner une clinique *" />
-            </SelectTrigger>
-            <SelectContent>
-              {cliniquesAccessibles.map((clinique) => (
-                <SelectItem key={clinique.id} value={clinique.id}>
-                  {clinique.nomClinique}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {cliniquesAccessibles.length > 1 ? (
+            <Select value={selectedClinique} onValueChange={setSelectedClinique}>
+              <SelectTrigger className="w-full sm:w-56 text-sm">
+                <SelectValue placeholder="Sélectionner une clinique *" />
+              </SelectTrigger>
+              <SelectContent>
+                {cliniquesAccessibles.map((clinique) => (
+                  <SelectItem key={clinique.id} value={clinique.id}>
+                    {clinique.nomClinique}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : cliniquesAccessibles.length === 1 ? (
+            <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"><Building2 className="h-3.5 w-3.5" />{cliniquesAccessibles[0].nomClinique}</Badge>
+          ) : null}
           {canCreate(TableName.TARIF_PRODUIT) && (
             <Button
               onClick={handleCreate}

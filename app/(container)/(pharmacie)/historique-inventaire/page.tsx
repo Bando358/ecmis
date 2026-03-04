@@ -44,7 +44,7 @@ import {
   TableName,
 } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
-import { ChevronLeft, ChevronRight, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Loader2, Building2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,7 +58,7 @@ import {
   deleteDetailInventairesByIds,
   getAllDetailInventaireByInventaireId,
 } from "@/lib/actions/detailInventaireActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { getOneUser, getUsersByIds } from "@/lib/actions/authActions";
 import {
   deleteAnomaliesByIds,
   getAnomaliesByDetailInventaireIds,
@@ -99,6 +99,7 @@ export default function HistoriqueInventairePage() {
 
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
+  const isAdmin = session?.user?.role === "ADMIN";
   const router = useRouter();
   const { canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
@@ -158,22 +159,7 @@ export default function HistoriqueInventairePage() {
           );
         }
 
-        // Optimisation 2: Récupérer tous les utilisateurs en un seul appel groupé
-        const userIds = new Set<string>();
-        inventairesAutorises.forEach((inv) => {
-          userIds.add(inv.idUser);
-        });
-
-        // Créer une Map pour un accès rapide aux utilisateurs
-        const userMap = new Map<string, SafeUser>();
-        try {
-          // NOTE: Vous devriez créer une action pour récupérer plusieurs utilisateurs à la fois
-          // Pour l'instant, on garde l'approche actuelle mais on pourrait optimiser côté serveur
-        } catch (error) {
-          console.error("Erreur lors du chargement des utilisateurs:", error);
-        }
-
-        // Optimisation 3: Récupérer tous les détails d'inventaire en batch
+        // Optimisation 2: Récupérer tous les détails d'inventaire en batch
         const detailInventairePromises = inventairesAutorises.map((inv) =>
           getAllDetailInventaireByInventaireId(inv.id)
         );
@@ -202,6 +188,14 @@ export default function HistoriqueInventairePage() {
           {} as Record<string, AnomalieInventaire[]>
         );
 
+        // Récupérer tous les utilisateurs en un seul appel batch
+        const allUserIds = new Set<string>();
+        inventairesAutorises.forEach((inv) => allUserIds.add(inv.idUser));
+        allDetailsArrays.flat().forEach((d) => { if (d) allUserIds.add(d.idUser); });
+        const allUsers = await getUsersByIds([...allUserIds]);
+        const userMap = new Map<string, SafeUser>();
+        allUsers.forEach((u) => userMap.set(u.id, u));
+
         // Construire les données d'inventaire complètes
         const inventairesComplets: InventaireWithRelations[] = [];
 
@@ -209,45 +203,19 @@ export default function HistoriqueInventairePage() {
           const inventaire = inventairesAutorises[i];
           const details = allDetailsArrays[i] || [];
 
-          // Récupérer l'utilisateur (on pourrait optimiser avec un cache)
-          let inventaireUser: SafeUser | null = null;
-          try {
-            inventaireUser = await getOneUser(inventaire.idUser);
-          } catch (error) {
-            console.error(
-              `Erreur lors du chargement de l'utilisateur ${inventaire.idUser}:`,
-              error
-            );
-          }
-
-          // Préparer les détails avec leurs relations
-          const detailsWithUser = (await Promise.all(
-            details.map(async (detail) => {
-              // Récupérer l'utilisateur du détail
-              let detailUser: SafeUser | null = null;
-              try {
-                detailUser = await getOneUser(detail.idUser);
-              } catch (error) {
-                console.error(
-                  `Erreur lors du chargement de l'utilisateur détail ${detail.idUser}:`,
-                  error
-                );
-              }
-
-              // Trouver le tarifProduit
+          // Préparer les détails avec leurs relations (lookup O(1) via userMap)
+          const detailsWithUser = details.map((detail) => {
               const tarifProduitData = tarifProduit.find(
                 (tp) => tp.id === detail.idTarifProduit
               );
 
-              // Si tarifProduit n'est pas trouvé, on retourne null pour filtrer plus tard
               if (!tarifProduitData) {
-                console.warn(`TarifProduit non trouvé pour le détail ${detail.id}`);
                 return null;
               }
 
               return {
                 ...detail,
-                User: detailUser || ({} as SafeUser),
+                User: userMap.get(detail.idUser) || ({} as SafeUser),
                 tarifProduit: {
                   ...tarifProduitData,
                   Produit:
@@ -257,15 +225,14 @@ export default function HistoriqueInventairePage() {
                 AnomalieInventaire:
                   anomaliesByDetailId[detail.id] || [],
               };
-            })
-          )).filter((detail): detail is NonNullable<typeof detail> => detail !== null);
+            }).filter((detail): detail is NonNullable<typeof detail> => detail !== null);
 
           inventairesComplets.push({
             ...inventaire,
             Clinique:
               cliniquesData.find((c) => c.id === inventaire.idClinique) ||
               ({} as Clinique),
-            User: inventaireUser || ({} as SafeUser),
+            User: userMap.get(inventaire.idUser) || ({} as SafeUser),
             detailInventaire: detailsWithUser,
           } as InventaireWithRelations);
         }
@@ -291,6 +258,13 @@ export default function HistoriqueInventairePage() {
 
     fetchData();
   }, [status, idUser, idCliniques, user]);
+
+  // Auto-sélection pour les utilisateurs avec une seule clinique
+  useEffect(() => {
+    if (!isAdmin && cliniques.length === 1) {
+      setFiltreClinique(cliniques[0].id);
+    }
+  }, [cliniques, isAdmin]);
 
   // Optimisation 4: Utiliser useMemo pour le filtrage
   const filteredInventaires = useMemo(() => {
@@ -711,24 +685,28 @@ export default function HistoriqueInventairePage() {
               </div>
 
               {/* Filtre par clinique */}
-              <div className="w-full sm:w-full md:w-64">
-                <Select
-                  value={filtreClinique}
-                  onValueChange={setFiltreClinique}
-                >
-                  <SelectTrigger className="w-full text-sm">
-                    <SelectValue placeholder="Filtrer par clinique" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les cliniques</SelectItem>
-                    {cliniques.map((clinique) => (
-                      <SelectItem key={clinique.id} value={clinique.id}>
-                        {clinique.nomClinique}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {(isAdmin || cliniques.length > 1) ? (
+                <div className="w-full sm:w-full md:w-64">
+                  <Select
+                    value={filtreClinique}
+                    onValueChange={setFiltreClinique}
+                  >
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Filtrer par clinique" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes les cliniques</SelectItem>
+                      {cliniques.map((clinique) => (
+                        <SelectItem key={clinique.id} value={clinique.id}>
+                          {clinique.nomClinique}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : cliniques.length === 1 ? (
+                <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"><Building2 className="h-3.5 w-3.5" />{cliniques[0].nomClinique}</Badge>
+              ) : null}
 
               {/* Filtre par statut */}
               <div className="w-full sm:w-full md:w-64">

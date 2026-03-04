@@ -15,6 +15,7 @@ import type {
   FactureEchographieType,
 } from "@/lib/actions/venteActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
+import { getOneUser } from "@/lib/actions/authActions";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -241,15 +242,20 @@ export default function VentesPage() {
     },
   });
 
+  const isAdmin = session?.user?.role === "ADMIN";
+  const userId = session?.user?.id;
+
   // Charger toutes les données initiales en parallèle
   useEffect(() => {
+    if (!userId) return;
     const loadInitialData = async () => {
       try {
         setIsLoadingInitialData(true);
         setError(null);
 
         const [
-          cliniquesData,
+          user,
+          allCliniquesData,
           exams,
           produits,
           prestations,
@@ -258,6 +264,7 @@ export default function VentesPage() {
           tarifsPrest,
           prescripteurs,
         ] = await Promise.all([
+          getOneUser(userId),
           getAllClinique(),
           getAllExamen(),
           getAllProduits(),
@@ -268,12 +275,25 @@ export default function VentesPage() {
           getAllPrescripteurs(),
         ]);
 
-        setCliniques(
-          cliniquesData.map((clinique: any) => ({
-            value: clinique.id,
-            label: clinique.nomClinique,
-          })),
-        );
+        // Filtrer les cliniques selon le rôle
+        const filteredCliniques = isAdmin
+          ? allCliniquesData
+          : allCliniquesData.filter((clin: any) =>
+              user?.idCliniques?.some((userClin: string) =>
+                userClin.includes(clin.id),
+              ),
+            );
+
+        const mappedCliniques = filteredCliniques.map((clinique: any) => ({
+          value: clinique.id,
+          label: clinique.nomClinique,
+        }));
+        setCliniques(mappedCliniques);
+
+        // Si non-admin, pré-sélectionner automatiquement ses cliniques
+        if (!isAdmin && mappedCliniques.length > 0) {
+          setValue("idCliniques", mappedCliniques, { shouldValidate: true });
+        }
 
         setAllExamens(exams);
         setAllProduits(produits);
@@ -293,7 +313,7 @@ export default function VentesPage() {
     };
 
     loadInitialData();
-  }, []);
+  }, [userId, isAdmin, setValue]);
 
   const onSubmit: SubmitHandler<FormValuesType> = async (data) => {
     const { idCliniques, dateDebut, dateFin } = data;
@@ -1658,38 +1678,49 @@ export default function VentesPage() {
               </div>
             </div>
 
-            {/* Sélection des cliniques */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Cliniques *
-              </label>
-              <Select
-                isMulti
-                options={cliniques}
-                classNamePrefix="select"
-                placeholder="Sélectionnez une ou plusieurs cliniques..."
-                value={watch("idCliniques")}
-                onChange={(selected) => {
-                  setValue("idCliniques", selected as any);
-                }}
-                className="border border-gray-300 rounded-lg"
-                styles={{
-                  control: (base) => ({
-                    ...base,
-                    padding: "4px",
-                    borderColor: "#d1d5db",
-                    "&:hover": {
-                      borderColor: "#9ca3af",
-                    },
-                  }),
-                }}
-              />
-              {errors.idCliniques && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.idCliniques.message}
+            {/* Sélection des cliniques — masqué si user non-admin avec 1 seule clinique */}
+            {(isAdmin || cliniques.length > 1) ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cliniques *
+                </label>
+                <Select
+                  isMulti
+                  options={cliniques}
+                  classNamePrefix="select"
+                  placeholder="Sélectionnez une ou plusieurs cliniques..."
+                  value={watch("idCliniques")}
+                  onChange={(selected) => {
+                    setValue("idCliniques", selected as any);
+                  }}
+                  className="border border-gray-300 rounded-lg"
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      padding: "4px",
+                      borderColor: "#d1d5db",
+                      "&:hover": {
+                        borderColor: "#9ca3af",
+                      },
+                    }),
+                  }}
+                />
+                {errors.idCliniques && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.idCliniques.message}
+                  </p>
+                )}
+              </div>
+            ) : cliniques.length === 1 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Clinique
+                </label>
+                <p className="px-3 py-2 bg-gray-100 rounded-lg text-sm font-medium">
+                  {cliniques[0].label}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Sélection du type de rapport */}
             <div>

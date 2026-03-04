@@ -11,6 +11,8 @@ import {
   HeartPulse,
   UserPlus,
   Info,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -18,6 +20,19 @@ import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { Client, TableName } from "@prisma/client";
@@ -56,26 +71,27 @@ interface CliniqueData {
 }
 
 const ethnieOptions = [
-  { label: "01 Dioula / Malinké", value: "Dioula ou Malinke" },
-  { label: "02 Bété", value: "Bete" },
-  { label: "03 Baoulé", value: "Baoule" },
-  { label: "04 Agni", value: "Agni" },
-  { label: "05 Sénoufo", value: "Sénoufo" },
-  { label: "06 Koulango", value: "Koulango" },
-  { label: "07 Lobi", value: "Lobi" },
-  { label: "08 Ebrié", value: "Ebrié" },
-  { label: "09 Yacouba", value: "Yacouba" },
-  { label: "10 Gouro", value: "Gouro" },
-  { label: "11 Guéré", value: "Guéré" },
-  { label: "12 Wobé", value: "Wobé" },
-  { label: "13 Attié", value: "Attié" },
-  { label: "14 Dida", value: "Dida" },
-  { label: "15 Abbey", value: "Abbey" },
-  { label: "16 Abron", value: "Abron" },
-  { label: "17 Kroumen", value: "Kroumen" },
-  { label: "18 Gnamboua", value: "Gnamboua" },
-  { label: "19 Mossi", value: "Mossi ou Burkinabé" },
-  { label: "20 Autres", value: "Autres" },
+  { label: "Dioula / Malinké", value: "Dioula ou Malinke" },
+  { label: "Bété", value: "Bete" },
+  { label: "Baoulé", value: "Baoule" },
+  { label: "Agni", value: "Agni" },
+  { label: "Sénoufo", value: "Sénoufo" },
+  { label: "Tagbana", value: "Tagbana" },
+  { label: "Koulango", value: "Koulango" },
+  { label: "Lobi", value: "Lobi" },
+  { label: "Ebrié", value: "Ebrié" },
+  { label: "Yacouba", value: "Yacouba" },
+  { label: "Gouro", value: "Gouro" },
+  { label: "Guéré", value: "Guéré" },
+  { label: "Wobé", value: "Wobé" },
+  { label: "Attié", value: "Attié" },
+  { label: "Dida", value: "Dida" },
+  { label: "Abbey", value: "Abbey" },
+  { label: "Abron", value: "Abron" },
+  { label: "Kroumen", value: "Kroumen" },
+  { label: "Gnamboua", value: "Gnamboua" },
+  { label: "Mossi / Burkinabé", value: "Mossi ou Burkinabé" },
+  { label: "Autres", value: "Autres" },
 ];
 const niveauScolaireOptions = [
   { label: "Non Scolarisé", value: "non_scolarise" },
@@ -86,28 +102,39 @@ const niveauScolaireOptions = [
   { label: "Supérieur", value: "superieur" },
 ];
 const professionOptions = [
-  { label: "Travailleur Indépendant", value: "Travailleur Indépendant" },
-  { label: "Salarié du Privé", value: "Salarié du Privé" },
-  { label: "Salarié du Public", value: "Salarié du Public" },
-  { label: "Etudiant / Élève", value: "Etudiant ou Élève" },
-  { label: "Personnel de maison", value: "Personnel de maison" },
-  { label: "Chômeur", value: "Chomeur" },
+  { label: "Salarié(e) du secteur public", value: "SALARIE_PUBLIC" },
+  { label: "Salarié(e) du secteur privé", value: "SALARIE_PRIVE" },
+  { label: "Travailleur(se) indépendant(e)", value: "INDEPENDANT" },
+  { label: "Entrepreneur / Chef d’entreprise", value: "ENTREPRENEUR" },
+  { label: "Commerçant(e) / Artisan(e)", value: "COMMERCANT_ARTISAN" },
+  { label: "Élève / Étudiant(e)", value: "ELEVE_ETUDIANT" },
+  { label: "Apprenti(e) / Stagiaire", value: "APPRENTI_STAGIAIRE" },
+  { label: "Personnel de maison", value: "PERSONNEL_MAISON" },
+  { label: "Sans emploi (en recherche)", value: "SANS_EMPLOI" },
+  { label: "Retraité(e)", value: "RETRAITE" },
+  { label: "Autre", value: "AUTRE" },
 ];
 const etatMatrimonialOptions = [
-  { label: "Célibataire", value: "celibataire" },
-  { label: "Concubinage", value: "concubinage" },
-  { label: "Marié(e)", value: "marie" },
-  { label: "Veuf(ve)", value: "veuve" },
+  { label: "Célibataire", value: "CELIBATAIRE" },
+  { label: "Marié(e)", value: "MARIE" },
+  { label: "Union libre / Concubinage", value: "UNION_LIBRE" },
+  { label: "Divorcé(e)", value: "DIVORCE" },
+  { label: "Veuf(ve)", value: "VEUF" },
 ];
 const sourceInfoOptions = [
-  { label: "Pair Educateur", value: "pe" },
-  { label: "ASC", value: "asc" },
-  { label: "Télévision", value: "television" },
-  { label: "Radio", value: "radio" },
-  { label: "Campagne de Sensibilisation", value: "campagne" },
-  { label: "Bouche à oreille / Client satisfait / Parent", value: "bouche" },
-  { label: "Prestataire de santé", value: "prestataire" },
-  { label: "Affiche/Prospect", value: "affiche" },
+  { label: "Pair éducateur(trice)", value: "PAIR_EDUCATEUR" },
+  {
+    label: "Agent de santé communautaire (ASC)",
+    value: "AGENT_SANTE_COMMUNAUTAIRE",
+  },
+  { label: "Télévision", value: "TELEVISION" },
+  { label: "Radio", value: "RADIO" },
+  { label: "Réseaux sociaux / Internet", value: "RESEAUX_SOCIAUX" },
+  { label: "Campagne de sensibilisation", value: "CAMPAGNE_SENSIBILISATION" },
+  { label: "Recommandation (bouche-à-oreille)", value: "RECOMMANDATION" },
+  { label: "Prestataire de santé", value: "PRESTATAIRE_SANTE" },
+  { label: "Affiche / Prospectus / Flyer", value: "SUPPORT_IMPRIME" },
+  { label: "Autre", value: "AUTRE" },
 ];
 const sexeOptions = [
   { label: "Féminin", value: "Féminin" },
@@ -241,6 +268,7 @@ export default function FormulaireClient() {
   const [oneUser, setOneUser] = useState<SafeUser | null>(null);
   const [region, setRegion] = useState<RegionData[]>([]);
   const [newCode, setNewCode] = useState(false);
+  const [ethnieOpen, setEthnieOpen] = useState(false);
   const idPrestataire = session?.user.id as string;
   const router = useRouter();
   const { canCreate } = usePermissionContext();
@@ -629,21 +657,54 @@ export default function FormulaireClient() {
                 {/* 11. Ethnie */}
                 <div>
                   {fieldLabel("Ethnie", true)}
-                  <select
+                  <input
+                    type="hidden"
                     {...register("ethnie", { required: "Ethnie est requise" })}
-                    className={selectRequiredClass}
-                    name="ethnie"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>
-                      Sélectionner
-                    </option>
-                    {ethnieOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  />
+                  <Popover open={ethnieOpen} onOpenChange={setEthnieOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={ethnieOpen}
+                        className={`w-full justify-between font-normal ${watch("ethnie") ? "" : "text-muted-foreground"}`}
+                      >
+                        {watch("ethnie")
+                          ? (ethnieOptions.find(
+                              (o) => o.value === watch("ethnie"),
+                            )?.label ?? watch("ethnie"))
+                          : "Sélectionner une ethnie"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Rechercher une ethnie..." />
+                        <CommandList>
+                          <CommandEmpty>Aucune ethnie trouvée.</CommandEmpty>
+                          <CommandGroup>
+                            {ethnieOptions.map((option) => (
+                              <CommandItem
+                                key={option.value}
+                                value={option.label}
+                                onSelect={() => {
+                                  setValue("ethnie", option.value, {
+                                    shouldValidate: true,
+                                  });
+                                  setEthnieOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${watch("ethnie") === option.value ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {option.label}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {errors.ethnie && (
                     <span className={errorClass}>{errors.ethnie.message}</span>
                   )}
@@ -724,13 +785,18 @@ export default function FormulaireClient() {
                         required: "Code est requis",
                         setValueAs: (v: string) => v?.toUpperCase(),
                         pattern: {
-                          value: /^[A-Z]{2}\/[A-Z]{2}\d{2}\/\d{4}\/\d{2}\/\d{5}-[A-Z]{3}$/,
-                          message: "Format invalide. Ex: AB/CA01/2026/03/00001-XXX (25 caractères)",
+                          value:
+                            /^[A-Z]{2}\/[A-Z]{2}\d{2}\/\d{4}\/\d{2}\/\d{5}-[A-Z]{3}$/,
+                          message:
+                            "Format invalide. Ex: AB/CA01/2026/03/00001-XXX (25 caractères)",
                         },
                         validate: async (value) => {
                           if (!value) return true;
                           const taken = await checkClientCode(value);
-                          return !taken || "Ce code est déjà utilisé par un autre client.";
+                          return (
+                            !taken ||
+                            "Ce code est déjà utilisé par un autre client."
+                          );
                         },
                       })}
                       placeholder="AB/CA01/2025/01/00001-XXX"
@@ -762,7 +828,10 @@ export default function FormulaireClient() {
                       validate: async (value) => {
                         if (!value) return true;
                         const taken = await checkCodeVih(value);
-                        return !taken || "Ce code VIH est déjà utilisé par un autre client.";
+                        return (
+                          !taken ||
+                          "Ce code VIH est déjà utilisé par un autre client."
+                        );
                       },
                     })}
                     placeholder="07060/01/25/00001"

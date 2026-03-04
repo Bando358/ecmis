@@ -16,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -71,6 +72,7 @@ import TableRapportSigObstetrique from "@/components/tableRapport/tableRapportSi
 import {
   getAllUserIncludedTabIdClinique,
   getAllUserTabIdClinique,
+  getOneUser,
 } from "@/lib/actions/authActions";
 import { FactureExamen, Lieu, ResultatExamen } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
@@ -167,23 +169,10 @@ const AnalyseReportPlanning = () => {
   const [tabExament, setTabExament] = useState<string[]>([]);
   const [clientEchoData, setClientEchoData] = useState<EchoServiceItem[]>([]);
 
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
+  const userId = session?.user?.id;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const allCliniques = await getAllClinique();
-      const cliniqueOptions = allCliniques.map(
-        (clinique: { id: string; nomClinique: string }) => ({
-          value: clinique.id,
-          label: clinique.nomClinique,
-        }),
-      );
-      setCliniques(cliniqueOptions);
-    };
-    fetchData();
-  }, []);
-
-  // Charger les activités quand les cliniques sélectionnées changent
   const {
     watch,
     setValue,
@@ -199,6 +188,39 @@ const AnalyseReportPlanning = () => {
       activitesUniquement: true,
     },
   });
+
+  // ✅ Chargement des cliniques au montage (filtrées par user)
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userId) return;
+      const [allCliniques, user] = await Promise.all([
+        getAllClinique(),
+        getOneUser(userId),
+      ]);
+
+      const filteredCliniques = isAdmin
+        ? allCliniques
+        : allCliniques.filter((clin: { id: string }) =>
+            user?.idCliniques?.some((userClin: string) =>
+              userClin.includes(clin.id)
+            )
+          );
+
+      const cliniqueOptions = filteredCliniques.map(
+        (clinique: { id: string; nomClinique: string }) => ({
+          value: clinique.id,
+          label: clinique.nomClinique,
+        }),
+      );
+      setCliniques(cliniqueOptions);
+
+      // Auto-sélection pour les non-admin
+      if (!isAdmin && cliniqueOptions.length > 0) {
+        setValue("idCliniques", cliniqueOptions, { shouldValidate: true });
+      }
+    };
+    fetchData();
+  }, [userId, isAdmin, setValue]);
 
   // watch the idCliniques value for changes and use a stable variable in dependencies
   const watchedIdCliniques = watch("idCliniques");
@@ -542,32 +564,42 @@ const AnalyseReportPlanning = () => {
           <Separator />
 
           {/* Cliniques */}
-          <div>
-            <label className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
-              <Building2 className="h-4 w-4" />
-              Cliniques <span className="text-red-500">*</span>
-            </label>
-            <Select
-              isMulti
-              options={cliniques}
-              classNamePrefix="select"
-              placeholder="Sélectionner une ou plusieurs cliniques"
-              noOptionsMessage={() => "Aucune clinique disponible"}
-              value={watch("idCliniques")}
-              onChange={(selectedOptions) => {
-                setValue(
-                  "idCliniques",
-                  selectedOptions ? [...selectedOptions] : [],
-                );
-                setValue("idActivite", []);
-              }}
-            />
-            {errors.idCliniques && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.idCliniques.message}
-              </p>
-            )}
-          </div>
+          {(isAdmin || cliniques.length > 1) ? (
+            <div>
+              <label className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" />
+                Cliniques <span className="text-red-500">*</span>
+              </label>
+              <Select
+                isMulti
+                options={cliniques}
+                classNamePrefix="select"
+                placeholder="Sélectionner une ou plusieurs cliniques"
+                noOptionsMessage={() => "Aucune clinique disponible"}
+                value={watch("idCliniques")}
+                onChange={(selectedOptions) => {
+                  setValue(
+                    "idCliniques",
+                    selectedOptions ? [...selectedOptions] : [],
+                  );
+                  setValue("idActivite", []);
+                }}
+              />
+              {errors.idCliniques && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.idCliniques.message}
+                </p>
+              )}
+            </div>
+          ) : cliniques.length === 1 ? (
+            <div>
+              <label className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" />
+                Clinique
+              </label>
+              <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"><Building2 className="h-3.5 w-3.5" />{cliniques[0].label}</Badge>
+            </div>
+          ) : null}
 
           {/* Activités */}
           <div>

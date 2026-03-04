@@ -53,6 +53,7 @@ import {
   MoreVertical,
   Plus,
   Loader2,
+  Building2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -66,7 +67,7 @@ import {
 //   deleteDetailCommandesByIds,
 //   getAllDetailCommandeByCommandeId,
 // } from "@/lib/actions/detailCommandeActions";
-import { getOneUser } from "@/lib/actions/authActions";
+import { getOneUser, getUsersByIds } from "@/lib/actions/authActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import jsPDF from "jspdf";
@@ -119,6 +120,7 @@ export default function HistoriqueCommandesPage() {
 
   const { data: session, status } = useSession();
   const idUser = session?.user?.id ?? "";
+  const isAdmin = session?.user?.role === "ADMIN";
   const router = useRouter();
   const { canCreate, canDelete, canRead, isLoading: isLoadingPermissions } = usePermissionContext();
 
@@ -178,44 +180,44 @@ export default function HistoriqueCommandesPage() {
           );
         }
 
-        // Charger les détails et relations pour chaque commande
-        const commandesCompletes = await Promise.all(
-          commandesAutorisees.map(async (commande) => {
-            const details = await getAllDetailCommandeByCommandeId(commande.id);
-
-            // Charger les utilisateurs et enrichir les relations pour chaque détail
-            const detailsWithRelations = await Promise.all(
-              (details || []).map(async (detail) => {
-                const detailUser = await getOneUser(detail.idUser);
-                const tarifProduitData = tarifProduit.find(
-                  (tp) => tp.id === detail.idTarifProduit
-                );
-                const produitData = produit.find(
-                  (p) => p.id === tarifProduitData?.idProduit
-                );
-
-                return {
-                  ...detail,
-                  User: detailUser || ({} as SafeUser),
-                  tarifProduit: tarifProduitData
-                    ? {
-                        ...tarifProduitData,
-                        produit: produitData || ({} as Produit),
-                      }
-                    : undefined,
-                };
-              })
-            );
-
-            return {
-              ...commande,
-              Clinique:
-                cliniquesData.find((c) => c.id === commande.idClinique) ||
-                ({} as Clinique),
-              detailCommande: detailsWithRelations,
-            } as CommandeFournisseurWithRelations;
-          })
+        // Charger tous les détails en batch
+        const allDetailsArrays = await Promise.all(
+          commandesAutorisees.map((cmd) => getAllDetailCommandeByCommandeId(cmd.id))
         );
+
+        // Récupérer tous les utilisateurs en un seul appel batch
+        const allUserIds = new Set<string>();
+        allDetailsArrays.flat().forEach((d) => { if (d) allUserIds.add(d.idUser); });
+        const allUsers = await getUsersByIds([...allUserIds]);
+        const userMap = new Map<string, SafeUser>();
+        allUsers.forEach((u) => userMap.set(u.id, u));
+
+        // Construire les commandes complètes avec lookup O(1)
+        const commandesCompletes = commandesAutorisees.map((commande, i) => {
+          const details = allDetailsArrays[i] || [];
+          const detailsWithRelations = details.map((detail) => {
+            const tarifProduitData = tarifProduit.find(
+              (tp) => tp.id === detail.idTarifProduit
+            );
+            const produitData = produit.find(
+              (p) => p.id === tarifProduitData?.idProduit
+            );
+            return {
+              ...detail,
+              User: userMap.get(detail.idUser) || ({} as SafeUser),
+              tarifProduit: tarifProduitData
+                ? { ...tarifProduitData, produit: produitData || ({} as Produit) }
+                : undefined,
+            };
+          });
+          return {
+            ...commande,
+            Clinique:
+              cliniquesData.find((c) => c.id === commande.idClinique) ||
+              ({} as Clinique),
+            detailCommande: detailsWithRelations,
+          } as CommandeFournisseurWithRelations;
+        });
 
         // Trier par date décroissante
         commandesCompletes.sort(
@@ -236,6 +238,13 @@ export default function HistoriqueCommandesPage() {
 
     fetchData();
   }, [status, idUser, idCliniques, user]);
+
+  // Auto-sélection pour les utilisateurs avec une seule clinique
+  useEffect(() => {
+    if (!isAdmin && cliniques.length === 1) {
+      setFiltreClinique(cliniques[0].id);
+    }
+  }, [cliniques, isAdmin]);
 
   // Filtrage des commandes
   useEffect(() => {
@@ -640,24 +649,28 @@ export default function HistoriqueCommandesPage() {
               </div>
 
               {/* Filtre par clinique */}
-              <div className="w-full sm:w-full md:w-64">
-                <Select
-                  value={filtreClinique}
-                  onValueChange={setFiltreClinique}
-                >
-                  <SelectTrigger className="w-full text-sm">
-                    <SelectValue placeholder="Filtrer par clinique" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les cliniques</SelectItem>
-                    {cliniques.map((clinique) => (
-                      <SelectItem key={clinique.id} value={clinique.id}>
-                        {clinique.nomClinique}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {(isAdmin || cliniques.length > 1) ? (
+                <div className="w-full sm:w-full md:w-64">
+                  <Select
+                    value={filtreClinique}
+                    onValueChange={setFiltreClinique}
+                  >
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Filtrer par clinique" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes les cliniques</SelectItem>
+                      {cliniques.map((clinique) => (
+                        <SelectItem key={clinique.id} value={clinique.id}>
+                          {clinique.nomClinique}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : cliniques.length === 1 ? (
+                <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"><Building2 className="h-3.5 w-3.5" />{cliniques[0].nomClinique}</Badge>
+              ) : null}
 
               {/* Filtre par statut */}
               <div className="w-full sm:w-full md:w-64">

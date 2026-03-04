@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableHeader,
@@ -47,7 +48,7 @@ import {
   createDetailInventaire,
   getAllDetailInventaireByTabIdDetailInventaire,
 } from "@/lib/actions/detailInventaireActions";
-import { Search, Printer, Download, Loader2 } from "lucide-react";
+import { Search, Printer, Download, Loader2, Building2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -202,6 +203,13 @@ export default function DetailInventairePage() {
     };
     fetchData();
   }, [idUser, status, prescripteur, idCliniques]);
+
+  // Auto-sélection pour les utilisateurs avec une seule clinique
+  useEffect(() => {
+    if (prescripteur && prescripteur.role !== "ADMIN" && cliniques.length === 1 && !selectedClinique) {
+      setSelectedClinique(cliniques[0].id);
+    }
+  }, [cliniques, prescripteur, selectedClinique]);
 
   // Filtrage des tarifs produits
   useEffect(() => {
@@ -936,18 +944,22 @@ export default function DetailInventairePage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-          <Select value={selectedClinique} onValueChange={setSelectedClinique}>
-            <SelectTrigger className="w-full sm:w-56 text-sm">
-              <SelectValue placeholder="Sélectionner une clinique *" />
-            </SelectTrigger>
-            <SelectContent>
-              {cliniques.map((clinique) => (
-                <SelectItem key={clinique.id} value={clinique.id}>
-                  {clinique.nomClinique}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {(prescripteur?.role === "ADMIN" || cliniques.length > 1) ? (
+            <Select value={selectedClinique} onValueChange={setSelectedClinique}>
+              <SelectTrigger className="w-full sm:w-56 text-sm">
+                <SelectValue placeholder="Sélectionner une clinique *" />
+              </SelectTrigger>
+              <SelectContent>
+                {cliniques.map((clinique) => (
+                  <SelectItem key={clinique.id} value={clinique.id}>
+                    {clinique.nomClinique}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : cliniques.length === 1 ? (
+            <Badge variant="secondary" className="text-sm font-medium px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"><Building2 className="h-3.5 w-3.5" />{cliniques[0].nomClinique}</Badge>
+          ) : null}
 
           <Button
             onClick={handleDownloadPDF}

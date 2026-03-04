@@ -158,6 +158,17 @@ export const getOneUser = async (id: string | null) => {
   return oneUser;
 };
 
+// Récupérer plusieurs utilisateurs par leurs IDs (batch)
+export const getUsersByIds = async (ids: string[]) => {
+  if (!ids.length) return [];
+  const uniqueIds = [...new Set(ids)];
+  const users = await prisma.user.findMany({
+    where: { id: { in: uniqueIds } },
+    omit: { password: true },
+  });
+  return users;
+};
+
 // Suppression d'un User
 export async function deleteUser(id: string) {
   await requirePermission(TableName.USER, "canDelete");

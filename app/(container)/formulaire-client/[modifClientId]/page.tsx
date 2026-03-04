@@ -23,7 +23,12 @@ import { toast } from "sonner";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { Client, TableName } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
-import { getOneClient, updateClient, checkCodeVih, checkClientCode } from "@/lib/actions/clientActions";
+import {
+  getOneClient,
+  updateClient,
+  checkCodeVih,
+  checkClientCode,
+} from "@/lib/actions/clientActions";
 import { useSession } from "next-auth/react";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 
@@ -74,30 +79,41 @@ const niveauScolaireOptions = [
 ];
 
 const professionOptions = [
-  { label: "Travailleur Indépendant", value: "Travailleur Indépendant" },
-  { label: "Salarié du Privé", value: "Salarié du Privé" },
-  { label: "Salarié du Public", value: "Salarié du Public" },
-  { label: "Etudiant / Élève", value: "Etudiant ou Élève" },
-  { label: "Personnel de maison", value: "Personnel de maison" },
-  { label: "Chômeur", value: "Chomeur" },
+  { label: "Salarié(e) du secteur public", value: "SALARIE_PUBLIC" },
+  { label: "Salarié(e) du secteur privé", value: "SALARIE_PRIVE" },
+  { label: "Travailleur(se) indépendant(e)", value: "INDEPENDANT" },
+  { label: "Entrepreneur / Chef d’entreprise", value: "ENTREPRENEUR" },
+  { label: "Commerçant(e) / Artisan(e)", value: "COMMERCANT_ARTISAN" },
+  { label: "Élève / Étudiant(e)", value: "ELEVE_ETUDIANT" },
+  { label: "Apprenti(e) / Stagiaire", value: "APPRENTI_STAGIAIRE" },
+  { label: "Personnel de maison", value: "PERSONNEL_MAISON" },
+  { label: "Sans emploi (en recherche)", value: "SANS_EMPLOI" },
+  { label: "Retraité(e)", value: "RETRAITE" },
+  { label: "Autre", value: "AUTRE" },
 ];
 
 const etatMatrimonialOptions = [
-  { label: "Célibataire", value: "celibataire" },
-  { label: "Concubinage", value: "concubinage" },
-  { label: "Marié(e)", value: "marie" },
-  { label: "Veuf(ve)", value: "veuve" },
+  { label: "Célibataire", value: "CELIBATAIRE" },
+  { label: "Marié(e)", value: "MARIE" },
+  { label: "Union libre / Concubinage", value: "UNION_LIBRE" },
+  { label: "Divorcé(e)", value: "DIVORCE" },
+  { label: "Veuf(ve)", value: "VEUF" },
 ];
 
 const sourceInfoOptions = [
-  { label: "Pair Educateur", value: "pe" },
-  { label: "ASC", value: "asc" },
-  { label: "Télévision", value: "television" },
-  { label: "Radio", value: "radio" },
-  { label: "Campagne de Sensibilisation", value: "campagne" },
-  { label: "Bouche à oreille / Client satisfait / Parent", value: "bouche" },
-  { label: "Prestataire de santé", value: "prestataire" },
-  { label: "Affiche/Prospect", value: "affiche" },
+  { label: "Pair éducateur(trice)", value: "PAIR_EDUCATEUR" },
+  {
+    label: "Agent de santé communautaire (ASC)",
+    value: "AGENT_SANTE_COMMUNAUTAIRE",
+  },
+  { label: "Télévision", value: "TELEVISION" },
+  { label: "Radio", value: "RADIO" },
+  { label: "Réseaux sociaux / Internet", value: "RESEAUX_SOCIAUX" },
+  { label: "Campagne de sensibilisation", value: "CAMPAGNE_SENSIBILISATION" },
+  { label: "Recommandation (bouche-à-oreille)", value: "RECOMMANDATION" },
+  { label: "Prestataire de santé", value: "PRESTATAIRE_SANTE" },
+  { label: "Affiche / Prospectus / Flyer", value: "SUPPORT_IMPRIME" },
+  { label: "Autre", value: "AUTRE" },
 ];
 
 const sexeOptions = [
@@ -812,7 +828,9 @@ export default function ModifFormulaireClient({
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <Input
-                            {...register("code", { required: "Code est requis" })}
+                            {...register("code", {
+                              required: "Code est requis",
+                            })}
                             placeholder="AB/CA01/2025/01/00001-XXX"
                             className={`${inputRequiredClass} uppercase pr-10`}
                             name="code"
@@ -864,16 +882,24 @@ export default function ModifFormulaireClient({
                                 setCodeError("Le code est requis");
                                 return;
                               }
-                              const codeRegex = /^[A-Z]{2}\/[A-Z]{2}\d{2}\/\d{4}\/\d{2}\/\d{5}-[A-Z]{3}$/;
+                              const codeRegex =
+                                /^[A-Z]{2}\/[A-Z]{2}\d{2}\/\d{4}\/\d{2}\/\d{5}-[A-Z]{3}$/;
                               if (!codeRegex.test(trimmed)) {
-                                setCodeError("Format invalide. Ex: AB/CA01/2026/03/00001-XXX (25 caractères)");
+                                setCodeError(
+                                  "Format invalide. Ex: AB/CA01/2026/03/00001-XXX (25 caractères)",
+                                );
                                 return;
                               }
                               setIsUpdatingCode(true);
                               try {
-                                const taken = await checkClientCode(trimmed, modifClientId);
+                                const taken = await checkClientCode(
+                                  trimmed,
+                                  modifClientId,
+                                );
                                 if (taken) {
-                                  setCodeError("Ce code est déjà utilisé par un autre client.");
+                                  setCodeError(
+                                    "Ce code est déjà utilisé par un autre client.",
+                                  );
                                   return;
                                 }
                                 await updateClient(modifClientId, {
@@ -881,17 +907,25 @@ export default function ModifFormulaireClient({
                                   code: trimmed,
                                 });
                                 setValue("code", trimmed);
-                                setSelectedClient((prev) => prev ? { ...prev, code: trimmed } : prev);
+                                setSelectedClient((prev) =>
+                                  prev ? { ...prev, code: trimmed } : prev,
+                                );
                                 setShowCodeEdit(false);
                                 toast.success("Code modifié avec succès");
                               } catch {
-                                toast.error("Erreur lors de la modification du code");
+                                toast.error(
+                                  "Erreur lors de la modification du code",
+                                );
                               } finally {
                                 setIsUpdatingCode(false);
                               }
                             }}
                           >
-                            {isUpdatingCode ? <SpinnerCustom className="h-4 w-4" /> : "Enregistrer"}
+                            {isUpdatingCode ? (
+                              <SpinnerCustom className="h-4 w-4" />
+                            ) : (
+                              "Enregistrer"
+                            )}
                           </Button>
                           <Button
                             type="button"
@@ -917,8 +951,14 @@ export default function ModifFormulaireClient({
                       {...register("codeVih", {
                         validate: async (value) => {
                           if (!value) return true;
-                          const taken = await checkCodeVih(value, modifClientId);
-                          return !taken || "Ce code VIH est déjà utilisé par un autre client.";
+                          const taken = await checkCodeVih(
+                            value,
+                            modifClientId,
+                          );
+                          return (
+                            !taken ||
+                            "Ce code VIH est déjà utilisé par un autre client."
+                          );
                         },
                       })}
                       placeholder="07060/01/25/00001"
@@ -926,7 +966,9 @@ export default function ModifFormulaireClient({
                       name="codeVih"
                     />
                     {errors.codeVih && (
-                      <span className={errorClass}>{errors.codeVih.message}</span>
+                      <span className={errorClass}>
+                        {errors.codeVih.message}
+                      </span>
                     )}
                   </div>
 
