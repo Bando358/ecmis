@@ -354,7 +354,11 @@ export default function VentesPage() {
           startDate,
           endDate,
         });
-        const result = await fetchVentesData(selectedIds, startDate, endDate);
+        const [result, commExamens, commEchographies] = await Promise.all([
+          fetchVentesData(selectedIds, startDate, endDate),
+          getCommissionsExamenByDateRange(startDate, endDate),
+          getCommissionsEchographieByDateRange(startDate, endDate),
+        ]);
         console.log("Résultat fetchVentesData:", {
           examens: result.facturesExamens?.length || 0,
           produits: result.facturesProduits?.length || 0,
@@ -365,8 +369,8 @@ export default function VentesPage() {
         setFacturesProduits(result.facturesProduits || []);
         setFacturesPrestations(result.facturesPrestations || []);
         setFacturesEchographies(result.facturesEchographies || []);
-        setCommissionsExamen([]);
-        setCommissionsEchographie([]);
+        setCommissionsExamen(commExamens as unknown as CommissionExamenData[]);
+        setCommissionsEchographie(commEchographies as unknown as CommissionEchographieData[]);
       } else if (selectedReportType.value.includes("examen")) {
         // Charger les commissions d'examen
         const commissions = await getCommissionsExamenByDateRange(
@@ -588,6 +592,23 @@ export default function VentesPage() {
     getTarifForClinique,
   ]);
 
+  // ================== Maps de commissions par facture ==================
+  const commissionExamenByFactureId = useMemo(() => {
+    const map = new Map<string, number>();
+    commissionsExamen.forEach((c) => {
+      map.set(c.idFactureExamen, (map.get(c.idFactureExamen) || 0) + c.montantCommission);
+    });
+    return map;
+  }, [commissionsExamen]);
+
+  const commissionEchographieByFactureId = useMemo(() => {
+    const map = new Map<string, number>();
+    commissionsEchographie.forEach((c) => {
+      map.set(c.idFactureEchographie, (map.get(c.idFactureEchographie) || 0) + c.montantCommission);
+    });
+    return map;
+  }, [commissionsEchographie]);
+
   // ================== Données groupées ==================
   const groupedExamens = useMemo(() => {
     return Object.values(
@@ -595,6 +616,7 @@ export default function VentesPage() {
         (acc, examen) => {
           const isSousTraite = examen.examSoustraitanceExamen;
           const key = `${examen.examLibelle}-${isSousTraite}-${examen.examRemise}`;
+          const commissionForThis = commissionExamenByFactureId.get(examen.examId) || 0;
 
           if (!acc[key]) {
             acc[key] = {
@@ -604,10 +626,12 @@ export default function VentesPage() {
               prixUnitaire: examen.examPrixTotal,
               quantite: 1,
               montant: examen.examPrixTotal,
+              commission: commissionForThis,
             };
           } else {
             acc[key].quantite += 1;
             acc[key].montant += examen.examPrixTotal;
+            acc[key].commission += commissionForThis;
           }
           return acc;
         },
@@ -623,13 +647,14 @@ export default function VentesPage() {
 
       return a.remise - b.remise;
     });
-  }, [facturesExamens]);
+  }, [facturesExamens, commissionExamenByFactureId]);
 
   const groupedEchographies = useMemo(() => {
     return Object.values(
       facturesEchographies.reduce(
         (acc, echographie) => {
           const key = `${echographie.echoLibelle}-${echographie.echoRemise}`;
+          const commissionForThis = commissionEchographieByFactureId.get(echographie.echoId) || 0;
           if (!acc[key]) {
             acc[key] = {
               libelle: echographie.echoLibelle,
@@ -637,10 +662,16 @@ export default function VentesPage() {
               prixUnitaire: echographie.echoPrixTotal,
               quantite: 1,
               montant: echographie.echoPrixTotal,
+              partEchographe: echographie.echoPartEchographe,
+              montantNet: echographie.echoPrixTotal,
+              commission: commissionForThis,
             };
           } else {
             acc[key].quantite += 1;
             acc[key].montant += echographie.echoPrixTotal;
+            acc[key].partEchographe += echographie.echoPartEchographe;
+            acc[key].montantNet += echographie.echoPrixTotal;
+            acc[key].commission += commissionForThis;
           }
           return acc;
         },
@@ -651,7 +682,7 @@ export default function VentesPage() {
       if (cmpLibelle !== 0) return cmpLibelle;
       return a.remise - b.remise;
     });
-  }, [facturesEchographies]);
+  }, [facturesEchographies, commissionEchographieByFactureId]);
 
   const produitsGroupedByType = useMemo(() => {
     return allProduits.reduce(
@@ -993,10 +1024,35 @@ export default function VentesPage() {
         );
         doc.text(formatPeriode(), 14, 62);
 
+        const totalCommExamens = groupedExamens.reduce((s, e) => s + e.commission, 0);
+        const totalCommEchos = groupedEchographies.reduce((s, e) => s + e.commission, 0);
+        const totalPartEcho = groupedEchographies.reduce((s, e) => s + e.partEchographe, 0);
+        const totalCommissions = totalCommExamens + totalCommEchos + totalPartEcho;
+
+        let recapY = 72;
+        if (totalCommissions > 0) {
+          doc.setFontSize(9);
+          if (totalCommExamens > 0) {
+            doc.text(`Commission Examens : ${formatNumberForPDF(totalCommExamens)} FCFA`, 14, recapY);
+            recapY += 5;
+          }
+          if (totalCommEchos > 0) {
+            doc.text(`Commission Échographies : ${formatNumberForPDF(totalCommEchos)} FCFA`, 14, recapY);
+            recapY += 5;
+          }
+          if (totalPartEcho > 0) {
+            doc.text(`Part Échographe : ${formatNumberForPDF(totalPartEcho)} FCFA`, 14, recapY);
+            recapY += 5;
+          }
+          doc.text(`Total Commissions : ${formatNumberForPDF(totalCommissions)} FCFA`, 14, recapY);
+          recapY += 7;
+          doc.setFontSize(10);
+        }
+
         doc.text(
           `Total Recette : ${formatNumberForPDF(totalRecette)} FCFA`,
           14,
-          72,
+          recapY,
         );
 
         /* ================= PRODUITS PAR CATÉGORIE ================= */
@@ -1145,14 +1201,19 @@ export default function VentesPage() {
           (sum, ex) => sum + ex.montant,
           0,
         );
+        const totalExamensCommission = groupedExamens.reduce(
+          (sum, ex) => sum + ex.commission,
+          0,
+        );
 
         autoTable(doc, {
           startY,
-          head: [["Examen", "PU", "Qté", "Montant"]],
+          head: [["Examen", "PU", "Qté", "Commission", "Montant"]],
           body: groupedExamens.map((ex) => [
             formatExamenLibelle(ex),
             formatNumberForPDF(ex.prixUnitaire),
             ex.quantite.toString(),
+            ex.commission > 0 ? formatNumberForPDF(ex.commission) : "0",
             formatNumberForPDF(ex.montant),
           ]),
           foot: [
@@ -1160,6 +1221,7 @@ export default function VentesPage() {
               "TOTAL EXAMENS",
               "",
               totalExamensQuantite.toString(),
+              formatNumberForPDF(totalExamensCommission),
               formatNumberForPDF(totalExamensMontant),
             ],
           ],
@@ -1191,16 +1253,26 @@ export default function VentesPage() {
             (sum, echo) => sum + echo.montant,
             0,
           );
+          const totalPartEchographe = groupedEchographies.reduce(
+            (sum, echo) => sum + echo.partEchographe,
+            0,
+          );
+          const totalEchoCommission = groupedEchographies.reduce(
+            (sum, echo) => sum + echo.commission,
+            0,
+          );
 
           autoTable(doc, {
             startY,
-            head: [["Échographie", "PU", "Qté", "Montant"]],
+            head: [["Échographie", "PU", "Qté", "Commission", "Part Écho.", "Montant Net"]],
             body: groupedEchographies.map((echo) => [
               echo.remise > 0
                 ? `${echo.libelle} (${echo.remise}%)`
                 : echo.libelle,
               formatNumberForPDF(echo.prixUnitaire),
               echo.quantite.toString(),
+              echo.commission > 0 ? formatNumberForPDF(echo.commission) : "0",
+              echo.partEchographe > 0 ? formatNumberForPDF(echo.partEchographe) : "0",
               formatNumberForPDF(echo.montant),
             ]),
             foot: [
@@ -1208,6 +1280,8 @@ export default function VentesPage() {
                 "TOTAL ÉCHOGRAPHIES",
                 "",
                 totalEchographiesQuantite.toString(),
+                formatNumberForPDF(totalEchoCommission),
+                formatNumberForPDF(totalPartEchographe),
                 formatNumberForPDF(totalEchographiesMontant),
               ],
             ],

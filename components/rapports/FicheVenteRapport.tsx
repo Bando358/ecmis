@@ -253,10 +253,13 @@ export default function FicheVenteRapport({
                   Libelle
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  Prix Unitaire (FCFA)
+                  PU (FCFA)
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  Quantite
+                  Qte
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  Commission (FCFA)
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
                   Montant (FCFA)
@@ -275,6 +278,11 @@ export default function FicheVenteRapport({
                   <td className="border border-gray-300 px-4 py-3 text-sm text-right">
                     {examen.quantite}
                   </td>
+                  <td className="border border-gray-300 px-4 py-3 text-sm text-right text-orange-600">
+                    {examen.commission > 0
+                      ? examen.commission.toLocaleString("fr-FR")
+                      : "0"}
+                  </td>
                   <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
                     {examen.montant.toLocaleString("fr-FR")}
                   </td>
@@ -291,6 +299,11 @@ export default function FicheVenteRapport({
                 </td>
                 <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
                   {facturesExamens.length}
+                </td>
+                <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right text-orange-600">
+                  {groupedExamens
+                    .reduce((sum, e) => sum + e.commission, 0)
+                    .toLocaleString("fr-FR")}
                 </td>
                 <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
                   {facturesExamens
@@ -317,13 +330,19 @@ export default function FicheVenteRapport({
                     Libelle
                   </th>
                   <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                    Prix Unitaire (FCFA)
+                    PU (FCFA)
                   </th>
                   <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                    Quantite
+                    Qte
                   </th>
                   <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                    Montant (FCFA)
+                    Commission (FCFA)
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    Part Echographe (FCFA)
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    Montant Net (FCFA)
                   </th>
                 </tr>
               </thead>
@@ -341,6 +360,16 @@ export default function FicheVenteRapport({
                     <td className="border border-gray-300 px-4 py-3 text-sm text-right">
                       {echographie.quantite}
                     </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm text-right text-orange-600">
+                      {echographie.commission > 0
+                        ? echographie.commission.toLocaleString("fr-FR")
+                        : "0"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm text-right text-orange-600">
+                      {echographie.partEchographe > 0
+                        ? echographie.partEchographe.toLocaleString("fr-FR")
+                        : "0"}
+                    </td>
                     <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
                       {echographie.montant.toLocaleString("fr-FR")}
                     </td>
@@ -357,6 +386,16 @@ export default function FicheVenteRapport({
                   </td>
                   <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
                     {facturesEchographies.length}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right text-orange-600">
+                    {groupedEchographies
+                      .reduce((sum, e) => sum + e.commission, 0)
+                      .toLocaleString("fr-FR")}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right text-orange-600">
+                    {facturesEchographies
+                      .reduce((sum, f) => sum + f.echoPartEchographe, 0)
+                      .toLocaleString("fr-FR")}
                   </td>
                   <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-right">
                     {facturesEchographies
@@ -397,6 +436,56 @@ export default function FicheVenteRapport({
                   {dateDebut !== dateFin && ` - ${formatDate(dateFin)}`}
                 </span>
               </div>
+              {(groupedExamens.some((e) => e.commission > 0) ||
+                groupedEchographies.some((e) => e.commission > 0) ||
+                groupedEchographies.some((e) => e.partEchographe > 0)) && (
+                <div className="pt-3 border-t mt-3 space-y-2">
+                  {groupedExamens.reduce((s, e) => s + e.commission, 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Commission Examens :</span>
+                      <span className="font-medium text-orange-600">
+                        {groupedExamens
+                          .reduce((s, e) => s + e.commission, 0)
+                          .toLocaleString("fr-FR")}{" "}
+                        FCFA
+                      </span>
+                    </div>
+                  )}
+                  {groupedEchographies.reduce((s, e) => s + e.commission, 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Commission Echographies :</span>
+                      <span className="font-medium text-orange-600">
+                        {groupedEchographies
+                          .reduce((s, e) => s + e.commission, 0)
+                          .toLocaleString("fr-FR")}{" "}
+                        FCFA
+                      </span>
+                    </div>
+                  )}
+                  {groupedEchographies.reduce((s, e) => s + e.partEchographe, 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Part Echographe :</span>
+                      <span className="font-medium text-orange-600">
+                        {groupedEchographies
+                          .reduce((s, e) => s + e.partEchographe, 0)
+                          .toLocaleString("fr-FR")}{" "}
+                        FCFA
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-sm font-semibold text-gray-700">Total Commissions :</span>
+                    <span className="text-sm font-semibold text-orange-600">
+                      {(
+                        groupedExamens.reduce((s, e) => s + e.commission, 0) +
+                        groupedEchographies.reduce((s, e) => s + e.commission, 0) +
+                        groupedEchographies.reduce((s, e) => s + e.partEchographe, 0)
+                      ).toLocaleString("fr-FR")}{" "}
+                      FCFA
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className="pt-3 border-t mt-3">
                 <div className="flex justify-between">
                   <span className="text-lg font-bold text-gray-900">

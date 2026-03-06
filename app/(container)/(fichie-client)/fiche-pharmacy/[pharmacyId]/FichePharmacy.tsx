@@ -710,25 +710,34 @@ export default function FichePharmacyClient({
         idDemandeExamen: demande.id,
       }));
 
-      const echographiesData = demandeEchographies.map((demande) => ({
-        id: crypto.randomUUID(),
-        idVisite: watchedIdVisite,
-        idClient: pharmacyId,
-        idClinique: client?.idClinique || "",
-        remiseEchographie: parseInt(String(watchedRemiseEchographie || "0")),
-        idUser: idUser,
-        libelleEchographie: renameEchographie(demande.id),
-        prixEchographie: Number(watchedRemiseEchographie)
+      const partEchographeTotal = Number(watchedPartEchographe) || 0;
+      const partEchographeParEcho = demandeEchographies.length > 0
+        ? Math.round(partEchographeTotal / demandeEchographies.length)
+        : 0;
+
+      const echographiesData = demandeEchographies.map((demande) => {
+        const prixApresRemise = Number(watchedRemiseEchographie)
           ? Math.round(
               demande.prixEchographie *
                 (1 - Number(watchedRemiseEchographie) / 100),
             )
-          : demande.prixEchographie,
-        idDemandeEchographie: demande.id,
-        serviceEchographieFacture:
-          getServiceEchographie(demande.idTarifEchographie) ?? "",
-        partEchographe: Number(watchedPartEchographe) || 0,
-      }));
+          : demande.prixEchographie;
+
+        return {
+          id: crypto.randomUUID(),
+          idVisite: watchedIdVisite,
+          idClient: pharmacyId,
+          idClinique: client?.idClinique || "",
+          remiseEchographie: parseInt(String(watchedRemiseEchographie || "0")),
+          idUser: idUser,
+          libelleEchographie: renameEchographie(demande.id),
+          prixEchographie: prixApresRemise - partEchographeParEcho,
+          idDemandeEchographie: demande.id,
+          serviceEchographieFacture:
+            getServiceEchographie(demande.idTarifEchographie) ?? "",
+          partEchographe: partEchographeTotal,
+        };
+      });
 
       // UN SEUL appel serveur (transaction atomique)
       await batchFacturation({
@@ -814,17 +823,12 @@ export default function FichePharmacyClient({
       (demandeEchographies.length > 0 ? partEcho : 0),
   );
 
-  // Somme des partEchographe sauvegardés (unique par batch, prendre le premier)
-  const totalPartEchoSaved =
-    echographiesFacture.length > 0
-      ? (echographiesFacture[0].partEchographe ?? 0)
-      : 0;
+  // prixEchographie est déjà net (après remise + partEchographe), pas besoin de soustraire
   const totalSaved =
     montantProduits(produitFacture) +
     montantPrestations(prestationfacture) +
     montantFactureExamens(examensFacture) +
-    montantFactureEchographies(echographiesFacture) -
-    totalPartEchoSaved;
+    montantFactureEchographies(echographiesFacture);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -1814,10 +1818,7 @@ export default function FichePharmacyClient({
                               1
                             </TableCell>
                             <TableCell className="text-right font-medium tabular-nums">
-                              {Math.round(
-                                echographie.prixEchographie -
-                                (echographie.partEchographe ?? 0) / echographiesFacture.length,
-                              ).toLocaleString("fr-FR")}
+                              {echographie.prixEchographie.toLocaleString("fr-FR")}
                             </TableCell>
                             <TableCell className="print:hidden">
                               <AlertDialog>

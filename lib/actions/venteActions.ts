@@ -12,6 +12,7 @@ export type FactureEchographieType = {
   echoRemise: number;
   echoLibelle: string;
   echoPrixTotal: number;
+  echoPartEchographe: number;
   echoIdDemandeEchographie: string;
   echoClient: unknown;
   echoClinique: unknown;
@@ -232,6 +233,7 @@ export const fetchVentesData = async (
     echoRemise: f.remiseEchographie || 0,
     echoLibelle: f.libelleEchographie,
     echoPrixTotal: f.prixEchographie,
+    echoPartEchographe: f.partEchographe || 0,
     echoIdDemandeEchographie: f.idDemandeEchographie,
     echoClient: f.Client,
     echoClinique: f.Clinique,

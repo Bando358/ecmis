@@ -14,6 +14,7 @@ export interface GroupedExamen {
   prixUnitaire: number;
   quantite: number;
   montant: number;
+  commission: number;
 }
 
 export interface GroupedEchographie {
@@ -22,6 +23,9 @@ export interface GroupedEchographie {
   prixUnitaire: number;
   quantite: number;
   montant: number;
+  partEchographe: number;
+  montantNet: number;
+  commission: number;
 }
 
 export interface ProduitCalculations {
