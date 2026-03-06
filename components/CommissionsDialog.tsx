@@ -157,10 +157,16 @@ export default function CommissionsDialog({
       const defaultEchographiesCommissions: Record<string, number> = {};
       echographiesFacture.forEach((echo) => {
         if (echo.remiseEchographie > 0) {
-          defaultEchographiesCommissions[echo.id] = calculateDefaultCommission(
-            echo.prixEchographie,
-            echo.remiseEchographie
-          );
+          // Récupérer le PU original (prix tarif) à partir du prix net
+          const partParEcho = echographiesFacture.length > 0
+            ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
+            : 0;
+          const prixAvantPartEcho = echo.prixEchographie + partParEcho;
+          const prixOriginal = echo.remiseEchographie > 0 && echo.remiseEchographie < 100
+            ? Math.round(prixAvantPartEcho / (1 - echo.remiseEchographie / 100))
+            : Math.round(prixAvantPartEcho);
+          // Commission = remise% × PU original
+          defaultEchographiesCommissions[echo.id] = Math.round(prixOriginal * echo.remiseEchographie / 100);
         }
       });
       setEchographiesCommissions(defaultEchographiesCommissions);
@@ -696,13 +702,21 @@ export default function CommissionsDialog({
                     {echographiesFacture.map((echo) => {
                       const commissionExistante = echographiesCommissionsExistantes[echo.id];
                       const hasExistingCommission = !!commissionExistante;
+                      // Récupérer le PU original (prix tarif)
+                      const partParEcho = echographiesFacture.length > 0
+                        ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
+                        : 0;
+                      const prixAvantPartEcho = echo.prixEchographie + partParEcho;
+                      const prixUnitaire = echo.remiseEchographie > 0 && echo.remiseEchographie < 100
+                        ? Math.round(prixAvantPartEcho / (1 - echo.remiseEchographie / 100))
+                        : Math.round(prixAvantPartEcho);
                       return (
                         <TableRow
                           key={echo.id}
                           className={hasExistingCommission ? "bg-green-50" : ""}
                         >
                           <TableCell>{echo.libelleEchographie}</TableCell>
-                          <TableCell>{echo.prixEchographie} CFA</TableCell>
+                          <TableCell>{prixUnitaire.toLocaleString("fr-FR")} CFA</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Input

@@ -1807,12 +1807,15 @@ export default function FichePharmacyClient({
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {echographie.remiseEchographie > 0
-                                ? (
-                                    echographie.prixEchographie /
-                                    (1 - echographie.remiseEchographie / 100)
-                                  ).toFixed(0)
-                                : echographie.prixEchographie}
+                              {(() => {
+                                const partParEcho = echographiesFacture.length > 0
+                                  ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
+                                  : 0;
+                                const prixAvantPartEcho = echographie.prixEchographie + partParEcho;
+                                return echographie.remiseEchographie > 0
+                                  ? Math.round(prixAvantPartEcho / (1 - echographie.remiseEchographie / 100)).toLocaleString("fr-FR")
+                                  : Math.round(prixAvantPartEcho).toLocaleString("fr-FR");
+                              })()}
                             </TableCell>
                             <TableCell className="text-center tabular-nums">
                               1
