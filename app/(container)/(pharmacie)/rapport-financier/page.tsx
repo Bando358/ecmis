@@ -4,6 +4,7 @@ import React, { useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { fetchVentesData } from "@/lib/actions/venteActions";
+import { fetchVentesDirectes } from "@/lib/actions/venteDirecteActions";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -223,6 +224,7 @@ export default function VentesPage() {
     CommissionEchographieData[]
   >([]);
   const [allPrescripteurs, setAllPrescripteurs] = useState<Prescripteur[]>([]);
+  const [totalVentesDirectes, setTotalVentesDirectes] = useState(0);
 
   const { data: session } = useSession();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -354,10 +356,11 @@ export default function VentesPage() {
           startDate,
           endDate,
         });
-        const [result, commExamens, commEchographies] = await Promise.all([
+        const [result, commExamens, commEchographies, ventesDirectesData] = await Promise.all([
           fetchVentesData(selectedIds, startDate, endDate),
           getCommissionsExamenByDateRange(startDate, endDate),
           getCommissionsEchographieByDateRange(startDate, endDate),
+          fetchVentesDirectes(selectedIds, new Date(startDate), new Date(endDate)),
         ]);
         console.log("Résultat fetchVentesData:", {
           examens: result.facturesExamens?.length || 0,
@@ -371,6 +374,9 @@ export default function VentesPage() {
         setFacturesEchographies(result.facturesEchographies || []);
         setCommissionsExamen(commExamens as unknown as CommissionExamenData[]);
         setCommissionsEchographie(commEchographies as unknown as CommissionEchographieData[]);
+        setTotalVentesDirectes(
+          ventesDirectesData.reduce((sum, v) => sum + v.montantProduit, 0)
+        );
       } else if (selectedReportType.value.includes("examen")) {
         // Charger les commissions d'examen
         const commissions = await getCommissionsExamenByDateRange(
@@ -900,13 +906,15 @@ export default function VentesPage() {
       facturesProduits.reduce((total, f) => total + f.prodMontantTotal, 0) +
       facturesPrestations.reduce((total, f) => total + f.prestPrixTotal, 0) +
       facturesExamens.reduce((total, f) => total + f.examPrixTotal, 0) +
-      facturesEchographies.reduce((total, f) => total + f.echoPrixTotal, 0)
+      facturesEchographies.reduce((total, f) => total + f.echoPrixTotal, 0) +
+      totalVentesDirectes
     );
   }, [
     facturesProduits,
     facturesPrestations,
     facturesExamens,
     facturesEchographies,
+    totalVentesDirectes,
   ]);
 
   const totalProduitsQuantite = useMemo(() => {
@@ -1049,11 +1057,21 @@ export default function VentesPage() {
           doc.setFontSize(10);
         }
 
+        if (totalVentesDirectes > 0) {
+          doc.text(`Ventes Directes : ${formatNumberForPDF(totalVentesDirectes)} FCFA`, 14, recapY);
+          recapY += 7;
+        }
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
         doc.text(
           `Total Recette : ${formatNumberForPDF(totalRecette)} FCFA`,
           14,
           recapY,
         );
+        doc.setFont("helvetica", "normal");
+
+        startY = recapY + 10;
 
         /* ================= PRODUITS PAR CATÉGORIE ================= */
         const typeLabels: Record<string, string> = {
@@ -1918,6 +1936,7 @@ export default function VentesPage() {
                   facturesExamens={facturesExamens}
                   groupedEchographies={groupedEchographies}
                   facturesEchographies={facturesEchographies}
+                  totalVentesDirectes={totalVentesDirectes}
                   totalRecette={totalRecette}
                 />
               )}

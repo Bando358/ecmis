@@ -20,6 +20,7 @@ export default function FicheVenteRapport({
   facturesExamens,
   groupedEchographies,
   facturesEchographies,
+  totalVentesDirectes,
   totalRecette,
 }: FicheVenteRapportProps) {
   const formatDate = (dateStr: string) => {
@@ -484,6 +485,14 @@ export default function FicheVenteRapport({
                       FCFA
                     </span>
                   </div>
+                </div>
+              )}
+              {totalVentesDirectes > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Ventes Directes :</span>
+                  <span className="font-medium text-teal-600">
+                    {totalVentesDirectes.toLocaleString("fr-FR")} FCFA
+                  </span>
                 </div>
               )}
               <div className="pt-3 border-t mt-3">

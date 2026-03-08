@@ -67,6 +67,17 @@ export const FactureProduitCreateSchema = z.object({
   idVisite: IdSchema,
 }).passthrough();
 
+// ===== Vente Directe =====
+export const VenteDirecteCreateSchema = z.object({
+  idTarifProduit: IdSchema,
+  nomProduit: RequiredStringSchema,
+  quantite: z.number().int().min(1, "Quantité minimum 1"),
+  montantProduit: PositiveIntSchema,
+  methode: z.boolean().default(false),
+  idClinique: IdSchema,
+  idUser: IdSchema,
+}).passthrough();
+
 // ===== Produit =====
 export const ProduitCreateSchema = z.object({
   nomProduit: RequiredStringSchema,

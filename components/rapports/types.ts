@@ -90,6 +90,7 @@ export interface FicheVenteRapportProps {
   facturesExamens: FactureExamenType[];
   groupedEchographies: GroupedEchographie[];
   facturesEchographies: FactureEchographieType[];
+  totalVentesDirectes: number;
   totalRecette: number;
 }
 

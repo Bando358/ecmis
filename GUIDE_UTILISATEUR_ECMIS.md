@@ -2,7 +2,7 @@
 
 ## Système Électronique de Gestion des Informations Cliniques
 
-**Version 2.0**
+**Version 3.0**
 **AIBEF - Association Ivoirienne pour le Bien-Être Familial**
 
 ---
@@ -16,24 +16,26 @@
 5. [Tableau de bord (Dashboard)](#5-tableau-de-bord-dashboard)
 6. [Navigation générale (Sidebar)](#6-navigation-générale-sidebar)
 7. [Module Clients](#7-module-clients)
-8. [Dossier Médical — Hub des Fiches](#8-dossier-médical--hub-des-fiches)
-9. [Visite & Constantes](#9-visite--constantes)
-10. [Planning Familial](#10-planning-familial)
-11. [Gynécologie & Infertilité](#11-gynécologie--infertilité)
-12. [Maternité](#12-maternité)
-13. [IST & VIH](#13-ist--vih)
-14. [Médecine Générale & VBG](#14-médecine-générale--vbg)
-15. [Examens & Échographie](#15-examens--échographie)
-16. [Référencement & Facturation](#16-référencement--facturation)
-17. [Module Pharmacie](#17-module-pharmacie)
-18. [Module Laboratoire & Échographie](#18-module-laboratoire--échographie)
-19. [Rapports, Listings & Rendez-vous](#19-rapports-listings--rendez-vous)
-20. [Module Administration](#20-module-administration)
-21. [Sauvegarde des Données](#21-sauvegarde-des-données)
-22. [Bonnes Pratiques](#22-bonnes-pratiques)
-23. [Assistance et Support](#23-assistance-et-support)
-24. [Sécurité et Confidentialité](#24-sécurité-et-confidentialité)
-25. [Annexes](#25-annexes)
+8. [Doublons & Fusion de Clients](#8-doublons--fusion-de-clients)
+9. [Dossier Médical — Hub des Fiches](#9-dossier-médical--hub-des-fiches)
+10. [Visite & Constantes](#10-visite--constantes)
+11. [Planning Familial](#11-planning-familial)
+12. [Gynécologie & Infertilité](#12-gynécologie--infertilité)
+13. [Maternité](#13-maternité)
+14. [IST & VIH](#14-ist--vih)
+15. [Médecine Générale & VBG](#15-médecine-générale--vbg)
+16. [Examens & Échographie](#16-examens--échographie)
+17. [Référencement & Facturation](#17-référencement--facturation)
+18. [Module Pharmacie](#18-module-pharmacie)
+19. [Module Laboratoire & Échographie](#19-module-laboratoire--échographie)
+20. [Rapports, Listings & Rendez-vous](#20-rapports-listings--rendez-vous)
+21. [Module Analyse & Visualisation](#21-module-analyse--visualisation)
+22. [Module Administration](#22-module-administration)
+23. [Sauvegarde des Données](#23-sauvegarde-des-données)
+24. [Bonnes Pratiques](#24-bonnes-pratiques)
+25. [Assistance et Support](#25-assistance-et-support)
+26. [Sécurité et Confidentialité](#26-sécurité-et-confidentialité)
+27. [Annexes](#27-annexes)
 
 ---
 
@@ -102,18 +104,31 @@ Ce guide a pour objectif d'accompagner les utilisateurs finaux dans l'utilisatio
 
 Centraliser toutes les activités médicales et administratives d'une structure de santé dans un seul outil.
 
+### 📊 L'application en chiffres
+
+| Élément | Nombre | Description |
+|---------|:------:|-------------|
+| **Tables en base de données** | 67 | Modèles Prisma couvrant données cliniques, financières, pharmaceutiques, administratives et analytiques |
+| **Pages accessibles** | 83 | Écrans de l'application (tableaux de bord, formulaires, listes, rapports, administration) |
+| **Formulaires de saisie** | 78 | Formulaires répartis dans les composants et pages pour la création et la modification de données |
+| **Enums de référence** | 13 | Types énumérés (rôles, statuts, méthodes, types de produits, etc.) |
+
+> **NB :** Un **Enum** (abréviation de *énumération*) est une liste fermée de valeurs prédéfinies utilisée par le système pour garantir la cohérence des données. Par exemple, l'enum *Role* n'autorise que les valeurs `ADMIN` ou `USER`, l'enum *Sexe* uniquement `M` ou `F`, et l'enum *TypeProduit* uniquement `CONTRACEPTIF`, `MEDICAMENTS` ou `CONSOMMABLES`. Cela empêche toute saisie libre et évite les erreurs ou incohérences dans la base de données.
+
 ### 📝 Description
 
 L'application permet la gestion complète :
 
 | Module | Fonctionnalités |
 |--------|-----------------|
-| **Clients** | Dossiers patients, historique médical |
-| **Consultations** | Visites, constantes, fiches médicales |
+| **Clients** | Dossiers patients, historique médical, détection de doublons |
+| **Consultations** | Visites, constantes, fiches médicales spécialisées |
 | **Examens** | Demandes, résultats, facturation |
-| **Pharmacie** | Stock, rapports financiers, inventaires |
-| **Facturation** | Prestations, examens, produits |
-| **Rapports** | Statistiques, exports, listings |
+| **Pharmacie** | Stock, ventes directes, rapports financiers, inventaires, journal des actions |
+| **Facturation** | Prestations, examens, produits, commissions prescripteurs |
+| **Rapports** | Statistiques, exports, listings, rendez-vous |
+| **Analyse** | Tableaux croisés dynamiques, indicateurs de santé, exports Excel/PDF |
+| **Administration** | Cliniques, comptes, permissions, activités, régions, sauvegardes |
 
 ---
 
@@ -178,8 +193,8 @@ Pour des raisons de sécurité, l'application vous déconnecte automatiquement a
 
 | Condition | Durée |
 |-----------|-------|
-| Session active | 8 heures maximum |
-| Inactivité | 15 minutes |
+| Session active | 24 heures maximum |
+| Inactivité | 30 minutes |
 
 💡 **Conseil** : Enregistrez régulièrement votre travail pour éviter toute perte de données.
 
@@ -243,8 +258,8 @@ Le menu latéral gauche est organisé en sections dépliantes :
 | Section | Sous-menus |
 |---------|------------|
 | **Dashboard** | Tableau de bord principal |
-| **Clients** | Liste des clients, Import VIH, Formulaire client |
-| **Pharmacie** | Rapport financier, Produits, Stock, Prix, Inventaire, Historiques |
+| **Clients** | Liste des clients, Doublons & Fusion, Import VIH |
+| **Pharmacie** | Vente Directe, Rapport financier, Produits, Stock, Prix, Inventaire, Historiques, Tableau financier, Journal des actions |
 | **Listings** | Rapports, Listings, Gestion RDV |
 | **Laboratoire** | Examens, Prix des examens |
 | **Échographie** | Échographies, Prix des échographies |
@@ -363,7 +378,159 @@ Enregistrer un nouveau patient dans le système avec toutes ses informations per
 
 ---
 
-## 8. Dossier Médical — Hub des Fiches
+## 8. Doublons & Fusion de Clients
+
+### 🎯 But
+
+Détecter les clients potentiellement en double dans la base de données, les comparer côte à côte, puis fusionner les doublons en conservant toutes les données médicales et administratives sans perte.
+
+### 👤 Rôles concernés
+
+- Administrateur
+- Utilisateurs ayant la permission `FUSION_CLIENT`
+
+### 📝 Description
+
+Le module de gestion des doublons se compose de 4 étapes : **Scanner**, **Comparer**, **Fusionner**, **Historique**.
+
+### 8.1 Scanner les doublons
+
+#### 📝 Description
+
+Sélectionnez les cliniques à analyser puis cliquez sur **Scanner**. Le système détecte automatiquement les doublons selon deux méthodes :
+
+| Méthode | Critères | Badge |
+|---------|----------|-------|
+| **Correspondance exacte** | Même nom + prénom + date de naissance | 🔴 Rouge |
+| **Correspondance similaire** | Noms similaires (seuil ≥ 80%) + 2 critères parmi : date de naissance, téléphone | ⚪ Gris |
+
+**Résultats affichés :**
+
+Les doublons sont regroupés sous forme de cartes dépliables. Chaque groupe affiche :
+
+| Colonne | Description |
+|---------|-------------|
+| **Code** | Code client unique |
+| **Nom / Prénom** | Identité |
+| **Date naissance** | Date de naissance |
+| **Tél** | Numéro de téléphone |
+| **Clinique** | Antenne de rattachement |
+| **Visites** | Nombre de visites enregistrées |
+| **Actions** | Bouton **Comparer** |
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch04-05-doublons-scan.png` | Scanner de doublons — résultats avec groupes |
+
+### 8.2 Comparer deux clients
+
+#### 📝 Description
+
+Cliquez sur **Comparer** pour ouvrir un dialogue affichant les deux fiches côte à côte :
+
+**Informations comparées :**
+
+| Champ | Description |
+|-------|-------------|
+| Nom, Prénom | Identité |
+| Date de naissance | Âge |
+| Code, Code VIH | Identifiants |
+| Tél 1, Tél 2 | Contacts |
+| Sexe | Genre |
+| Profession | Activité professionnelle |
+| Quartier | Lieu de résidence |
+| État matrimonial | Situation familiale |
+| Statut, Source | Informations complémentaires |
+| Clinique | Antenne |
+| Relations | Nombre total de données associées (visites, consultations, factures, etc.) |
+
+**Détection de conflits :**
+
+Si certains champs diffèrent entre les deux clients, une section jaune « Conflits détectés » s'affiche avec un tableau comparatif.
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch04-06-doublons-comparer.png` | Comparaison côte à côte avec conflits |
+
+### 8.3 Fusionner les clients
+
+#### 📝 Description
+
+Cliquez sur **Fusionner** depuis le dialogue de comparaison. Le processus se déroule en 3 étapes :
+
+**Étape 1 — Choix du client principal**
+
+Sélectionnez le client qui sera conservé. Par défaut, le système propose le client ayant le plus de données associées.
+
+| Choix | Conséquence |
+|-------|-------------|
+| **Client principal** | Conservé avec son ID, code et toutes ses données |
+| **Client secondaire** | Toutes ses données sont transférées puis il est supprimé |
+
+**Étape 2 — Résolution des conflits**
+
+🔀 **Affichage conditionnel :** Si des conflits existent (champs avec des valeurs différentes), un formulaire apparaît pour chaque conflit :
+
+| Conflit | Action |
+|---------|--------|
+| Téléphone différent | Choisir la valeur du Client A ou Client B |
+| Profession différente | Choisir la valeur du Client A ou Client B |
+| Quartier différent | Choisir la valeur du Client A ou Client B |
+| État matrimonial différent | Choisir la valeur du Client A ou Client B |
+
+**Étape 3 — Confirmation**
+
+⚠️ Un dialogue de confirmation s'affiche : *« Êtes-vous sûr de vouloir fusionner ces clients ? Cette action est irréversible. »*
+
+**Données transférées lors de la fusion :**
+
+| Catégorie | Tables concernées |
+|-----------|-------------------|
+| **Visites** | Visite, RecapVisite, Constante |
+| **Santé reproductive** | Planning, Gynécologie, Infertilité |
+| **Maternité** | Grossesse, Obstétrique, Accouchement, CPoN, Test grossesse, SAA |
+| **IST & VIH** | IST, Dépistage VIH, PEC VIH, Examen PV VIH |
+| **Médecine** | Médecine générale, VBG, Ordonnance |
+| **Examens** | Demande/Résultat/Facture d'examen, Demande/Résultat/Facture d'échographie |
+| **Facturation** | Facture prestation, Facture produit |
+| **Autre** | Référence, Contre-référence, Bilan, Couverture |
+
+💡 La fusion est exécutée dans une **transaction atomique** : soit tout est transféré avec succès, soit rien n'est modifié.
+
+#### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch04-07-doublons-fusion-config.png` | Configuration de la fusion — choix du principal et conflits |
+| `ch04-08-doublons-fusion-confirm.png` | Confirmation avant fusion irréversible |
+
+### 8.4 Historique des fusions
+
+#### 📝 Description
+
+Cliquez sur le bouton **Historique** en haut de la page pour consulter toutes les fusions effectuées.
+
+| Colonne | Description |
+|---------|-------------|
+| **Date** | Date de la fusion |
+| **Client principal** | ID du client conservé |
+| **Client fusionné** | Nom et code du client supprimé |
+| **Relations** | Nombre de données transférées |
+| **Par** | Nom de l'utilisateur ayant effectué la fusion |
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch04-09-doublons-historique.png` | Historique des fusions effectuées |
+
+---
+
+## 9. Dossier Médical — Hub des Fiches
 
 ### 🎯 But
 
@@ -408,9 +575,9 @@ En cliquant sur une catégorie, les onglets correspondants s'affichent avec les 
 
 ---
 
-## 9. Visite & Constantes
+## 10. Visite & Constantes
 
-### 9.1 Créer une visite
+### 10.1 Créer une visite
 
 #### 🎯 But
 
@@ -437,7 +604,7 @@ Enregistrer une nouvelle visite pour un client. La visite est le point d'entrée
 |-------|-------------|
 | `ch06-01-fiche-visite.png` | Formulaire de création de visite |
 
-### 9.2 Enregistrer les constantes
+### 10.2 Enregistrer les constantes
 
 #### 🎯 But
 
@@ -471,7 +638,7 @@ Le formulaire nécessite de sélectionner une visite existante dans le menu dér
 
 ---
 
-## 10. Planning Familial
+## 11. Planning Familial
 
 ### 🎯 But
 
@@ -517,9 +684,9 @@ Enregistrer les consultations de planification familiale, documenter les méthod
 
 ---
 
-## 11. Gynécologie & Infertilité
+## 12. Gynécologie & Infertilité
 
-### 11.1 Consultation gynécologique
+### 12.1 Consultation gynécologique
 
 #### 🎯 But
 
@@ -557,7 +724,7 @@ Enregistrer une consultation de gynécologie incluant le dépistage du cancer du
 | `ch07-02-fiche-gyneco.png` | Formulaire gynécologie — haut |
 | `ch07-02-fiche-gyneco-suite.png` | Formulaire gynécologie — suite |
 
-### 11.2 Suivi d'infertilité
+### 12.2 Suivi d'infertilité
 
 #### 🎯 But
 
@@ -582,9 +749,9 @@ Documenter les consultations d'infertilité et le type de traitement prescrit.
 
 ---
 
-## 12. Maternité
+## 13. Maternité
 
-### 12.1 Test de grossesse
+### 13.1 Test de grossesse
 
 #### 🎯 But
 
@@ -601,7 +768,7 @@ Formulaire simple avec sélection de la visite et résultat (Positif / Négatif)
 | `ch08-01-fiche-test-grossesse.png` | Formulaire test de grossesse |
 | `ch08-01-fiche-test-grossesse-suite.png` | Formulaire test de grossesse — suite |
 
-### 12.2 Enregistrer une grossesse
+### 13.2 Enregistrer une grossesse
 
 #### 🎯 But
 
@@ -627,7 +794,7 @@ Initier le suivi prénatal d'une cliente en enregistrant les données de la gros
 | `ch08-02-fiche-grossesse.png` | Formulaire grossesse — haut |
 | `ch08-02-fiche-grossesse-suite.png` | Formulaire grossesse — suite |
 
-### 12.3 Consultation prénatale (CPN)
+### 13.3 Consultation prénatale (CPN)
 
 #### 🎯 But
 
@@ -663,7 +830,7 @@ Documenter le suivi prénatal avec les examens, vaccinations et supplémentation
 | `ch08-03-fiche-obstetrique.png` | Formulaire CPN — haut |
 | `ch08-03-fiche-obstetrique-suite.png` | Formulaire CPN — suite |
 
-### 12.4 Accouchement
+### 13.4 Accouchement
 
 #### 🎯 But
 
@@ -701,7 +868,7 @@ Les champs de complications apparaissent avec une animation fluide.
 | `ch08-04-fiche-accouchement.png` | Formulaire accouchement — haut |
 | `ch08-04-fiche-accouchement-suite.png` | Formulaire accouchement — suite |
 
-### 12.5 Consultation post-natale (CPoN)
+### 13.5 Consultation post-natale (CPoN)
 
 #### 🎯 But
 
@@ -721,7 +888,7 @@ Assurer le suivi de la mère après l'accouchement.
 | `ch08-05-fiche-cpon.png` | Formulaire CPoN — haut |
 | `ch08-05-fiche-cpon-suite.png` | Formulaire CPoN — suite |
 
-### 12.6 Soins après avortement (SAA)
+### 13.6 Soins après avortement (SAA)
 
 #### 🎯 But
 
@@ -754,9 +921,9 @@ Documenter les soins post-avortement et le counselling associé.
 
 ---
 
-## 13. IST & VIH
+## 14. IST & VIH
 
-### 13.1 Fiche IST
+### 14.1 Fiche IST
 
 #### 🎯 But
 
@@ -788,7 +955,7 @@ Enregistrer les infections sexuellement transmissibles diagnostiquées, avec le 
 | `ch09-01-fiche-ist.png` | Formulaire IST — haut |
 | `ch09-01-fiche-ist-suite.png` | Formulaire IST — suite |
 
-### 13.2 Dépistage VIH
+### 14.2 Dépistage VIH
 
 #### 🎯 But
 
@@ -818,7 +985,7 @@ Enregistrer les tests de dépistage VIH avec le counselling pré et post-test.
 | `ch09-02-fiche-depistage.png` | Formulaire dépistage VIH — haut |
 | `ch09-02-fiche-depistage-suite.png` | Formulaire dépistage VIH — suite |
 
-### 13.3 Prise en charge VIH (PEC VIH)
+### 14.3 Prise en charge VIH (PEC VIH)
 
 #### 🎯 But
 
@@ -849,7 +1016,7 @@ Suivre les clients séropositifs sous traitement ARV avec les co-infections et l
 | `ch09-03-fiche-pec-vih.png` | Formulaire PEC VIH — haut |
 | `ch09-03-fiche-pec-vih-suite.png` | Formulaire PEC VIH — suite |
 
-### 13.4 Examens biologiques VIH
+### 14.4 Examens biologiques VIH
 
 #### 🎯 But
 
@@ -876,9 +1043,9 @@ Documenter les examens de suivi biologique des patients VIH (CD4, charge virale,
 
 ---
 
-## 14. Médecine Générale & VBG
+## 15. Médecine Générale & VBG
 
-### 14.1 Consultation de médecine générale
+### 15.1 Consultation de médecine générale
 
 #### 🎯 But
 
@@ -913,7 +1080,7 @@ Enregistrer les consultations de médecine générale avec diagnostic, traitemen
 | `ch10-01-fiche-medecine.png` | Formulaire médecine générale — haut |
 | `ch10-01-fiche-medecine-suite.png` | Formulaire médecine générale — suite |
 
-### 14.2 Prise en charge VBG
+### 15.2 Prise en charge VBG
 
 #### 🎯 But
 
@@ -944,7 +1111,7 @@ Documenter les cas de violences basées sur le genre avec les services de counse
 | `ch10-02-fiche-vbg.png` | Formulaire VBG — haut |
 | `ch10-02-fiche-vbg-suite.png` | Formulaire VBG — suite |
 
-### 14.3 Ordonnance
+### 15.3 Ordonnance
 
 #### 🎯 But
 
@@ -967,9 +1134,9 @@ Après sélection d'une visite :
 
 ---
 
-## 15. Examens & Échographie
+## 16. Examens & Échographie
 
-### 15.1 Demande d'examen
+### 16.1 Demande d'examen
 
 #### 🎯 But
 
@@ -985,7 +1152,7 @@ Sélectionnez la visite puis choisissez les examens souhaités parmi la liste di
 |-------|-------------|
 | `ch11-01-demande-examen.png` | Formulaire de demande d'examen |
 
-### 15.2 Résultat d'examen
+### 16.2 Résultat d'examen
 
 #### 🎯 But
 
@@ -997,7 +1164,7 @@ Enregistrer les résultats des examens de laboratoire effectués.
 |-------|-------------|
 | `ch11-02-resultat-examen.png` | Formulaire de résultat d'examen |
 
-### 15.3 Demande d'échographie
+### 16.3 Demande d'échographie
 
 #### 🎯 But
 
@@ -1011,9 +1178,9 @@ Créer une demande d'échographie pour un patient.
 
 ---
 
-## 16. Référencement & Facturation
+## 17. Référencement & Facturation
 
-### 16.1 Fiche référence
+### 17.1 Fiche référence
 
 #### 🎯 But
 
@@ -1026,7 +1193,7 @@ Enregistrer les références de patients vers d'autres structures de soins.
 | `ch12-01-fiche-reference.png` | Fiche référence — haut |
 | `ch12-01-fiche-reference-suite.png` | Fiche référence — suite |
 
-### 16.2 Fiche contre-référence
+### 17.2 Fiche contre-référence
 
 #### 🎯 But
 
@@ -1039,7 +1206,7 @@ Enregistrer les retours de patients référés par d'autres structures.
 | `ch12-02-fiche-contre-reference.png` | Fiche contre-référence — haut |
 | `ch12-02-fiche-contre-reference-suite.png` | Fiche contre-référence — suite |
 
-### 16.3 Facturation
+### 17.3 Facturation
 
 #### 🎯 But
 
@@ -1054,9 +1221,9 @@ Consulter et gérer la facturation des produits, prestations et examens pour un 
 
 ---
 
-## 17. Module Pharmacie
+## 18. Module Pharmacie
 
-### 17.1 Gestion des produits
+### 18.1 Gestion des produits
 
 #### 🎯 But
 
@@ -1080,7 +1247,7 @@ Gérer le catalogue des produits pharmaceutiques de la structure (contraceptifs,
 |-------|-------------|
 | `ch13-01-produits.png` | Liste des produits pharmaceutiques |
 
-### 17.2 Gestion du stock
+### 18.2 Gestion du stock
 
 #### 🎯 But
 
@@ -1096,7 +1263,7 @@ Sélectionnez une clinique pour afficher le stock. Les quantités en stock infé
 |-------|-------------|
 | `ch13-02-stock.png` | Gestion du stock produits |
 
-### 17.3 Tarifs des produits
+### 18.3 Tarifs des produits
 
 #### 🎯 But
 
@@ -1108,7 +1275,7 @@ Définir les prix unitaires des produits par clinique.
 |-------|-------------|
 | `ch13-03-prix.png` | Tarifs des produits |
 
-### 17.4 Rapport financier
+### 18.4 Rapport financier
 
 #### 🎯 But
 
@@ -1153,7 +1320,7 @@ Cette page remplace l'ancienne « Fiche de vente » et centralise tous les rappo
 |-------|-------------|
 | `ch13-04-ventes.png` | Rapport financier — interface avec filtres et résultats |
 
-### 17.5 Inventaire
+### 18.5 Inventaire
 
 #### 🎯 But
 
@@ -1176,7 +1343,7 @@ Réaliser des inventaires réguliers du stock, valider les quantités réelles e
 |-------|-------------|
 | `ch13-05-inventaire.png` | Interface d'inventaire |
 
-### 17.6 Historique des inventaires
+### 18.6 Historique des inventaires
 
 #### 🎯 But
 
@@ -1192,7 +1359,7 @@ Filtrez par clinique et statut (terminé / en cours). Consultez les détails de 
 |-------|-------------|
 | `ch13-06-historique-inventaire.png` | Historique des inventaires |
 
-### 17.7 Historique des commandes
+### 18.7 Historique des commandes
 
 #### 🎯 But
 
@@ -1204,11 +1371,92 @@ Consulter l'historique des commandes fournisseur avec détails et exports.
 |-------|-------------|
 | `ch13-07-historique-commandes.png` | Historique des commandes fournisseur |
 
+### 18.8 Vente directe
+
+#### 🎯 But
+
+Permet de vendre des produits (seringues, consommables, médicaments) à des clients de passage **sans les enregistrer** dans la base clients. Utile pour les ventes ponctuelles au comptoir.
+
+#### 📋 Fonctionnement
+
+1. **Sélection de la clinique** — choisir la clinique source du stock
+2. **Ajout au panier** — rechercher un produit via le combobox, spécifier la quantité
+3. **Validation** — le stock est décrémenté automatiquement dans une transaction atomique
+4. **Historique** — les ventes du jour sont affichées en bas de page, regroupées par lot (batch)
+
+#### 📝 Champs principaux
+
+| Champ | Description | Obligatoire |
+|-------|-------------|:-----------:|
+| Clinique | Clinique source du stock | * |
+| Produit | Sélection via combobox avec recherche | * |
+| Quantité | Nombre d'unités vendues | * |
+| Prix unitaire | Calculé automatiquement depuis le tarif | Auto |
+| Type produit | Contraceptif, Médicament, Consommable | Auto |
+
+#### ⚠️ Points importants
+
+- Le stock doit être suffisant, sinon la vente est refusée
+- La suppression d'une vente **restaure le stock** automatiquement
+- Les ventes directes apparaissent dans le **Rapport financier** (section Produits)
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-08-vente-directe.png` | Interface de vente directe avec panier |
+
+### 18.9 Tableau financier
+
+#### 🎯 But
+
+Offrir une vue d'ensemble consolidée des recettes et dépenses par période, sous forme de tableau synthétique.
+
+#### 📋 Fonctionnement
+
+1. **Filtres** — sélectionner la période et la clinique
+2. **Affichage** — vue tabulaire des données financières consolidées
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-10-tableau-financier.png` | Tableau financier consolidé |
+
+### 18.10 Journal des actions pharmaceutiques
+
+#### 🎯 But
+
+Tracer l'historique complet de toutes les opérations pharmaceutiques (entrées de stock, sorties, ajustements, ventes, commandes) pour assurer la traçabilité et l'audit.
+
+#### 📋 Fonctionnement
+
+1. **Consultation** — liste paginée de toutes les opérations avec filtres
+2. **Filtres disponibles** — par clinique, par type d'action, par période
+3. **Statistiques** — résumé des opérations en haut de page
+
+#### 📝 Informations affichées
+
+| Champ | Description |
+|-------|-------------|
+| Date | Date et heure de l'opération |
+| Type d'action | Entrée, Sortie, Ajustement, Vente, etc. |
+| Produit | Nom du produit concerné |
+| Quantité | Quantité impliquée |
+| Utilisateur | Nom de l'agent ayant effectué l'opération |
+| Clinique | Clinique concernée |
+
+#### 🖼️ Capture d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch13-11-journal-pharmacie.png` | Journal des actions pharmaceutiques |
+
 ---
 
-## 18. Module Laboratoire & Échographie
+## 19. Module Laboratoire & Échographie
 
-### 18.1 Gestion des examens
+### 19.1 Gestion des examens
 
 #### 🎯 But
 
@@ -1220,7 +1468,7 @@ Configurer le catalogue des examens de laboratoire disponibles (nom, unité, val
 |-------|-------------|
 | `ch14-01-examens.png` | Gestion des examens de laboratoire |
 
-### 18.2 Tarifs des examens
+### 19.2 Tarifs des examens
 
 #### 🎯 But
 
@@ -1232,7 +1480,7 @@ Définir les prix des examens par clinique.
 |-------|-------------|
 | `ch14-02-prix-examens.png` | Tarifs des examens |
 
-### 18.3 Gestion des échographies
+### 19.3 Gestion des échographies
 
 #### 🎯 But
 
@@ -1244,7 +1492,7 @@ Configurer les types d'échographies disponibles (abdominale, pelvienne, obstét
 |-------|-------------|
 | `ch14-03-echographies.png` | Gestion des échographies |
 
-### 18.4 Tarifs des échographies
+### 19.4 Tarifs des échographies
 
 #### 🎯 But
 
@@ -1258,9 +1506,9 @@ Définir les prix des échographies par clinique.
 
 ---
 
-## 19. Rapports, Listings & Rendez-vous
+## 20. Rapports, Listings & Rendez-vous
 
-### 19.1 Rapports
+### 20.1 Rapports
 
 #### 🎯 But
 
@@ -1310,7 +1558,7 @@ Générer des rapports statistiques consolidés pour le suivi des activités et 
 | `ch15-01-rapports.png` | Interface des rapports avec filtres |
 | `ch15-01-rapports-suite.png` | Rapports — tableau de données |
 
-### 19.2 Listings
+### 20.2 Listings
 
 #### 🎯 But
 
@@ -1331,7 +1579,7 @@ Générer des listes nominatives de patients filtrées par programme et clinique
 | `ch15-02-listings.png` | Interface des listings avec filtres |
 | `ch15-02-listings-suite.png` | Listings — données |
 
-### 19.3 Gestion des rendez-vous
+### 20.3 Gestion des rendez-vous
 
 #### 🎯 But
 
@@ -1360,7 +1608,54 @@ Après génération, les résultats s'affichent en onglets par type de service.
 
 ---
 
-## 20. Module Administration
+## 21. Module Analyse & Visualisation
+
+### 🎯 But
+
+Offrir un outil d'analyse avancée inspiré du modèle DHIS2, permettant de croiser des indicateurs de santé avec des dimensions (période, clinique, activité, etc.) pour produire des tableaux croisés dynamiques, des graphiques et des exports.
+
+### 👤 Rôles concernés
+
+- Administrateur, gestionnaires et responsables autorisés (permission `ANALYSE_VISUALISER`)
+
+### 📋 Fonctionnement
+
+1. **Sélection des indicateurs** — choisir parmi 25 indicateurs organisés par groupe (PF, Obstétrique, VIH, Laboratoire, etc.)
+2. **Sélection des dimensions** — période (mois, trimestre, année), unité organisationnelle (clinique, région, district)
+3. **Génération** — le système calcule les données et les affiche sous forme de tableau croisé dynamique
+4. **Visualisation** — basculer entre vue tableau, graphique en barres ou courbes
+5. **Sauvegarde** — enregistrer une analyse pour la retrouver ultérieurement
+6. **Export** — exporter en Excel (ExcelJS) ou PDF (jsPDF)
+
+### 📝 Indicateurs disponibles (exemples)
+
+| Groupe | Indicateurs |
+|--------|-------------|
+| Planning Familial | Nouvelles acceptantes, Anciennes acceptantes, Total PF par méthode |
+| Obstétrique | CPN, Accouchements, CPoN |
+| VIH | Dépistages, PEC VIH actifs, Examens PV VIH |
+| Laboratoire | Examens réalisés, Échographies réalisées |
+| Médecine | Consultations MDG, IST, VBG |
+
+### 📝 Dimensions
+
+| Dimension | Description |
+|-----------|-------------|
+| Période | Mois, trimestre, semestre, année |
+| Unité organisationnelle | Clinique, région, district |
+| Activité | Type d'activité de la clinique |
+
+### 🖼️ Captures d'écran
+
+| Image | Description |
+|-------|-------------|
+| `ch17-01-analyser.png` | Interface d'analyse avec sélection des indicateurs |
+| `ch17-02-analyser-tableau.png` | Tableau croisé dynamique des résultats |
+| `ch17-03-analyser-graphique.png` | Visualisation graphique des données |
+
+---
+
+## 22. Module Administration
 
 ### 🎯 But
 
@@ -1378,7 +1673,7 @@ Permettre aux administrateurs de configurer et gérer les éléments de base du 
 |-------|-------------|
 | `ch16-01-admin-panel.png` | Panneau d'administration — grille de navigation |
 
-### 20.1 Gestion des cliniques
+### 22.1 Gestion des cliniques
 
 #### 🎯 But
 
@@ -1401,7 +1696,7 @@ Le formulaire se déplie via le bouton en haut à droite. Le tableau liste toute
 |-------|-------------|
 | `ch16-02-cliniques.png` | Gestion des cliniques |
 
-### 20.2 Gestion des activités
+### 22.2 Gestion des activités
 
 #### 🎯 But
 
@@ -1417,7 +1712,7 @@ Sélectionnez une clinique, puis créez des activités avec leurs lieux et dates
 |-------|-------------|
 | `ch16-03-activites.png` | Gestion des activités |
 
-### 20.3 Gestion des comptes utilisateurs
+### 22.3 Gestion des comptes utilisateurs
 
 #### 🎯 But
 
@@ -1443,7 +1738,7 @@ Créer des comptes utilisateurs, attribuer des rôles et des cliniques d'affecta
 |-------|-------------|
 | `ch16-04-comptes.png` | Gestion des comptes utilisateurs |
 
-### 20.4 Gestion des permissions
+### 22.4 Gestion des permissions
 
 #### 🎯 But
 
@@ -1468,7 +1763,7 @@ Chaque permission s'applique individuellement par table (Visite, Constante, Plan
 |-------|-------------|
 | `ch16-05-permissions.png` | Gestion des permissions |
 
-### 20.5 Gestion des postes
+### 22.5 Gestion des postes
 
 #### 🎯 But
 
@@ -1480,7 +1775,7 @@ Créer et gérer les postes/fonctions disponibles dans la structure (AMD, Infirm
 |-------|-------------|
 | `ch16-06-postes.png` | Gestion des postes |
 
-### 20.6 Gestion des prestations
+### 22.6 Gestion des prestations
 
 #### 🎯 But
 
@@ -1492,7 +1787,7 @@ Configurer les services médicaux offerts par la structure.
 |-------|-------------|
 | `ch16-07-prestations.png` | Gestion des prestations |
 
-### 20.7 Tarifs des prestations
+### 22.7 Tarifs des prestations
 
 #### 🎯 But
 
@@ -1504,7 +1799,7 @@ Définir les tarifs des prestations par clinique.
 |-------|-------------|
 | `ch16-08-prix-prestations.png` | Tarifs des prestations |
 
-### 20.8 Gestion des régions
+### 22.8 Gestion des régions
 
 #### 🎯 But
 
@@ -1518,7 +1813,7 @@ Créer et gérer les régions administratives auxquelles sont rattachées les cl
 
 ---
 
-## 21. Sauvegarde des Données
+## 23. Sauvegarde des Données
 
 ### 🎯 But
 
@@ -1550,7 +1845,7 @@ Assurer la sécurité et la pérennité des données en permettant la sauvegarde
 
 ---
 
-## 22. Bonnes Pratiques
+## 24. Bonnes Pratiques
 
 | N° | Recommandation |
 |----|----------------|
@@ -1567,7 +1862,7 @@ Assurer la sécurité et la pérennité des données en permettant la sauvegarde
 
 ---
 
-## 23. Assistance et Support
+## 25. Assistance et Support
 
 ### En cas de difficulté
 
@@ -1589,7 +1884,7 @@ Assurer la sécurité et la pérennité des données en permettant la sauvegarde
 
 ---
 
-## 24. Sécurité et Confidentialité
+## 26. Sécurité et Confidentialité
 
 ### Principes fondamentaux
 
@@ -1610,7 +1905,7 @@ Assurer la sécurité et la pérennité des données en permettant la sauvegarde
 
 ---
 
-## 25. Annexes
+## 27. Annexes
 
 ### A. Glossaire
 
@@ -1674,11 +1969,12 @@ Assurer la sécurité et la pérennité des données en permettant la sauvegarde
 | 1.0 | Janvier 2026 | Version initiale |
 | 1.1 | Janvier 2026 | Ajout contexte, bonnes pratiques, support |
 | 2.0 | Février 2026 | Intégration des captures d'écran, descriptions des affichages conditionnels, refonte complète |
+| 3.0 | Mars 2026 | Ajout modules : Doublons & Fusion, Vente Directe, Tableau Financier, Journal Pharmacie, Analyse & Visualisation. Restructuration complète de la numérotation |
 
 ---
 
-**Document version :** 2.0
-**Dernière mise à jour :** Février 2026
+**Document version :** 3.0
+**Dernière mise à jour :** Mars 2026
 **Validé par :** [Nom du responsable]
 **Distribution :** Tous les utilisateurs eCMIS
 

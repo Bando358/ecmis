@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 // ===== Types =====
 export interface FinancialSummary {
   totalVentesProduits: number;
+  totalVentesDirectes: number;
   totalPrestations: number;
   totalExamens: number;
   totalEchographies: number;
@@ -44,6 +45,7 @@ export interface RecentLog {
 
 export interface PreviousPeriodSummary {
   totalVentesProduits: number;
+  totalVentesDirectes: number;
   totalPrestations: number;
   totalExamens: number;
   totalEchographies: number;
@@ -69,6 +71,7 @@ export async function fetchFinancialDashboardData(
     return {
       summary: {
         totalVentesProduits: 0,
+        totalVentesDirectes: 0,
         totalPrestations: 0,
         totalExamens: 0,
         totalEchographies: 0,
@@ -88,12 +91,13 @@ export async function fetchFinancialDashboardData(
 
   const clinicFilter = { in: cliniqueIds };
 
-  // Batch 1 : les 4 factures (requetes les plus lourdes)
+  // Batch 1 : les 5 factures (requetes les plus lourdes)
   const [
     facturesProduits,
     facturesPrestations,
     facturesExamens,
     facturesEchographies,
+    ventesDirectes,
   ] = await Promise.all([
     prisma.factureProduit.findMany({
       where: {
@@ -142,6 +146,13 @@ export async function fetchFinancialDashboardData(
         Visite: { select: { dateVisite: true } },
       },
     }),
+    prisma.venteDirecte.aggregate({
+      where: {
+        idClinique: clinicFilter,
+        dateVente: { gte: dateFrom, lte: dateTo },
+      },
+      _sum: { montantProduit: true },
+    }),
   ]);
 
   // Batch 2 : aggregations + stock + journal (4 requêtes)
@@ -185,10 +196,10 @@ export async function fetchFinancialDashboardData(
 
   // Batch 3 : période précédente (4 requêtes, uniquement si nécessaire)
   type AggResult = { _sum: { montantProduit?: number | null; prixPrestation?: number | null; prixExamen?: number | null; prixEchographie?: number | null } };
-  let prevResults: [AggResult, AggResult, AggResult, AggResult] | null = null;
+  let prevResults: [AggResult, AggResult, AggResult, AggResult, AggResult] | null = null;
 
   if (hasPreviousPeriod) {
-    const [prevProduit, prevPrestation, prevExamen, prevEchographie] = await Promise.all([
+    const [prevProduit, prevPrestation, prevExamen, prevEchographie, prevVentesDirectes] = await Promise.all([
       prisma.factureProduit.aggregate({
         where: {
           idClinique: clinicFilter,
@@ -217,8 +228,15 @@ export async function fetchFinancialDashboardData(
         },
         _sum: { prixEchographie: true },
       }),
+      prisma.venteDirecte.aggregate({
+        where: {
+          idClinique: clinicFilter,
+          dateVente: { gte: previousDateFrom!, lte: previousDateTo! },
+        },
+        _sum: { montantProduit: true },
+      }),
     ]);
-    prevResults = [prevProduit as AggResult, prevPrestation as AggResult, prevExamen as AggResult, prevEchographie as AggResult];
+    prevResults = [prevProduit as AggResult, prevPrestation as AggResult, prevExamen as AggResult, prevEchographie as AggResult, prevVentesDirectes as AggResult];
   }
 
   // Calcul des totaux
@@ -226,6 +244,7 @@ export async function fetchFinancialDashboardData(
   const totalPrestations = facturesPrestations.reduce((s, f) => s + f.prixPrestation, 0);
   const totalExamens = facturesExamens.reduce((s, f) => s + f.prixExamen, 0);
   const totalEchographies = facturesEchographies.reduce((s, f) => s + f.prixEchographie, 0);
+  const totalVentesDirectes = (ventesDirectes as { _sum: { montantProduit: number | null } })._sum.montantProduit ?? 0;
 
   // Revenus par jour
   const revenueMap = new Map<string, RevenueByPeriod>();
@@ -288,22 +307,25 @@ export async function fetchFinancialDashboardData(
     const prevTotalPrestations = prevResults[1]._sum.prixPrestation ?? 0;
     const prevTotalExamens = prevResults[2]._sum.prixExamen ?? 0;
     const prevTotalEchographies = prevResults[3]._sum.prixEchographie ?? 0;
+    const prevTotalVentesDirectes = prevResults[4]._sum.montantProduit ?? 0;
     previousPeriod = {
       totalVentesProduits: prevTotalProduits,
+      totalVentesDirectes: prevTotalVentesDirectes,
       totalPrestations: prevTotalPrestations,
       totalExamens: prevTotalExamens,
       totalEchographies: prevTotalEchographies,
-      totalGeneral: prevTotalProduits + prevTotalPrestations + prevTotalExamens + prevTotalEchographies,
+      totalGeneral: prevTotalProduits + prevTotalVentesDirectes + prevTotalPrestations + prevTotalExamens + prevTotalEchographies,
     };
   }
 
   return {
     summary: {
       totalVentesProduits,
+      totalVentesDirectes,
       totalPrestations,
       totalExamens,
       totalEchographies,
-      totalGeneral: totalVentesProduits + totalPrestations + totalExamens + totalEchographies,
+      totalGeneral: totalVentesProduits + totalVentesDirectes + totalPrestations + totalExamens + totalEchographies,
       totalCommissionsExamen: commissionsExamen._sum.montantCommission || 0,
       totalCommissionsEchographie: commissionsEchographie._sum.montantCommission || 0,
       stockAlerts: stockAlerts.map((s) => ({

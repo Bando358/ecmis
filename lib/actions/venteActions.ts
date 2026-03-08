@@ -96,6 +96,7 @@ export const fetchVentesData = async (
     facturesProduits,
     facturesPrestations,
     facturesEchographies,
+    ventesDirectes,
   ] = await Promise.all([
     prisma.factureExamen.findMany({
       where: {
@@ -167,6 +168,20 @@ export const fetchVentesData = async (
         User: true,
       },
     }),
+
+    prisma.venteDirecte.findMany({
+      where: {
+        idClinique: { in: clinicIds },
+        dateVente: {
+          gte: dateFrom,
+          lte: dateTo,
+        },
+      },
+      include: {
+        Clinique: true,
+        User: true,
+      },
+    }),
   ]);
 
   // Map FactureExamen
@@ -206,6 +221,24 @@ export const fetchVentesData = async (
     prodUser: f.User,
   }));
 
+  // Map VenteDirecte → même shape que FactureProduitType
+  const ventesDirectesMapped = ventesDirectes.map((v) => ({
+    prodId: v.id,
+    prodIdVisite: "",
+    prodIdClient: "",
+    prodIdClinique: v.idClinique,
+    prodIdUser: v.idUser,
+    prodDate: v.dateVente,
+    prodLibelle: v.idTarifProduit,
+    prodMontantTotal: v.montantProduit || 0,
+    prodQuantite: v.quantite,
+    prodMethode: String(v.methode),
+    prodIdTarifProduit: v.idTarifProduit,
+    prodClient: null,
+    prodClinique: v.Clinique,
+    prodUser: v.User,
+  }));
+
   // Map FacturePrestation
   const prestations = facturesPrestations.map((f) => ({
     prestId: f.id,
@@ -242,7 +275,7 @@ export const fetchVentesData = async (
 
   return {
     facturesExamens: examens,
-    facturesProduits: produits,
+    facturesProduits: [...produits, ...ventesDirectesMapped],
     facturesPrestations: prestations,
     facturesEchographies: echographies,
   };

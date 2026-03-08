@@ -407,6 +407,7 @@ const MENU_TABLES: TableName[] = [
   TableName.PRESCRIPTEUR,
   TableName.COMMISSION_EXAMEN,
   TableName.COMMISSION_ECHOGRAPHIE,
+  TableName.FUSION_CLIENT,
 ];
 
 /**

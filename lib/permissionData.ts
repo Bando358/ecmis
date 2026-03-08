@@ -409,4 +409,18 @@ export const dataPermission = [
     canUpdate: false,
     canDelete: false,
   },
+  {
+    table: TableName.VENTE_DIRECTE,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
+  {
+    table: TableName.FUSION_CLIENT,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
 ];

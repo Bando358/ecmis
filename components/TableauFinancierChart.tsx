@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/chart";
 import {
   ShoppingCart,
+  ShoppingBag,
   Stethoscope,
   Microscope,
   Activity,
@@ -99,7 +100,7 @@ export default function TableauFinancierChart({
   return (
     <div className="space-y-4">
       {/* Cartes resume */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Produits</CardTitle>
@@ -146,6 +147,18 @@ export default function TableauFinancierChart({
               {formatCFA(summary.totalEchographies)}
             </div>
             {previousPeriod && <GrowthBadge current={summary.totalEchographies} previous={previousPeriod.totalEchographies} />}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Ventes Directes</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-teal-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-teal-600">
+              {formatCFA(summary.totalVentesDirectes)}
+            </div>
+            {previousPeriod && <GrowthBadge current={summary.totalVentesDirectes} previous={previousPeriod.totalVentesDirectes} />}
           </CardContent>
         </Card>
         <Card className="bg-slate-50">

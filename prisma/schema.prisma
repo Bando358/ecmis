@@ -87,6 +87,8 @@ enum TableName {
   GESTION_RDV
   LISTING
   RAPPORT
+  VENTE_DIRECTE
+  FUSION_CLIENT
 }
 
 model Permission {
@@ -209,6 +211,7 @@ model User {
   AnomalieInventaire  AnomalieInventaire[]
   DetailInventaire    DetailInventaire[]
   SavedAnalyses       SavedAnalysis[]       @relation("AnalysisCreator")
+  VenteDirecte        VenteDirecte[]
 
   @@map("user")
 }
@@ -350,6 +353,7 @@ model Clinique {
   ExamenPvVih         ExamenPvVih[]
   Inventaire          Inventaire[]
   Prescripteur        Prescripteur[]
+  VenteDirecte        VenteDirecte[]
 }
 
 model UserClinique {
@@ -1547,6 +1551,7 @@ model TarifProduit {
   FactureProduit     FactureProduit[]
   DetailCommande     DetailCommande[]
   DetailInventaire   DetailInventaire[]
+  VenteDirecte       VenteDirecte[]
 
   @@index([idClinique])
   @@index([idProduit])
@@ -1621,6 +1626,26 @@ model FactureProduit {
 
   @@index([idClinique, dateFacture])
   @@index([idClient])
+}
+
+model VenteDirecte {
+  id             String   @id @default(uuid())
+  batchId        String   @default(uuid())
+  idTarifProduit String
+  nomProduit     String
+  quantite       Int
+  montantProduit Int
+  methode        Boolean  @default(false)
+  dateVente      DateTime @default(now())
+  idClinique     String
+  idUser         String
+
+  tarifProduit TarifProduit @relation(fields: [idTarifProduit], references: [id])
+  Clinique     Clinique     @relation(fields: [idClinique], references: [id])
+  User         User         @relation(fields: [idUser], references: [id])
+
+  @@index([idClinique, dateVente])
+  @@index([batchId])
 }
 
 model CommandeFournisseur {
@@ -1769,4 +1794,21 @@ model JournalPharmacy {
   @@index([entite])
   @@index([createdAt])
   @@map("journal_pharmacy")
+}
+
+model FusionClient {
+  id                 String   @id @default(uuid())
+  clientPrincipalId  String
+  clientFusionneId   String
+  clientFusionneNom  String
+  clientFusionneCode String
+  dateFusion         DateTime @default(now())
+  utilisateurId      String
+  utilisateurNom     String
+  relationsTransferees Int    @default(0)
+  champsFusionnes    Json?
+
+  @@index([clientPrincipalId])
+  @@index([utilisateurId])
+  @@index([dateFusion])
 }

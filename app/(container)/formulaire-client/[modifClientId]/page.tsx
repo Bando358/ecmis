@@ -211,7 +211,7 @@ const colorMap: Record<
 const sectionHeader = (icon: React.ReactNode, title: string, color: string) => {
   const c = colorMap[color];
   return (
-    <div className="col-span-2 mt-2">
+    <div className="col-span-1 sm:col-span-2 mt-2">
       <div
         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${c.bg} border ${c.border}`}
       >
@@ -261,7 +261,7 @@ const displaySectionHeader = (
 ) => {
   const c = colorMap[color];
   return (
-    <div className="col-span-2 mt-3 first:mt-0">
+    <div className="col-span-1 sm:col-span-2 mt-3 first:mt-0">
       <div className="flex items-center gap-2 px-2 py-1.5">
         <div
           className={`flex items-center justify-center w-6 h-6 rounded-md ${c.iconBg}`}
@@ -424,10 +424,10 @@ export default function ModifFormulaireClient({
       setValue("idClinique", selectedClient.idClinique);
       setValue("nom", selectedClient.nom);
       setValue("prenom", selectedClient.prenom);
-      setValue("dateNaissance", new Date(selectedClient.dateNaissance));
+      setValue("dateNaissance", new Date(selectedClient.dateNaissance).toISOString().split("T")[0]);
       setValue(
         "dateEnregistrement",
-        new Date(selectedClient.dateEnregistrement),
+        new Date(selectedClient.dateEnregistrement).toISOString().split("T")[0],
       );
       setValue("sexe", selectedClient.sexe);
       setValue("lieuNaissance", selectedClient.lieuNaissance || "");
@@ -506,7 +506,7 @@ export default function ModifFormulaireClient({
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
               <div className="p-6">
-                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
                   {/* ═══ Section: Enregistrement ═══ */}
                   {sectionHeader(
                     <Building2 className="h-4 w-4 text-blue-600" />,
@@ -1176,7 +1176,7 @@ export default function ModifFormulaireClient({
 
               {/* Data grid */}
               <div className="p-5">
-                <div className="grid grid-cols-2 gap-x-1 gap-y-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-1 gap-y-0">
                   {displaySectionHeader(
                     <UserRound className="h-3.5 w-3.5 text-violet-600" />,
                     "Identité",

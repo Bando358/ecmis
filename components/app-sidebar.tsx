@@ -61,14 +61,19 @@ const data = {
       isActive: true,
       items: [
         {
-          title: "import clients VIH",
-          url: "/client-vih",
-          permission: TableName.IMPORT_CLIENT_VIH,
-        },
-        {
           title: "all clients",
           url: "/client",
           permission: TableName.CLIENT,
+        },
+        {
+          title: "Doublons & Fusion",
+          url: "/doublons",
+          permission: TableName.FUSION_CLIENT,
+        },
+        {
+          title: "import clients VIH",
+          url: "/client-vih",
+          permission: TableName.IMPORT_CLIENT_VIH,
         },
       ],
     },
@@ -77,6 +82,11 @@ const data = {
       url: "#",
       icon: Pill,
       items: [
+        {
+          title: "Vente Directe",
+          url: "/vente-directe",
+          permission: TableName.VENTE_DIRECTE,
+        },
         {
           title: "Rapport financier",
           url: "/rapport-financier",
@@ -238,7 +248,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const isDashboardActive = pathname === data.dashboard.url;
   const { data: session } = useSession();
-  const { permissionMap, isLoading: permissionsLoading } = usePermissionContext();
+  const { permissionMap, isLoading: permissionsLoading } =
+    usePermissionContext();
   const isAdmin = session?.user?.role === "ADMIN";
   const isPurgeUser = session?.user?.email === "bando358@gmail.com";
 
