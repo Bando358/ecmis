@@ -1,7 +1,7 @@
 "use client";
 import { use, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, useWatch, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import {
@@ -57,7 +57,6 @@ import {
   getOneUser,
 } from "@/lib/actions/authActions";
 import { AnimatePresence, motion } from "framer-motion";
-import { Spinner } from "@/components/ui/spinner";
 import Image from "next/image";
 import { useReactToPrint } from "react-to-print";
 import { Square } from "lucide-react";
@@ -106,12 +105,8 @@ export default function ReferencePage({
   const [client, setClient] = useState<Client | null>(null);
   const [selectedVisite, setSelectedVisite] = useState<string>();
   const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
-  const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
-  const [showIvaFields, setShowIvaFields] = useState(false);
-  const [showAutreMotif, setShowAutreMotif] = useState(false);
   const [showForm, setShowForm] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
   const [isUpdated, setIsUpdated] = useState(false);
 
   const { setSelectedClientId } = useClientContext();
@@ -140,7 +135,6 @@ export default function ReferencePage({
         ]);
 
         setIsPrescripteur(user?.prescripteur ? true : false);
-        setPrescripteur(user!);
         setVisites(resultVisites as Visite[]);
         setClient(cliniqueClient);
         setTabReference(allRefByClient as Reference[]);
@@ -191,15 +185,17 @@ export default function ReferencePage({
     },
   });
 
-  // Utilisation de useCallback pour stabiliser la fonction
+  const motifReference = useWatch({ control: form.control, name: "motifReference" });
+  const showIvaFields = motifReference === "Suspicion cancer col";
+  const showAutreMotif = motifReference === "Autre";
+
   const getReferenceByIdVisite = useCallback(
     (idVisite: string) => {
-      setIsLoading(true);
       const ref = tabReference.find((r) => r.refIdVisite === idVisite);
       if (ref) {
         setShowForm(false);
         setIdReference(ref.id);
-        setSelectedReference(ref ?? null);
+        setSelectedReference(ref);
       } else {
         setShowForm(true);
         setSelectedReference(null);
@@ -227,16 +223,9 @@ export default function ReferencePage({
           idClinique: client?.idClinique || "",
         });
       }
-      setIsLoading(false);
     },
     [tabReference, form]
   );
-
-  useEffect(() => {
-    const motif = form.watch("motifReference");
-    setShowIvaFields(motif === "Suspicion cancer col");
-    setShowAutreMotif(motif === "Autre");
-  }, [form.watch("motifReference")]);
 
   useEffect(() => {
     form.setValue("idClient", referenceId);
@@ -273,7 +262,7 @@ export default function ReferencePage({
       ivaResultat: data.ivaResultat || false,
       observations: data.observations || "",
       nomPrenomReferant:
-        allPrescripteur.find((p) => p.id === form.watch("idUser"))?.name || "",
+        allPrescripteur.find((p) => p.id === data.idUser)?.name || "",
       telReferant: data.telReferant,
       qualification: data.qualification,
       refIdVisite: data.refIdVisite,
@@ -306,7 +295,6 @@ export default function ReferencePage({
           prescripteurs: [],
           formulaires: ["19 Fiche Référence"],
         });
-        console.log("formattedData : ", formattedData);
         toast.success("Référence créée avec succès! 🎉");
         const updatedList = await getAllReferenceByIdClient(referenceId);
         setTabReference(updatedList);
@@ -324,10 +312,6 @@ export default function ReferencePage({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
       return;
     }
-    setShowForm(true);
-    setSelectedReference(null);
-    setIsUpdated(true);
-    // Réinitialiser le formulaire avec les valeurs de la référence sélectionnée
     if (selectedReference) {
       form.reset({
         consultation: selectedReference.consultation ?? true,
@@ -361,6 +345,9 @@ export default function ReferencePage({
         idClinique: selectedReference?.idClinique || "",
       });
     }
+    setShowForm(true);
+    setSelectedReference(null);
+    setIsUpdated(true);
   };
 
   // ================== Impression en paysage ==================
@@ -419,7 +406,6 @@ export default function ReferencePage({
             </Select>
           </div>
         </div>
-        {isLoading && <Spinner />}
         <AnimatePresence mode="wait">
           {selectedVisite &&
             (showForm ? (
@@ -945,8 +931,7 @@ export default function ReferencePage({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
-                              {form.watch("motifReference") ===
-                              "Suspicion cancer col"
+                              {showIvaFields
                                 ? "Constation clinique : "
                                 : "Observations :"}{" "}
                             </FormLabel>
@@ -1145,7 +1130,7 @@ export default function ReferencePage({
                             className="border-r pr-4 text-center"
                           >
                             <Image
-                              src="/logo/LOGO_AIBEF_IPPF.png"
+                              src="/LOGO_AIBEF_IPPF.png"
                               alt="Logo"
                               width={400}
                               height={10}
@@ -1155,7 +1140,7 @@ export default function ReferencePage({
                           </TableHead>
                           <TableHead colSpan={2} className="pl-4 text-center">
                             <Image
-                              src="/logo/LOGO_AIBEF_IPPF.png"
+                              src="/LOGO_AIBEF_IPPF.png"
                               alt="Logo"
                               width={400}
                               height={10}

@@ -424,10 +424,10 @@ export default function ModifFormulaireClient({
       setValue("idClinique", selectedClient.idClinique);
       setValue("nom", selectedClient.nom);
       setValue("prenom", selectedClient.prenom);
-      setValue("dateNaissance", new Date(selectedClient.dateNaissance).toISOString().split("T")[0]);
+      setValue("dateNaissance", new Date(selectedClient.dateNaissance).toISOString().split("T")[0] as unknown as Date);
       setValue(
         "dateEnregistrement",
-        new Date(selectedClient.dateEnregistrement).toISOString().split("T")[0],
+        new Date(selectedClient.dateEnregistrement).toISOString().split("T")[0] as unknown as Date,
       );
       setValue("sexe", selectedClient.sexe);
       setValue("lieuNaissance", selectedClient.lieuNaissance || "");
