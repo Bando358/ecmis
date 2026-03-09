@@ -54,6 +54,7 @@ import { Separator } from "@/components/ui/separator";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
+import { motion, AnimatePresence } from "framer-motion";
 
 const tabTypeTraitement = [
   { value: "chryotherapie", label: "Chryothérapie" },
@@ -397,57 +398,77 @@ export default function GynecoPage({
                   </FormItem>
                 )}
               />
-              {form.watch("resultatIva") === "positif" && (
-                <div>
-                  <FormField
-                    control={form.control}
-                    name="eligibleTraitementIva"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="font-normal">
-                            Eligibilité au traitement IVA
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  {form.watch("eligibleTraitementIva") === true && (
+              <AnimatePresence>
+                {form.watch("resultatIva") === "positif" && (
+                  <motion.div
+                    key="gyneco-iva-positif"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
                     <FormField
                       control={form.control}
-                      name="typeTraitement"
+                      name="eligibleTraitementIva"
                       render={({ field }) => (
-                        <FormItem className="mx-6 mb-3 outline-red-500">
-                          <FormLabel className="font-medium">
-                            Selectionnez le type de traitement
-                          </FormLabel>
-                          <Select onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Traitement à sélectionner" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {tabTypeTraitement.map((option, index) => (
-                                <SelectItem key={index} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value ?? false}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="font-normal">
+                              Eligibilité au traitement IVA
+                            </FormLabel>
+                          </div>
                         </FormItem>
                       )}
                     />
-                  )}
-                </div>
-              )}
+                    <AnimatePresence>
+                      {form.watch("eligibleTraitementIva") === true && (
+                        <motion.div
+                          key="gyneco-type-traitement"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <FormField
+                            control={form.control}
+                            name="typeTraitement"
+                            render={({ field }) => (
+                              <FormItem className="mx-6 mb-3 outline-red-500">
+                                <FormLabel className="font-medium">
+                                  Selectionnez le type de traitement
+                                </FormLabel>
+                                <Select onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Traitement à sélectionner" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {tabTypeTraitement.map((option, index) => (
+                                      <SelectItem key={index} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* counselingCancerSein */}
               <Separator />
@@ -470,92 +491,62 @@ export default function GynecoPage({
                   </FormItem>
                 )}
               />
-              {form.watch("counselingCancerSein") === true && (
-                <div className="font-normal px-4">
-                  {/* <FormField
-                  control={form.control}
-                  name="resultatCancerSein"
-                  render={({ field }) => (
-                    <FormItem className=" px-4 pb-4">
-                      <div className="text-xl font-bold flex justify-between items-center">
-                        <FormLabel className="ml-4">
-                          Résultat dépistage cancer de sein :
-                        </FormLabel>
-                        <RefreshCw
-                          onClick={() => {
-                            form.setValue("resultatCancerSein", "");
-                          }}
-                          className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                        />
-                      </div>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          className="flex gap-x-5 items-center"
-                        >
-                          {TabResultatIva.map((option) => (
-                            <FormItem
-                              key={option.value}
-                              className="flex items-center space-x-3 space-y-0"
+              <AnimatePresence>
+                {form.watch("counselingCancerSein") === true && (
+                  <motion.div
+                    key="gyneco-cancer-sein"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="font-normal px-4">
+                      <FormField
+                        control={form.control}
+                        name="resultatCancerSein"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="text-xl font-bold flex justify-between items-center">
+                              <FormLabel className="font-medium">
+                                Résultat du dépistage
+                              </FormLabel>
+                              <RefreshCw
+                                onClick={() => {
+                                  form.setValue("resultatCancerSein", "");
+                                }}
+                                className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
+                              />
+                            </div>
+                            <Select
+                              required
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
                             >
                               <FormControl>
-                                <RadioGroupItem value={option.value} />
+                                <SelectTrigger className="w-full mb-2">
+                                  <SelectValue placeholder="Select Résultat ....." />
+                                </SelectTrigger>
                               </FormControl>
-                              <FormLabel className="font-normal">
-                                {option.label}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                /> */}
-                  <FormField
-                    control={form.control}
-                    name="resultatCancerSein"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="text-xl font-bold flex justify-between items-center">
-                          <FormLabel className="font-medium">
-                            Résultat du dépistage
-                          </FormLabel>
-                          <RefreshCw
-                            onClick={() => {
-                              form.setValue("resultatCancerSein", "");
-                            }}
-                            className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125"
-                          />
-                        </div>
-                        <Select
-                          required
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full mb-2">
-                              <SelectValue placeholder="Select Résultat ....." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {tabResultatSeins.map((resultat) => (
-                              <SelectItem
-                                key={resultat.value}
-                                value={resultat.value}
-                              >
-                                <span>{resultat.label}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
+                              <SelectContent>
+                                {tabResultatSeins.map((resultat) => (
+                                  <SelectItem
+                                    key={resultat.value}
+                                    value={resultat.value}
+                                  >
+                                    <span>{resultat.label}</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <div className="my-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField

@@ -48,6 +48,7 @@ import { ArrowBigLeftDash, RefreshCw } from "lucide-react";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
+import { motion, AnimatePresence } from "framer-motion";
 
 const tabTypeClient = [
   { value: "cdip", label: "CDIP" },
@@ -73,73 +74,80 @@ const ConditionalResultFields = ({
   const showResultFields = form.watch("depistageVihInvestigationTestRapide");
 
   return (
-    <div
-      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-        showResultFields ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-      }`}
-    >
-      <div className="pt-2">
-        <FormField
-          control={form.control}
-          name="depistageVihResultat"
-          render={({ field }) => (
-            <FormItem className="pt-4 pb-2">
-              <div className="text-xl font-bold flex justify-between items-center">
-                <FormLabel className="ml-4">Résultat du test VIH :</FormLabel>
-                <RefreshCw
-                  onClick={() => {
-                    form.setValue("depistageVihResultat", "");
-                  }}
-                  className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125 cursor-pointer"
-                />
-              </div>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  value={field.value ?? ""}
-                  className="flex gap-x-5 items-center"
-                >
-                  {TabResultatVih.map((option) => (
-                    <FormItem
-                      key={option.value}
-                      className="flex items-center space-x-3 space-y-0"
+    <AnimatePresence>
+      {showResultFields && (
+        <motion.div
+          key="result-fields"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="overflow-hidden"
+        >
+          <div className="pt-2">
+            <FormField
+              control={form.control}
+              name="depistageVihResultat"
+              render={({ field }) => (
+                <FormItem className="pt-4 pb-2">
+                  <div className="text-xl font-bold flex justify-between items-center">
+                    <FormLabel className="ml-4">Résultat du test VIH :</FormLabel>
+                    <RefreshCw
+                      onClick={() => {
+                        form.setValue("depistageVihResultat", "");
+                      }}
+                      className="hover:text-blue-600 transition-all duration-200 hover:bg-slate-300 rounded-full p-1 active:scale-125 cursor-pointer"
+                    />
+                  </div>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value ?? ""}
+                      className="flex gap-x-5 items-center"
                     >
-                      <FormControl>
-                        <RadioGroupItem value={option.value} />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        {option.label}
-                      </FormLabel>
-                    </FormItem>
-                  ))}
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                      {TabResultatVih.map((option) => (
+                        <FormItem
+                          key={option.value}
+                          className="flex items-center space-x-3 space-y-0"
+                        >
+                          <FormControl>
+                            <RadioGroupItem value={option.value} />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            {option.label}
+                          </FormLabel>
+                        </FormItem>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="depistageVihCounsellingPostTest"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-              <FormControl>
-                <Checkbox
-                  checked={field.value ?? false}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel className="font-normal">
-                  Counselling post-test
-                </FormLabel>
-              </div>
-            </FormItem>
-          )}
-        />
-      </div>
-    </div>
+            <FormField
+              control={form.control}
+              name="depistageVihCounsellingPostTest"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="font-normal">
+                      Counselling post-test
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -154,53 +162,60 @@ const ConditionalCounsellingFields = ({
     form.watch("depistageVihResultat") === "positif";
 
   return (
-    <div
-      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-        showCounsellingFields ? "max-h-52 opacity-100" : "max-h-0 opacity-0"
-      }`}
-    >
-      <div className="pt-2">
-        <FormField
-          control={form.control}
-          name="depistageVihCounsellingReductionRisque"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-              <FormControl>
-                <Checkbox
-                  checked={field.value ?? false}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel className="font-normal">
-                  Counselling de réduction des risques
-                </FormLabel>
-              </div>
-            </FormItem>
-          )}
-        />
+    <AnimatePresence>
+      {showCounsellingFields && (
+        <motion.div
+          key="counselling-fields"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="overflow-hidden"
+        >
+          <div className="pt-2">
+            <FormField
+              control={form.control}
+              name="depistageVihCounsellingReductionRisque"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="font-normal">
+                      Counselling de réduction des risques
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="depistageVihCounsellingSoutienPsychoSocial"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-              <FormControl>
-                <Checkbox
-                  checked={field.value ?? false}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel className="font-normal">
-                  Counselling de soutien psychosocial
-                </FormLabel>
-              </div>
-            </FormItem>
-          )}
-        />
-      </div>
-    </div>
+            <FormField
+              control={form.control}
+              name="depistageVihCounsellingSoutienPsychoSocial"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="font-normal">
+                      Counselling de soutien psychosocial
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

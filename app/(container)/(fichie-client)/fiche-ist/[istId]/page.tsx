@@ -52,7 +52,7 @@ import { getOneClient } from "@/lib/actions/clientActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
-// import { Separator } from "@/components/ui/separator";
+import { motion, AnimatePresence } from "framer-motion";
 
 const tabTypePec = [
   { value: "candidose", label: "Pec Etiologique - Candidose" },
@@ -439,37 +439,48 @@ export default function IstPage({
                 )}
               />
 
-              {form.watch("istTypePec") === "etiologique" && (
-                <FormField
-                  control={form.control}
-                  name="istPecEtiologique"
-                  render={({ field }) => (
-                    <FormItem className="mx-6 mb-3 outline-red-500">
-                      <FormLabel className="font-medium">
-                        Selectionnez le type de PEC
-                      </FormLabel>
-                      <Select onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Traitement à sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tabTypePec.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value ?? ""}
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+              <AnimatePresence>
+                {form.watch("istTypePec") === "etiologique" && (
+                  <motion.div
+                    key="ist-pec-etiologique"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="istPecEtiologique"
+                      render={({ field }) => (
+                        <FormItem className="mx-6 mb-3 outline-red-500">
+                          <FormLabel className="font-medium">
+                            Selectionnez le type de PEC
+                          </FormLabel>
+                          <Select onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Traitement à sélectionner" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {tabTypePec.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value ?? ""}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <FormField
               control={form.control}

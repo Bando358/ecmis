@@ -46,6 +46,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import Retour from "@/components/retour";
+import { motion, AnimatePresence } from "framer-motion";
 
 const tabTypeAvortement = [
   { value: "spontanee", label: "Spontanée" },
@@ -87,11 +88,16 @@ const ConditionalFields = ({ form }: { form: UseFormReturn<Saa> }) => {
     form.watch("saaSuiviPostAvortement") === false;
 
   return (
-    <div
-      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-        showConditionalFields ? "max-h-250 opacity-100" : "max-h-0 opacity-0"
-      }`}
-    >
+    <AnimatePresence>
+      {showConditionalFields && (
+        <motion.div
+          key="saa-conditional-fields"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="overflow-hidden"
+        >
       <div className="pt-2">
         <FormField
           control={form.control}
@@ -243,7 +249,9 @@ const ConditionalFields = ({ form }: { form: UseFormReturn<Saa> }) => {
           )}
         />
       </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -499,40 +507,45 @@ export default function SaaPage({
               />
 
               {/* Champ de motif avec transition */}
-              <div
-                className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                  form.watch("saaCounsellingPre")
-                    ? "max-h-25 opacity-100 mt-2"
-                    : "max-h-0 opacity-0"
-                }`}
-              >
-                <FormField
-                  control={form.control}
-                  name="saaMotifDemande"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">
-                        Motif de demande (optionnel)
-                      </FormLabel>
-                      <Select onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Motif de demande" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tabMotifDemande.map((option, index) => (
-                            <SelectItem key={index} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <AnimatePresence>
+                {form.watch("saaCounsellingPre") && (
+                  <motion.div
+                    key="saa-motif-field"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden mt-2"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="saaMotifDemande"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-medium">
+                            Motif de demande (optionnel)
+                          </FormLabel>
+                          <Select onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Motif de demande" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {tabMotifDemande.map((option, index) => (
+                                <SelectItem key={index} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <Separator className="my-3" />
 

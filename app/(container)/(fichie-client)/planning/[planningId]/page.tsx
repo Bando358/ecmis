@@ -51,6 +51,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getOneClient } from "@/lib/actions/clientActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Implan {
   id: string;
@@ -535,7 +536,15 @@ export default function PlanningPage({
                 </div>
               </div>
             </div>
-            {!isHomme && (<div className="flex flex-col shadow-sm border-blue-200/50 rounded-md p-2">
+            <AnimatePresence>
+            {!isHomme && (<motion.div
+              key="planning-longue-duree"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="overflow-hidden"
+            ><div className="flex flex-col shadow-sm border-blue-200/50 rounded-md p-2">
               <div className="flex justify-between">
                 <Label className="font-sans">Méthode de longue durée</Label>
                 <RefreshCw
@@ -749,18 +758,30 @@ export default function PlanningPage({
                       </FormItem>
                     )}
                   />
-                  {form.watch("raisonRetrait") === "effet_secondaire" && (
-                    <Input
-                      {...form.register("raisonEffetSecondaire")}
-                      placeholder="Quel est l'effet secondaire..."
-                      className="border border-red-400"
-                    />
-                  )}
+                  <AnimatePresence>
+                    {form.watch("raisonRetrait") === "effet_secondaire" && (
+                      <motion.div
+                        key="planning-effet-secondaire"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                      >
+                        <Input
+                          {...form.register("raisonEffetSecondaire")}
+                          placeholder="Quel est l'effet secondaire..."
+                          className="border border-red-400"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
                 ""
               )}
-            </div>)}
+            </div></motion.div>)}
+            </AnimatePresence>
             <div>
               <label className="block text-sm font-medium">
                 Date de Rendez-vous
@@ -771,14 +792,25 @@ export default function PlanningPage({
                 type="date"
                 name="rdvPf"
               />
-              {dateFinProtection && (
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm font-medium text-blue-800">
-                    Fin de protection ({dateFinProtection.methode} - {dateFinProtection.duree} ans)
-                  </p>
-                  <p className="text-sm font-bold text-blue-900">{dateFinProtection.dateFormatee}</p>
-                </div>
-              )}
+              <AnimatePresence>
+                {dateFinProtection && (
+                  <motion.div
+                    key="planning-date-fin"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm font-medium text-blue-800">
+                        Fin de protection ({dateFinProtection.methode} - {dateFinProtection.duree} ans)
+                      </p>
+                      <p className="text-sm font-bold text-blue-900">{dateFinProtection.dateFormatee}</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <FormField
               control={form.control}
