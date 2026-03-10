@@ -325,11 +325,18 @@ export default function DoublonsPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <Select
               value={
-                selectedCliniques.length === cliniques.length ? "all" : "custom"
+                selectedCliniques.length === cliniques.length
+                  ? "all"
+                  : selectedCliniques.length === 1
+                    ? selectedCliniques[0]
+                    : "all"
               }
               onValueChange={(v) => {
-                if (v === "all")
+                if (v === "all") {
                   setSelectedCliniques(cliniques.map((c) => c.id));
+                } else {
+                  setSelectedCliniques([v]);
+                }
               }}
             >
               <SelectTrigger className="w-full sm:w-64">

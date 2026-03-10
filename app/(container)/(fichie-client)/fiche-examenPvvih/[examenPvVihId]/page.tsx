@@ -641,6 +641,7 @@ export default function ExamenPvVihPage({
             <div className="flex justify-center pt-4">
               <Button
                 type="submit"
+                disabled={form.formState.isSubmitting}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-lg transition-colors duration-200"
               >
                 {form.formState.isSubmitting

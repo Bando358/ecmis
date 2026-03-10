@@ -7,7 +7,15 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { Eye, FilePenLine, Trash2, Funnel, FunnelX, UserPlus, Users } from "lucide-react";
+import {
+  Eye,
+  FilePenLine,
+  Trash2,
+  Funnel,
+  FunnelX,
+  UserPlus,
+  Users,
+} from "lucide-react";
 
 import { Client, Clinique, TableName } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
@@ -21,8 +29,19 @@ import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { SearchInput, highlightSearchText } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -99,7 +118,17 @@ const calculateAge = (dateNaissance: Date): number => {
 
 // ================= Skeleton Row =================
 
-const SKELETON_WIDTHS = ["w-8", "w-24", "w-20", "w-12", "w-16", "w-20", "w-16", "w-14", "w-20"];
+const SKELETON_WIDTHS = [
+  "w-8",
+  "w-24",
+  "w-20",
+  "w-12",
+  "w-16",
+  "w-20",
+  "w-16",
+  "w-14",
+  "w-20",
+];
 
 const TableRowSkeleton = () => (
   <TableRow>
@@ -139,13 +168,19 @@ export default function Clients() {
   const [spinner, setSpinner] = useState(false);
   const [clients, setClients] = useState<Client[]>(cache?.clients ?? []);
   const [utilisateur, setUtilisateur] = useState<SafeUser | null>(null);
-  const [cliniques, setCliniques] = useState<Clinique[]>(cache?.cliniques ?? []);
+  const [cliniques, setCliniques] = useState<Clinique[]>(
+    cache?.cliniques ?? [],
+  );
   const [openCombobox, setOpenCombobox] = useState(false);
   const [isLoading, setIsLoading] = useState(!cache);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(8);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; nom: string; prenom: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    nom: string;
+    prenom: string;
+  } | null>(null);
   const [showSecondConfirm, setShowSecondConfirm] = useState(false);
 
   const router = useRouter();
@@ -159,7 +194,7 @@ export default function Clients() {
       const clinique = cliniques.find((p) => idClinique.includes(p.id));
       return clinique ? clinique.nomClinique : "";
     },
-    [cliniques]
+    [cliniques],
   );
 
   useEffect(() => {
@@ -192,11 +227,12 @@ export default function Clients() {
 
         setCliniques(cliniqueRes);
 
-        const filtered = utilisateur.role !== "ADMIN"
-          ? clientRes.filter((c: { idClinique: string }) =>
-              utilisateur.idCliniques.includes(c.idClinique)
-            )
-          : clientRes;
+        const filtered =
+          utilisateur.role !== "ADMIN"
+            ? clientRes.filter((c: { idClinique: string }) =>
+                utilisateur.idCliniques.includes(c.idClinique),
+              )
+            : clientRes;
 
         setClients(filtered);
         setCache(filtered, cliniqueRes);
@@ -209,7 +245,9 @@ export default function Clients() {
 
     fetchData();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [utilisateur]);
 
   // Filtered data
@@ -219,14 +257,14 @@ export default function Clients() {
     return clients.filter((row) => {
       const matchesSearch = Object.values(row).some(
         (value) =>
-          value != null && value.toString().toLowerCase().includes(searchLower)
+          value != null && value.toString().toLowerCase().includes(searchLower),
       );
 
       const antenneName = nomCliniques(row.idClinique)?.toLowerCase();
       const matchesAntenne =
         selectedAntennes.length === 0 ||
         selectedAntennes.some(
-          (antenne) => antenneName === antenne.toLowerCase()
+          (antenne) => antenneName === antenne.toLowerCase(),
         );
 
       return matchesSearch && matchesAntenne;
@@ -272,7 +310,7 @@ export default function Clients() {
     setSelectedAntennes((prev) =>
       prev.includes(antenne)
         ? prev.filter((a) => a !== antenne)
-        : [...prev, antenne]
+        : [...prev, antenne],
     );
   };
 
@@ -300,9 +338,7 @@ export default function Clients() {
                   {filteredData.length} / {clients.length}
                 </Badge>
               </div>
-              <CardDescription>
-                Gestion des dossiers clients
-              </CardDescription>
+              <CardDescription>Gestion des dossiers clients</CardDescription>
 
               {/* Barre de recherche + filtre + bouton nouveau */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
@@ -315,16 +351,9 @@ export default function Clients() {
                 />
 
                 {/* Filtre antenne */}
-                <Popover
-                  open={openCombobox}
-                  onOpenChange={setOpenCombobox}
-                >
+                <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                    >
+                    <Button variant="outline" size="sm" className="gap-2">
                       {selectedAntennes.length > 0 ? (
                         <FunnelX className="h-4 w-4 text-red-600" />
                       ) : (
@@ -340,22 +369,18 @@ export default function Clients() {
                   <PopoverContent className="w-50 p-0">
                     <Command>
                       <CommandInput placeholder="Rechercher une antenne..." />
-                      <CommandEmpty>
-                        Aucune antenne trouvée
-                      </CommandEmpty>
+                      <CommandEmpty>Aucune antenne trouvée</CommandEmpty>
                       <CommandGroup>
                         {cliniques.map((antenne) => (
                           <CommandItem
                             key={antenne.id}
-                            onSelect={() =>
-                              toggleAntenne(antenne.nomClinique)
-                            }
+                            onSelect={() => toggleAntenne(antenne.nomClinique)}
                           >
                             <div className="flex items-center">
                               <input
                                 type="checkbox"
                                 checked={selectedAntennes.includes(
-                                  antenne.nomClinique
+                                  antenne.nomClinique,
                                 )}
                                 readOnly
                                 className="mr-2 h-4 w-4"
@@ -403,7 +428,7 @@ export default function Clients() {
                         Code
                       </TableHead>
                       <TableHead className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
-                        Antenne
+                        Quartier
                       </TableHead>
                       <TableHead className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
                         Tel 1
@@ -433,7 +458,12 @@ export default function Clients() {
                           <TableCell className="text-xs sm:text-sm">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  asChild
+                                >
                                   <Link
                                     href={`/fiches/${row.id}`}
                                     prefetch={false}
@@ -461,7 +491,7 @@ export default function Clients() {
                             {highlightSearchText(row.code, search)}
                           </TableCell>
                           <TableCell className="uppercase text-xs sm:text-sm">
-                            {nomCliniques(row.idClinique)}
+                            {highlightSearchText(row.quartier, search)}
                           </TableCell>
                           <TableCell className="text-xs sm:text-sm">
                             {highlightSearchText(row.tel_1, search)}
@@ -490,7 +520,11 @@ export default function Clients() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                      >
                                         <Trash2 className="h-4 w-4 text-red-600" />
                                       </Button>
                                     </AlertDialogTrigger>
@@ -507,7 +541,8 @@ export default function Clients() {
                                       <span className="font-bold">
                                         {row.nom} {row.prenom}
                                       </span>{" "}
-                                      sera définitivement supprimé avec toutes ses données associées.
+                                      sera définitivement supprimé avec toutes
+                                      ses données associées.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -517,7 +552,11 @@ export default function Clients() {
                                     <AlertDialogAction
                                       className="bg-orange-500 hover:bg-orange-600"
                                       onClick={() => {
-                                        setDeleteTarget({ id: row.id, nom: row.nom, prenom: row.prenom });
+                                        setDeleteTarget({
+                                          id: row.id,
+                                          nom: row.nom,
+                                          prenom: row.prenom,
+                                        });
                                         setShowSecondConfirm(true);
                                       }}
                                     >
@@ -624,7 +663,7 @@ export default function Clients() {
                         (page) =>
                           page === 1 ||
                           page === totalPages ||
-                          (page >= currentPage - 1 && page <= currentPage + 1)
+                          (page >= currentPage - 1 && page <= currentPage + 1),
                       )
                       .map((page) => (
                         <PaginationItem key={page}>
@@ -695,9 +734,7 @@ export default function Clients() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setDeleteTarget(null)}
-            >
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>
               Non, conserver
             </AlertDialogCancel>
             <AlertDialogAction

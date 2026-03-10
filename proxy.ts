@@ -1,4 +1,4 @@
-// middleware.ts
+// proxy.ts (Next.js 16 — remplace middleware.ts)
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -6,7 +6,7 @@ import { getToken } from "next-auth/jwt";
 const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_THRESHOLD = 5000; // marge de 5 sec
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Exclusions : assets, auth, login, register, favicon, fichiers statiques
@@ -73,7 +73,7 @@ export async function middleware(req: NextRequest) {
     });
     return response;
   } catch (error) {
-    console.error("Middleware error:", error);
+    console.error("Proxy error:", error);
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }

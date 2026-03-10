@@ -498,7 +498,7 @@ export default function OrdonnancePage({
                     />
 
                     <div className="flex gap-4 print:hidden">
-                      <Button type="submit" className="mt-4 flex-1">
+                      <Button type="submit" className="mt-4 flex-1" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting
                           ? "En cours..."
                           : isUpdated
