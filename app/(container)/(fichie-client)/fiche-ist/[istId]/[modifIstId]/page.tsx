@@ -182,10 +182,11 @@ export default function IstPage({
       istIdUser: form.getValues("istIdUser"),
       istIdVisite: form.getValues("istIdVisite"),
       istIdClient: form.getValues("istIdClient"),
+      istIdClinique: form.getValues("istIdClinique"),
       istPecEtiologique:
         form.getValues("istTypePec") === "syndromique"
           ? ""
-          : form.getValues("istPecEtiologique"),
+          : form.getValues("istPecEtiologique") ?? "",
     };
     try {
       if (selectedIst) {
@@ -231,11 +232,12 @@ export default function IstPage({
         "istCounsellingAvantDepitage",
         selectedIst.istCounsellingAvantDepitage,
       );
-      // form.setValue("pecEtiologique", selectedIst.pecEtiologique);
+      form.setValue("istPecEtiologique", selectedIst.istPecEtiologique);
       form.setValue("istExamenPhysique", selectedIst.istExamenPhysique);
       form.setValue("istTypeClient", selectedIst.istTypeClient);
       form.setValue("istType", selectedIst.istType);
       form.setValue("istTypePec", selectedIst.istTypePec);
+      form.setValue("istIdClinique", selectedIst.istIdClinique);
       setIsVisible(true);
     }
   };

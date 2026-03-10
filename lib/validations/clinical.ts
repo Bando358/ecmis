@@ -34,7 +34,7 @@ export const IstCreateSchema = z.object({
   istCounsellingApresDepitage: z.boolean(),
   istCounselingReductionRisque: z.boolean(),
   istTypePec: RequiredStringSchema,
-  istPecEtiologique: RequiredStringSchema,
+  istPecEtiologique: z.string().default(""),
   istIdUser: IdSchema,
   istIdClient: IdSchema,
   istIdVisite: IdSchema,

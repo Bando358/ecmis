@@ -110,6 +110,15 @@ export default function IstPage({
   const idUser = session?.user.id as string;
   const router = useRouter();
 
+  const form = useForm<Ist>({
+    defaultValues: {
+      istIdVisite: "",
+      istIdUser: "",
+      istIdClient: istId ?? "",
+      istIdClinique: "",
+    },
+  });
+
   useEffect(() => {
     if (!idUser) return;
     const fetchData = async () => {
@@ -127,6 +136,11 @@ export default function IstPage({
       setVisites(resultVisites as Visite[]);
       setClient(clientData);
 
+      // Mettre à jour istIdClinique dès que le client est chargé
+      if (clientData?.idClinique) {
+        form.setValue("istIdClinique", clientData.idClinique);
+      }
+
       // Wave 2: depends on client
       if (clientData?.idClinique) {
         const prescripteurs = await getAllUserIncludedIdClinique(clientData.idClinique);
@@ -134,18 +148,7 @@ export default function IstPage({
       }
     };
     fetchData();
-  }, [istId, idUser]);
-
-  // console.log(visites);
-
-  const form = useForm<Ist>({
-    defaultValues: {
-      istIdVisite: "",
-      istIdUser: "",
-      istIdClient: istId ?? "",
-      istIdClinique: client?.idClinique ?? "",
-    },
-  });
+  }, [istId, idUser, form]);
   const onSubmit: SubmitHandler<Ist> = async (data) => {
     if (!canCreate(TableName.IST)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);

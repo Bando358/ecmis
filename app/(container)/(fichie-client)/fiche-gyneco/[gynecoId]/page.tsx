@@ -15,12 +15,7 @@ import {
 } from "@/lib/actions/authActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { useSession } from "next-auth/react";
-import {
-  Client,
-  Gynecologie,
-  TableName,
-  Visite,
-} from "@prisma/client";
+import { Client, Gynecologie, TableName, Visite } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
 
@@ -122,12 +117,13 @@ export default function GynecoPage({
       setIsLoading(true);
       try {
         // Étape 1: Requêtes indépendantes en parallèle
-        const [user, resultGyneco, resultVisites, cliniqueClient] = await Promise.all([
-          getOneUser(idUser),
-          getAllGynecoByIdClient(gynecoId),
-          getAllVisiteByIdClient(gynecoId),
-          getOneClient(gynecoId),
-        ]);
+        const [user, resultGyneco, resultVisites, cliniqueClient] =
+          await Promise.all([
+            getOneUser(idUser),
+            getAllGynecoByIdClient(gynecoId),
+            getAllVisiteByIdClient(gynecoId),
+            getOneClient(gynecoId),
+          ]);
 
         setIsPrescripteur(user?.prescripteur ? true : false);
         setPrescripteur(user!);
@@ -182,7 +178,7 @@ export default function GynecoPage({
       await updateRecapVisite(
         form.watch("idVisite"),
         form.watch("idUser"),
-        "04 Fiche gynécologique"
+        "04 Fiche gynécologique",
       );
       toast.success("Gynéco créer avec succès! 🎉");
       router.push(`/fiches/${gynecoId}`);
@@ -257,11 +253,11 @@ export default function GynecoPage({
                           key={index}
                           value={visite.id}
                           disabled={selectedGyneco.some(
-                            (p) => p.idVisite === visite.id
+                            (p) => p.idVisite === visite.id,
                           )}
                         >
                           {new Date(visite.dateVisite).toLocaleDateString(
-                            "fr-FR"
+                            "fr-FR",
                           )}
                         </SelectItem>
                       ))}
@@ -453,7 +449,10 @@ export default function GynecoPage({
                                   </FormControl>
                                   <SelectContent>
                                     {tabTypeTraitement.map((option, index) => (
-                                      <SelectItem key={index} value={option.value}>
+                                      <SelectItem
+                                        key={index}
+                                        value={option.value}
+                                      >
                                         {option.label}
                                       </SelectItem>
                                     ))}
@@ -553,7 +552,7 @@ export default function GynecoPage({
                 control={form.control}
                 name="counselingAutreProbleme"
                 render={({ field }) => (
-                  <FormItem className="hidden">
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
                     <FormControl>
                       <Checkbox
                         checked={field.value ?? true}
