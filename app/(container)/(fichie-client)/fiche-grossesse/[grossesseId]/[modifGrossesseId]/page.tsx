@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
@@ -134,6 +134,58 @@ export default function GynecoPage({
   }, [modifGrossesseId, idUser, setSelectedClientId]);
 
   const form = useForm<Grossesse>();
+
+  // Calcul automatique bidirectionnel : âge ↔ DDR → terme prévu
+  const watchedAge = form.watch("grossesseAge");
+  const watchedDdr = form.watch("grossesseDdr");
+  const calcSource = useRef<"age" | "ddr" | null>(null);
+
+  // Quand grossesseAge change → calculer DDR et terme prévu
+  useEffect(() => {
+    if (calcSource.current === "ddr") return;
+    const ageWeeks = parseFloat(watchedAge as unknown as string);
+    if (!dateVisite || !ageWeeks || ageWeeks <= 0) return;
+
+    const visitDate = new Date(dateVisite);
+    const ddr = new Date(visitDate);
+    ddr.setDate(ddr.getDate() - ageWeeks * 7);
+
+    const terme = new Date(ddr);
+    terme.setDate(terme.getDate() + 280);
+
+    const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+
+    calcSource.current = "age";
+    form.setValue("grossesseDdr", toDateStr(ddr) as unknown as Date);
+    form.setValue("termePrevu", toDateStr(terme) as unknown as Date);
+    calcSource.current = null;
+  }, [watchedAge, dateVisite]);
+
+  // Quand grossesseDdr change → calculer âge et terme prévu
+  useEffect(() => {
+    if (calcSource.current === "age") return;
+    const ddrStr = watchedDdr as unknown as string;
+    if (!dateVisite || !ddrStr) return;
+
+    const ddr = new Date(ddrStr);
+    const visitDate = new Date(dateVisite);
+    if (isNaN(ddr.getTime())) return;
+
+    const diffDays = Math.floor((visitDate.getTime() - ddr.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return;
+    const ageWeeks = parseFloat((diffDays / 7).toFixed(1));
+
+    const terme = new Date(ddr);
+    terme.setDate(terme.getDate() + 280);
+
+    const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+
+    calcSource.current = "ddr";
+    form.setValue("grossesseAge", ageWeeks as unknown as number);
+    form.setValue("termePrevu", toDateStr(terme) as unknown as Date);
+    calcSource.current = null;
+  }, [watchedDdr, dateVisite]);
+
   const onSubmit: SubmitHandler<Grossesse> = async (data) => {
     const formattedData = {
       ...data,

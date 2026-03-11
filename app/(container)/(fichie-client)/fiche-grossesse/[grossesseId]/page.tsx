@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 // import { RefreshCw } from "lucide-react";
@@ -127,6 +127,65 @@ export default function GrossessePage({
   }, [grossesseId]);
 
   const form = useForm<Grossesse>();
+
+  // Calcul automatique bidirectionnel : âge ↔ DDR → terme prévu
+  const watchedAge = form.watch("grossesseAge");
+  const watchedVisite = form.watch("grossesseIdVisite");
+  const watchedDdr = form.watch("grossesseDdr");
+  const calcSource = useRef<"age" | "ddr" | null>(null);
+
+  // Quand grossesseAge change → calculer DDR et terme prévu
+  useEffect(() => {
+    if (calcSource.current === "ddr") return;
+    const ageWeeks = parseFloat(watchedAge as unknown as string);
+    if (!watchedVisite || !ageWeeks || ageWeeks <= 0) return;
+
+    const visite = visites.find((v) => v.id === watchedVisite);
+    if (!visite) return;
+
+    const dateVisite = new Date(visite.dateVisite);
+    const ddr = new Date(dateVisite);
+    ddr.setDate(ddr.getDate() - ageWeeks * 7);
+
+    const terme = new Date(ddr);
+    terme.setDate(terme.getDate() + 280);
+
+    const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+
+    calcSource.current = "age";
+    form.setValue("grossesseDdr", toDateStr(ddr) as unknown as Date);
+    form.setValue("termePrevu", toDateStr(terme) as unknown as Date);
+    calcSource.current = null;
+  }, [watchedAge, watchedVisite, visites]);
+
+  // Quand grossesseDdr change → calculer âge et terme prévu
+  useEffect(() => {
+    if (calcSource.current === "age") return;
+    const ddrStr = watchedDdr as unknown as string;
+    if (!watchedVisite || !ddrStr) return;
+
+    const visite = visites.find((v) => v.id === watchedVisite);
+    if (!visite) return;
+
+    const ddr = new Date(ddrStr);
+    const dateVisite = new Date(visite.dateVisite);
+    if (isNaN(ddr.getTime())) return;
+
+    const diffDays = Math.floor((dateVisite.getTime() - ddr.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return;
+    const ageWeeks = parseFloat((diffDays / 7).toFixed(1));
+
+    const terme = new Date(ddr);
+    terme.setDate(terme.getDate() + 280);
+
+    const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+
+    calcSource.current = "ddr";
+    form.setValue("grossesseAge", ageWeeks as unknown as number);
+    form.setValue("termePrevu", toDateStr(terme) as unknown as Date);
+    calcSource.current = null;
+  }, [watchedDdr, watchedVisite, visites]);
+
   const onSubmit: SubmitHandler<Grossesse> = async (data) => {
     if (!canCreate(TableName.GROSSESSE)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
