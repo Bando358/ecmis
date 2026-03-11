@@ -181,7 +181,7 @@ export default function GrossessePage({
     const toDateStr = (d: Date) => d.toISOString().split("T")[0];
 
     calcSource.current = "ddr";
-    form.setValue("grossesseAge", ageWeeks as unknown as number);
+    form.setValue("grossesseAge", Math.round(ageWeeks) as unknown as number);
     form.setValue("termePrevu", toDateStr(terme) as unknown as Date);
     calcSource.current = null;
   }, [watchedDdr, watchedVisite, visites]);
@@ -191,14 +191,22 @@ export default function GrossessePage({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+
+    // Convertir les dates string en objets Date valides
+    const ddrValue = data.grossesseDdr
+      ? new Date(data.grossesseDdr + "T00:00:00")
+      : null;
+    const termeValue = data.termePrevu
+      ? new Date(data.termePrevu + "T00:00:00")
+      : null;
+
     const formattedData = {
       ...data,
       grossesseIdUser: idUser,
       grossesseIdVisite: form.getValues("grossesseIdVisite"),
-      // idClient: form.getValues("idClient"),
-      grossesseDdr: data.grossesseDdr ? new Date(data.grossesseDdr) : null,
-      termePrevu: data.termePrevu ? new Date(data.termePrevu) : null,
-      grossesseAge: parseFloat(data.grossesseAge as unknown as string) || 0,
+      grossesseDdr: ddrValue,
+      termePrevu: termeValue,
+      grossesseAge: Number(data.grossesseAge) || 0,
       grossesseParite: parseInt(data.grossesseParite as unknown as string, 10),
       grossesseGestite: parseInt(
         data.grossesseGestite as unknown as string,
