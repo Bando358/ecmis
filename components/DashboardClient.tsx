@@ -24,6 +24,9 @@ import type {
   FactureProduitType,
   FacturePrestationType,
   FactureEchographieType,
+  ReferenceType,
+  ContreReferenceType,
+  PrescripteurInfo,
 } from "@/lib/actions/dashboardActions";
 
 // 🔹 Type strict pour les données du dashboard
@@ -37,6 +40,9 @@ interface DashboardData {
   visites?: Visite[];
   planning?: Planning[];
   allData?: { name: string; data: unknown }[];
+  references?: ReferenceType[];
+  contreReferences?: ContreReferenceType[];
+  prescripteursList?: PrescripteurInfo[];
 }
 
 interface DashboardClientProps {
@@ -422,6 +428,7 @@ export default function DashboardClient({
           startDate={appliedStartDate}
           endDate={appliedEndDate}
           period={period}
+          tabClinique={tabClinique}
           initialData={
             refreshKey === 0
               ? (dashboardData as Record<string, unknown>)

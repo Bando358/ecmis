@@ -17,6 +17,7 @@ export type FactureEchographieType = {
   echoIdClinique: string;
   echoIdUser: string;
   echoIdPrescripteur?: string;
+  echoDate: Date | null;
   echoRemise: number;
   echoLibelle: string;
   echoPrixTotal: number;
@@ -24,6 +25,24 @@ export type FactureEchographieType = {
   echoClient: unknown;
   echoClinique: unknown;
   echoUser: unknown;
+};
+
+export type ReferenceType = {
+  id: string;
+  idClinique: string;
+  dateReference: Date;
+  motifReference: string;
+};
+
+export type ContreReferenceType = {
+  id: string;
+  idClinique: string;
+  dateReception: Date;
+};
+
+export type PrescripteurInfo = {
+  id: string;
+  name: string;
 };
 
 export type FactureExamenType = {
@@ -87,11 +106,14 @@ export const fetchDashboardData = async (
   facturesProduits: FactureProduitType[];
   facturesPrestations: FacturePrestationType[];
   facturesEchographies: FactureEchographieType[];
-  clients: Client[]; // Adjust type if you know the shape of clients
+  clients: Client[];
   activites: Activite[];
   visites: Visite[];
   planning: Planning[];
-  allData: { name: string; data: unknown }[]; // Add this line for allData
+  allData: { name: string; data: unknown }[];
+  references: ReferenceType[];
+  contreReferences: ContreReferenceType[];
+  prescripteursList: PrescripteurInfo[];
 }> => {
   if (!clinicIds || clinicIds.length === 0) {
     // Retourner des données vides si aucune clinique n'est sélectionnée
@@ -106,8 +128,18 @@ export const fetchDashboardData = async (
       visites: [],
       planning: [],
       allData: [],
+      references: [],
+      contreReferences: [],
+      prescripteursList: [],
     };
   }
+
+  // Ajuster les dates pour couvrir la journée entière
+  const adjustedFrom = new Date(dateFrom);
+  adjustedFrom.setHours(0, 0, 0, 0);
+  const adjustedTo = new Date(dateTo);
+  adjustedTo.setHours(23, 59, 59, 999);
+
   const allPrescripteurs = await prisma.user.findMany({
     where: {
       idCliniques: {
@@ -121,8 +153,8 @@ export const fetchDashboardData = async (
     where: {
       idClinique: { in: clinicIds },
       dateEnregistrement: {
-        gte: dateFrom,
-        lte: dateTo,
+        gte: adjustedFrom,
+        lte: adjustedTo,
       },
     },
   });
@@ -133,15 +165,15 @@ export const fetchDashboardData = async (
     idClinique: { in: clinicIds },
   };
 
-  if (dateFrom || dateTo) {
+  if (adjustedFrom || adjustedTo) {
     whereVisite.dateVisite = {};
 
-    if (dateFrom) {
-      whereVisite.dateVisite.gte = dateFrom;
+    if (adjustedFrom) {
+      whereVisite.dateVisite.gte = adjustedFrom;
     }
 
-    if (dateTo) {
-      whereVisite.dateVisite.lte = dateTo;
+    if (adjustedTo) {
+      whereVisite.dateVisite.lte = adjustedTo;
     }
   }
 
@@ -179,8 +211,8 @@ export const fetchDashboardData = async (
 
   // Construire le filtre de date dynamiquement
   const dateFilter: Prisma.DateTimeFilter = {};
-  if (dateFrom) dateFilter.gte = dateFrom;
-  if (dateTo) dateFilter.lte = dateTo;
+  if (adjustedFrom) dateFilter.gte = adjustedFrom;
+  if (adjustedTo) dateFilter.lte = adjustedTo;
 
   const visiteWhere: Prisma.VisiteWhereInput = {
     ...(Object.keys(dateFilter).length > 0 && { dateVisite: dateFilter }),
@@ -388,11 +420,13 @@ export const fetchDashboardData = async (
     }),
   ]);
 
-  // Batch 4 : Données cliniques 3 (3 requêtes)
+  // Batch 4 : Données cliniques 3 + Références (5 requêtes)
   const [
     medecineData,
     vbgData,
     testData,
+    referencesData,
+    contreReferencesData,
   ] = await Promise.all([
     prisma.medecine.findMany({
       where: {
@@ -429,6 +463,20 @@ export const fetchDashboardData = async (
         Clinique: true,
         User: true,
       },
+    }),
+    prisma.reference.findMany({
+      where: {
+        idClinique: { in: clinicIds },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
+      },
+      select: { id: true, idClinique: true, dateReference: true, motifReference: true },
+    }),
+    prisma.contreReference.findMany({
+      where: {
+        idClinique: { in: clinicIds },
+        ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
+      },
+      select: { id: true, idClinique: true, dateReception: true },
     }),
   ]);
 
@@ -479,7 +527,7 @@ export const fetchDashboardData = async (
       allPrescripteurs
     ),
     prodDate: f.dateFacture,
-    prodLibelle: f.idTarifProduit,
+    prodLibelle: f.nomProduit,
     prodMontantTotal: f.montantProduit || 0,
     prodQuantite: f.quantite,
     // prodPrixUnitaire: f.montantProduit,
@@ -526,6 +574,7 @@ export const fetchDashboardData = async (
       allDataRecap,
       allPrescripteurs
     ),
+    echoDate: f.Visite?.dateVisite || null,
     echoRemise: f.remiseEchographie || 0,
     echoLibelle: f.libelleEchographie,
     echoPrixTotal: f.prixEchographie,
@@ -562,6 +611,9 @@ export const fetchDashboardData = async (
     visites: allVisiteByDateFromAndDateTo,
     planning,
     allData,
+    references: referencesData,
+    contreReferences: contreReferencesData,
+    prescripteursList: allPrescripteurs.map((u) => ({ id: u.id, name: u.name })),
   };
 };
 

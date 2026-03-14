@@ -26,6 +26,9 @@ import {
   YAxis,
   LineChart,
   Line,
+  Pie,
+  PieChart,
+  Tooltip,
 } from "recharts";
 
 import {
@@ -45,10 +48,14 @@ type ChartDataType = {
 type PeriodType = "quotidien" | "hebdomadaire" | "mensuel" | "bimestriel" | "trimestriel" | "semestriel" | "annuel";
 
 // Types pour les factures avec ID clinique et prescripteur
-type FactureProduitRaw = { prodMontantTotal?: number; prodIdClinique?: string; prodIdPrescripteur?: string };
-type FacturePrestationRaw = { prestPrixTotal?: number; prestIdClinique?: string; prestIdPrescripteur?: string };
-type FactureExamenRaw = { examPrixTotal?: number; examIdClinique?: string; examIdPrescripteur?: string };
-type FactureEchographieRaw = { echoPrixTotal?: number; echoIdClinique?: string; echoIdPrescripteur?: string };
+type FactureProduitRaw = { prodMontantTotal?: number; prodIdClinique?: string; prodIdPrescripteur?: string; prodDate?: string | Date; prodLibelle?: string; prodQuantite?: number };
+type FacturePrestationRaw = { prestPrixTotal?: number; prestIdClinique?: string; prestIdPrescripteur?: string; prestDate?: string | Date };
+type FactureExamenRaw = { examPrixTotal?: number; examIdClinique?: string; examIdPrescripteur?: string; examDate?: string | Date | null };
+type FactureEchographieRaw = { echoPrixTotal?: number; echoIdClinique?: string; echoIdPrescripteur?: string; echoDate?: string | Date | null };
+
+type ReferenceRaw = { id: string; idClinique: string; dateReference: string | Date; motifReference: string };
+type ContreReferenceRaw = { id: string; idClinique: string; dateReception: string | Date };
+type PrescripteurInfoRaw = { id: string; name: string };
 
 // Type pour les données de prestation avec ID clinique et utilisateur (prescripteur)
 type PrestationDataItem = {
@@ -63,6 +70,7 @@ interface DashboardChartProps {
   startDate: string;
   endDate: string;
   period?: PeriodType;
+  tabClinique?: { id: string; name: string }[];
   initialData?: {
     facturesProduits?: FactureProduitRaw[];
     facturesPrestations?: FacturePrestationRaw[];
@@ -72,6 +80,9 @@ interface DashboardChartProps {
     visites?: Visite[];
     planning?: Planning[];
     allData?: PrestationDataItem[];
+    references?: ReferenceRaw[];
+    contreReferences?: ContreReferenceRaw[];
+    prescripteursList?: PrescripteurInfoRaw[];
   };
 }
 
@@ -184,6 +195,7 @@ export default function DashboardChart({
   startDate,
   endDate,
   period = "hebdomadaire",
+  tabClinique = [],
   initialData,
 }: DashboardChartProps) {
   // Utiliser filterClinicIds pour le filtrage côté client, ou clinicIds si non défini
@@ -215,6 +227,15 @@ export default function DashboardChart({
   );
   const [prestationData, setPrestationData] = useState<PrestationDataItem[]>(
     (initialData?.allData || []) as PrestationDataItem[]
+  );
+  const [references, setReferences] = useState<ReferenceRaw[]>(
+    initialData?.references || []
+  );
+  const [contreReferences, setContreReferences] = useState<ContreReferenceRaw[]>(
+    initialData?.contreReferences || []
+  );
+  const [prescripteursList, setPrescripteursList] = useState<PrescripteurInfoRaw[]>(
+    initialData?.prescripteursList || []
   );
   const [loading, setLoading] = useState(!initialData);
 
@@ -336,6 +357,9 @@ export default function DashboardChart({
               }))
             : []
         );
+        setReferences(Array.isArray(data.references) ? data.references : []);
+        setContreReferences(Array.isArray(data.contreReferences) ? data.contreReferences : []);
+        setPrescripteursList(Array.isArray(data.prescripteursList) ? data.prescripteursList : []);
 
         // 🔹 Marquer les données comme chargées et sauvegarder les dates
         hasLoadedData.current = true;
@@ -575,6 +599,222 @@ export default function DashboardChart({
 
   const motifData = motifVisiteData();
   const prestationDataChart = prestationByType();
+
+  // ========== NOUVEAUX GRAPHIQUES ==========
+
+  // 1. Revenus par type de service (Donut)
+  const revenueByServiceData = useMemo(() => {
+    return chartData
+      .filter((d) => d.name !== "Total" && d.total > 0)
+      .map((d, i) => ({
+        name: d.name,
+        value: d.total,
+        color: ["#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6"][i] || colors[i],
+      }));
+  }, [chartData]);
+
+  // 2. Évolution des revenus dans le temps (Area)
+  const revenueOverTimeData = useMemo(() => {
+    const grouped: Record<string, { produits: number; prestations: number; examens: number; echographies: number }> = {};
+
+    const filteredProduits = facturesProduits.filter(
+      (f) => (!f.prodIdClinique || activeClinicIds.includes(f.prodIdClinique)) &&
+        (!activePrescripteurId || f.prodIdPrescripteur === activePrescripteurId)
+    );
+    const filteredPrestations = facturesPrestations.filter(
+      (f) => (!f.prestIdClinique || activeClinicIds.includes(f.prestIdClinique)) &&
+        (!activePrescripteurId || f.prestIdPrescripteur === activePrescripteurId)
+    );
+    const filteredExamens = facturesExamens.filter(
+      (f) => (!f.examIdClinique || activeClinicIds.includes(f.examIdClinique)) &&
+        (!activePrescripteurId || f.examIdPrescripteur === activePrescripteurId)
+    );
+    const filteredEchographies = facturesEchographies.filter(
+      (f) => (!f.echoIdClinique || activeClinicIds.includes(f.echoIdClinique)) &&
+        (!activePrescripteurId || f.echoIdPrescripteur === activePrescripteurId)
+    );
+
+    const ensureGroup = (key: string) => {
+      if (!grouped[key]) grouped[key] = { produits: 0, prestations: 0, examens: 0, echographies: 0 };
+    };
+
+    filteredProduits.forEach((f) => {
+      if (!f.prodDate) return;
+      const key = getGroupKey(new Date(f.prodDate), period);
+      ensureGroup(key);
+      grouped[key].produits += f.prodMontantTotal ?? 0;
+    });
+    filteredPrestations.forEach((f) => {
+      if (!f.prestDate) return;
+      const key = getGroupKey(new Date(f.prestDate), period);
+      ensureGroup(key);
+      grouped[key].prestations += f.prestPrixTotal ?? 0;
+    });
+    filteredExamens.forEach((f) => {
+      if (!f.examDate) return;
+      const key = getGroupKey(new Date(f.examDate), period);
+      ensureGroup(key);
+      grouped[key].examens += f.examPrixTotal ?? 0;
+    });
+    filteredEchographies.forEach((f) => {
+      if (!f.echoDate) return;
+      const key = getGroupKey(new Date(f.echoDate), period);
+      ensureGroup(key);
+      grouped[key].echographies += f.echoPrixTotal ?? 0;
+    });
+
+    return Object.entries(grouped)
+      .map(([date, vals]) => ({ date, ...vals }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [facturesProduits, facturesPrestations, facturesExamens, facturesEchographies, activeClinicIds, activePrescripteurId, period]);
+
+  // 3. Répartition par âge et sexe (Pyramide)
+  const ageSexData = useMemo(() => {
+    const buckets: Record<string, { hommes: number; femmes: number }> = {
+      "0-9": { hommes: 0, femmes: 0 },
+      "10-19": { hommes: 0, femmes: 0 },
+      "20-29": { hommes: 0, femmes: 0 },
+      "30-39": { hommes: 0, femmes: 0 },
+      "40-49": { hommes: 0, femmes: 0 },
+      "50-59": { hommes: 0, femmes: 0 },
+      "60+": { hommes: 0, femmes: 0 },
+    };
+
+    clientsFilteredByClinic.forEach((client) => {
+      if (!client.dateNaissance) return;
+      const age = Math.floor((Date.now() - new Date(client.dateNaissance).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      const sex = client.sexe?.toLowerCase();
+      const isMale = sex === "m" || sex === "masculin";
+
+      let bucket = "60+";
+      if (age < 10) bucket = "0-9";
+      else if (age < 20) bucket = "10-19";
+      else if (age < 30) bucket = "20-29";
+      else if (age < 40) bucket = "30-39";
+      else if (age < 50) bucket = "40-49";
+      else if (age < 60) bucket = "50-59";
+
+      if (isMale) buckets[bucket].hommes++;
+      else buckets[bucket].femmes++;
+    });
+
+    return Object.entries(buckets).map(([tranche, vals]) => ({
+      tranche,
+      hommes: -vals.hommes,
+      hommesAbs: vals.hommes,
+      femmes: vals.femmes,
+    }));
+  }, [clientsFilteredByClinic]);
+
+  // 4. Références / Contre-références (Bar)
+  const refContreRefData = useMemo(() => {
+    const filteredRefs = references.filter((r) => activeClinicIds.includes(r.idClinique));
+    const filteredContreRefs = contreReferences.filter((r) => activeClinicIds.includes(r.idClinique));
+
+    const grouped: Record<string, { references: number; contreReferences: number }> = {};
+    filteredRefs.forEach((r) => {
+      const key = getGroupKey(new Date(r.dateReference), period);
+      if (!grouped[key]) grouped[key] = { references: 0, contreReferences: 0 };
+      grouped[key].references++;
+    });
+    filteredContreRefs.forEach((r) => {
+      const key = getGroupKey(new Date(r.dateReception), period);
+      if (!grouped[key]) grouped[key] = { references: 0, contreReferences: 0 };
+      grouped[key].contreReferences++;
+    });
+
+    return Object.entries(grouped)
+      .map(([date, vals]) => ({ date, ...vals }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [references, contreReferences, activeClinicIds, period]);
+
+  const totalRefs = useMemo(() => references.filter((r) => activeClinicIds.includes(r.idClinique)).length, [references, activeClinicIds]);
+  const totalContreRefs = useMemo(() => contreReferences.filter((r) => activeClinicIds.includes(r.idClinique)).length, [contreReferences, activeClinicIds]);
+
+  // 5. Top 10 produits vendus (Horizontal Bar)
+  const topProduitsData = useMemo(() => {
+    const filteredProduits = facturesProduits.filter(
+      (f) => (!f.prodIdClinique || activeClinicIds.includes(f.prodIdClinique)) &&
+        (!activePrescripteurId || f.prodIdPrescripteur === activePrescripteurId)
+    );
+    const prodMap: Record<string, { nom: string; quantite: number; montant: number }> = {};
+    filteredProduits.forEach((f) => {
+      const nom = f.prodLibelle || "Inconnu";
+      if (!prodMap[nom]) prodMap[nom] = { nom, quantite: 0, montant: 0 };
+      prodMap[nom].quantite += f.prodQuantite ?? 0;
+      prodMap[nom].montant += f.prodMontantTotal ?? 0;
+    });
+    return Object.values(prodMap)
+      .sort((a, b) => b.quantite - a.quantite)
+      .slice(0, 10);
+  }, [facturesProduits, activeClinicIds, activePrescripteurId]);
+
+  // 6. Top 10 consultations par prestataire (Horizontal Bar)
+  const topPrestatairesData = useMemo(() => {
+    const userMap: Record<string, number> = {};
+    visitesFilteredByClinic.forEach((v) => {
+      const uid = (v as unknown as { idUser?: string }).idUser;
+      if (uid) userMap[uid] = (userMap[uid] || 0) + 1;
+    });
+    return Object.entries(userMap)
+      .map(([id, count]) => {
+        const user = prescripteursList.find((p) => p.id === id);
+        return { name: user?.name || id.slice(0, 8), count };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [visitesFilteredByClinic, prescripteursList]);
+
+  // 7. Clients par clinique (Bar)
+  const clientsParCliniqueData = useMemo(() => {
+    if (tabClinique.length <= 1) return [];
+    const cliniqueMap: Record<string, number> = {};
+    clientsFilteredByClinic.forEach((c) => {
+      const cid = c.cliniqueId;
+      cliniqueMap[cid] = (cliniqueMap[cid] || 0) + 1;
+    });
+    return tabClinique
+      .filter((c) => activeClinicIds.includes(c.id))
+      .map((c) => ({
+        name: c.name,
+        total: cliniqueMap[c.id] || 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [clientsFilteredByClinic, tabClinique, activeClinicIds]);
+
+  // 8. Visites par clinique (Bar)
+  const visitesParCliniqueData = useMemo(() => {
+    if (tabClinique.length <= 1) return [];
+    const cliniqueMap: Record<string, number> = {};
+    visitesFilteredByClinic.forEach((v) => {
+      cliniqueMap[v.idClinique] = (cliniqueMap[v.idClinique] || 0) + 1;
+    });
+    return tabClinique
+      .filter((c) => activeClinicIds.includes(c.id))
+      .map((c) => ({
+        name: c.name,
+        total: cliniqueMap[c.id] || 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [visitesFilteredByClinic, tabClinique, activeClinicIds]);
+
+  // Chart configs for new charts
+  const revenueOverTimeConfig = {
+    produits: { label: "Produits", color: "#3b82f6" },
+    prestations: { label: "Prestations", color: "#22c55e" },
+    examens: { label: "Examens", color: "#f59e0b" },
+    echographies: { label: "Échographies", color: "#8b5cf6" },
+  } satisfies ChartConfig;
+
+  const refConfig = {
+    references: { label: "Références", color: "#3b82f6" },
+    contreReferences: { label: "Contre-références", color: "#22c55e" },
+  } satisfies ChartConfig;
+
+  const ageSexConfig = {
+    hommes: { label: "Hommes", color: "#3b82f6" },
+    femmes: { label: "Femmes", color: "#ec4899" },
+  } satisfies ChartConfig;
 
   // Composant de chargement
   const LoadingState = ({
@@ -1348,6 +1588,373 @@ export default function DashboardChart({
           </div>
         </CardFooter>
       </Card>
+      {/* ====== NOUVEAUX GRAPHIQUES ====== */}
+
+      {/* 🍩 Revenus par type de service (Donut) + Évolution des revenus */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+          <CardHeader className="relative z-10">
+            <CardTitle className="text-blue-900">Revenus par type de service</CardTitle>
+            <CardDescription className="text-blue-600/80">Répartition des revenus entre les différents services</CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 flex items-center justify-center">
+            {loading ? (
+              <LoadingState />
+            ) : revenueByServiceData.length === 0 ? (
+              <EmptyState message="Aucun revenu pour cette période." />
+            ) : (
+              <PieChart width={350} height={280}>
+                <Pie
+                  data={revenueByServiceData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={110}
+                  paddingAngle={3}
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                  fontSize={11}
+                >
+                  {revenueByServiceData.map((entry, index) => (
+                    <Cell key={`cell-donut-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => `${value.toLocaleString()} CFA`}
+                  contentStyle={{ borderRadius: "8px", border: "1px solid #dbeafe" }}
+                />
+              </PieChart>
+            )}
+          </CardContent>
+          <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 leading-none font-medium text-blue-700">
+              Répartition financière <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardFooter>
+        </Card>
+
+        {/* 📈 Évolution des revenus dans le temps */}
+        <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+          <CardHeader className="relative z-10">
+            <CardTitle className="text-blue-900">Évolution des revenus</CardTitle>
+            <CardDescription className="text-blue-600/80">Tendance des revenus par type de service dans le temps</CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
+            <ChartContainer config={revenueOverTimeConfig} className="aspect-auto h-[250px] w-full">
+              {loading ? (
+                <LoadingState />
+              ) : revenueOverTimeData.length === 0 ? (
+                <EmptyState message="Aucune donnée de revenu pour cette période." />
+              ) : (
+                <AreaChart key={`revenue-time-${filterKey}`} data={revenueOverTimeData}>
+                  <CartesianGrid vertical={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: "#1d4ed8" }} tickFormatter={(v) => formatAxisLabel(v, period)} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#1d4ed8" }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
+                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(v) => formatAxisLabel(v, period)} indicator="dot" />} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Area type="monotone" dataKey="produits" stackId="1" fill="#3b82f6" stroke="#3b82f6" fillOpacity={0.3} name="Produits" />
+                  <Area type="monotone" dataKey="prestations" stackId="1" fill="#22c55e" stroke="#22c55e" fillOpacity={0.3} name="Prestations" />
+                  <Area type="monotone" dataKey="examens" stackId="1" fill="#f59e0b" stroke="#f59e0b" fillOpacity={0.3} name="Examens" />
+                  <Area type="monotone" dataKey="echographies" stackId="1" fill="#8b5cf6" stroke="#8b5cf6" fillOpacity={0.3} name="Échographies" />
+                </AreaChart>
+              )}
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 leading-none font-medium text-blue-700">
+              Tendance financière <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
+
+      {/* 👥 Pyramide des âges + Références/Contre-références */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pyramide des âges */}
+        <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+          <CardHeader className="relative z-10">
+            <CardTitle className="text-blue-900">Répartition par âge et sexe</CardTitle>
+            <CardDescription className="text-blue-600/80">Pyramide des âges des patients enregistrés</CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
+            <ChartContainer config={ageSexConfig} className="aspect-auto h-[280px] w-full">
+              {loading ? (
+                <LoadingState />
+              ) : clientsFilteredByClinic.length === 0 ? (
+                <EmptyState message="Aucun patient pour cette période." />
+              ) : (
+                <BarChart key={`age-sex-${filterKey}`} data={ageSexData} layout="vertical" margin={{ left: 10, right: 10 }}>
+                  <CartesianGrid horizontal={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fill: "#1d4ed8" }} tickFormatter={(v) => Math.abs(v).toString()} />
+                  <YAxis type="category" dataKey="tranche" tick={{ fill: "#1d4ed8", fontSize: 12 }} width={45} />
+                  <ChartTooltip content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white/95 backdrop-blur-sm border border-blue-200 rounded-lg p-3 shadow-lg">
+                          <p className="text-blue-800 font-medium mb-2">{label} ans</p>
+                          {payload.map((p, i) => (
+                            <div key={i} className="flex items-center gap-2 text-sm">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span>{p.name} : <strong>{Math.abs(Number(p.value))}</strong></span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Bar dataKey="hommes" fill="#3b82f6" radius={[4, 0, 0, 4]} name="Hommes">
+                    <LabelList dataKey="hommesAbs" position="left" fill="#1d4ed8" fontSize={10} fontWeight="bold" formatter={(v: number) => v > 0 ? v : ""} />
+                  </Bar>
+                  <Bar dataKey="femmes" fill="#ec4899" radius={[0, 4, 4, 0]} name="Femmes">
+                    <LabelList dataKey="femmes" position="right" fill="#be185d" fontSize={10} fontWeight="bold" formatter={(v: number) => v > 0 ? v : ""} />
+                  </Bar>
+                </BarChart>
+              )}
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 leading-none font-medium text-blue-700">
+              Démographie des patients <TrendingUp className="h-4 w-4" />
+            </div>
+            <div className="text-blue-600/80 leading-none">
+              {clientsFilteredByClinic.length} patients analysés
+            </div>
+          </CardFooter>
+        </Card>
+
+        {/* Références / Contre-références */}
+        <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+          <CardHeader className="relative z-10">
+            <CardTitle className="text-blue-900">Références / Contre-références</CardTitle>
+            <CardDescription className="text-blue-600/80">Suivi des références et contre-références dans le temps</CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
+            <ChartContainer config={refConfig} className="aspect-auto h-[280px] w-full">
+              {loading ? (
+                <LoadingState />
+              ) : refContreRefData.length === 0 ? (
+                <EmptyState message="Aucune référence pour cette période." />
+              ) : (
+                <BarChart key={`ref-${filterKey}`} data={refContreRefData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid vertical={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#1d4ed8" }} tickFormatter={(v) => formatAxisLabel(v, period)} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#1d4ed8" }} />
+                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(v) => formatAxisLabel(v, period)} indicator="dot" />} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Bar dataKey="references" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Références" barSize={25}>
+                    <LabelList dataKey="references" position="top" fill="#1d4ed8" fontSize={10} fontWeight="bold" formatter={(v: number) => v > 0 ? v : ""} />
+                  </Bar>
+                  <Bar dataKey="contreReferences" fill="#22c55e" radius={[4, 4, 0, 0]} name="Contre-réf." barSize={25}>
+                    <LabelList dataKey="contreReferences" position="top" fill="#15803d" fontSize={10} fontWeight="bold" formatter={(v: number) => v > 0 ? v : ""} />
+                  </Bar>
+                </BarChart>
+              )}
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 leading-none font-medium text-blue-700">
+              Analyse des références <TrendingUp className="h-4 w-4" />
+            </div>
+            <div className="text-blue-600/80 leading-none">
+              {totalRefs} références et {totalContreRefs} contre-références sur la période
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
+
+      {/* 📦 Top 10 produits + Top 10 prestataires */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top 10 produits vendus */}
+        <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+          <CardHeader className="relative z-10">
+            <CardTitle className="text-blue-900">Top 10 produits vendus</CardTitle>
+            <CardDescription className="text-blue-600/80">Produits les plus vendus par quantité</CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
+            <ChartContainer config={{ quantite: { label: "Quantité", color: "#22c55e" } }} className="aspect-auto h-[320px] w-full">
+              {loading ? (
+                <LoadingState />
+              ) : topProduitsData.length === 0 ? (
+                <EmptyState message="Aucune vente de produit pour cette période." />
+              ) : (
+                <BarChart key={`top-prod-${filterKey}`} data={topProduitsData} layout="vertical" margin={{ left: 10, right: 40 }}>
+                  <CartesianGrid horizontal={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fill: "#1d4ed8" }} />
+                  <YAxis type="category" dataKey="nom" tick={{ fill: "#1d4ed8", fontSize: 11 }} width={120} tickFormatter={(v) => v.length > 18 ? `${v.slice(0, 18)}...` : v} />
+                  <ChartTooltip content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-white/95 backdrop-blur-sm border border-blue-200 rounded-lg p-3 shadow-lg">
+                          <p className="text-blue-800 font-medium mb-2">{label}</p>
+                          <p className="text-sm">Quantité : <strong>{d.quantite}</strong></p>
+                          <p className="text-sm">Montant : <strong>{d.montant?.toLocaleString()} CFA</strong></p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }} />
+                  <Bar dataKey="quantite" radius={[0, 4, 4, 0]} barSize={20}>
+                    {topProduitsData.map((_, index) => (
+                      <Cell key={`prod-cell-${index}`} fill={getBarColor(index)} />
+                    ))}
+                    <LabelList dataKey="quantite" position="right" fill="#1d4ed8" fontSize={11} fontWeight="bold" />
+                  </Bar>
+                </BarChart>
+              )}
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 leading-none font-medium text-blue-700">
+              Analyse des ventes produits <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardFooter>
+        </Card>
+
+        {/* Top 10 consultations par prestataire */}
+        <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+          <CardHeader className="relative z-10">
+            <CardTitle className="text-blue-900">Top 10 consultations par prestataire</CardTitle>
+            <CardDescription className="text-blue-600/80">Prestataires avec le plus de consultations</CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 px-2 pt-4 sm:px-6 sm:pt-6">
+            <ChartContainer config={{ count: { label: "Consultations", color: "#3b82f6" } }} className="aspect-auto h-[320px] w-full">
+              {loading ? (
+                <LoadingState />
+              ) : topPrestatairesData.length === 0 ? (
+                <EmptyState message="Aucune consultation pour cette période." />
+              ) : (
+                <BarChart key={`top-prest-${filterKey}`} data={topPrestatairesData} layout="vertical" margin={{ left: 10, right: 40 }}>
+                  <CartesianGrid horizontal={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fill: "#1d4ed8" }} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: "#1d4ed8", fontSize: 11 }} width={120} tickFormatter={(v) => v.length > 18 ? `${v.slice(0, 18)}...` : v} />
+                  <ChartTooltip content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white/95 backdrop-blur-sm border border-blue-200 rounded-lg p-3 shadow-lg">
+                          <p className="text-blue-800 font-medium mb-2">{label}</p>
+                          <p className="text-sm">Consultations : <strong>{payload[0].value}</strong></p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
+                    {topPrestatairesData.map((_, index) => (
+                      <Cell key={`prest-cell-${index}`} fill={getBarColor(index)} />
+                    ))}
+                    <LabelList dataKey="count" position="right" fill="#1d4ed8" fontSize={11} fontWeight="bold" />
+                  </Bar>
+                </BarChart>
+              )}
+            </ChartContainer>
+          </CardContent>
+          <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+            <div className="flex gap-2 leading-none font-medium text-blue-700">
+              Activité des prestataires <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
+
+      {/* 🏥 Clients et Visites par clinique (conditionnel : seulement si multi-cliniques) */}
+      {tabClinique.length > 1 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Clients par clinique */}
+          <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+            <CardHeader className="relative z-10">
+              <CardTitle className="text-blue-900">Clients par clinique</CardTitle>
+              <CardDescription className="text-blue-600/80">Nombre de clients enregistrés par clinique</CardDescription>
+            </CardHeader>
+            <CardContent className="relative z-10 px-2 h-[280px] sm:px-6">
+              {loading ? (
+                <LoadingState />
+              ) : clientsParCliniqueData.length === 0 ? (
+                <EmptyState message="Aucune donnée pour cette période." />
+              ) : (
+                <ChartContainer config={{ total: { label: "Clients", color: "#3b82f6" } }} className="aspect-auto h-full w-full">
+                  <BarChart key={`clients-clinique-${filterKey}`} data={clientsParCliniqueData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                    <CartesianGrid vertical={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tickLine={true} axisLine={true} angle={-30} textAnchor="end" height={10} tick={{ fill: "#1d4ed8", fontSize: 11 }} interval={0} tickFormatter={(v) => v.length > 15 ? `${v.slice(0, 15)}...` : v} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#1d4ed8" }} />
+                    <ChartTooltip content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white/95 backdrop-blur-sm border border-blue-200 rounded-lg p-3 shadow-lg">
+                            <p className="text-blue-800 font-medium mb-1">{label}</p>
+                            <p className="text-sm">Clients : <strong>{payload[0].value}</strong></p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }} />
+                    <Bar dataKey="total" radius={[6, 6, 0, 0]} barSize={40}>
+                      {clientsParCliniqueData.map((_, i) => (
+                        <Cell key={`cc-${i}`} fill={getBarColor(i)} />
+                      ))}
+                      <LabelList dataKey="total" position="top" fill="#1d4ed8" fontSize={12} fontWeight="bold" />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+            <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+              <div className="flex gap-2 leading-none font-medium text-blue-700">
+                Répartition des clients <TrendingUp className="h-4 w-4" />
+              </div>
+            </CardFooter>
+          </Card>
+
+          {/* Visites par clinique */}
+          <Card className="group relative overflow-hidden rounded-2xl border border-blue-100/80 bg-white backdrop-blur-sm shadow-lg shadow-blue-100/50 hover:shadow-2xl hover:shadow-blue-200/70 hover:border-blue-200 hover:bg-white/90 transition-all duration-500">
+            <CardHeader className="relative z-10">
+              <CardTitle className="text-blue-900">Visites par clinique</CardTitle>
+              <CardDescription className="text-blue-600/80">Nombre de visites par clinique</CardDescription>
+            </CardHeader>
+            <CardContent className="relative z-10 px-2 h-[280px] sm:px-6">
+              {loading ? (
+                <LoadingState />
+              ) : visitesParCliniqueData.length === 0 ? (
+                <EmptyState message="Aucune visite pour cette période." />
+              ) : (
+                <ChartContainer config={{ total: { label: "Visites", color: "#22c55e" } }} className="aspect-auto h-full w-full">
+                  <BarChart key={`visites-clinique-${filterKey}`} data={visitesParCliniqueData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                    <CartesianGrid vertical={false} stroke="#dbeafe" strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tickLine={true} axisLine={true} angle={-30} textAnchor="end" height={10} tick={{ fill: "#1d4ed8", fontSize: 11 }} interval={0} tickFormatter={(v) => v.length > 15 ? `${v.slice(0, 15)}...` : v} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#1d4ed8" }} />
+                    <ChartTooltip content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white/95 backdrop-blur-sm border border-blue-200 rounded-lg p-3 shadow-lg">
+                            <p className="text-blue-800 font-medium mb-1">{label}</p>
+                            <p className="text-sm">Visites : <strong>{payload[0].value}</strong></p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }} />
+                    <Bar dataKey="total" radius={[6, 6, 0, 0]} barSize={40}>
+                      {visitesParCliniqueData.map((_, i) => (
+                        <Cell key={`vc-${i}`} fill={getBarColor(i)} />
+                      ))}
+                      <LabelList dataKey="total" position="top" fill="#1d4ed8" fontSize={12} fontWeight="bold" />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+            <CardFooter className="relative z-10 flex-col items-start gap-2 text-sm">
+              <div className="flex gap-2 leading-none font-medium text-blue-700">
+                Répartition des visites <TrendingUp className="h-4 w-4" />
+              </div>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
