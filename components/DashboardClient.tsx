@@ -88,12 +88,12 @@ export default function DashboardClient({
     | "semestriel"
     | "annuel";
 
-  // 🔹 Calculer le premier jour du mois en cours
+  // 🔹 Calculer le premier jour du mois en cours (format local, pas UTC)
   const getFirstDayOfMonth = () => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1)
-      .toISOString()
-      .split("T")[0];
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}-01`;
   };
 
   // États locaux pour les filtres (modification en cours)
@@ -165,7 +165,12 @@ export default function DashboardClient({
   const calculateStartDateFromPeriod = useCallback(
     (period: PeriodType): string => {
       const now = new Date();
-      const formatDate = (date: Date) => date.toISOString().split("T")[0];
+      const formatDate = (date: Date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        const d = String(date.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      };
 
       switch (period) {
         case "quotidien":
@@ -203,7 +208,11 @@ export default function DashboardClient({
       const newStartDate = calculateStartDateFromPeriod(value);
       setStartDate(newStartDate);
       // La date de fin reste aujourd'hui
-      setEndDate(new Date().toISOString().split("T")[0]);
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, "0");
+      const d = String(today.getDate()).padStart(2, "0");
+      setEndDate(`${y}-${m}-${d}`);
     },
     [calculateStartDateFromPeriod],
   );
