@@ -53,3 +53,40 @@ export async function deletePrescripteur(id: string) {
     where: { id },
   });
 }
+
+// Fusionner des prescripteurs doublons vers un prescripteur principal
+export async function mergePrescripteurs(keepId: string, mergeIds: string[]) {
+  await requirePermission(TableName.PRESCRIPTEUR, "canUpdate");
+
+  // Transférer toutes les commissions vers le prescripteur principal
+  await prisma.$transaction(async (tx) => {
+    await tx.commissionExamen.updateMany({
+      where: { idPrescripteur: { in: mergeIds } },
+      data: { idPrescripteur: keepId },
+    });
+    await tx.commissionEchographie.updateMany({
+      where: { idPrescripteur: { in: mergeIds } },
+      data: { idPrescripteur: keepId },
+    });
+    // Supprimer les doublons
+    await tx.prescripteur.deleteMany({
+      where: { id: { in: mergeIds } },
+    });
+  });
+}
+
+// Récupérer les prescripteurs avec le nombre de commissions
+export async function getPrescripteursWithCount(idClinique: string) {
+  return await prisma.prescripteur.findMany({
+    where: { idClinique },
+    include: {
+      _count: {
+        select: {
+          CommissionExamen: true,
+          CommissionEchographie: true,
+        },
+      },
+    },
+    orderBy: { nom: "asc" },
+  });
+}

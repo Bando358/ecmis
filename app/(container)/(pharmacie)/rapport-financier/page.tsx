@@ -48,9 +48,6 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { usePermissionContext } from "@/contexts/PermissionContext";
-import { ERROR_MESSAGES } from "@/lib/constants";
-import { TableName } from "@prisma/client";
 import { useRouter } from "next/navigation";
 
 // ====================== COMPOSANTS RAPPORTS ======================
@@ -185,7 +182,6 @@ type FormValuesType = z.infer<typeof FormValuesSchema>;
 // ====================== COMPOSANT ======================
 export default function VentesPage() {
   const router = useRouter();
-  const { canRead, isLoading: isLoadingPermissions } = usePermissionContext();
   const [facturesExamens, setFacturesExamens] = useState<FactureExamenType[]>(
     [],
   );
@@ -1681,13 +1677,6 @@ export default function VentesPage() {
   };
 
   // ================== RENDER ==================
-  if (isLoadingPermissions) return <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (!canRead(TableName.RAPPORT_FINANCIER)) {
-    toast.error(ERROR_MESSAGES.PERMISSION_DENIED_READ);
-    router.back();
-    return null;
-  }
-
   if (isLoadingInitialData) {
     return (
       <div className="flex items-center justify-center min-h-screen">

@@ -345,12 +345,18 @@ const AnalyseReportPlanning = () => {
     }
     setSpinner(true);
 
+    // Ajuster dateFin à 23:59:59.999 pour inclure toute la journée
+    const dateDebutObj = new Date(dateDebut);
+    dateDebutObj.setHours(0, 0, 0, 0);
+    const dateFinObj = new Date(dateFin);
+    dateFinObj.setHours(23, 59, 59, 999);
+
     try {
       const rapportLaboratoire = await fetchClientsDataLaboratoire(
         selectedIds,
         selectedActivites,
-        new Date(dateDebut),
-        new Date(dateFin),
+        dateDebutObj,
+        dateFinObj,
       );
 
       if (rapportLaboratoire.length > 0) {
@@ -367,14 +373,14 @@ const AnalyseReportPlanning = () => {
         fetchLaboData(
           selectedIds,
           selectedActivites,
-          new Date(dateDebut),
-          new Date(dateFin),
+          dateDebutObj,
+          dateFinObj,
         ),
         fetchEchoData(
           selectedIds,
           selectedActivites,
-          new Date(dateDebut),
-          new Date(dateFin),
+          dateDebutObj,
+          dateFinObj,
         ),
       ]);
       const prescripteurs = await getAllUserIncludedTabIdClinique(selectedIds);
@@ -383,15 +389,15 @@ const AnalyseReportPlanning = () => {
       const protegeData = await fetchClientsStatusProteges(
         selectedIds,
         selectedActivites,
-        new Date(dateDebut),
-        new Date(dateFin),
+        dateDebutObj,
+        dateFinObj,
       );
       setClientDataProtege(protegeData);
       const clients = await fetchClientsData(
         selectedIds,
         selectedActivites,
-        new Date(dateDebut),
-        new Date(dateFin),
+        dateDebutObj,
+        dateFinObj,
       );
       const newAllData = clients.map((client) => ({
         ...client,

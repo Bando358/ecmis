@@ -126,12 +126,13 @@ export default function GynecoPage({
 
       if (oneObstetrique) {
         // Wave 2: calls that depend on oneObstetrique, but independent of each other
-        const [oneUser, result, resultGrossesse, cliniqueClient] = await Promise.all([
-          getOneUser(oneObstetrique.obstIdUser as string),
-          getAllVisiteByIdClient(oneObstetrique.obstIdClient),
-          getOneGrossesse(oneObstetrique.obstIdGrossesse),
-          getOneClient(oneObstetrique.obstIdClient),
-        ]);
+        const [oneUser, result, resultGrossesse, cliniqueClient] =
+          await Promise.all([
+            getOneUser(oneObstetrique.obstIdUser as string),
+            getAllVisiteByIdClient(oneObstetrique.obstIdClient),
+            getOneGrossesse(oneObstetrique.obstIdGrossesse),
+            getOneClient(oneObstetrique.obstIdClient),
+          ]);
 
         setPrescripteur(oneUser?.name);
         setGrossessesObjt(resultGrossesse);
@@ -185,7 +186,16 @@ export default function GynecoPage({
     }
   };
 
-  const form = useForm<Obstetrique>({
+  type ObstetriqueForme = Omit<
+    Obstetrique,
+    "obstAnemie" | "obstSyphilis" | "obstAghbs"
+  > & {
+    obstAnemie: string;
+    obstSyphilis: string;
+    obstAghbs: string;
+  };
+
+  const form = useForm<ObstetriqueForme>({
     defaultValues: {
       obstRdv: null,
       obstIdVisite: "",
@@ -204,14 +214,14 @@ export default function GynecoPage({
       obstEtatGrossesse: "",
       obstPfppi: false,
       obstAlbuminieSucre: false,
-      obstAnemie: false,
-      obstSyphilis: false,
-      obstAghbs: false,
+      obstAnemie: "Non",
+      obstSyphilis: "Non",
+      obstAghbs: "Non",
       // obstIdClient: obstId,
       obstIdUser: isPrescripteur === true ? idUser || "" : "",
     },
   });
-  const onSubmit: SubmitHandler<Obstetrique> = async (data) => {
+  const onSubmit: SubmitHandler<ObstetriqueForme> = async (data) => {
     const formattedData = {
       ...data,
       obstIdVisite: form.getValues("obstIdVisite"),
@@ -310,7 +320,7 @@ export default function GynecoPage({
                     <Form {...form}>
                       <form
                         onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
+                        className="space-y-2 max-w-125 mx-auto px-4 py-4"
                       >
                         <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md ">
                           <FormField
@@ -762,18 +772,29 @@ export default function GynecoPage({
                               control={form.control}
                               name="obstAnemie"
                               render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value || false}
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <div className="space-y-1 leading-none">
-                                    <FormLabel className="font-normal">
-                                      {"D\u00e9pistage An\u00e9mie"}
-                                    </FormLabel>
-                                  </div>
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md py-2">
+                                  <FormLabel className="font-normal w-32">
+                                    Dépistage Anémie
+                                  </FormLabel>
+                                  <Select
+                                    value={field.value || "Non"}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-36">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Non">Non</SelectItem>
+                                      <SelectItem value="Négatif">
+                                        Négatif
+                                      </SelectItem>
+                                      <SelectItem value="Positif">
+                                        Positif
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                 </FormItem>
                               )}
                             />
@@ -781,18 +802,29 @@ export default function GynecoPage({
                               control={form.control}
                               name="obstSyphilis"
                               render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value || false}
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <div className="space-y-1 leading-none">
-                                    <FormLabel className="font-normal">
-                                      {"D\u00e9pistage Syphilis"}
-                                    </FormLabel>
-                                  </div>
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md py-2">
+                                  <FormLabel className="font-normal w-32">
+                                    Dépistage Syphilis
+                                  </FormLabel>
+                                  <Select
+                                    value={field.value || "Non"}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-36">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Non">Non</SelectItem>
+                                      <SelectItem value="Négatif">
+                                        Négatif
+                                      </SelectItem>
+                                      <SelectItem value="Positif">
+                                        Positif
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                 </FormItem>
                               )}
                             />
@@ -800,18 +832,29 @@ export default function GynecoPage({
                               control={form.control}
                               name="obstAghbs"
                               render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value || false}
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <div className="space-y-1 leading-none">
-                                    <FormLabel className="font-normal">
-                                      {"D\u00e9pistage AgHbs"}
-                                    </FormLabel>
-                                  </div>
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md py-2">
+                                  <FormLabel className="font-normal w-32">
+                                    Dépistage AgHbs
+                                  </FormLabel>
+                                  <Select
+                                    value={field.value || "Non"}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-36">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Non">Non</SelectItem>
+                                      <SelectItem value="Négatif">
+                                        Négatif
+                                      </SelectItem>
+                                      <SelectItem value="Positif">
+                                        Positif
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                 </FormItem>
                               )}
                             />
@@ -1180,14 +1223,12 @@ export default function GynecoPage({
                         {selectedObstetrique.obstAnemie !== null && (
                           <div className="grid grid-cols-3 gap-x-4 py-2.5">
                             <span className="text-sm font-medium text-blue-800">
-                              {"An\u00e9mie"}
+                              Anémie
                             </span>
                             <span className="col-span-2 text-sm text-gray-700">
-                              {selectedObstetrique.obstAnemie ? (
-                                <CheckedTrue />
-                              ) : (
-                                <CheckedFalse />
-                              )}
+                              {
+                                selectedObstetrique.obstAnemie as unknown as string
+                              }
                             </span>
                           </div>
                         )}
@@ -1198,11 +1239,9 @@ export default function GynecoPage({
                               Syphilis
                             </span>
                             <span className="col-span-2 text-sm text-gray-700">
-                              {selectedObstetrique.obstSyphilis ? (
-                                <CheckedTrue />
-                              ) : (
-                                <CheckedFalse />
-                              )}
+                              {
+                                selectedObstetrique.obstSyphilis as unknown as string
+                              }
                             </span>
                           </div>
                         )}
@@ -1210,14 +1249,12 @@ export default function GynecoPage({
                         {selectedObstetrique.obstAghbs !== null && (
                           <div className="grid grid-cols-3 gap-x-4 py-2.5">
                             <span className="text-sm font-medium text-blue-800">
-                              {"D\u00e9pistage Aghbs"}
+                              Dépistage AgHbs
                             </span>
                             <span className="col-span-2 text-sm text-gray-700">
-                              {selectedObstetrique.obstAghbs ? (
-                                <CheckedTrue />
-                              ) : (
-                                <CheckedFalse />
-                              )}
+                              {
+                                selectedObstetrique.obstAghbs as unknown as string
+                              }
                             </span>
                           </div>
                         )}

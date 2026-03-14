@@ -264,9 +264,9 @@ export type ClientData = {
 
   // dépistage
   obstAlbuminieSucre: boolean;
-  obstAnemie: boolean;
-  obstSyphilis: boolean;
-  obstAghbs: boolean;
+  obstAnemie: string;
+  obstSyphilis: string;
+  obstAghbs: string;
   obstRdv: Date | null;
   // Cpon
   cponConsultation: boolean;
@@ -613,9 +613,9 @@ export const fetchClientsData = async (
     obstEtatGrossesse: string;
     obstPfppi: boolean;
     obstAlbuminieSucre: boolean;
-    obstAnemie: boolean;
-    obstSyphilis: boolean;
-    obstAghbs: boolean;
+    obstAnemie: string;
+    obstSyphilis: string;
+    obstAghbs: string;
     obstRdv: Date | null;
   }
 
@@ -1001,9 +1001,9 @@ export const fetchClientsData = async (
           obstEtatGrossesse: obstetrique?.obstEtatGrossesse || "",
           obstPfppi: obstetrique?.obstPfppi || false,
           obstAlbuminieSucre: obstetrique?.obstAlbuminieSucre || false,
-          obstAnemie: obstetrique?.obstAnemie || false,
-          obstSyphilis: obstetrique?.obstSyphilis || false,
-          obstAghbs: obstetrique?.obstAghbs || false,
+          obstAnemie: obstetrique?.obstAnemie || "Non",
+          obstSyphilis: obstetrique?.obstSyphilis || "Non",
+          obstAghbs: obstetrique?.obstAghbs || "Non",
           obstRdv: obstetrique?.obstRdv || null,
 
           // Cpon

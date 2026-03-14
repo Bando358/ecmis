@@ -276,31 +276,42 @@ export default function Page() {
     const selectedActivites = idActivite?.map((cl) => cl.value) || [];
     setSpinner(true);
 
+    // Ajuster dateFin à 23:59:59.999 pour inclure toute la journée
+    const dateDebutObj = new Date(dateDebut);
+    dateDebutObj.setHours(0, 0, 0, 0);
+    const dateFinObj = new Date(dateFin);
+    dateFinObj.setHours(23, 59, 59, 999);
+
     try {
       const rapportLaboratoire = await fetchClientsDataLaboratoire(
         selectedIds,
         selectedActivites,
-        new Date(dateDebut),
-        new Date(dateFin)
+        dateDebutObj,
+        dateFinObj
       );
 
-      setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
-      setTabExament(rapportLaboratoire[0].tabExamen);
+      if (rapportLaboratoire.length > 0) {
+        setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
+        setTabExament(rapportLaboratoire[0].tabExamen);
+      } else {
+        setFactureLaboratoire([]);
+        setTabExament([]);
+      }
 
       const prescripteurs = await getAllUserIncludedTabIdClinique(selectedIds);
       const allUsers = await getAllUserTabIdClinique(selectedIds);
 
       const dataProtege = await fetchClientsStatusProtege(
         selectedIds,
-        new Date(dateDebut),
-        new Date(dateFin)
+        dateDebutObj,
+        dateFinObj
       );
       setClientDataProtege(dataProtege);
 
       const clients = await fetchClientsData(
         selectedIds,
-        new Date(dateDebut),
-        new Date(dateFin)
+        dateDebutObj,
+        dateFinObj
       );
 
       const newAllData = clients.map((client) => ({

@@ -44,12 +44,15 @@ import { Input } from "./ui/input";
 import { FactureExamen, FactureEchographie } from "@prisma/client";
 import { toast } from "sonner";
 import { Spinner } from "./ui/spinner";
-import { Trash2, Check, ChevronsUpDown } from "lucide-react";
+import { Trash2, Check, ChevronsUpDown, Pencil, Search, X, Merge, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   createPrescripteur,
   getAllPrescripteursByClinique,
   deletePrescripteur,
+  updatePrescripteur,
+  mergePrescripteurs,
+  getPrescripteursWithCount,
 } from "@/lib/actions/prescripteurActions";
 import {
   createCommissionExamen,
@@ -67,6 +70,18 @@ type Prescripteur = {
   centre: string;
   contact: string;
   idClinique: string;
+};
+
+type PrescripteurWithCount = Prescripteur & {
+  _count: {
+    CommissionExamen: number;
+    CommissionEchographie: number;
+  };
+};
+
+type DoublonGroup = {
+  key: string;
+  prescripteurs: PrescripteurWithCount[];
 };
 
 type PrescripteurFormValues = {
@@ -103,6 +118,12 @@ export default function CommissionsDialog({
   const [openExamenCombobox, setOpenExamenCombobox] = useState(false);
   const [openEchoCombobox, setOpenEchoCombobox] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [prescripteurSearchQuery, setPrescripteurSearchQuery] = useState("");
+  const [editingPrescripteur, setEditingPrescripteur] = useState<Prescripteur | null>(null);
+  const [doublonGroups, setDoublonGroups] = useState<DoublonGroup[]>([]);
+  const [selectedKeepIds, setSelectedKeepIds] = useState<Record<string, string>>({});
+  const [isMerging, setIsMerging] = useState(false);
+  const [isLoadingDoublons, setIsLoadingDoublons] = useState(false);
 
   // Type pour stocker les détails d'une commission existante
   type CommissionExistante = {
@@ -282,6 +303,154 @@ export default function CommissionsDialog({
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
       toast.error("Erreur lors de la suppression du prescripteur");
+    }
+  };
+
+  // Modifier un prescripteur
+  const handleEditPrescripteur = (prescripteur: Prescripteur) => {
+    setEditingPrescripteur(prescripteur);
+    prescripteurForm.setValue("nom", prescripteur.nom);
+    prescripteurForm.setValue("prenom", prescripteur.prenom);
+    prescripteurForm.setValue("centre", prescripteur.centre);
+    prescripteurForm.setValue("contact", prescripteur.contact);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPrescripteur(null);
+    prescripteurForm.reset();
+  };
+
+  const handleUpdatePrescripteur = async (data: PrescripteurFormValues) => {
+    if (!editingPrescripteur) return;
+    setIsSaving(true);
+    try {
+      await updatePrescripteur(editingPrescripteur.id, {
+        nom: data.nom,
+        prenom: data.prenom,
+        centre: data.centre,
+        contact: data.contact,
+      });
+      toast.success("Prescripteur modifié avec succès");
+      setEditingPrescripteur(null);
+      prescripteurForm.reset();
+      await loadPrescripteurs();
+    } catch (error) {
+      console.error("Erreur lors de la modification du prescripteur:", error);
+      toast.error("Erreur lors de la modification du prescripteur");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Filtrer les prescripteurs dans la liste
+  const filteredPrescripteursListe = useMemo(() => {
+    if (!prescripteurSearchQuery) return prescripteurs;
+    const query = prescripteurSearchQuery.toLowerCase();
+    return prescripteurs.filter(
+      (p) =>
+        p.nom.toLowerCase().includes(query) ||
+        p.prenom.toLowerCase().includes(query) ||
+        p.centre.toLowerCase().includes(query) ||
+        p.contact.toLowerCase().includes(query),
+    );
+  }, [prescripteurs, prescripteurSearchQuery]);
+
+  // Charger et détecter les doublons
+  const loadDoublons = async () => {
+    if (!idClinique) return;
+    setIsLoadingDoublons(true);
+    try {
+      const data = await getPrescripteursWithCount(idClinique) as PrescripteurWithCount[];
+      // Regrouper par nom+prénom normalisés
+      const groups: Record<string, PrescripteurWithCount[]> = {};
+      data.forEach((p) => {
+        const key = `${p.nom.trim().toLowerCase()}_${p.prenom.trim().toLowerCase()}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+      });
+      // Garder uniquement les groupes avec plus d'un prescripteur
+      const doublons = Object.entries(groups)
+        .filter(([, list]) => list.length > 1)
+        .map(([key, list]) => ({ key, prescripteurs: list }));
+      setDoublonGroups(doublons);
+      // Par défaut, sélectionner celui avec le plus de commissions
+      const defaults: Record<string, string> = {};
+      doublons.forEach((group) => {
+        const best = group.prescripteurs.reduce((a, b) =>
+          (a._count.CommissionExamen + a._count.CommissionEchographie) >=
+          (b._count.CommissionExamen + b._count.CommissionEchographie)
+            ? a : b
+        );
+        defaults[group.key] = best.id;
+      });
+      setSelectedKeepIds(defaults);
+    } catch (error) {
+      console.error("Erreur lors du chargement des doublons:", error);
+      toast.error("Erreur lors du chargement des doublons");
+    } finally {
+      setIsLoadingDoublons(false);
+    }
+  };
+
+  // Fusionner un groupe de doublons
+  const handleMergeGroup = async (group: DoublonGroup) => {
+    const keepId = selectedKeepIds[group.key];
+    if (!keepId) {
+      toast.error("Veuillez sélectionner le prescripteur à conserver");
+      return;
+    }
+    const mergeIds = group.prescripteurs
+      .filter((p) => p.id !== keepId)
+      .map((p) => p.id);
+
+    if (mergeIds.length === 0) return;
+
+    const kept = group.prescripteurs.find((p) => p.id === keepId);
+    if (!confirm(
+      `Fusionner ${mergeIds.length} doublon(s) vers "${kept?.nom} ${kept?.prenom}" ?\n\nToutes les commissions seront transférées et les doublons supprimés.`
+    )) return;
+
+    setIsMerging(true);
+    try {
+      await mergePrescripteurs(keepId, mergeIds);
+      toast.success(`${mergeIds.length} doublon(s) fusionné(s) avec succès`);
+      await loadDoublons();
+      await loadPrescripteurs();
+    } catch (error) {
+      console.error("Erreur lors de la fusion:", error);
+      toast.error("Erreur lors de la fusion des prescripteurs");
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  // Fusionner tous les groupes d'un coup
+  const handleMergeAll = async () => {
+    if (doublonGroups.length === 0) return;
+    if (!confirm(
+      `Fusionner tous les ${doublonGroups.length} groupe(s) de doublons ?\n\nLes commissions seront transférées vers les prescripteurs sélectionnés (en gras).`
+    )) return;
+
+    setIsMerging(true);
+    try {
+      for (const group of doublonGroups) {
+        const keepId = selectedKeepIds[group.key];
+        if (!keepId) continue;
+        const mergeIds = group.prescripteurs
+          .filter((p) => p.id !== keepId)
+          .map((p) => p.id);
+        if (mergeIds.length > 0) {
+          await mergePrescripteurs(keepId, mergeIds);
+        }
+      }
+      toast.success("Tous les doublons ont été fusionnés avec succès");
+      await loadDoublons();
+      await loadPrescripteurs();
+    } catch (error) {
+      console.error("Erreur lors de la fusion:", error);
+      toast.error("Erreur lors de la fusion des prescripteurs");
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -470,10 +639,18 @@ export default function CommissionsDialog({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="examen">Examens</TabsTrigger>
             <TabsTrigger value="echographie">Echographie</TabsTrigger>
             <TabsTrigger value="prescripteur">Prescripteur</TabsTrigger>
+            <TabsTrigger value="doublons" onClick={() => loadDoublons()}>
+              Doublons
+              {doublonGroups.length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {doublonGroups.length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* Onglet Examens */}
@@ -780,13 +957,26 @@ export default function CommissionsDialog({
           {/* Onglet Prescripteur */}
           <TabsContent value="prescripteur" className="space-y-4">
             <div className="border rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-4">
-                Ajouter un prescripteur
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">
+                  {editingPrescripteur ? "Modifier le prescripteur" : "Ajouter un prescripteur"}
+                </h3>
+                {editingPrescripteur && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X size={16} className="mr-1" />
+                    Annuler
+                  </Button>
+                )}
+              </div>
               <Form {...prescripteurForm}>
                 <form
                   onSubmit={prescripteurForm.handleSubmit(
-                    handleCreatePrescripteur,
+                    editingPrescripteur ? handleUpdatePrescripteur : handleCreatePrescripteur,
                   )}
                   className="space-y-4"
                 >
@@ -848,17 +1038,41 @@ export default function CommissionsDialog({
                       )}
                     />
                   </div>
-                  <Button type="submit" disabled={isSaving}>
-                    {isSaving ? <Spinner /> : "Ajouter le prescripteur"}
+                  <Button
+                    type="submit"
+                    disabled={isSaving}
+                    className={editingPrescripteur ? "bg-amber-600 hover:bg-amber-700" : ""}
+                  >
+                    {isSaving ? <Spinner /> : editingPrescripteur ? "Modifier le prescripteur" : "Ajouter le prescripteur"}
                   </Button>
                 </form>
               </Form>
             </div>
 
             <div className="border rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-4">
-                Liste des prescripteurs
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">
+                  Liste des prescripteurs
+                </h3>
+                <div className="relative w-64">
+                  <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Rechercher un prescripteur..."
+                    value={prescripteurSearchQuery}
+                    onChange={(e) => setPrescripteurSearchQuery(e.target.value)}
+                    className="pl-8 h-9 text-sm"
+                  />
+                  {prescripteurSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setPrescripteurSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
               {isLoading ? (
                 <div className="flex justify-center p-4">
                   <Spinner />
@@ -866,6 +1080,10 @@ export default function CommissionsDialog({
               ) : prescripteurs.length === 0 ? (
                 <p className="text-center text-gray-500 italic">
                   Aucun prescripteur enregistré
+                </p>
+              ) : filteredPrescripteursListe.length === 0 ? (
+                <p className="text-center text-gray-500 italic">
+                  Aucun prescripteur trouvé pour &quot;{prescripteurSearchQuery}&quot;
                 </p>
               ) : (
                 <Table>
@@ -879,27 +1097,160 @@ export default function CommissionsDialog({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {prescripteurs.map((prescripteur) => (
-                      <TableRow key={prescripteur.id}>
+                    {filteredPrescripteursListe.map((prescripteur) => (
+                      <TableRow
+                        key={prescripteur.id}
+                        className={editingPrescripteur?.id === prescripteur.id ? "bg-amber-50" : ""}
+                      >
                         <TableCell>{prescripteur.nom}</TableCell>
                         <TableCell>{prescripteur.prenom}</TableCell>
                         <TableCell>{prescripteur.centre}</TableCell>
                         <TableCell>{prescripteur.contact}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              handleDeletePrescripteur(prescripteur.id)
-                            }
-                          >
-                            <Trash2 size={16} className="text-red-500" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditPrescripteur(prescripteur)}
+                              title="Modifier"
+                            >
+                              <Pencil size={16} className="text-amber-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                handleDeletePrescripteur(prescripteur.id)
+                              }
+                              title="Supprimer"
+                            >
+                              <Trash2 size={16} className="text-red-500" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Onglet Doublons */}
+          <TabsContent value="doublons" className="space-y-4">
+            <div className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Merge size={20} className="text-orange-500" />
+                    Fusion des doublons
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Les prescripteurs avec le même nom et prénom sont regroupés. Sélectionnez celui à conserver, les commissions des autres seront transférées.
+                  </p>
+                </div>
+                {doublonGroups.length > 0 && (
+                  <Button
+                    onClick={handleMergeAll}
+                    disabled={isMerging}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {isMerging ? <Spinner /> : "Fusionner tout"}
+                  </Button>
+                )}
+              </div>
+
+              {isLoadingDoublons ? (
+                <div className="flex justify-center p-8">
+                  <Spinner />
+                </div>
+              ) : doublonGroups.length === 0 ? (
+                <div className="text-center py-8">
+                  <Check size={40} className="mx-auto text-green-500 mb-2" />
+                  <p className="text-gray-500 font-medium">Aucun doublon détecté</p>
+                  <p className="text-sm text-gray-400 mt-1">Tous les prescripteurs sont uniques</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {doublonGroups.map((group) => (
+                    <div key={group.key} className="border border-orange-200 rounded-lg bg-orange-50/50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-orange-700">
+                          {group.prescripteurs.length} prescripteurs identiques
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={() => handleMergeGroup(group)}
+                          disabled={isMerging || !selectedKeepIds[group.key]}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          {isMerging ? <Spinner /> : (
+                            <>
+                              <Merge size={14} className="mr-1" />
+                              Fusionner
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">Garder</TableHead>
+                            <TableHead>Nom</TableHead>
+                            <TableHead>Prénom</TableHead>
+                            <TableHead>Centre</TableHead>
+                            <TableHead>Contact</TableHead>
+                            <TableHead className="text-center">Commissions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.prescripteurs.map((p) => {
+                            const isKept = selectedKeepIds[group.key] === p.id;
+                            const totalCommissions = p._count.CommissionExamen + p._count.CommissionEchographie;
+                            return (
+                              <TableRow
+                                key={p.id}
+                                className={cn(
+                                  "cursor-pointer transition-colors",
+                                  isKept ? "bg-green-50 border-green-200" : "hover:bg-orange-100/50",
+                                )}
+                                onClick={() => setSelectedKeepIds((prev) => ({ ...prev, [group.key]: p.id }))}
+                              >
+                                <TableCell className="text-center">
+                                  <input
+                                    type="radio"
+                                    name={`keep-${group.key}`}
+                                    checked={isKept}
+                                    onChange={() => setSelectedKeepIds((prev) => ({ ...prev, [group.key]: p.id }))}
+                                    className="w-4 h-4 accent-green-600"
+                                  />
+                                </TableCell>
+                                <TableCell className={isKept ? "font-bold text-green-700" : ""}>
+                                  {p.nom}
+                                  {isKept && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">conservé</span>}
+                                </TableCell>
+                                <TableCell className={isKept ? "font-bold text-green-700" : ""}>{p.prenom}</TableCell>
+                                <TableCell>{p.centre}</TableCell>
+                                <TableCell>{p.contact}</TableCell>
+                                <TableCell className="text-center">
+                                  <span className={cn(
+                                    "inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
+                                    totalCommissions > 0 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500",
+                                  )}>
+                                    {totalCommissions}
+                                    {!isKept && totalCommissions > 0 && (
+                                      <ArrowRight size={12} className="text-orange-500" />
+                                    )}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </TabsContent>

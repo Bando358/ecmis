@@ -94,7 +94,7 @@ export default function ObstetriquePage({
   const [grossesses, setGrossesses] = useState<Grossesse[]>([]);
   const [styleImc, setStyleImc] = useState<string>("");
   const [selectedObstetrique, setSelectedObstetrique] = useState<Obstetrique[]>(
-    []
+    [],
   );
   const [prescripteur, setPrescripteur] = useState<SafeUser>();
   const [allPrescripteur, setAllPrescripteur] = useState<SafeUser[]>([]);
@@ -115,7 +115,13 @@ export default function ObstetriquePage({
     if (!idUser) return;
     const fetchData = async () => {
       // Wave 1: all independent calls in parallel
-      const [user, resultObstetrique, resultVisites, resultGrossesse, cliniqueClient] = await Promise.all([
+      const [
+        user,
+        resultObstetrique,
+        resultVisites,
+        resultGrossesse,
+        cliniqueClient,
+      ] = await Promise.all([
         getOneUser(idUser),
         getAllObstetriqueByIdClient(obstetriqueId),
         getAllVisiteByIdClient(obstetriqueId),
@@ -132,7 +138,9 @@ export default function ObstetriquePage({
 
       // Wave 2: depends on client
       if (cliniqueClient?.idClinique) {
-        const prescripteurs = await getAllUserIncludedIdClinique(cliniqueClient.idClinique);
+        const prescripteurs = await getAllUserIncludedIdClinique(
+          cliniqueClient.idClinique,
+        );
         setAllPrescripteur(prescripteurs as SafeUser[]);
       }
     };
@@ -163,7 +171,16 @@ export default function ObstetriquePage({
     form.setValue("obstIdClient", obstetriqueId);
   }, [obstetriqueId]);
 
-  const form = useForm<Obstetrique>({
+  type ObstetriqueForme = Omit<
+    Obstetrique,
+    "obstAnemie" | "obstSyphilis" | "obstAghbs"
+  > & {
+    obstAnemie: string;
+    obstSyphilis: string;
+    obstAghbs: string;
+  };
+
+  const form = useForm<ObstetriqueForme>({
     defaultValues: {
       obstRdv: null,
       obstIdVisite: "",
@@ -182,16 +199,16 @@ export default function ObstetriquePage({
       obstEtatGrossesse: "",
       obstPfppi: false,
       obstAlbuminieSucre: false,
-      obstAnemie: false,
-      obstSyphilis: false,
-      obstAghbs: false,
+      obstAnemie: "Non",
+      obstSyphilis: "Non",
+      obstAghbs: "Non",
       obstIdClient: obstetriqueId,
       obstIdUser: isPrescripteur === true ? idUser || "" : "",
       obstIdClinique: client?.idClinique || "",
     },
   });
 
-  const onSubmit: SubmitHandler<Obstetrique> = async (data) => {
+  const onSubmit: SubmitHandler<ObstetriqueForme> = async (data) => {
     if (!canCreate(TableName.OBSTETRIQUE)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
@@ -203,9 +220,9 @@ export default function ObstetriquePage({
         ? // if it's a date-only string like '2025-11-10', create a Date at start of day
           new Date(rawRdv)
         : rawRdv instanceof Date
-        ? rawRdv
-        : // fallback: coerce to Date
-          new Date(String(rawRdv))
+          ? rawRdv
+          : // fallback: coerce to Date
+            new Date(String(rawRdv))
       : null;
 
     const formattedData = {
@@ -222,7 +239,7 @@ export default function ObstetriquePage({
       await updateRecapVisite(
         form.watch("obstIdVisite"),
         form.watch("obstIdUser"),
-        "08 Fiche CPN"
+        "08 Fiche CPN",
       );
       console.log("formattedData : ", formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
@@ -260,7 +277,7 @@ export default function ObstetriquePage({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 max-w-4xl rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
+            className="space-y-2 max-w-125 rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
           >
             <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField
@@ -290,11 +307,11 @@ export default function ObstetriquePage({
                             key={visite.id}
                             value={visite.id}
                             disabled={selectedObstetrique.some(
-                              (p) => p.obstIdVisite === visite.id
+                              (p) => p.obstIdVisite === visite.id,
                             )}
                           >
                             {new Date(visite.dateVisite).toLocaleDateString(
-                              "fr-FR"
+                              "fr-FR",
                             )}
                           </SelectItem>
                         ))}
@@ -327,12 +344,12 @@ export default function ObstetriquePage({
                           <SelectItem key={grossesse.id} value={grossesse.id}>
                             {grossesse.grossesseDdr &&
                               new Date(
-                                grossesse.grossesseDdr
+                                grossesse.grossesseDdr,
                               ).toLocaleDateString("fr-FR")}{" "}
                             -{" "}
                             {grossesse.termePrevu &&
                               new Date(grossesse.termePrevu).toLocaleDateString(
-                                "fr-FR"
+                                "fr-FR",
                               )}
                           </SelectItem>
                         ))}
@@ -688,22 +705,30 @@ export default function ObstetriquePage({
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="obstAnemie"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Dépistage Anémie
-                        </FormLabel>
-                      </div>
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md py-2">
+                      <FormLabel className="font-normal w-32">
+                        Dépistage Anémie
+                      </FormLabel>
+                      <Select
+                        value={field.value || "Non"}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-36">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Non">Non</SelectItem>
+                          <SelectItem value="Négatif">Négatif</SelectItem>
+                          <SelectItem value="Positif">Positif</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )}
                 />
@@ -711,18 +736,25 @@ export default function ObstetriquePage({
                   control={form.control}
                   name="obstSyphilis"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Dépistage Syphilis
-                        </FormLabel>
-                      </div>
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md py-2">
+                      <FormLabel className="font-normal w-32">
+                        Dépistage Syphilis
+                      </FormLabel>
+                      <Select
+                        value={field.value || "Non"}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-36">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Non">Non</SelectItem>
+                          <SelectItem value="Négatif">Négatif</SelectItem>
+                          <SelectItem value="Positif">Positif</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )}
                 />
@@ -730,18 +762,25 @@ export default function ObstetriquePage({
                   control={form.control}
                   name="obstAghbs"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md py-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-normal">
-                          Dépistage AgHbs
-                        </FormLabel>
-                      </div>
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md py-2">
+                      <FormLabel className="font-normal w-32">
+                        Dépistage AgHbs
+                      </FormLabel>
+                      <Select
+                        value={field.value || "Non"}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-36">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Non">Non</SelectItem>
+                          <SelectItem value="Négatif">Négatif</SelectItem>
+                          <SelectItem value="Positif">Positif</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )}
                 />

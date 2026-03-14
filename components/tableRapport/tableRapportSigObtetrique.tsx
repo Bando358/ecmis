@@ -278,11 +278,11 @@ export default function TableRapportSigObstetrique({
             item.obstEtatNutritionnel === "Obésité") &&
           item.obstTypeVisite !== null,
         femmeEnceinteAnemieeEnCpn:
-          item.obstAnemie === true && item.obstTypeVisite !== null,
+          item.obstAnemie === "Positif" && item.obstTypeVisite !== null,
         femmeEnceintePositiveSyphilisEnCpn:
-          item.obstSyphilis === true && item.obstTypeVisite !== null,
+          item.obstSyphilis === "Positif" && item.obstTypeVisite !== null,
         femmeEnceintePositiveAghbs:
-          item.obstAghbs === true && item.obstTypeVisite !== null,
+          item.obstAghbs === "Positif" && item.obstTypeVisite !== null,
 
         femmeEnceinteConseilleeEtTesteePourVIHEnCpn1:
           item.obstTypeVisite === "cpn1" &&

@@ -874,9 +874,9 @@ model Obstetrique {
 
   // dépistage
   obstAlbuminieSucre Boolean @default(false)
-  obstAnemie         Boolean @default(false)
-  obstSyphilis       Boolean @default(false)
-  obstAghbs          Boolean @default(false)
+  obstAnemie         String  @default("Non")
+  obstSyphilis       String  @default("Non")
+  obstAghbs          String  @default("Non")
 
   obstRdv         DateTime?
   obstIdGrossesse String?
