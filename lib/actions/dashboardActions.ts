@@ -114,6 +114,7 @@ export const fetchDashboardData = async (
   references: ReferenceType[];
   contreReferences: ContreReferenceType[];
   prescripteursList: PrescripteurInfo[];
+  allUsersList: PrescripteurInfo[];
 }> => {
   if (!clinicIds || clinicIds.length === 0) {
     // Retourner des données vides si aucune clinique n'est sélectionnée
@@ -131,6 +132,7 @@ export const fetchDashboardData = async (
       references: [],
       contreReferences: [],
       prescripteursList: [],
+      allUsersList: [],
     };
   }
 
@@ -147,6 +149,16 @@ export const fetchDashboardData = async (
       },
       prescripteur: true, // seulement les prescripteurs
     },
+  });
+
+  // Tous les utilisateurs des cliniques (pour résolution de noms dans les graphiques)
+  const allUsers = await prisma.user.findMany({
+    where: {
+      idCliniques: {
+        hasSome: clinicIds,
+      },
+    },
+    select: { id: true, name: true },
   });
 
   const clients = await prisma.client.findMany({
@@ -614,6 +626,7 @@ export const fetchDashboardData = async (
     references: referencesData,
     contreReferences: contreReferencesData,
     prescripteursList: allPrescripteurs.map((u) => ({ id: u.id, name: u.name })),
+    allUsersList: allUsers.map((u) => ({ id: u.id, name: u.name ?? "Inconnu" })),
   };
 };
 

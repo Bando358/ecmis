@@ -83,6 +83,7 @@ interface DashboardChartProps {
     references?: ReferenceRaw[];
     contreReferences?: ContreReferenceRaw[];
     prescripteursList?: PrescripteurInfoRaw[];
+    allUsersList?: PrescripteurInfoRaw[];
   };
 }
 
@@ -237,6 +238,9 @@ export default function DashboardChart({
   const [prescripteursList, setPrescripteursList] = useState<PrescripteurInfoRaw[]>(
     initialData?.prescripteursList || []
   );
+  const [allUsersList, setAllUsersList] = useState<PrescripteurInfoRaw[]>(
+    initialData?.allUsersList || []
+  );
   const [loading, setLoading] = useState(!initialData);
 
   // 🔹 Ref pour suivre si les données ont déjà été chargées (évite le rechargement quand l'onglet redevient actif)
@@ -360,6 +364,7 @@ export default function DashboardChart({
         setReferences(Array.isArray(data.references) ? data.references : []);
         setContreReferences(Array.isArray(data.contreReferences) ? data.contreReferences : []);
         setPrescripteursList(Array.isArray(data.prescripteursList) ? data.prescripteursList : []);
+        setAllUsersList(Array.isArray(data.allUsersList) ? data.allUsersList : []);
 
         // 🔹 Marquer les données comme chargées et sauvegarder les dates
         hasLoadedData.current = true;
@@ -758,12 +763,12 @@ export default function DashboardChart({
     });
     return Object.entries(userMap)
       .map(([id, count]) => {
-        const user = prescripteursList.find((p) => p.id === id);
+        const user = allUsersList.find((p) => p.id === id);
         return { name: user?.name || id.slice(0, 8), count };
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-  }, [visitesFilteredByClinic, prescripteursList]);
+  }, [visitesFilteredByClinic, allUsersList]);
 
   // 7. Clients par clinique (Bar)
   const clientsParCliniqueData = useMemo(() => {

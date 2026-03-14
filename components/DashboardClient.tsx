@@ -43,6 +43,7 @@ interface DashboardData {
   references?: ReferenceType[];
   contreReferences?: ContreReferenceType[];
   prescripteursList?: PrescripteurInfo[];
+  allUsersList?: PrescripteurInfo[];
 }
 
 interface DashboardClientProps {
