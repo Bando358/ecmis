@@ -79,6 +79,7 @@ export default function GynecoForm({
   idUser,
 }: SharedFormProps) {
   const [selectedGyneco, setSelectedGyneco] = useState<Gynecologie[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { canCreate } = usePermissionContext();
 
 
@@ -135,6 +136,7 @@ export default function GynecoForm({
         "04 Fiche gynécologique",
       );
       toast.success("Gynéco créer avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création de la Constante:", error);
@@ -163,7 +165,7 @@ export default function GynecoForm({
                 <Select
                   required
                   // value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -679,9 +681,9 @@ export default function GynecoForm({
           <Button
             type="submit"
             className="mt-4 mx-auto block"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isSubmitted}
           >
-            {form.formState.isSubmitting ? "Soumettre..." : "Soumettre"}
+            {form.formState.isSubmitting ? "Soumettre..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>

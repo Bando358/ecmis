@@ -86,6 +86,7 @@ export default function PlanningForm({
   idUser,
 }: SharedFormProps) {
   const [selectedPlanning, setSelectedPlanning] = useState<Planning[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { canCreate } = usePermissionContext();
 
 
@@ -196,6 +197,7 @@ export default function PlanningForm({
       await createPlanning(formattedData);
       await updateRecapVisite(form.watch("idVisite"), idUser, "03 Fiche Planification familiale");
       toast.success("Formulaire créer avec succès!");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création a échoué");
       console.error("Erreur:", error);
@@ -220,7 +222,7 @@ export default function PlanningForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="font-medium">Selectionnez la visite</FormLabel>
-                <Select required onValueChange={field.onChange}>
+                <Select required onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}>
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Visite à sélectionner ....." />
@@ -641,8 +643,8 @@ export default function PlanningForm({
             />
           )}
 
-          <Button type="submit" className="my-2 mx-auto block" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+          <Button type="submit" className="my-2 mx-auto block" disabled={form.formState.isSubmitting || isSubmitted}>
+            {form.formState.isSubmitting ? "En cours..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>

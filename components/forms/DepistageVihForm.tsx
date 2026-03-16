@@ -216,6 +216,7 @@ export default function DepistageVihForm({
   const [selectedDepistageVih, setSelectedDepistageVih] = useState<
     DepistageVih[]
   >([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { canCreate } = usePermissionContext();
 
@@ -270,6 +271,7 @@ export default function DepistageVihForm({
         "14 Fiche de dépistage VIH"
       );
       toast.success("Fiche de dépistage VIH créée avec succès! \ud83c\udf89");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error(
@@ -298,7 +300,7 @@ export default function DepistageVihForm({
                 <FormLabel className="font-medium">
                   Selectionnez la visite
                 </FormLabel>
-                <Select required onValueChange={field.onChange}>
+                <Select required onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}>
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Visite à sélectionner" />
@@ -485,9 +487,9 @@ export default function DepistageVihForm({
           <Button
             type="submit"
             className="mt-4 mx-auto block"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isSubmitted}
           >
-            {form.formState.isSubmitting ? "Soumettre..." : "Soumettre"}
+            {form.formState.isSubmitting ? "Soumettre..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>

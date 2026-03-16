@@ -142,6 +142,7 @@ export default function MdgForm({
 }: SharedFormProps) {
 
   const [selectedMedecine, setSelectedMedecine] = useState<Medecine[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedDiagnostic, setSelectedDiagnostic] = useState<Option[]>([]);
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(true);
@@ -207,6 +208,7 @@ export default function MdgForm({
         "17 Fiche Medecine générale",
       );
       toast.success("Formulaire créer avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création:", error);
@@ -240,7 +242,7 @@ export default function MdgForm({
                 <FormLabel className="font-medium">
                   Selectionnez la visite
                 </FormLabel>
-                <Select required onValueChange={field.onChange}>
+                <Select required onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}>
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Visite à sélectionner" />
@@ -742,9 +744,9 @@ export default function MdgForm({
           <Button
             type="submit"
             className="mt-4 mx-auto block"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isSubmitted}
           >
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            {form.formState.isSubmitting ? "En cours..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>

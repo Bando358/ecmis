@@ -55,6 +55,7 @@ export default function VbgForm({
 }: SharedFormProps) {
 
   const [selectedVbg, setSelectedVbg] = useState<Vbg[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(true);
 
@@ -117,6 +118,7 @@ export default function VbgForm({
         "16 Fiche Vbg",
       );
       toast.success("Formulaire créer avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création:", error);
@@ -152,7 +154,7 @@ export default function VbgForm({
                 <FormLabel className="font-medium">
                   Selectionnez la visite
                 </FormLabel>
-                <Select required onValueChange={field.onChange}>
+                <Select required onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}>
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Visite à sélectionner" />
@@ -447,8 +449,8 @@ export default function VbgForm({
           )}
 
           <div className="flex flex-row justify-center py-2">
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            <Button type="submit" disabled={form.formState.isSubmitting || isSubmitted}>
+              {form.formState.isSubmitting ? "En cours..." : isSubmitted ? "Soumis" : "Soumettre"}
             </Button>
           </div>
         </form>

@@ -47,6 +47,7 @@ export default function CponForm({
   idUser,
 }: SharedFormProps) {
   const [selectedCpon, setSelectedCpon] = useState<Cpon[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { canCreate } = usePermissionContext();
 
 
@@ -91,6 +92,7 @@ export default function CponForm({
       );
       console.log(formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création de la Grossesse a échoué");
       console.error("Erreur lors de la création de Cpon:", error);
@@ -117,7 +119,7 @@ export default function CponForm({
                   <FormLabel>Selectionnez la visite</FormLabel>
                   <Select
                     required
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}
                     value={field.value ?? ""}
                   >
                     <FormControl>
@@ -306,9 +308,9 @@ export default function CponForm({
           <Button
             type="submit"
             className="mt-4"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isSubmitted}
           >
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            {form.formState.isSubmitting ? "En cours..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>

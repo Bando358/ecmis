@@ -248,6 +248,7 @@ const ConditionalFields = ({ form }: { form: UseFormReturn<Saa> }) => {
 export default function SaaForm({ clientId, visites, allPrescripteur, isPrescripteur, client, idUser }: SharedFormProps) {
   const [grossesses, setGrossesses] = useState<Grossesse[]>([]);
   const [selectedSaa, setSelectedSaa] = useState<Saa[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { canCreate } = usePermissionContext();
 
@@ -320,6 +321,7 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
       }
 
       toast.success("Formulaire SAA créé avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création du formulaire SAA a échoué");
       console.error("Erreur lors de la création du formulaire SAA:", error);
@@ -347,7 +349,7 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
                   <Select
                     required
                     value={field.value}
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
@@ -549,10 +551,10 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
 
           <Button
             type="submit"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isSubmitted}
             className="w-full mt-4"
           >
-            {form.formState.isSubmitting ? "Soumission..." : "Soumettre"}
+            {form.formState.isSubmitting ? "Soumission..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>

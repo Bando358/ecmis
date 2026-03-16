@@ -78,6 +78,7 @@ export default function IstForm({
   idUser,
 }: SharedFormProps) {
   const [selectedIst, setSelectedIst] = useState<Ist[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { canCreate } = usePermissionContext();
 
 
@@ -132,6 +133,7 @@ export default function IstForm({
       );
       console.log(formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création de la Constante:", error);
@@ -160,7 +162,7 @@ export default function IstForm({
                 <Select
                   required
                   // value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => { field.onChange(value); setIsSubmitted(false); }}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -476,8 +478,8 @@ export default function IstForm({
           )}
 
           <div className="flex flex-row justify-center py-2">
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Submitting..." : "Soumettre"}
+            <Button type="submit" disabled={form.formState.isSubmitting || isSubmitted}>
+              {form.formState.isSubmitting ? "Submitting..." : isSubmitted ? "Soumis" : "Soumettre"}
             </Button>
           </div>
         </form>

@@ -89,6 +89,7 @@ export default function ObstetriqueForm({
   const [selectedObstetrique, setSelectedObstetrique] = useState<Obstetrique[]>(
     initialObstetriques || [],
   );
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(!initialGrossesses || !initialObstetriques);
 
@@ -194,6 +195,7 @@ export default function ObstetriqueForm({
         "08 Fiche CPN",
       );
       toast.success("Formulaire créer avec succès! 🎉");
+      setIsSubmitted(true);
     } catch (error) {
       toast.error("La création de la Grossesse a échoué");
       console.error("Erreur lors de la création de la Grossesse:", error);
@@ -234,6 +236,7 @@ export default function ObstetriqueForm({
                     onValueChange={(value) => {
                       field.onChange(value);
                       handleVisiteChange(value);
+                      setIsSubmitted(false);
                     }}
                   >
                     <FormControl>
@@ -812,9 +815,9 @@ export default function ObstetriqueForm({
           <Button
             type="submit"
             className="mt-4"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isSubmitted}
           >
-            {form.formState.isSubmitting ? "En cours..." : "Soumettre"}
+            {form.formState.isSubmitting ? "En cours..." : isSubmitted ? "Soumis" : "Soumettre"}
           </Button>
         </form>
       </Form>
