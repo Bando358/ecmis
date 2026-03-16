@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -471,7 +471,6 @@ export default function FichesClient({
   serverData,
 }: FichesClientProps) {
   const { client, visites, recaps } = serverData;
-  const router = useRouter();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] =
@@ -647,17 +646,20 @@ export default function FichesClient({
                 {selectedCategoryData.fiches.map((fiche, index) => {
                   const isNavigating = navigatingTo === fiche.href;
                   return (
-                    <button
+                    <Link
                       key={index}
-                      disabled={navigatingTo !== null}
-                      onClick={() => {
+                      href={fiche.href}
+                      onClick={(e) => {
+                        if (navigatingTo !== null) {
+                          e.preventDefault();
+                          return;
+                        }
                         setNavigatingTo(fiche.href);
-                        router.push(fiche.href);
                       }}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium transition-colors",
                         navigatingTo !== null
-                          ? "opacity-60 cursor-not-allowed"
+                          ? "opacity-60 pointer-events-none"
                           : "hover:bg-blue-50 hover:text-blue-800",
                       )}
                     >
@@ -667,7 +669,7 @@ export default function FichesClient({
                         <FileText className="h-3.5 w-3.5" />
                       )}
                       {fiche.label}
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
