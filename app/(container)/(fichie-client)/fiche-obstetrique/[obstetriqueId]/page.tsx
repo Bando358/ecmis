@@ -172,6 +172,10 @@ export default function ObstetriquePage({
     fetchAllData();
   }, [idUser, obstetriqueId]);
 
+  const handleGrossesseCreated = useCallback((newGrossesse: Grossesse) => {
+    setGrossesses((prev) => [...prev, newGrossesse]);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="w-full h-96 flex items-center justify-center">
@@ -192,6 +196,7 @@ export default function ObstetriquePage({
     idUser,
     initialGrossesses: grossesses,
     initialObstetriques: obstetriques,
+    onGrossesseCreated: handleGrossesseCreated,
   };
 
   return (

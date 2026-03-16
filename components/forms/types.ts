@@ -11,4 +11,6 @@ export interface SharedFormProps {
   /** Données pré-chargées par le parent pour éviter un double fetch */
   initialGrossesses?: Grossesse[];
   initialObstetriques?: Obstetrique[];
+  /** Callback quand une grossesse est créée (pour synchroniser les onglets) */
+  onGrossesseCreated?: (grossesse: Grossesse) => void;
 }

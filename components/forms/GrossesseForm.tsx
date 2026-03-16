@@ -47,6 +47,7 @@ export default function GrossesseForm({
   client,
   idUser,
   initialGrossesses,
+  onGrossesseCreated,
 }: SharedFormProps) {
 
   const [selectedGrossesse, setSelectedGrossesse] = useState<Grossesse[]>(initialGrossesses || []);
@@ -162,12 +163,14 @@ export default function GrossesseForm({
       grossesseIdClinique: client?.idClinique || "",
     };
     try {
-      await createGrossesse(formattedData);
+      const newGrossesse = await createGrossesse(formattedData);
       await updateRecapVisite(
         form.watch("grossesseIdVisite"),
         form.watch("grossesseIdUser"),
         "06 Fiche grossesse",
       );
+      setSelectedGrossesse((prev) => [...prev, newGrossesse as Grossesse]);
+      onGrossesseCreated?.(newGrossesse as Grossesse);
       toast.success("Formulaire créer avec succès! 🎉");
       setIsSubmitted(true);
     } catch (error) {

@@ -93,6 +93,13 @@ export default function ObstetriqueForm({
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(!initialGrossesses || !initialObstetriques);
 
+  // Synchroniser les grossesses quand le parent les met à jour
+  useEffect(() => {
+    if (initialGrossesses) {
+      setGrossesses(initialGrossesses);
+    }
+  }, [initialGrossesses]);
+
   useEffect(() => {
     if (initialGrossesses && initialObstetriques) return;
     const fetchData = async () => {
