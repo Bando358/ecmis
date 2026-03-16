@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -471,10 +471,12 @@ export default function FichesClient({
   serverData,
 }: FichesClientProps) {
   const { client, visites, recaps } = serverData;
+  const router = useRouter();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] =
     useState<string>("Visite & Constante");
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const { setSelectedClientId } = useClientContext();
 
   // Mémoriser les catégories
@@ -642,16 +644,32 @@ export default function FichesClient({
             </CardHeader>
             <CardContent className="pb-3 -mt-6">
               <div className="flex flex-wrap gap-2">
-                {selectedCategoryData.fiches.map((fiche, index) => (
-                  <Link
-                    key={index}
-                    href={fiche.href}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium hover:bg-blue-50 hover:text-blue-800 transition-colors"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    {fiche.label}
-                  </Link>
-                ))}
+                {selectedCategoryData.fiches.map((fiche, index) => {
+                  const isNavigating = navigatingTo === fiche.href;
+                  return (
+                    <button
+                      key={index}
+                      disabled={navigatingTo !== null}
+                      onClick={() => {
+                        setNavigatingTo(fiche.href);
+                        router.push(fiche.href);
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium transition-colors",
+                        navigatingTo !== null
+                          ? "opacity-60 cursor-not-allowed"
+                          : "hover:bg-blue-50 hover:text-blue-800",
+                      )}
+                    >
+                      {isNavigating ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5" />
+                      )}
+                      {fiche.label}
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
