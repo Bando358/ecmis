@@ -643,18 +643,15 @@ export default function FichesClient({
             <CardContent className="pb-3 -mt-6">
               <div className="flex flex-wrap gap-2">
                 {selectedCategoryData.fiches.map((fiche, index) => (
-                  <Button
+                  <Link
                     key={index}
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="gap-1.5 border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+                    href={fiche.href}
+                    prefetch={false}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium hover:bg-blue-50 hover:text-blue-800 transition-colors"
                   >
-                    <Link href={fiche.href} prefetch={false}>
-                      <FileText className="h-3.5 w-3.5" />
-                      {fiche.label}
-                    </Link>
-                  </Button>
+                    <FileText className="h-3.5 w-3.5" />
+                    {fiche.label}
+                  </Link>
                 ))}
               </div>
             </CardContent>
