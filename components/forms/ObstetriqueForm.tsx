@@ -195,12 +195,13 @@ export default function ObstetriqueForm({
       obstIdClinique: client?.idClinique || "",
     };
     try {
-      await createObstetrique(formattedData);
+      const newRecord = await createObstetrique(formattedData);
       await updateRecapVisite(
         form.watch("obstIdVisite"),
         form.watch("obstIdUser"),
         "08 Fiche CPN",
       );
+      setSelectedObstetrique((prev) => [...prev, newRecord as Obstetrique]);
       toast.success("Formulaire créer avec succès! 🎉");
       setIsSubmitted(true);
     } catch (error) {

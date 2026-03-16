@@ -93,12 +93,13 @@ export default function TestGrossesseForm({
     };
     console.log("formattedData : ", formattedData);
     try {
-      await createTestGrossesse(formattedData);
+      const newRecord = await createTestGrossesse(formattedData);
       await updateRecapVisite(
         form.watch("testIdVisite"),
         form.watch("testIdUser"),
         "07 Fiche Test TBG"
       );
+      setSelectedTest((prev) => [...prev, newRecord as TestGrossesse]);
       toast.success("Formulaire creer avec succes! 🎉");
       setIsSubmitted(true);
     } catch (error) {

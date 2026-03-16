@@ -111,12 +111,13 @@ export default function VbgForm({
       vbgIdClinique: client?.idClinique || "",
     };
     try {
-      await createVbg(formattedData as Vbg);
+      const newRecord = await createVbg(formattedData as Vbg);
       await updateRecapVisite(
         form.watch("vbgIdVisite"),
         form.watch("vbgIdUser"),
         "16 Fiche Vbg",
       );
+      setSelectedVbg((prev) => [...prev, newRecord as Vbg]);
       toast.success("Formulaire créer avec succès! 🎉");
       setIsSubmitted(true);
     } catch (error) {

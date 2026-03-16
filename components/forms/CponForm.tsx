@@ -84,12 +84,13 @@ export default function CponForm({
     };
     console.log(formattedData);
     try {
-      await createCpon(formattedData);
+      const newRecord = await createCpon(formattedData);
       await updateRecapVisite(
         form.watch("cponIdVisite"),
         form.watch("cponIdUser"),
         "10 Fiche CPoN"
       );
+      setSelectedCpon((prev) => [...prev, newRecord as Cpon]);
       console.log(formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
       setIsSubmitted(true);

@@ -295,12 +295,13 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
 
     console.log("Formatted Data:", formattedData);
     try {
-      await createSaa(formattedData);
+      const newRecord = await createSaa(formattedData);
       await updateRecapVisite(
         form.watch("saaIdVisite"),
         form.watch("saaIdUser"),
         "11 Fiche SAA"
       );
+      setSelectedSaa((prev) => [...prev, newRecord as Saa]);
 
       const grossesseId = form.getValues("saaIdGrossesse");
       if (grossesseId) {

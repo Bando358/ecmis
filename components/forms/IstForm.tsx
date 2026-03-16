@@ -125,12 +125,13 @@ export default function IstForm({
     };
     console.log("formattedData", formattedData);
     try {
-      await createIst(formattedData as Ist);
+      const newRecord = await createIst(formattedData as Ist);
       await updateRecapVisite(
         form.watch("istIdVisite"),
         form.watch("istIdUser"),
         "12 Fiche Ist"
       );
+      setSelectedIst((prev) => [...prev, newRecord as Ist]);
       console.log(formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
       setIsSubmitted(true);

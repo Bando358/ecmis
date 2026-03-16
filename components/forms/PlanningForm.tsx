@@ -194,8 +194,9 @@ export default function PlanningForm({
       idClinique: client?.idClinique || "",
     };
     try {
-      await createPlanning(formattedData);
+      const newRecord = await createPlanning(formattedData);
       await updateRecapVisite(form.watch("idVisite"), idUser, "03 Fiche Planification familiale");
+      setSelectedPlanning((prev) => [...prev, newRecord as Planning]);
       toast.success("Formulaire créer avec succès!");
       setIsSubmitted(true);
     } catch (error) {

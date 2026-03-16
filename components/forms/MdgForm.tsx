@@ -201,12 +201,13 @@ export default function MdgForm({
       mdgIdClinique: client?.idClinique || "",
     };
     try {
-      await createMedecine(formattedData as Medecine);
+      const newRecord = await createMedecine(formattedData as Medecine);
       await updateRecapVisite(
         form.watch("mdgIdVisite"),
         form.watch("mdgIdUser"),
         "17 Fiche Medecine générale",
       );
+      setSelectedMedecine((prev) => [...prev, newRecord as Medecine]);
       toast.success("Formulaire créer avec succès! 🎉");
       setIsSubmitted(true);
     } catch (error) {

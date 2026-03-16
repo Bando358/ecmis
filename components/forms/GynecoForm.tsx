@@ -129,12 +129,13 @@ export default function GynecoForm({
     };
     console.log(formattedData);
     try {
-      await createGyneco(formattedData as Gynecologie);
+      const newRecord = await createGyneco(formattedData as Gynecologie);
       await updateRecapVisite(
         form.watch("idVisite"),
         form.watch("idUser"),
         "04 Fiche gynécologique",
       );
+      setSelectedGyneco((prev) => [...prev, newRecord as Gynecologie]);
       toast.success("Gynéco créer avec succès! 🎉");
       setIsSubmitted(true);
     } catch (error) {

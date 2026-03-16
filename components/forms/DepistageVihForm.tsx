@@ -264,12 +264,13 @@ export default function DepistageVihForm({
     };
 
     try {
-      await createDepistageVih(formattedData as DepistageVih);
+      const newRecord = await createDepistageVih(formattedData as DepistageVih);
       await updateRecapVisite(
         form.watch("depistageVihIdVisite"),
         form.watch("depistageVihIdUser"),
         "14 Fiche de dépistage VIH"
       );
+      setSelectedDepistageVih((prev) => [...prev, newRecord as DepistageVih]);
       toast.success("Fiche de dépistage VIH créée avec succès! \ud83c\udf89");
       setIsSubmitted(true);
     } catch (error) {
