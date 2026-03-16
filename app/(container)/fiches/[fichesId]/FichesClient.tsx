@@ -646,7 +646,6 @@ export default function FichesClient({
                   <Link
                     key={index}
                     href={fiche.href}
-                    prefetch={false}
                     className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium hover:bg-blue-50 hover:text-blue-800 transition-colors"
                   >
                     <FileText className="h-3.5 w-3.5" />

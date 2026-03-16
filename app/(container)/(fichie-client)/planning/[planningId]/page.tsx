@@ -223,12 +223,12 @@ export default function PlanningPage({
                   style={{
                     backgroundColor: isActive ? tab.accent : tab.accentLight,
                     color: isActive ? "#fff" : tab.accent,
-                    boxShadow: isActive ? `0 4px 14px ${tab.accent}40` : "none",
+                    boxShadow: isActive ? `0 2px 8px ${tab.accent}30` : "none",
                   }}
-                  className="group relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl! text-xs font-semibold! transition-all duration-300 ease-out border-none! hover:opacity-90 hover:scale-[1.03]"
+                  className="group relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl! text-xs font-semibold! transition-colors duration-200 border-none! hover:opacity-90"
                 >
                   <Icon
-                    className={`h-5 w-5 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-110"}`}
+                    className="h-5 w-5"
                   />
                   <span className="hidden sm:inline leading-tight text-center">
                     {tab.label}
