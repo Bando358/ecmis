@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -251,7 +251,7 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
 
   const { canCreate } = usePermissionContext();
 
-  const router = useRouter();
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -320,7 +320,6 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
       }
 
       toast.success("Formulaire SAA créé avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création du formulaire SAA a échoué");
       console.error("Erreur lors de la création du formulaire SAA:", error);

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, useWatch, SubmitHandler } from "react-hook-form";
 import { RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -87,7 +87,7 @@ export default function PlanningForm({
 }: SharedFormProps) {
   const [selectedPlanning, setSelectedPlanning] = useState<Planning[]>([]);
   const { canCreate } = usePermissionContext();
-  const router = useRouter();
+
 
   const isHomme = client?.sexe === "Masculin";
 
@@ -196,7 +196,6 @@ export default function PlanningForm({
       await createPlanning(formattedData);
       await updateRecapVisite(form.watch("idVisite"), idUser, "03 Fiche Planification familiale");
       toast.success("Formulaire créer avec succès!");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création a échoué");
       console.error("Erreur:", error);

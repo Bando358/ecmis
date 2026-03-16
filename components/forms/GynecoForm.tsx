@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -81,7 +81,7 @@ export default function GynecoForm({
   const [selectedGyneco, setSelectedGyneco] = useState<Gynecologie[]>([]);
   const { canCreate } = usePermissionContext();
 
-  const router = useRouter();
+
 
   // Chargement des données spécifiques au formulaire
   useEffect(() => {
@@ -135,7 +135,6 @@ export default function GynecoForm({
         "04 Fiche gynécologique",
       );
       toast.success("Gynéco créer avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création de la Constante:", error);

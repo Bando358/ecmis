@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -218,7 +218,7 @@ export default function DepistageVihForm({
   >([]);
 
   const { canCreate } = usePermissionContext();
-  const router = useRouter();
+
 
   // Fetch form-specific data: existing depistage VIH records for this client
   useEffect(() => {
@@ -270,7 +270,6 @@ export default function DepistageVihForm({
         "14 Fiche de dépistage VIH"
       );
       toast.success("Fiche de dépistage VIH créée avec succès! \ud83c\udf89");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error(

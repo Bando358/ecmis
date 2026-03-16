@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { Vbg, TableName } from "@prisma/client";
@@ -53,7 +53,7 @@ export default function VbgForm({
   client,
   idUser,
 }: SharedFormProps) {
-  const router = useRouter();
+
   const [selectedVbg, setSelectedVbg] = useState<Vbg[]>([]);
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(true);
@@ -117,7 +117,6 @@ export default function VbgForm({
         "16 Fiche Vbg",
       );
       toast.success("Formulaire créer avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création:", error);

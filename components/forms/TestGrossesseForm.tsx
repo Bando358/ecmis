@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
@@ -51,7 +51,7 @@ export default function TestGrossesseForm({
   const { canCreate } = usePermissionContext();
 
   const form = useForm<TestGrossesse>();
-  const router = useRouter();
+
 
   // Set idUser in form when available
   useEffect(() => {
@@ -99,7 +99,6 @@ export default function TestGrossesseForm({
         "07 Fiche Test TBG"
       );
       toast.success("Formulaire creer avec succes! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La creation de la Grossesse a echoue");
       console.error("Erreur lors de la creation de la Grossesse:", error);

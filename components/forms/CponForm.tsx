@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { getAllCponByIdClient, createCpon } from "@/lib/actions/cponActions";
@@ -48,7 +48,7 @@ export default function CponForm({
 }: SharedFormProps) {
   const [selectedCpon, setSelectedCpon] = useState<Cpon[]>([]);
   const { canCreate } = usePermissionContext();
-  const router = useRouter();
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,7 +91,6 @@ export default function CponForm({
       );
       console.log(formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création de la Grossesse a échoué");
       console.error("Erreur lors de la création de Cpon:", error);

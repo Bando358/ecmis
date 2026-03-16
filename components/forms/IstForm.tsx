@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -80,7 +80,7 @@ export default function IstForm({
   const [selectedIst, setSelectedIst] = useState<Ist[]>([]);
   const { canCreate } = usePermissionContext();
 
-  const router = useRouter();
+
 
   const form = useForm<Ist>({
     defaultValues: {
@@ -132,7 +132,6 @@ export default function IstForm({
       );
       console.log(formattedData);
       toast.success("Formulaire créer avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création de la Constante:", error);

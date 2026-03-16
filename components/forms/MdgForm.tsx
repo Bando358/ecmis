@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -140,7 +140,7 @@ export default function MdgForm({
   client,
   idUser,
 }: SharedFormProps) {
-  const router = useRouter();
+
   const [selectedMedecine, setSelectedMedecine] = useState<Medecine[]>([]);
   const [selectedDiagnostic, setSelectedDiagnostic] = useState<Option[]>([]);
   const { canCreate } = usePermissionContext();
@@ -207,7 +207,6 @@ export default function MdgForm({
         "17 Fiche Medecine générale",
       );
       toast.success("Formulaire créer avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création du formulaire a échoué");
       console.error("Erreur lors de la création:", error);

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { Grossesse, TableName } from "@prisma/client";
@@ -48,7 +48,7 @@ export default function GrossesseForm({
   idUser,
   initialGrossesses,
 }: SharedFormProps) {
-  const router = useRouter();
+
   const [selectedGrossesse, setSelectedGrossesse] = useState<Grossesse[]>(initialGrossesses || []);
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(!initialGrossesses);
@@ -168,7 +168,6 @@ export default function GrossesseForm({
         "06 Fiche grossesse",
       );
       toast.success("Formulaire créer avec succès! 🎉");
-      router.push(`/fiches/${clientId}`);
     } catch (error) {
       toast.error("La création de la Grossesse a échoué");
       console.error("Erreur lors de la création de la Grossesse:", error);
