@@ -301,6 +301,11 @@ export async function fetchAnalyticsData(params: {
     queries.examen = prisma.examen.findMany() as Promise<Record<string, unknown>[]>;
   }
 
+  if (requiredSources.has("echographie")) {
+    // Table de reference des echographies (pas de filtre date/clinique)
+    queries.echographie = prisma.echographie.findMany() as Promise<Record<string, unknown>[]>;
+  }
+
   if (requiredSources.has("factureEchographie")) {
     queries.factureEchographie = prisma.factureEchographie.findMany({
       where: {

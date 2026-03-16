@@ -75,6 +75,107 @@ function countLaboServicesByType(
   });
 }
 
+/**
+ * Retourne les noms d'échographies correspondant à un typeEchographie donné.
+ */
+function getEchoNamesByType(
+  echographies: Record<string, unknown>[] | undefined,
+  type: string
+): Set<string> {
+  const set = new Set<string>();
+  if (!echographies) return set;
+  for (const e of echographies) {
+    if (e.typeEchographie === type && typeof e.nomEchographie === "string") {
+      set.add(e.nomEchographie);
+    }
+  }
+  return set;
+}
+
+/**
+ * Retourne les noms d'échographies correspondant à une regionExaminee donnée.
+ */
+function getEchoNamesByRegion(
+  echographies: Record<string, unknown>[] | undefined,
+  region: string
+): Set<string> {
+  const set = new Set<string>();
+  if (!echographies) return set;
+  for (const e of echographies) {
+    if (e.regionExaminee === region && typeof e.nomEchographie === "string") {
+      set.add(e.nomEchographie);
+    }
+  }
+  return set;
+}
+
+/**
+ * Filtre les factureEchographie dont le libelleEchographie correspond à un ensemble de noms.
+ */
+function filterEchoByNames(
+  factureEchographie: Record<string, unknown>[] | undefined,
+  nameSet: Set<string>
+): Record<string, unknown>[] {
+  if (!factureEchographie || nameSet.size === 0) return [];
+  return factureEchographie.filter((fe) => {
+    const libelle = fe.libelleEchographie as string;
+    return libelle && nameSet.has(libelle);
+  });
+}
+
+/**
+ * Compte les clients distincts ayant des factureEchographie dont le libellé est dans le set.
+ */
+function countEchoClientsByNames(
+  factureEchographie: Record<string, unknown>[] | undefined,
+  nameSet: Set<string>
+): Record<string, unknown>[] {
+  if (!factureEchographie || nameSet.size === 0) return [];
+  const clientIds = new Set<string>();
+  const result: Record<string, unknown>[] = [];
+  for (const fe of factureEchographie) {
+    const libelle = fe.libelleEchographie as string;
+    const clientId = fe.idClient as string;
+    if (libelle && clientId && nameSet.has(libelle) && !clientIds.has(clientId)) {
+      clientIds.add(clientId);
+      result.push(fe);
+    }
+  }
+  return result;
+}
+
+/**
+ * Compte les clients distincts ayant des factureEchographie pour un service donné.
+ */
+function countEchoClientsByService(
+  factureEchographie: Record<string, unknown>[] | undefined,
+  service: string
+): Record<string, unknown>[] {
+  if (!factureEchographie) return [];
+  const clientIds = new Set<string>();
+  const result: Record<string, unknown>[] = [];
+  for (const fe of factureEchographie) {
+    const svc = fe.serviceEchographieFacture as string;
+    const clientId = fe.idClient as string;
+    if (svc === service && clientId && !clientIds.has(clientId)) {
+      clientIds.add(clientId);
+      result.push(fe);
+    }
+  }
+  return result;
+}
+
+/**
+ * Filtre les factureEchographie par type de service.
+ */
+function filterEchoByService(
+  factureEchographie: Record<string, unknown>[] | undefined,
+  service: string
+): Record<string, unknown>[] | undefined {
+  if (!factureEchographie) return undefined;
+  return factureEchographie.filter((fe) => fe.serviceEchographieFacture === service);
+}
+
 export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
   // =============== GENERAL (4) ===============
   {
@@ -940,6 +1041,65 @@ export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
   // =============== LABORATOIRE - Total ===============
   { id: "SRV_LABO_TOTAL", name: "SRV - Total service laboratoire", shortName: "SRV Total Labo", description: "Total services laboratoire", category: "laboratoire", dataSources: ["examenPvVih", "factureExamen"], aggregation: "count", compute: (data) => combineDataPoints(countRecords(data.examenPvVih, (r) => r.examenPvVihConsultation === true), countRecords(data.examenPvVih, (r) => !!r.examenPvVihCholesterolHdl), countRecords(data.examenPvVih, (r) => r.examenPvVihChargeVirale != null && Number(r.examenPvVihChargeVirale) >= 0), countRecords(data.examenPvVih, (r) => r.examenPvVihCd4 != null && Number(r.examenPvVihCd4) >= 0), countRecords(data.examenPvVih, (r) => r.examenPvVihHemoglobineNfs != null && Number(r.examenPvVihHemoglobineNfs) > 0), countRecords(data.examenPvVih, (r) => r.examenPvVihTransaminases != null && Number(r.examenPvVihTransaminases) > 0), countRecords(data.examenPvVih, (r) => r.examenPvVihUree != null && Number(r.examenPvVihUree) > 0), countRecords(data.examenPvVih, (r) => r.examenPvVihGlycemie != null && Number(r.examenPvVihGlycemie) > 0), countRecords(data.examenPvVih, (r) => r.examenPvVihCreatinemie != null && Number(r.examenPvVihCreatinemie) > 0), countRecords(data.factureExamen)), valueType: "integer" },
 
+  // =============== ECHOGRAPHIE - Clients par type de service ===============
+  { id: "CLT_ECHO_OBSTETRIQUE", name: "Nombre de personnes recues pour les Echographies liees a l'obstetrique", shortName: "Clt Echo Obst", description: "Clients echographie obstetrique", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(countEchoClientsByService(data.factureEchographie, "OBSTETRIQUE")), valueType: "integer" },
+  { id: "CLT_ECHO_GYNECOLOGIE", name: "Nombre de personnes recues pour les Echographies liees a la gynecologie", shortName: "Clt Echo Gyn", description: "Clients echographie gynecologie", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(countEchoClientsByService(data.factureEchographie, "GYNECOLOGIE")), valueType: "integer" },
+  { id: "CLT_ECHO_INFERTILITE", name: "Nombre de personnes recues pour les Echographies liees a l'infertilite", shortName: "Clt Echo Inf", description: "Clients echographie infertilite", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(countEchoClientsByService(data.factureEchographie, "INFERTILITE")), valueType: "integer" },
+  { id: "CLT_ECHO_MEDECINE", name: "Nombre de personnes recues pour les Echographies liees aux soins curatifs", shortName: "Clt Echo MDG", description: "Clients echographie medecine", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(countEchoClientsByService(data.factureEchographie, "MEDECINE_GENERALE")), valueType: "integer" },
+
+  // =============== ECHOGRAPHIE - Services par type ===============
+  { id: "SRV_ECHO_OBSTETRIQUE", name: "SRV - ECHO - OBSTETRIQUE - Total echographies realisees", shortName: "SRV Echo Obst", description: "Total echographies obstetrique", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(data.factureEchographie, (r) => r.serviceEchographieFacture === "OBSTETRIQUE"), valueType: "integer" },
+  { id: "SRV_ECHO_GYNECOLOGIE", name: "SRV - ECHO - GYNECOLOGIE - Total echographies realisees", shortName: "SRV Echo Gyn", description: "Total echographies gynecologie", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(data.factureEchographie, (r) => r.serviceEchographieFacture === "GYNECOLOGIE"), valueType: "integer" },
+  { id: "SRV_ECHO_INFERTILITE", name: "SRV - ECHO - INFERTILITE - Total echographies realisees", shortName: "SRV Echo Inf", description: "Total echographies infertilite", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(data.factureEchographie, (r) => r.serviceEchographieFacture === "INFERTILITE"), valueType: "integer" },
+  { id: "SRV_ECHO_MEDECINE", name: "SRV - ECHO - MEDECINE - Total echographies realisees", shortName: "SRV Echo MDG", description: "Total echographies medecine generale", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(data.factureEchographie, (r) => r.serviceEchographieFacture === "MEDECINE_GENERALE"), valueType: "integer" },
+
+  // =============== ECHOGRAPHIE - Revenus par type ===============
+  { id: "REV_ECHO_OBSTETRIQUE", name: "Revenus echographies obstetrique", shortName: "Rev Echo Obst", description: "Revenus echographies obstetrique", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(filterEchoByService(data.factureEchographie, "OBSTETRIQUE"), "prixEchographie"), valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_GYNECOLOGIE", name: "Revenus echographies gynecologie", shortName: "Rev Echo Gyn", description: "Revenus echographies gynecologie", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(filterEchoByService(data.factureEchographie, "GYNECOLOGIE"), "prixEchographie"), valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_INFERTILITE", name: "Revenus echographies infertilite", shortName: "Rev Echo Inf", description: "Revenus echographies infertilite", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(filterEchoByService(data.factureEchographie, "INFERTILITE"), "prixEchographie"), valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_MEDECINE", name: "Revenus echographies medecine", shortName: "Rev Echo MDG", description: "Revenus echographies medecine generale", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(filterEchoByService(data.factureEchographie, "MEDECINE_GENERALE"), "prixEchographie"), valueType: "currency", unit: "CFA" },
+
+  // =============== ECHOGRAPHIE - Totaux ===============
+  { id: "SRV_ECHO_TOTAL", name: "SRV - Total service echographie", shortName: "SRV Total Echo", description: "Total services echographie", category: "echographie", dataSources: ["factureEchographie"], aggregation: "count", compute: (data) => countRecords(data.factureEchographie), valueType: "integer" },
+  { id: "REV_ECHO_TOTAL", name: "Revenu total echographie", shortName: "Rev Total Echo", description: "Total revenus echographie", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(data.factureEchographie, "prixEchographie"), valueType: "currency", unit: "CFA" },
+  { id: "ECHO_REMISE_TOTAL", name: "Total remises echographie", shortName: "Remise Echo", description: "Total remises echographie", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(data.factureEchographie, "remiseEchographie"), valueType: "currency", unit: "CFA" },
+  { id: "ECHO_PART_ECHOGRAPHE", name: "Total part echographe", shortName: "Part Echogr", description: "Total part echographe", category: "echographie", dataSources: ["factureEchographie"], aggregation: "sum", compute: (data) => sumField(data.factureEchographie, "partEchographe"), valueType: "currency", unit: "CFA" },
+
+  // =============== ECHOGRAPHIE - Par type d'echo (TypeEchographie) ===============
+  { id: "ECHO_TYPE_OBST", name: "Echographies obstetricales (type OBST)", shortName: "Echo OBST", description: "Echographies de type obstetrique", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "OBST"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_TYPE_GYN", name: "Echographies gynecologiques (type GYN)", shortName: "Echo GYN", description: "Echographies de type gynecologie", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "GYN"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_TYPE_INF", name: "Echographies infertilite (type INF)", shortName: "Echo INF", description: "Echographies de type infertilite", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "INF"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_TYPE_MDG", name: "Echographies medecine generale (type MDG)", shortName: "Echo MDG", description: "Echographies de type medecine generale", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "MDG"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_TYPE_CAR", name: "Echographies cardiologiques (type CAR)", shortName: "Echo CAR", description: "Echographies de type cardiologie", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "CAR"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+
+  // =============== ECHOGRAPHIE - Clients par type d'echo ===============
+  { id: "CLT_ECHO_TYPE_OBST", name: "Clients recus pour echo obstetricales", shortName: "Clt Echo OBST", description: "Clients distincts echo obstetrique", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "OBST"); return countRecords(countEchoClientsByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "CLT_ECHO_TYPE_GYN", name: "Clients recus pour echo gynecologiques", shortName: "Clt Echo GYN", description: "Clients distincts echo gynecologie", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "GYN"); return countRecords(countEchoClientsByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "CLT_ECHO_TYPE_INF", name: "Clients recus pour echo infertilite", shortName: "Clt Echo INF", description: "Clients distincts echo infertilite", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "INF"); return countRecords(countEchoClientsByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "CLT_ECHO_TYPE_MDG", name: "Clients recus pour echo medecine generale", shortName: "Clt Echo MDG", description: "Clients distincts echo medecine", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "MDG"); return countRecords(countEchoClientsByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "CLT_ECHO_TYPE_CAR", name: "Clients recus pour echo cardiologiques", shortName: "Clt Echo CAR", description: "Clients distincts echo cardiologie", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByType(data.echographie, "CAR"); return countRecords(countEchoClientsByNames(data.factureEchographie, names)); }, valueType: "integer" },
+
+  // =============== ECHOGRAPHIE - Revenus par type d'echo ===============
+  { id: "REV_ECHO_TYPE_OBST", name: "Revenus echo obstetricales", shortName: "Rev Echo OBST", description: "Revenus echo type obstetrique", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "sum", compute: (data) => { const names = getEchoNamesByType(data.echographie, "OBST"); return sumField(filterEchoByNames(data.factureEchographie, names), "prixEchographie"); }, valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_TYPE_GYN", name: "Revenus echo gynecologiques", shortName: "Rev Echo GYN", description: "Revenus echo type gynecologie", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "sum", compute: (data) => { const names = getEchoNamesByType(data.echographie, "GYN"); return sumField(filterEchoByNames(data.factureEchographie, names), "prixEchographie"); }, valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_TYPE_INF", name: "Revenus echo infertilite", shortName: "Rev Echo INF", description: "Revenus echo type infertilite", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "sum", compute: (data) => { const names = getEchoNamesByType(data.echographie, "INF"); return sumField(filterEchoByNames(data.factureEchographie, names), "prixEchographie"); }, valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_TYPE_MDG", name: "Revenus echo medecine generale", shortName: "Rev Echo MDG", description: "Revenus echo type medecine", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "sum", compute: (data) => { const names = getEchoNamesByType(data.echographie, "MDG"); return sumField(filterEchoByNames(data.factureEchographie, names), "prixEchographie"); }, valueType: "currency", unit: "CFA" },
+  { id: "REV_ECHO_TYPE_CAR", name: "Revenus echo cardiologiques", shortName: "Rev Echo CAR", description: "Revenus echo type cardiologie", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "sum", compute: (data) => { const names = getEchoNamesByType(data.echographie, "CAR"); return sumField(filterEchoByNames(data.factureEchographie, names), "prixEchographie"); }, valueType: "currency", unit: "CFA" },
+
+  // =============== ECHOGRAPHIE - Par region examinee ===============
+  { id: "ECHO_REGION_ABDOMEN", name: "Echographies abdominales", shortName: "Echo Abdo", description: "Echographies region abdomen", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "ABDOMEN"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_PELVIS", name: "Echographies pelviennes", shortName: "Echo Pelvis", description: "Echographies region pelvis/bassin", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "PELVIS_BASSIN"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_GYN_OBST", name: "Echographies gyneco-obstetricales", shortName: "Echo Gyn/Obst", description: "Echographies region gynecologie-obstetrique", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "GYNECOLOGIE_OBSTETRIQUE"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_SEINS", name: "Echographies mammaires", shortName: "Echo Seins", description: "Echographies region seins", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "SEINS"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_COU", name: "Echographies cervicales", shortName: "Echo Cou", description: "Echographies region cou", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "COU"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_COEUR", name: "Echographies cardiaques", shortName: "Echo Coeur", description: "Echographies region coeur", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "COEUR"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_PELV_ABDO", name: "Echographies pelvienne-abdominales", shortName: "Echo Pelv/Abdo", description: "Echographies region pelvienne-abdominale", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "PELVIENNE_ABDOMINALE"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_LOMBES", name: "Echographies lombes-pelviennes", shortName: "Echo Lombes", description: "Echographies region lombes-pelvienne", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "LOMBES_PELVIENNE"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_MUSCLES", name: "Echographies musculo-articulaires", shortName: "Echo Muscles", description: "Echographies region muscles et articulations", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "MUSCLES_ET_ARTICULATIONS"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_PROSTATE", name: "Echographies prostatiques", shortName: "Echo Prostate", description: "Echographies region prostate", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "PROSTATE"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_TESTICULES", name: "Echographies testiculaires", shortName: "Echo Testic", description: "Echographies region testicules", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "TESTICULES"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+  { id: "ECHO_REGION_THORAX", name: "Echographies thoraciques", shortName: "Echo Thorax", description: "Echographies region thorax", category: "echographie", dataSources: ["factureEchographie", "echographie"], aggregation: "count", compute: (data) => { const names = getEchoNamesByRegion(data.echographie, "THORAX"); return countRecords(filterEchoByNames(data.factureEchographie, names)); }, valueType: "integer" },
+
   // =============== FINANCIER (3) ===============
   {
     id: "REVENU_PRESTATIONS",
@@ -1048,6 +1208,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   medecine: "Medecine Generale",
   pharmacie: "Pharmacie",
   laboratoire: "Laboratoire",
+  echographie: "Echographie",
   financier: "Financier",
   vbg: "VBG",
   infertilite: "Infertilite",
