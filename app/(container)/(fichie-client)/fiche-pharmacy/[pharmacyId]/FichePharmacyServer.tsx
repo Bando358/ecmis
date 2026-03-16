@@ -63,26 +63,14 @@ export default async function FichePharmacyServer({
   children,
 }: FichePharmacyServerProps) {
   try {
-    // Phase 1 : Client + Visites en parallèle → obtenir idClinique
-    const [clientResult, visitesResult] = await Promise.all([
-      getOneClient(pharmacyId),
-      getAllVisiteByIdClient(pharmacyId),
-    ]);
-
-    const client = clientResult as Client;
-    const idClinique = client?.idClinique || "";
-
-    // Phase 2 : Requêtes restantes en parallèle, tarifs filtrés par clinique
+    // Phase 1 : Client + toutes les requêtes indépendantes en parallèle
     const [
-      tarifProduitsResult,
-      tarifExamensResult,
+      clientResult,
+      visitesResult,
       examensResult,
       prestationsResult,
       produitsResult,
-      cliniqueResult,
       echographiesResult,
-      tarifEchographiesResult,
-      tarifPrestationsResult,
       tabProduitFactureClient,
       tabPrestationFactureClient,
       tabEchographieFactureClient,
@@ -90,21 +78,36 @@ export default async function FichePharmacyServer({
       tabDemandeExamensClient,
       tabDemandeEchographiesClient,
     ] = await Promise.all([
-      getAllTarifProduitsByIdClinique(idClinique),
-      getAllTarifExamenByClinique(idClinique),
+      getOneClient(pharmacyId),
+      getAllVisiteByIdClient(pharmacyId),
       getAllExamen(),
       getAllPrestation(),
       getAllProduits(),
-      getOneClinique(idClinique),
       getAllEchographies(),
-      getAllTarifEchographieByClinique(idClinique),
-      getAllTarifPrestationByClinique(idClinique),
       getAllFactureProduitByIdClient(pharmacyId),
       getAllFacturePrestationByIdClient(pharmacyId),
       getAllFactureEchographieByIdClient(pharmacyId),
       getAllFactureExamenByIdClient(pharmacyId),
       getAllDemandeExamensByIdClient(pharmacyId),
       getAllDemandeEchographiesByIdClient(pharmacyId),
+    ]);
+
+    const client = clientResult as Client;
+    const idClinique = client?.idClinique || "";
+
+    // Phase 2 : Requêtes dépendant de idClinique
+    const [
+      tarifProduitsResult,
+      tarifExamensResult,
+      cliniqueResult,
+      tarifEchographiesResult,
+      tarifPrestationsResult,
+    ] = await Promise.all([
+      getAllTarifProduitsByIdClinique(idClinique),
+      getAllTarifExamenByClinique(idClinique),
+      getOneClinique(idClinique),
+      getAllTarifEchographieByClinique(idClinique),
+      getAllTarifPrestationByClinique(idClinique),
     ]);
 
     const data = {

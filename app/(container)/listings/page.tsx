@@ -283,12 +283,19 @@ export default function Page() {
     dateFinObj.setHours(23, 59, 59, 999);
 
     try {
-      const rapportLaboratoire = await fetchClientsDataLaboratoire(
-        selectedIds,
-        selectedActivites,
-        dateDebutObj,
-        dateFinObj
-      );
+      const [
+        rapportLaboratoire,
+        prescripteurs,
+        allUsers,
+        dataProtege,
+        clients,
+      ] = await Promise.all([
+        fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
+        getAllUserIncludedTabIdClinique(selectedIds),
+        getAllUserTabIdClinique(selectedIds),
+        fetchClientsStatusProtege(selectedIds, dateDebutObj, dateFinObj),
+        fetchClientsData(selectedIds, dateDebutObj, dateFinObj),
+      ]);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -297,22 +304,7 @@ export default function Page() {
         setFactureLaboratoire([]);
         setTabExament([]);
       }
-
-      const prescripteurs = await getAllUserIncludedTabIdClinique(selectedIds);
-      const allUsers = await getAllUserTabIdClinique(selectedIds);
-
-      const dataProtege = await fetchClientsStatusProtege(
-        selectedIds,
-        dateDebutObj,
-        dateFinObj
-      );
       setClientDataProtege(dataProtege);
-
-      const clients = await fetchClientsData(
-        selectedIds,
-        dateDebutObj,
-        dateFinObj
-      );
 
       const newAllData = clients.map((client) => ({
         ...client,
