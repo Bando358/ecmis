@@ -992,7 +992,7 @@ export default function DashboardChart({
           <div className="space-y-4">
             <ChartContainer
               config={chartConfig}
-              className="aspect-auto h-45 w-full"
+              className="aspect-auto h-64 w-full"
             >
               {loading ? (
                 <LoadingState />
@@ -1055,9 +1055,9 @@ export default function DashboardChart({
                     <LabelList
                       dataKey="nouveau"
                       position="top"
-                      offset={10}
+                      offset={12}
                       fill="#1e40af"
-                      fontSize={10}
+                      fontSize={11}
                       fontWeight="bold"
                       formatter={(value: number) => (value > 0 ? value : "")}
                     />
@@ -1073,10 +1073,10 @@ export default function DashboardChart({
                   >
                     <LabelList
                       dataKey="ancien"
-                      position="top"
-                      offset={10}
+                      position="bottom"
+                      offset={12}
                       fill="#5b21b6"
-                      fontSize={10}
+                      fontSize={11}
                       fontWeight="bold"
                       formatter={(value: number) => (value > 0 ? value : "")}
                     />
@@ -1320,7 +1320,7 @@ export default function DashboardChart({
           <div className="space-y-4">
             <ChartContainer
               config={chartPFConfig}
-              className="aspect-auto h-45 w-full"
+              className="aspect-auto h-64 w-full"
             >
               {loading ? (
                 <LoadingState message="Chargement des données utilisateurs PF..." />
@@ -1392,9 +1392,9 @@ export default function DashboardChart({
                     <LabelList
                       dataKey="nouveaux"
                       position="top"
-                      offset={10}
+                      offset={12}
                       fill="#1e40af"
-                      fontSize={10}
+                      fontSize={11}
                       fontWeight="bold"
                       formatter={(value: number) => (value > 0 ? value : "")}
                     />
@@ -1420,10 +1420,10 @@ export default function DashboardChart({
                   >
                     <LabelList
                       dataKey="anciens"
-                      position="top"
-                      offset={10}
+                      position="bottom"
+                      offset={12}
                       fill="#5b21b6"
-                      fontSize={10}
+                      fontSize={11}
                       fontWeight="bold"
                       formatter={(value: number) => (value > 0 ? value : "")}
                     />
