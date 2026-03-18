@@ -32,12 +32,22 @@ export async function createClient(data: Client) {
   await requirePermission(TableName.CLIENT, "canCreate");
   validateServerData(ClientCreateSchema, data);
 
+  // Normaliser le code en majuscule pour éviter les doublons liés à la casse
+  if (data.code) data.code = data.code.toUpperCase();
+  if (data.codeVih) data.codeVih = data.codeVih.toUpperCase();
+
   if (data.code) {
-    const codeTaken = await prisma.client.findFirst({ where: { code: data.code }, select: { id: true } });
+    const codeTaken = await prisma.client.findFirst({
+      where: { code: { equals: data.code, mode: "insensitive" } },
+      select: { id: true },
+    });
     if (codeTaken) throw new Error("Ce code client est déjà utilisé par un autre client.");
   }
   if (data.codeVih) {
-    const codeVihTaken = await prisma.client.findFirst({ where: { codeVih: data.codeVih }, select: { id: true } });
+    const codeVihTaken = await prisma.client.findFirst({
+      where: { codeVih: { equals: data.codeVih, mode: "insensitive" } },
+      select: { id: true },
+    });
     if (codeVihTaken) throw new Error("Ce code VIH est déjà utilisé par un autre client.");
   }
 
@@ -64,7 +74,10 @@ export async function createClient(data: Client) {
 export async function checkClientCode(code: string, excludeId?: string): Promise<boolean> {
   if (!code || typeof code !== "string") return false;
   const client = await prisma.client.findFirst({
-    where: { code, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
+    where: {
+      code: { equals: code.toUpperCase(), mode: "insensitive" },
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
     select: { id: true },
   });
   return !!client;
@@ -82,7 +95,10 @@ export async function checkCodeVih(codeVih: string, excludeId?: string): Promise
   }
 
   const client = await prisma.client.findFirst({
-    where: { codeVih, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
+    where: {
+      codeVih: { equals: codeVih.toUpperCase(), mode: "insensitive" },
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
     select: { id: true },
   });
 
@@ -268,12 +284,22 @@ export async function deleteClient(id: string) {
 export async function updateClient(id: string, data: Client) {
   await requirePermission(TableName.CLIENT, "canUpdate");
 
+  // Normaliser le code en majuscule
+  if (data.code) data.code = data.code.toUpperCase();
+  if (data.codeVih) data.codeVih = data.codeVih.toUpperCase();
+
   if (data.code) {
-    const codeTaken = await prisma.client.findFirst({ where: { code: data.code, NOT: { id } }, select: { id: true } });
+    const codeTaken = await prisma.client.findFirst({
+      where: { code: { equals: data.code, mode: "insensitive" }, NOT: { id } },
+      select: { id: true },
+    });
     if (codeTaken) throw new Error("Ce code client est déjà utilisé par un autre client.");
   }
   if (data.codeVih) {
-    const codeVihTaken = await prisma.client.findFirst({ where: { codeVih: data.codeVih, NOT: { id } }, select: { id: true } });
+    const codeVihTaken = await prisma.client.findFirst({
+      where: { codeVih: { equals: data.codeVih, mode: "insensitive" }, NOT: { id } },
+      select: { id: true },
+    });
     if (codeVihTaken) throw new Error("Ce code VIH est déjà utilisé par un autre client.");
   }
 

@@ -361,7 +361,7 @@ export default function FormulaireClient() {
     try {
       const { counter } = await fetchIncrementCounter(clinic, year);
       const increment = String(counter).padStart(5, "0");
-      const codes = `${selectedRegion.codeRegion}/${selectedClinique.codeClinique}${selectedClinique.numClinique}/${year}/${month}/${increment}-${initials}`;
+      const codes = `${selectedRegion.codeRegion}/${selectedClinique.codeClinique}${selectedClinique.numClinique}/${year}/${month}/${increment}-${initials}`.toUpperCase();
 
       setValue("code", codes);
       toast.success(codes);

@@ -24,7 +24,7 @@ if (!process.env.NEXTAUTH_SECRET) {
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 4 * 60 * 60,  // 4 heures (standard système médical)
+    maxAge: 12 * 60 * 60, // 12 heures (journée de travail complète)
     updateAge: 5 * 60,    // Rafraîchir toutes les 5 min sur activité
   },
 
@@ -120,9 +120,17 @@ export const authOptions: NextAuthOptions = {
             select: { id: true, banned: true, role: true, name: true, email: true },
           });
 
-          // Utilisateur supprimé ou banni → invalider le token
-          if (!dbUser || dbUser.banned) {
-            authLogger.warn("Token invalidé (user supprimé ou banni)", {
+          if (!dbUser) {
+            // Utilisateur supprimé → invalider le token
+            authLogger.warn("Token invalidé (user supprimé)", {
+              userId: token.id as string,
+            });
+            return {} as typeof token;
+          }
+
+          if (dbUser.banned) {
+            // Utilisateur banni → invalider le token
+            authLogger.warn("Token invalidé (user banni)", {
               userId: token.id as string,
             });
             return {} as typeof token;
@@ -132,8 +140,20 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.name = dbUser.name;
           token.email = dbUser.email;
-        } catch {
-          // En cas d'erreur DB, conserver le token existant pour éviter une déconnexion
+          // Marquer la dernière vérification réussie
+          token.lastVerified = Date.now();
+        } catch (error) {
+          // Erreur DB (cold start Neon, réseau…) → conserver le token existant
+          // Ne déconnecter que si la dernière vérification réussie date de plus de 30 min
+          const lastVerified = (token.lastVerified as number) || 0;
+          const staleThreshold = 30 * 60 * 1000; // 30 minutes
+          if (lastVerified && Date.now() - lastVerified > staleThreshold) {
+            authLogger.warn("Token invalidé (DB inaccessible depuis 30+ min)", {
+              userId: token.id as string,
+            });
+            return {} as typeof token;
+          }
+          authLogger.warn("Erreur DB lors du refresh JWT, token conservé");
         }
       }
 

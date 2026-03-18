@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef, useCallback } from "react";
 
-const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20 minutes
+const INACTIVITY_LIMIT = 25 * 60 * 1000; // 25 minutes
 
 export function useInactivityGuard() {
   const { status } = useSession();
