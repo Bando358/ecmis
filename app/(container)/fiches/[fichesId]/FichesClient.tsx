@@ -1,7 +1,7 @@
 "use client";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useTransition } from "react";
 import {
   SquareChevronLeft,
   SquareChevronRight,
@@ -475,7 +475,9 @@ export default function FichesClient({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] =
     useState<string>("Visite & Constante");
+  const [isPending, startTransition] = useTransition();
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const router = useRouter();
   const { setSelectedClientId } = useClientContext();
 
   // Mémoriser les catégories
@@ -644,23 +646,22 @@ export default function FichesClient({
             <CardContent className="pb-3 -mt-6">
               <div className="flex flex-wrap gap-2">
                 {selectedCategoryData.fiches.map((fiche, index) => {
-                  const isNavigating = navigatingTo === fiche.href;
+                  const isNavigating = isPending && navigatingTo === fiche.href;
                   return (
-                    <Link
+                    <button
                       key={index}
-                      href={fiche.href}
-                      onClick={(e) => {
-                        if (navigatingTo !== null) {
-                          e.preventDefault();
-                          return;
-                        }
+                      disabled={isPending}
+                      onClick={() => {
                         setNavigatingTo(fiche.href);
+                        startTransition(() => {
+                          router.push(fiche.href);
+                        });
                       }}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium transition-colors",
-                        navigatingTo !== null
-                          ? "opacity-60 pointer-events-none"
-                          : "hover:bg-blue-50 hover:text-blue-800",
+                        isPending
+                          ? "opacity-60 cursor-not-allowed"
+                          : "hover:bg-blue-50 hover:text-blue-800 cursor-pointer",
                       )}
                     >
                       {isNavigating ? (
@@ -669,7 +670,7 @@ export default function FichesClient({
                         <FileText className="h-3.5 w-3.5" />
                       )}
                       {fiche.label}
-                    </Link>
+                    </button>
                   );
                 })}
               </div>
