@@ -13,32 +13,34 @@ interface FichesServerProps {
   }) => React.ReactNode;
 }
 
+async function safe<T>(fn: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn;
+  } catch (error) {
+    console.error("FichesServer query failed:", error);
+    return fallback;
+  }
+}
+
 export default async function FichesServer({
   fichesId,
   children,
 }: FichesServerProps) {
-  try {
-    const [client, visites] = await Promise.all([
-      getOneClient(fichesId),
-      getAllVisiteByIdClient(fichesId),
-    ]);
+  const [client, visites] = await Promise.all([
+    safe(getOneClient(fichesId), null),
+    safe(getAllVisiteByIdClient(fichesId), []),
+  ]);
 
-    const recaps =
-      visites.length > 0
-        ? await getRecapVisitesByTabIdVisite(visites.map((v) => v.id))
-        : [];
+  const safeVisites = (visites ?? []) as Visite[];
 
-    return children({
-      client: client as Client,
-      visites: visites as Visite[],
-      recaps,
-    });
-  } catch (error) {
-    console.error("Erreur lors du chargement des données fiches:", error);
-    return children({
-      client: {} as Client,
-      visites: [],
-      recaps: [],
-    });
-  }
+  const recaps =
+    safeVisites.length > 0
+      ? await safe(getRecapVisitesByTabIdVisite(safeVisites.map((v) => v.id)), [])
+      : [];
+
+  return children({
+    client: (client ?? {}) as Client,
+    visites: safeVisites,
+    recaps,
+  });
 }

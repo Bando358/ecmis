@@ -1,6 +1,8 @@
 import FichesServer from "./FichesServer";
 import FichesClient from "./FichesClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function Fiches({
   params,
 }: {

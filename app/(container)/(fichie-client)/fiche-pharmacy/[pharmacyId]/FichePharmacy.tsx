@@ -426,7 +426,7 @@ export default function FichePharmacyClient({
     prestationMap.get(id) || "Prestation introuvable";
 
   const nomClinique = (id: string) =>
-    id === clinique?.id ? clinique.nomClinique : "Clinique introuvable";
+    id && clinique && id === clinique.id ? clinique.nomClinique : "Clinique introuvable";
 
   const renameValue = (idTarifProduit: string) => {
     const tarif = tarifProduitMap.get(idTarifProduit);
@@ -796,7 +796,9 @@ export default function FichePharmacyClient({
   };
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const ticketRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
+  const reactToPrintTicket = useReactToPrint({ contentRef: ticketRef });
 
   // Nombre total de lignes brouillon
   const draftCount =
@@ -829,6 +831,31 @@ export default function FichePharmacyClient({
     montantPrestations(prestationfacture) +
     montantFactureExamens(examensFacture) +
     montantFactureEchographies(echographiesFacture);
+
+  // Total SANS réductions (facture réelle du client)
+  const totalSansReduction = useMemo(() => {
+    const totalProduits = montantProduits(produitFacture);
+    const totalPrestations = montantPrestations(prestationfacture);
+    // Examen : prix original = prixExamen / (1 - remise/100)
+    const totalExamens = examensFacture.reduce((sum, e) => {
+      const prixOriginal = e.remiseExamen > 0
+        ? Math.round(e.prixExamen / (1 - e.remiseExamen / 100))
+        : e.prixExamen;
+      return sum + prixOriginal;
+    }, 0);
+    // Echographie : prix original = (prixEchographie + partParEcho) / (1 - remise/100)
+    const partParEcho = echographiesFacture.length > 0
+      ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
+      : 0;
+    const totalEchographies = echographiesFacture.reduce((sum, e) => {
+      const avantPart = e.prixEchographie + partParEcho;
+      const prixOriginal = e.remiseEchographie > 0
+        ? Math.round(avantPart / (1 - e.remiseEchographie / 100))
+        : Math.round(avantPart);
+      return sum + prixOriginal;
+    }, 0);
+    return totalProduits + totalPrestations + totalExamens + totalEchographies;
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -1522,6 +1549,15 @@ export default function FichePharmacyClient({
                       <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">
                         {totalSaved.toLocaleString("fr-FR")} CFA
                       </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => reactToPrintFn()}
+                        className="gap-1.5 h-7 text-xs"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        Imprimer
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -1947,6 +1983,210 @@ export default function FichePharmacyClient({
             </div>
           )}
 
+          {/* ===== TICKET DE CAISSE — FACTURE RÉELLE (SANS RÉDUCTIONS) ===== */}
+          {hasSaved && (
+            <div>
+              {/* Zone imprimable du ticket */}
+              <div ref={ticketRef} className="max-w-[320px] mx-auto bg-white">
+                <div className="px-3 py-4 font-mono text-[11px] leading-tight">
+                  {/* En-tête logo */}
+                  <div className="text-center mb-3">
+                    <Image
+                      src="/LOGO_AIBEF_IPPF.png"
+                      alt="Logo"
+                      width={200}
+                      height={10}
+                      style={{ margin: "auto" }}
+                    />
+                  </div>
+
+                  {/* Infos clinique */}
+                  <div className="text-center text-[10px] mb-2">
+                    <p className="font-bold">AIBEF - {nomClinique(client?.cliniqueId as string)}</p>
+                    <p>
+                      {new Date().toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}{" "}
+                      {new Date().toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+
+                  {/* Séparateur */}
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+
+                  {/* Infos client */}
+                  <div className="text-[10px] mb-2 space-y-0.5">
+                    <p>
+                      <span className="text-gray-500">Client :</span>{" "}
+                      <span className="font-bold uppercase">
+                        {client?.nom} {client?.prenom}
+                      </span>
+                    </p>
+                    {client?.code && (
+                      <p>
+                        <span className="text-gray-500">Code :</span> {client.code}
+                      </p>
+                    )}
+                    <p>
+                      <span className="text-gray-500">Caissiere :</span> {session?.user.name}
+                    </p>
+                  </div>
+
+                  {/* Séparateur */}
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+
+                  {/* Titre */}
+                  <p className="text-center font-bold text-xs mb-2">FACTURE CLIENT</p>
+
+                  {/* En-tête colonnes */}
+                  <div className="flex justify-between text-[9px] font-bold border-b border-gray-300 pb-1 mb-1">
+                    <span className="flex-1">Designation</span>
+                    <span className="w-8 text-center">Qte</span>
+                    <span className="w-14 text-right">P.U.</span>
+                    <span className="w-16 text-right">Montant</span>
+                  </div>
+
+                  {/* Label Produits */}
+                  {produitFacture.length > 0 && (
+                    <div className="mb-1">
+                      <span className="text-[8px] text-gray-400 uppercase">Produits</span>
+                    </div>
+                  )}
+
+                  {/* Lignes produits */}
+                  {produitFacture.map((produit, index) => (
+                    <div
+                      key={produit.id || `ticket-produit-${index}`}
+                      className="flex justify-between py-0.5 text-[10px]"
+                    >
+                      <span className="flex-1 truncate">{produit.nomProduit}</span>
+                      <span className="w-8 text-center">{produit.quantite}</span>
+                      <span className="w-14 text-right tabular-nums">
+                        {Math.round(
+                          (produit.montantProduit || 0) / (produit.quantite || 1),
+                        ).toLocaleString("fr-FR")}
+                      </span>
+                      <span className="w-16 text-right font-medium tabular-nums">
+                        {produit.montantProduit?.toLocaleString("fr-FR")}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Séparateur Produits → Prestations */}
+                  {produitFacture.length > 0 && prestationfacture.length > 0 && (
+                    <div className="border-t border-dashed border-gray-300 my-1.5 relative">
+                      <span className="absolute -top-[7px] left-0 bg-white pr-1 text-[8px] text-gray-400 uppercase">Prestations</span>
+                    </div>
+                  )}
+
+                  {/* Lignes prestations */}
+                  {prestationfacture.map((prestation, index) => (
+                    <div
+                      key={prestation.id || `ticket-prestation-${index}`}
+                      className="flex justify-between py-0.5 text-[10px]"
+                    >
+                      <span className="flex-1 truncate">
+                        {nomPrestation(prestation.idPrestation)}
+                      </span>
+                      <span className="w-8 text-center">1</span>
+                      <span className="w-14 text-right tabular-nums">
+                        {Number(prestation.prixPrestation)?.toLocaleString("fr-FR")}
+                      </span>
+                      <span className="w-16 text-right font-medium tabular-nums">
+                        {Number(prestation.prixPrestation)?.toLocaleString("fr-FR")}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Séparateur → Examens */}
+                  {(produitFacture.length > 0 || prestationfacture.length > 0) && examensFacture.length > 0 && (
+                    <div className="border-t border-dashed border-gray-300 my-1.5 relative">
+                      <span className="absolute -top-[7px] left-0 bg-white pr-1 text-[8px] text-gray-400 uppercase">Examens</span>
+                    </div>
+                  )}
+
+                  {/* Lignes examens — prix original */}
+                  {examensFacture.map((examen, index) => {
+                    const prixOriginal = examen.remiseExamen > 0
+                      ? Math.round(examen.prixExamen / (1 - examen.remiseExamen / 100))
+                      : examen.prixExamen;
+                    return (
+                      <div
+                        key={examen.id || `ticket-examen-${index}`}
+                        className="flex justify-between py-0.5 text-[10px]"
+                      >
+                        <span className="flex-1 truncate">{examen.libelleExamen}</span>
+                        <span className="w-8 text-center">1</span>
+                        <span className="w-14 text-right tabular-nums">
+                          {prixOriginal.toLocaleString("fr-FR")}
+                        </span>
+                        <span className="w-16 text-right font-medium tabular-nums">
+                          {prixOriginal.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {/* Séparateur → Échographies */}
+                  {(produitFacture.length > 0 || prestationfacture.length > 0 || examensFacture.length > 0) && echographiesFacture.length > 0 && (
+                    <div className="border-t border-dashed border-gray-300 my-1.5 relative">
+                      <span className="absolute -top-[7px] left-0 bg-white pr-1 text-[8px] text-gray-400 uppercase">Echographies</span>
+                    </div>
+                  )}
+
+                  {/* Lignes échographies — prix original */}
+                  {echographiesFacture.map((echographie, index) => {
+                    const partParEchoReel = echographiesFacture.length > 0
+                      ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
+                      : 0;
+                    const avantPart = echographie.prixEchographie + partParEchoReel;
+                    const prixOriginal = echographie.remiseEchographie > 0
+                      ? Math.round(avantPart / (1 - echographie.remiseEchographie / 100))
+                      : Math.round(avantPart);
+                    return (
+                      <div
+                        key={echographie.id || `ticket-echo-${index}`}
+                        className="flex justify-between py-0.5 text-[10px]"
+                      >
+                        <span className="flex-1 truncate">
+                          Echo. {echographie.libelleEchographie}
+                        </span>
+                        <span className="w-8 text-center">1</span>
+                        <span className="w-14 text-right tabular-nums">
+                          {prixOriginal.toLocaleString("fr-FR")}
+                        </span>
+                        <span className="w-16 text-right font-medium tabular-nums">
+                          {prixOriginal.toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {/* Séparateur total */}
+                  <div className="border-t border-double border-gray-600 mt-2 pt-2">
+                    <div className="flex justify-between font-bold text-xs">
+                      <span>TOTAL</span>
+                      <span className="tabular-nums">
+                        {totalSansReduction.toLocaleString("fr-FR")} CFA
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Pied de ticket */}
+                  <div className="border-t border-dashed border-gray-400 mt-3 pt-2 text-center text-[9px] text-gray-500 space-y-0.5">
+                    <p>Merci pour votre visite !</p>
+                    <p>AIBEF - {nomClinique(client?.cliniqueId as string)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ===== EMPTY STATE ===== */}
           {watchedIdVisite &&
             !hasSaved &&
@@ -1973,11 +2213,11 @@ export default function FichePharmacyClient({
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => reactToPrintFn()}
+                onClick={() => reactToPrintTicket()}
                 className="gap-2"
               >
                 <Printer className="h-4 w-4" />
-                Imprimer la facture
+                Imprimer ticket de caisse
               </Button>
               <Button
                 variant="secondary"

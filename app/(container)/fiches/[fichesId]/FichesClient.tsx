@@ -1,7 +1,7 @@
 "use client";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useState, useEffect, useMemo, useCallback, useTransition } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   SquareChevronLeft,
   SquareChevronRight,
@@ -475,9 +475,6 @@ export default function FichesClient({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] =
     useState<string>("Visite & Constante");
-  const [isPending, startTransition] = useTransition();
-  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
-  const router = useRouter();
   const { setSelectedClientId } = useClientContext();
 
   // Mémoriser les catégories
@@ -545,7 +542,7 @@ export default function FichesClient({
                 className="gap-1 bg-blue-50 text-blue-800 border-blue-200"
               >
                 <Calendar className="h-3 w-3" />
-                {calculateAge(new Date(client.dateNaissance))} ans
+                {client.dateNaissance ? calculateAge(new Date(client.dateNaissance)) : "–"} ans
               </Badge>
               <Badge
                 variant="secondary"
@@ -645,34 +642,17 @@ export default function FichesClient({
             </CardHeader>
             <CardContent className="pb-3 -mt-6">
               <div className="flex flex-wrap gap-2">
-                {selectedCategoryData.fiches.map((fiche, index) => {
-                  const isNavigating = isPending && navigatingTo === fiche.href;
-                  return (
-                    <button
-                      key={index}
-                      disabled={isPending}
-                      onClick={() => {
-                        setNavigatingTo(fiche.href);
-                        startTransition(() => {
-                          router.push(fiche.href);
-                        });
-                      }}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium transition-colors",
-                        isPending
-                          ? "opacity-60 cursor-not-allowed"
-                          : "hover:bg-blue-50 hover:text-blue-800 cursor-pointer",
-                      )}
-                    >
-                      {isNavigating ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
-                      {fiche.label}
-                    </button>
-                  );
-                })}
+                {selectedCategoryData.fiches.map((fiche, index) => (
+                  <Link
+                    key={index}
+                    href={fiche.href}
+                    prefetch={true}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {fiche.label}
+                  </Link>
+                ))}
               </div>
             </CardContent>
           </Card>
