@@ -229,24 +229,24 @@ export default function QuickClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-emerald-700">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 shrink-0">
               <Zap className="h-4 w-4 text-emerald-600" />
             </div>
-            Enregistrement rapide
+            <span className="text-base sm:text-lg">Enregistrement rapide</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs sm:text-sm">
             Champs essentiels uniquement. Les informations complementaires
             pourront etre ajoutees via la modification du dossier.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* 1. Clinique — label si unique, select sinon */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>
                 Clinique <span className="text-red-500">*</span>
               </label>
@@ -287,7 +287,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 2. Date d'enregistrement */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>
                 Date d&apos;enregistrement <span className="text-red-500">*</span>
               </label>
@@ -306,7 +306,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 3. Nom */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>
                 Nom <span className="text-red-500">*</span>
               </label>
@@ -324,7 +324,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 4. Prenom */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>
                 Prenom <span className="text-red-500">*</span>
               </label>
@@ -342,7 +342,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 5. Date de naissance */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>
                 Date de naissance <span className="text-red-500">*</span>
               </label>
@@ -359,7 +359,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 6. Sexe */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>
                 Sexe <span className="text-red-500">*</span>
               </label>
@@ -383,7 +383,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 7. Telephone */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>Telephone</label>
               <Input
                 {...register("tel_1")}
@@ -393,7 +393,7 @@ export default function QuickClientDialog({
             </div>
 
             {/* 8. Quartier */}
-            <div>
+            <div className="sm:col-span-1">
               <label className={labelClass}>Quartier</label>
               <Input
                 {...register("quartier")}
@@ -402,8 +402,8 @@ export default function QuickClientDialog({
               />
             </div>
 
-            {/* 9. Code (auto-genere) */}
-            <div className="col-span-2">
+            {/* 9. Code (saisie libre ou auto-genere) */}
+            <div className="col-span-1 sm:col-span-2">
               <label className={labelClass}>
                 Code client <span className="text-red-500">*</span>
               </label>
@@ -418,7 +418,7 @@ export default function QuickClientDialog({
                       return !taken || "Ce code est deja utilise.";
                     },
                   })}
-                  placeholder="Saisir un code ou cliquer sur + pour generer"
+                  placeholder="Saisir un code ou cliquer sur +"
                   className={`${inputCls} uppercase pr-10`}
                 />
                 <button
@@ -446,18 +446,19 @@ export default function QuickClientDialog({
             Modifiables ensuite via la fiche client.
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto"
             >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {isSubmitting && (
                 <SpinnerCustom className="mr-2 text-white/60" />
