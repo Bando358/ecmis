@@ -15,6 +15,7 @@ import {
   FunnelX,
   UserPlus,
   Users,
+  Zap,
 } from "lucide-react";
 
 import { Client, Clinique, TableName } from "@prisma/client";
@@ -99,6 +100,7 @@ import {
 } from "@/components/ui/select";
 import { getOneUser } from "@/lib/actions/authActions";
 import { toast } from "sonner";
+import QuickClientDialog from "@/components/QuickClientDialog";
 
 // ================= Utils =================
 
@@ -182,6 +184,7 @@ export default function Clients() {
     prenom: string;
   } | null>(null);
   const [showSecondConfirm, setShowSecondConfirm] = useState(false);
+  const [quickDialogOpen, setQuickDialogOpen] = useState(false);
 
   const router = useRouter();
   const { setSelectedClientId } = useClientContext();
@@ -393,6 +396,22 @@ export default function Clients() {
                     </Command>
                   </PopoverContent>
                 </Popover>
+
+                <Button
+                  onClick={() => {
+                    if (!canCreate(TableName.CLIENT)) {
+                      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+                      return;
+                    }
+                    setQuickDialogOpen(true);
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                >
+                  <Zap className="h-4 w-4" />
+                  <span className="hidden sm:inline">Rapide</span>
+                </Button>
 
                 <Button
                   onClick={handleNewClient}
@@ -713,6 +732,15 @@ export default function Clients() {
           </Card>
         </motion.div>
       </AnimatePresence>
+
+      {/* Dialog enregistrement rapide */}
+      <QuickClientDialog
+        open={quickDialogOpen}
+        onOpenChange={setQuickDialogOpen}
+        onClientCreated={(newClient) => {
+          setClients((prev) => [newClient, ...prev]);
+        }}
+      />
 
       {/* Deuxième confirmation de suppression */}
       <AlertDialog open={showSecondConfirm} onOpenChange={setShowSecondConfirm}>

@@ -325,7 +325,6 @@ export default function FormulaireClient() {
     },
   });
 
-  const prenom = watch("nom");
   const clinic = watch("cliniqueId");
   const idRegion = clinique.find((c) => c.id === clinic)?.idRegion || null;
   const selectedRegion = region.find((r) => r.id === idRegion);
@@ -351,12 +350,12 @@ export default function FormulaireClient() {
     const date = new Date();
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const cleanPrenom = prenom
+    const nomPrenom = (watch("nom") + watch("prenom"))
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-zA-Z]/g, "");
 
-    const initials = cleanPrenom.slice(0, 3).toUpperCase();
+    const initials = nomPrenom.slice(0, 3).toUpperCase();
 
     try {
       const { counter } = await fetchIncrementCounter(clinic, year);

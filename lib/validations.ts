@@ -46,7 +46,7 @@ export const ClientCreateSchema = z.object({
   sexe: z.enum(["Masculin", "Féminin"], {
     message: "Sexe invalide (Masculin ou Féminin requis)",
   }),
-  tel_1: PhoneSchema,
+  tel_1: z.union([PhoneSchema, z.literal("")]),
   tel_2: z.string().optional().default(""),
   code: z.string().min(1, "Code requis"),
   sourceInfo: z.string().min(1, "Source d'information requise"),
