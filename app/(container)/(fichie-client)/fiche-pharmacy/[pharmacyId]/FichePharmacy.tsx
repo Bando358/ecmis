@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use, useMemo } from "react";
+import { useState, useEffect, useRef, use, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import {
@@ -301,6 +301,34 @@ export default function FichePharmacyClient({
   const examenMap = useMemo(
     () => new Map(tabExamen.map((e) => [e.id, e])),
     [tabExamen],
+  );
+
+  // Lookup : idDemandeExamen → TarifExamen.prixExamen (prix catalogue)
+  const demandeExamenMap = useMemo(
+    () => new Map(tabDemandeExamens.map((d) => [d.id, d.idTarifExamen])),
+    [tabDemandeExamens],
+  );
+  const getPrixCatalogueExamen = useCallback(
+    (idDemandeExamen: string): number | null => {
+      const idTarif = demandeExamenMap.get(idDemandeExamen);
+      if (!idTarif) return null;
+      return tarifExamenMap.get(idTarif)?.prixExamen ?? null;
+    },
+    [demandeExamenMap, tarifExamenMap],
+  );
+
+  // Lookup : idDemandeEchographie → TarifEchographie.prixEchographie (prix catalogue)
+  const demandeEchographieMap = useMemo(
+    () => new Map(tabDemandeEchographies.map((d) => [d.id, d.idTarifEchographie])),
+    [tabDemandeEchographies],
+  );
+  const getPrixCatalogueEchographie = useCallback(
+    (idDemandeEchographie: string): number | null => {
+      const idTarif = demandeEchographieMap.get(idDemandeEchographie);
+      if (!idTarif) return null;
+      return tarifEchographieMap.get(idTarif)?.prixEchographie ?? null;
+    },
+    [demandeEchographieMap, tarifEchographieMap],
   );
 
   // Fonctions de lookup utilisant les Maps
@@ -708,7 +736,7 @@ export default function FichePharmacyClient({
         soustraitanceExamen: Boolean(watchedSoustractionExamen),
         idUser: idUser,
         libelleExamen: renameExamen(demande.id),
-        prixExamen: Number(watchedRemiseExamen)
+        prixExamen: (!Boolean(watchedSoustractionExamen) && Number(watchedRemiseExamen))
           ? Math.round(
               demande.prixExamen * (1 - Number(watchedRemiseExamen) / 100),
             )
@@ -822,11 +850,16 @@ export default function FichePharmacyClient({
 
   // Calcul du total brouillon
   const remiseExamenPct = Number(watchedRemiseExamen) || 0;
+  const isSousTraite = Boolean(watchedSoustractionExamen);
   const partEcho = Number(watchedPartEchographe) || 0;
+  // Si sous-traité, la commission labo n'est PAS appliquée sur les examens
+  const examenTotal = isSousTraite
+    ? montantExamen(demandeExamens)
+    : montantExamen(demandeExamens) * (1 - remiseExamenPct / 100);
   const totalBrouillon = Math.round(
     montantProduits(factureProduit) +
       montantPrestations(facturePrestation) +
-      montantExamen(demandeExamens) * (1 - remiseExamenPct / 100) +
+      examenTotal +
       montantEchographie(demandeEchographies, watchedRemiseEchographie || 0) -
       (demandeEchographies.length > 0 ? partEcho : 0),
   );
@@ -842,26 +875,16 @@ export default function FichePharmacyClient({
   const totalSansReduction = useMemo(() => {
     const totalProduits = montantProduits(produitFacture);
     const totalPrestations = montantPrestations(prestationfacture);
-    // Examen : prix original = prixExamen / (1 - remise/100)
+    // Examen : prix catalogue (TarifExamen.prixExamen)
     const totalExamens = examensFacture.reduce((sum, e) => {
-      const prixOriginal = e.remiseExamen > 0
-        ? Math.round(e.prixExamen / (1 - e.remiseExamen / 100))
-        : e.prixExamen;
-      return sum + prixOriginal;
+      return sum + (getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen);
     }, 0);
-    // Echographie : prix original = (prixEchographie + partParEcho) / (1 - remise/100)
-    const partParEcho = echographiesFacture.length > 0
-      ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
-      : 0;
+    // Echographie : prix catalogue (TarifEchographie.prixEchographie)
     const totalEchographies = echographiesFacture.reduce((sum, e) => {
-      const avantPart = e.prixEchographie + partParEcho;
-      const prixOriginal = e.remiseEchographie > 0
-        ? Math.round(avantPart / (1 - e.remiseEchographie / 100))
-        : Math.round(avantPart);
-      return sum + prixOriginal;
+      return sum + (getPrixCatalogueEchographie(e.idDemandeEchographie) ?? e.prixEchographie);
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
-  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture]);
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen, getPrixCatalogueEchographie]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -1424,7 +1447,7 @@ export default function FichePharmacyClient({
                           1
                         </TableCell>
                         <TableCell className="text-right font-medium tabular-nums">
-                          {(Number(watchedRemiseExamen)
+                          {(!Boolean(watchedSoustractionExamen) && Number(watchedRemiseExamen)
                             ? Math.round(
                                 examen.prixExamen *
                                   (1 -
@@ -1773,12 +1796,7 @@ export default function FichePharmacyClient({
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {examen.remiseExamen > 0
-                              ? (
-                                  examen.prixExamen /
-                                  (1 - examen.remiseExamen / 100)
-                                ).toFixed(0)
-                              : examen.prixExamen}
+                            {(getPrixCatalogueExamen(examen.idDemandeExamen) ?? examen.prixExamen).toLocaleString("fr-FR")}
                           </TableCell>
                           <TableCell className="text-center tabular-nums">
                             1
@@ -1852,15 +1870,7 @@ export default function FichePharmacyClient({
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {(() => {
-                                const partParEcho = echographiesFacture.length > 0
-                                  ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
-                                  : 0;
-                                const prixAvantPartEcho = echographie.prixEchographie + partParEcho;
-                                return echographie.remiseEchographie > 0
-                                  ? Math.round(prixAvantPartEcho / (1 - echographie.remiseEchographie / 100)).toLocaleString("fr-FR")
-                                  : Math.round(prixAvantPartEcho).toLocaleString("fr-FR");
-                              })()}
+                              {(getPrixCatalogueEchographie(echographie.idDemandeEchographie) ?? echographie.prixEchographie).toLocaleString("fr-FR")}
                             </TableCell>
                             <TableCell className="text-center tabular-nums">
                               1
@@ -2114,11 +2124,9 @@ export default function FichePharmacyClient({
                     </div>
                   )}
 
-                  {/* Lignes examens — prix original */}
+                  {/* Lignes examens — prix catalogue */}
                   {examensFacture.map((examen, index) => {
-                    const prixOriginal = examen.remiseExamen > 0
-                      ? Math.round(examen.prixExamen / (1 - examen.remiseExamen / 100))
-                      : examen.prixExamen;
+                    const prixCatalogue = getPrixCatalogueExamen(examen.idDemandeExamen) ?? examen.prixExamen;
                     return (
                       <div
                         key={examen.id || `ticket-examen-${index}`}
@@ -2127,10 +2135,10 @@ export default function FichePharmacyClient({
                         <span className="flex-1 truncate">{examen.libelleExamen}</span>
                         <span className="w-8 text-center">1</span>
                         <span className="w-14 text-right tabular-nums">
-                          {prixOriginal.toLocaleString("fr-FR")}
+                          {prixCatalogue.toLocaleString("fr-FR")}
                         </span>
                         <span className="w-16 text-right font-medium tabular-nums">
-                          {prixOriginal.toLocaleString("fr-FR")}
+                          {prixCatalogue.toLocaleString("fr-FR")}
                         </span>
                       </div>
                     );
@@ -2143,15 +2151,9 @@ export default function FichePharmacyClient({
                     </div>
                   )}
 
-                  {/* Lignes échographies — prix original */}
+                  {/* Lignes échographies — prix catalogue */}
                   {echographiesFacture.map((echographie, index) => {
-                    const partParEchoReel = echographiesFacture.length > 0
-                      ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
-                      : 0;
-                    const avantPart = echographie.prixEchographie + partParEchoReel;
-                    const prixOriginal = echographie.remiseEchographie > 0
-                      ? Math.round(avantPart / (1 - echographie.remiseEchographie / 100))
-                      : Math.round(avantPart);
+                    const prixCatalogue = getPrixCatalogueEchographie(echographie.idDemandeEchographie) ?? echographie.prixEchographie;
                     return (
                       <div
                         key={echographie.id || `ticket-echo-${index}`}
@@ -2162,10 +2164,10 @@ export default function FichePharmacyClient({
                         </span>
                         <span className="w-8 text-center">1</span>
                         <span className="w-14 text-right tabular-nums">
-                          {prixOriginal.toLocaleString("fr-FR")}
+                          {prixCatalogue.toLocaleString("fr-FR")}
                         </span>
                         <span className="w-16 text-right font-medium tabular-nums">
-                          {prixOriginal.toLocaleString("fr-FR")}
+                          {prixCatalogue.toLocaleString("fr-FR")}
                         </span>
                       </div>
                     );
@@ -2314,6 +2316,10 @@ export default function FichePharmacyClient({
             idVisite={watchedIdVisite}
             examensFacture={examensFacture}
             echographiesFacture={echographiesFacture}
+            tarifExamens={tabTarifExamens}
+            demandesExamens={tabDemandeExamens}
+            tarifEchographies={tabTarifEchographies}
+            demandesEchographies={tabDemandeEchographies}
           />
         </div>
       </div>

@@ -41,7 +41,7 @@ import {
   FormMessage,
 } from "./ui/form";
 import { Input } from "./ui/input";
-import { FactureExamen, FactureEchographie } from "@prisma/client";
+import { FactureExamen, FactureEchographie, TarifExamen, DemandeExamen, TarifEchographie, DemandeEchographie } from "@prisma/client";
 import { toast } from "sonner";
 import { Spinner } from "./ui/spinner";
 import { Trash2, Check, ChevronsUpDown, Pencil, Search, X, Merge, ArrowRight } from "lucide-react";
@@ -98,6 +98,10 @@ interface CommissionsDialogProps {
   idVisite: string;
   examensFacture: FactureExamen[];
   echographiesFacture: FactureEchographie[];
+  tarifExamens?: TarifExamen[];
+  demandesExamens?: DemandeExamen[];
+  tarifEchographies?: TarifEchographie[];
+  demandesEchographies?: DemandeEchographie[];
   onRefresh?: () => void;
 }
 
@@ -108,6 +112,10 @@ export default function CommissionsDialog({
   idVisite,
   examensFacture,
   echographiesFacture,
+  tarifExamens = [],
+  demandesExamens = [],
+  tarifEchographies = [],
+  demandesEchographies = [],
   onRefresh,
 }: CommissionsDialogProps) {
   const [prescripteurs, setPrescripteurs] = useState<Prescripteur[]>([]);
@@ -124,6 +132,40 @@ export default function CommissionsDialog({
   const [selectedKeepIds, setSelectedKeepIds] = useState<Record<string, string>>({});
   const [isMerging, setIsMerging] = useState(false);
   const [isLoadingDoublons, setIsLoadingDoublons] = useState(false);
+
+  // Lookup : FactureExamen.id -> TarifExamen.prixExamen (prix catalogue d'origine)
+  const prixCatalogueExamenMap = useMemo(() => {
+    const tarifMap = new Map(tarifExamens.map((t) => [t.id, t.prixExamen]));
+    const demandeMap = new Map(demandesExamens.map((d) => [d.id, d.idTarifExamen]));
+    const result = new Map<string, number>();
+    for (const facture of examensFacture) {
+      const idTarif = demandeMap.get(facture.idDemandeExamen);
+      if (idTarif) {
+        const prixCatalogue = tarifMap.get(idTarif);
+        if (prixCatalogue != null) {
+          result.set(facture.id, prixCatalogue);
+        }
+      }
+    }
+    return result;
+  }, [examensFacture, tarifExamens, demandesExamens]);
+
+  // Lookup : FactureEchographie.id -> TarifEchographie.prixEchographie (prix catalogue)
+  const prixCatalogueEchographieMap = useMemo(() => {
+    const tarifMap = new Map(tarifEchographies.map((t) => [t.id, t.prixEchographie]));
+    const demandeMap = new Map(demandesEchographies.map((d) => [d.id, d.idTarifEchographie]));
+    const result = new Map<string, number>();
+    for (const facture of echographiesFacture) {
+      const idTarif = demandeMap.get(facture.idDemandeEchographie);
+      if (idTarif) {
+        const prixCatalogue = tarifMap.get(idTarif);
+        if (prixCatalogue != null) {
+          result.set(facture.id, prixCatalogue);
+        }
+      }
+    }
+    return result;
+  }, [echographiesFacture, tarifEchographies, demandesEchographies]);
 
   // Type pour stocker les détails d'une commission existante
   type CommissionExistante = {
@@ -147,52 +189,30 @@ export default function CommissionsDialog({
   const [echographiesCommissionsExistantes, setEchographiesCommissionsExistantes] =
     useState<Record<string, CommissionExistante>>({});
 
-  // Calculer le montant de commission par défaut à partir de la remise
-  const calculateDefaultCommission = (
-    prixApresRemise: number,
-    remisePourcentage: number
-  ): number => {
-    if (remisePourcentage <= 0 || remisePourcentage >= 100) return 0;
-    // Prix original = prixApresRemise / (1 - remise/100)
-    // Commission = Prix original - prixApresRemise
-    const prixOriginal = prixApresRemise / (1 - remisePourcentage / 100);
-    return Math.round(prixOriginal - prixApresRemise);
-  };
-
   // Initialiser les commissions par défaut quand le dialog s'ouvre
   useEffect(() => {
     if (open) {
-      // Initialiser les commissions d'examens avec les remises appliquées
+      // Commission examen = remise% × prix catalogue (TarifExamen.prixExamen)
       const defaultExamensCommissions: Record<string, number> = {};
       examensFacture.forEach((examen) => {
         if (examen.remiseExamen > 0) {
-          defaultExamensCommissions[examen.id] = calculateDefaultCommission(
-            examen.prixExamen,
-            examen.remiseExamen
-          );
+          const prixCatalogue = prixCatalogueExamenMap.get(examen.id) ?? examen.prixExamen;
+          defaultExamensCommissions[examen.id] = Math.round(prixCatalogue * examen.remiseExamen / 100);
         }
       });
       setExamensCommissions(defaultExamensCommissions);
 
-      // Initialiser les commissions d'échographies avec les remises appliquées
+      // Commission échographie = remise% × prix catalogue (TarifEchographie.prixEchographie)
       const defaultEchographiesCommissions: Record<string, number> = {};
       echographiesFacture.forEach((echo) => {
         if (echo.remiseEchographie > 0) {
-          // Récupérer le PU original (prix tarif) à partir du prix net
-          const partParEcho = echographiesFacture.length > 0
-            ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
-            : 0;
-          const prixAvantPartEcho = echo.prixEchographie + partParEcho;
-          const prixOriginal = echo.remiseEchographie > 0 && echo.remiseEchographie < 100
-            ? Math.round(prixAvantPartEcho / (1 - echo.remiseEchographie / 100))
-            : Math.round(prixAvantPartEcho);
-          // Commission = remise% × PU original
-          defaultEchographiesCommissions[echo.id] = Math.round(prixOriginal * echo.remiseEchographie / 100);
+          const prixCatalogue = prixCatalogueEchographieMap.get(echo.id) ?? echo.prixEchographie;
+          defaultEchographiesCommissions[echo.id] = Math.round(prixCatalogue * echo.remiseEchographie / 100);
         }
       });
       setEchographiesCommissions(defaultEchographiesCommissions);
     }
-  }, [open, examensFacture, echographiesFacture]);
+  }, [open, examensFacture, echographiesFacture, prixCatalogueExamenMap, prixCatalogueEchographieMap]);
 
   const prescripteurForm = useForm<PrescripteurFormValues>({
     defaultValues: {
@@ -724,7 +744,7 @@ export default function CommissionsDialog({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Examen</TableHead>
-                      <TableHead>Prix</TableHead>
+                      <TableHead>Prix réel</TableHead>
                       <TableHead>Commission</TableHead>
                       <TableHead className="hidden sm:table-cell">Statut</TableHead>
                     </TableRow>
@@ -733,17 +753,15 @@ export default function CommissionsDialog({
                     {examensFacture.map((examen) => {
                       const commissionExistante = examensCommissionsExistantes[examen.id];
                       const hasExistingCommission = !!commissionExistante;
-                      // Récupérer le PU original (prix tarif) avant remise
-                      const prixUnitaire = examen.remiseExamen > 0 && examen.remiseExamen < 100
-                        ? Math.round(examen.prixExamen / (1 - examen.remiseExamen / 100))
-                        : examen.prixExamen;
+                      // Prix catalogue d'origine (TarifExamen), indépendant du montant facturé/remise/sous-traitance
+                      const prixCatalogue = prixCatalogueExamenMap.get(examen.id) ?? examen.prixExamen;
                       return (
                         <TableRow
                           key={examen.id}
                           className={hasExistingCommission ? "bg-green-50" : ""}
                         >
                           <TableCell>{examen.libelleExamen}</TableCell>
-                          <TableCell>{prixUnitaire.toLocaleString("fr-FR")} CFA</TableCell>
+                          <TableCell className="whitespace-nowrap">{prixCatalogue.toLocaleString("fr-FR")} CFA</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Input
@@ -757,13 +775,12 @@ export default function CommissionsDialog({
                                 onChange={(e) =>
                                   setExamensCommissions((prev) => ({
                                     ...prev,
-                                    [examen.id]:
-                                      parseInt(e.target.value) || 0,
+                                    [examen.id]: parseInt(e.target.value) || 0,
                                   }))
                                 }
                                 disabled={!selectedPrescripteur && !hasExistingCommission}
                               />
-                              <span className={hasExistingCommission ? "text-green-600" : ""}>CFA</span>
+                              <span className={cn("text-xs whitespace-nowrap", hasExistingCommission ? "text-green-600" : "text-muted-foreground")}>CFA</span>
                             </div>
                           </TableCell>
                           <TableCell className="hidden sm:table-cell">
@@ -783,8 +800,8 @@ export default function CommissionsDialog({
                       >
                         Total :
                       </TableCell>
-                      <TableCell className="font-semibold">
-                        {totalExamensCommissions} CFA
+                      <TableCell className="font-semibold whitespace-nowrap">
+                        {totalExamensCommissions.toLocaleString("fr-FR")} CFA
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <Button
@@ -893,21 +910,15 @@ export default function CommissionsDialog({
                     {echographiesFacture.map((echo) => {
                       const commissionExistante = echographiesCommissionsExistantes[echo.id];
                       const hasExistingCommission = !!commissionExistante;
-                      // Récupérer le PU original (prix tarif)
-                      const partParEcho = echographiesFacture.length > 0
-                        ? (echographiesFacture[0].partEchographe ?? 0) / echographiesFacture.length
-                        : 0;
-                      const prixAvantPartEcho = echo.prixEchographie + partParEcho;
-                      const prixUnitaire = echo.remiseEchographie > 0 && echo.remiseEchographie < 100
-                        ? Math.round(prixAvantPartEcho / (1 - echo.remiseEchographie / 100))
-                        : Math.round(prixAvantPartEcho);
+                      // Prix catalogue d'origine (TarifEchographie.prixEchographie)
+                      const prixCatalogue = prixCatalogueEchographieMap.get(echo.id) ?? echo.prixEchographie;
                       return (
                         <TableRow
                           key={echo.id}
                           className={hasExistingCommission ? "bg-green-50" : ""}
                         >
                           <TableCell>{echo.libelleEchographie}</TableCell>
-                          <TableCell>{prixUnitaire.toLocaleString("fr-FR")} CFA</TableCell>
+                          <TableCell className="whitespace-nowrap">{prixCatalogue.toLocaleString("fr-FR")} CFA</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Input
