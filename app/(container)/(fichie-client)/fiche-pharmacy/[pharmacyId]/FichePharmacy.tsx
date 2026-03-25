@@ -259,6 +259,12 @@ export default function FichePharmacyClient({
 
   const [selectedIdVisite, setSelectedIdVisite] = useState<string>("");
 
+  // Date de visite sélectionnée (pour affichage sur la facture)
+  const dateVisiteSelectionnee = useMemo(() => {
+    const visite = visites.find((v) => v.id === selectedIdVisite);
+    return visite ? new Date(visite.dateVisite) : new Date();
+  }, [visites, selectedIdVisite]);
+
   const { canCreate, canDelete } = usePermissionContext();
   // IDs des factures supprimées localement (pour exclure du filtrage serverData)
   const deletedFactureIds = useRef<Set<string>>(new Set());
@@ -876,31 +882,31 @@ export default function FichePharmacyClient({
         <div className="px-4 sm:px-6 pb-8 space-y-5">
           {/* ===== HEADER : Client info + Gradient Banner ===== */}
           <Card className="overflow-hidden border-blue-200 shadow-md shadow-blue-100/40">
-            <div className="bg-linear-to-r from-blue-900 to-blue-700 px-5 py-4 text-white">
-              <div className="flex items-center justify-between">
+            <div className="bg-linear-to-r from-blue-900 to-blue-700 px-3 sm:px-5 py-3 sm:py-4 text-white">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                    <Receipt className="h-5 w-5" />
+                  <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                    <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <h1 className="text-lg font-bold tracking-tight">
+                  <div className="min-w-0">
+                    <h1 className="text-base sm:text-lg font-bold tracking-tight">
                       Facturation
                     </h1>
-                    <p className="text-sm text-blue-100">
+                    <p className="text-xs sm:text-sm text-blue-100 truncate">
                       {client?.nom?.toUpperCase()} {client?.prenom} &mdash;{" "}
                       {nomClinique(client?.cliniqueId as string)}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30">
+                <div className="flex items-center gap-2 ml-12 sm:ml-0">
+                  <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30 text-xs">
                     <CalendarDays className="h-3 w-3 mr-1" />
                     {visites.length} visite(s)
                   </Badge>
                   {client?.code && (
                     <Badge
                       variant="outline"
-                      className="border-white/30 text-white text-xs font-mono"
+                      className="border-white/30 text-white text-[10px] sm:text-xs font-mono hidden sm:inline-flex"
                     >
                       {client.code}
                     </Badge>
@@ -910,9 +916,9 @@ export default function FichePharmacyClient({
             </div>
 
             {/* Form fields intégrés dans le header */}
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-4 pb-3 px-3 sm:px-6">
               <Form {...form}>
-                <form className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <form className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                   <FormField
                     control={form.control}
                     name="idVisite"
@@ -979,7 +985,7 @@ export default function FichePharmacyClient({
                   />
 
                   {demandeExamens.length > 0 && (
-                    <div className="bg-yellow-50/80 flex gap-2 rounded-md p-2 border border-yellow-200 col-span-3">
+                    <div className="bg-yellow-50/80 flex flex-col sm:flex-row gap-2 rounded-md p-2 border border-yellow-200 col-span-1 sm:col-span-2 lg:col-span-3">
                       <FormField
                         control={form.control}
                         name="typeExamen"
@@ -1063,7 +1069,7 @@ export default function FichePharmacyClient({
                   )}
 
                   {demandeEchographies.length > 0 && (
-                    <div className="bg-green-50/80 flex gap-2 rounded-md p-2 border border-green-200 col-span-2">
+                    <div className="bg-green-50/80 flex flex-col sm:flex-row gap-2 rounded-md p-2 border border-green-200 col-span-1 sm:col-span-2">
                       <FormField
                         control={form.control}
                         name="remiseEchographie"
@@ -1114,8 +1120,8 @@ export default function FichePharmacyClient({
             <Separator />
 
             {/* Toolbar actions */}
-            <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground mr-1">
+            <div className="px-3 sm:px-5 py-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="text-xs font-medium text-muted-foreground mr-1 w-full sm:w-auto">
                 Ajouter :
               </span>
               <Button
@@ -1175,7 +1181,7 @@ export default function FichePharmacyClient({
 
           {/* ===== SUMMARY STATS ===== */}
           {hasDraft && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {factureProduit.length > 0 && (
                 <div className="flex items-center gap-3 rounded-lg border border-blue-200/60 bg-blue-50/30 p-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-100">
@@ -1273,13 +1279,14 @@ export default function FichePharmacyClient({
                 </div>
               </CardHeader>
               <CardContent className="px-0 pb-0">
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[500px]">
                   <TableHeader className="bg-blue-50/60">
                     <TableRow>
                       <TableHead className="text-blue-900">
                         Designation
                       </TableHead>
-                      <TableHead className="text-blue-900">Type</TableHead>
+                      <TableHead className="text-blue-900 hidden sm:table-cell">Type</TableHead>
                       <TableHead className="text-right text-blue-900">
                         P.U.
                       </TableHead>
@@ -1497,12 +1504,13 @@ export default function FichePharmacyClient({
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
-              <CardFooter className="border-t border-blue-200/60 bg-blue-50/30 py-3 flex items-center justify-between">
+              <CardFooter className="border-t border-blue-200/60 bg-blue-50/30 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <CircleDollarSign className="h-4 w-4 text-blue-700" />
                   <span className="text-sm font-semibold">Total : </span>
-                  <span className="text-lg font-bold text-blue-800 tabular-nums">
+                  <span className="text-base sm:text-lg font-bold text-blue-800 tabular-nums">
                     {totalBrouillon.toLocaleString("fr-FR")} CFA
                   </span>
                 </div>
@@ -1534,15 +1542,15 @@ export default function FichePharmacyClient({
           {hasSaved && (
             <div className="w-full" ref={contentRef}>
               <Card className="overflow-hidden border-blue-200/60 shadow-sm shadow-blue-100/30">
-                <CardHeader className="pb-2 print:hidden">
-                  <div className="flex items-center justify-between">
+                <CardHeader className="pb-2 print:hidden px-3 sm:px-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <ClipboardCheck className="h-4 w-4 text-emerald-600" />
-                      <CardTitle className="text-base">
+                      <CardTitle className="text-sm sm:text-base">
                         Factures enregistrees
                       </CardTitle>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         {savedCount} facture(s)
                       </Badge>
@@ -1556,13 +1564,14 @@ export default function FichePharmacyClient({
                         className="gap-1.5 h-7 text-xs"
                       >
                         <Printer className="h-3.5 w-3.5" />
-                        Imprimer
+                        <span className="hidden sm:inline">Imprimer</span>
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="px-0 pb-0">
-                  <Table>
+                  <div className="overflow-x-auto">
+                  <Table className="min-w-[500px]">
                     <TableHeader>
                       <TableRow className="border-b-0">
                         <TableCell colSpan={6} className="text-center py-4">
@@ -1579,7 +1588,7 @@ export default function FichePharmacyClient({
                         <TableHead className="text-blue-900">
                           Designation
                         </TableHead>
-                        <TableHead className="text-blue-900">Type</TableHead>
+                        <TableHead className="text-blue-900 hidden sm:table-cell">Type</TableHead>
                         <TableHead className="text-right text-blue-900">
                           P.U.
                         </TableHead>
@@ -1919,12 +1928,13 @@ export default function FichePharmacyClient({
                       </TableRow>
                     </TableFooter>
                   </Table>
+                  </div>
                 </CardContent>
 
                 {/* Receipt footer */}
-                <CardFooter className="flex flex-col gap-3 border-t pt-4 pb-5">
+                <CardFooter className="flex flex-col gap-3 border-t pt-4 pb-5 px-3 sm:px-6">
                   <Separator className="print:hidden" />
-                  <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="text-muted-foreground">Clinique :</span>
@@ -1941,14 +1951,12 @@ export default function FichePharmacyClient({
                       <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="text-muted-foreground">Date :</span>
                       <span className="font-medium">
-                        {new Date().toLocaleDateString("fr-FR", {
+                        {dateVisiteSelectionnee.toLocaleDateString("fr-FR", {
                           weekday: "long",
                           year: "numeric",
                           month: "long",
                           day: "numeric",
                         })}
-                        &nbsp;a&nbsp;
-                        {new Date().toLocaleTimeString("fr-FR")}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -2004,14 +2012,10 @@ export default function FichePharmacyClient({
                   <div className="text-center text-[10px] mb-2">
                     <p className="font-bold">AIBEF - {nomClinique(client?.cliniqueId as string)}</p>
                     <p>
-                      {new Date().toLocaleDateString("fr-FR", {
+                      {dateVisiteSelectionnee.toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
-                      })}{" "}
-                      {new Date().toLocaleTimeString("fr-FR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
                       })}
                     </p>
                   </div>

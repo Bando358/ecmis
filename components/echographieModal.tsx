@@ -153,11 +153,11 @@ export default function EchographiesModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ajouter une échographie</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Ajouter une échographie</DialogTitle>
         </DialogHeader>
-        <div className="flex flow-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <MultiSelectEchographie
             idClinique={tabClinique[0]?.id ?? ""}
             demandes={availableEchographies}
@@ -222,15 +222,16 @@ export default function EchographiesModal({
                 </TableBody>
               </Table>
             )}
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
               <Button
                 variant="outline"
                 type="button"
                 onClick={() => setOpen(false)}
+                className="w-full sm:w-auto"
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={selectedOptions.length === 0}>
+              <Button type="submit" disabled={selectedOptions.length === 0} className="w-full sm:w-auto">
                 Valider
               </Button>
             </DialogFooter>

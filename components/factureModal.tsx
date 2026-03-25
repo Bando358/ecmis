@@ -187,12 +187,12 @@ export function FactureModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ajouter Produit</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Ajouter Produit</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flow-row gap-3 items-start">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
           <div className="flex-1">
             <MultiSelectProduit
               produits={availableProduits}
@@ -205,6 +205,7 @@ export function FactureModal({
           <Button
             onClick={ajouterProduits}
             disabled={selectedOptions.length === 0}
+            className="w-full sm:w-auto"
           >
             Ajouter
           </Button>
@@ -212,14 +213,15 @@ export function FactureModal({
 
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-100">
               <TableHeader>
                 <TableRow>
                   <TableCell className="font-semibold">Nom</TableCell>
-                  <TableCell className="text-center font-semibold">
+                  <TableCell className="text-center font-semibold hidden sm:table-cell">
                     Contraception
                   </TableCell>
-                  <TableCell className="font-semibold">Quantité</TableCell>
+                  <TableCell className="font-semibold">Qté</TableCell>
                   <TableCell className="font-semibold">Total</TableCell>
                 </TableRow>
               </TableHeader>
@@ -229,7 +231,7 @@ export function FactureModal({
                     <TableCell className="font-medium">
                       {nameProduit(produit.idProduit)}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center hidden sm:table-cell">
                       <FormField
                         control={form.control}
                         name="methode"
@@ -302,6 +304,7 @@ export function FactureModal({
                 ))}
               </TableBody>
             </Table>
+            </div>
 
             {/* Champs cachés optimisés */}
             <FormField
@@ -330,11 +333,11 @@ export function FactureModal({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
               <Button
                 type="submit"
                 disabled={selectedTarifProduits.length === 0}
-                className="min-w-24"
+                className="w-full sm:w-auto min-w-24"
               >
                 Valider
               </Button>
@@ -342,7 +345,7 @@ export function FactureModal({
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
-                className="min-w-24"
+                className="w-full sm:w-auto min-w-24"
               >
                 Annuler
               </Button>

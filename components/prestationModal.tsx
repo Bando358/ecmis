@@ -116,17 +116,19 @@ export default function PrestationsModal({
   };
   return (
     <Dialog open={openPrestation} onOpenChange={setOpenPrestation}>
-      <DialogContent>
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ajouter une Prestation</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Ajouter une Prestation</DialogTitle>
         </DialogHeader>
-        <div className=" flex flow-row  gap-3">
-          <MultiSelectPrestation
-            tarifs={availablePrestations}
-            selectedOptions={selectedOptions}
-            setSelectedOptions={setSelectedOptions}
-          />
-          <Button onClick={ajouterPrestations}>Ajouter</Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <MultiSelectPrestation
+              tarifs={availablePrestations}
+              selectedOptions={selectedOptions}
+              setSelectedOptions={setSelectedOptions}
+            />
+          </div>
+          <Button onClick={ajouterPrestations} className="w-full sm:w-auto">Ajouter</Button>
         </div>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -202,14 +204,15 @@ export default function PrestationsModal({
               )}
             />
 
-            <DialogFooter>
-              <Button type="submit" disabled={prestations.length === 0}>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button type="submit" disabled={prestations.length === 0} className="w-full sm:w-auto">
                 Valider
               </Button>
               <Button
                 variant="outline"
                 type="button"
                 onClick={() => setOpenPrestation(false)}
+                className="w-full sm:w-auto"
               >
                 Annuler
               </Button>

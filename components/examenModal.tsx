@@ -126,18 +126,20 @@ export default function ExamensModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ajouter Examen</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Ajouter Examen</DialogTitle>
         </DialogHeader>
-        <div className="flex flow-row gap-3">
-          <MultiSelectExamen
-            demandes={availableExamens}
-            selectedOptions={selectedOptions}
-            setSelectedOptions={setSelectedOptions}
-            tarifExamens={tarifExamens}
-            allExamens={allExamens}
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <MultiSelectExamen
+              demandes={availableExamens}
+              selectedOptions={selectedOptions}
+              setSelectedOptions={setSelectedOptions}
+              tarifExamens={tarifExamens}
+              allExamens={allExamens}
+            />
+          </div>
         </div>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -175,14 +177,15 @@ export default function ExamensModal({
                 ))}
               </TableBody>
             </Table>
-            <DialogFooter>
-              <Button type="submit" disabled={selectedOptions.length === 0}>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button type="submit" disabled={selectedOptions.length === 0} className="w-full sm:w-auto">
                 Valider
               </Button>
               <Button
                 variant="outline"
                 type="button"
                 onClick={() => setOpen(false)}
+                className="w-full sm:w-auto"
               >
                 Annuler
               </Button>

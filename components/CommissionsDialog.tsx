@@ -633,17 +633,17 @@ export default function CommissionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-4xl! max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl! max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Gestion des Commissions</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Gestion des Commissions</DialogTitle>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="examen">Examens</TabsTrigger>
-            <TabsTrigger value="echographie">Echographie</TabsTrigger>
-            <TabsTrigger value="prescripteur">Prescripteur</TabsTrigger>
-            <TabsTrigger value="doublons" onClick={() => loadDoublons()}>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+            <TabsTrigger value="examen" className="text-xs sm:text-sm">Examens</TabsTrigger>
+            <TabsTrigger value="echographie" className="text-xs sm:text-sm">Echographie</TabsTrigger>
+            <TabsTrigger value="prescripteur" className="text-xs sm:text-sm">Prescripteur</TabsTrigger>
+            <TabsTrigger value="doublons" onClick={() => loadDoublons()} className="text-xs sm:text-sm">
               Doublons
               {doublonGroups.length > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
@@ -655,7 +655,7 @@ export default function CommissionsDialog({
 
           {/* Onglet Examens */}
           <TabsContent value="examen" className="space-y-4">
-            <div className="border rounded-lg p-4">
+            <div className="border rounded-lg p-2 sm:p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
                   Sélectionner un prescripteur
@@ -719,13 +719,14 @@ export default function CommissionsDialog({
                   Aucun examen facturé pour cette visite
                 </p>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-112.5">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Examen</TableHead>
                       <TableHead>Prix</TableHead>
                       <TableHead>Commission</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead className="hidden sm:table-cell">Statut</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -765,7 +766,7 @@ export default function CommissionsDialog({
                               <span className={hasExistingCommission ? "text-green-600" : ""}>CFA</span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             {hasExistingCommission && (
                               <Check className="text-green-600" size={20} />
                             )}
@@ -778,14 +779,14 @@ export default function CommissionsDialog({
                     <TableRow>
                       <TableCell
                         colSpan={2}
-                        className="text-right font-semibold"
+                        className="text-right font-semibold text-xs sm:text-sm"
                       >
-                        Total commissions à enregistrer:
+                        Total :
                       </TableCell>
                       <TableCell className="font-semibold">
                         {totalExamensCommissions} CFA
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Button
                           onClick={handleSaveExamensCommissions}
                           disabled={
@@ -800,13 +801,21 @@ export default function CommissionsDialog({
                     </TableRow>
                   </TableFooter>
                 </Table>
+                <Button
+                  onClick={handleSaveExamensCommissions}
+                  disabled={isSaving || !selectedPrescripteur || !hasExamensChanges}
+                  className="w-full sm:hidden mt-2"
+                >
+                  {isSaving ? <Spinner /> : "Enregistrer"}
+                </Button>
+                </div>
               )}
             </div>
           </TabsContent>
 
           {/* Onglet Echographie */}
           <TabsContent value="echographie" className="space-y-4">
-            <div className="border rounded-lg p-4">
+            <div className="border rounded-lg p-2 sm:p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
                   Sélectionner un prescripteur
@@ -870,13 +879,14 @@ export default function CommissionsDialog({
                   Aucune échographie facturée pour cette visite
                 </p>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-112.5">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Echographie</TableHead>
                       <TableHead>Prix</TableHead>
                       <TableHead>Commission</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead className="hidden sm:table-cell">Statut</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -919,7 +929,7 @@ export default function CommissionsDialog({
                               <span className={hasExistingCommission ? "text-green-600" : ""}>CFA</span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             {hasExistingCommission && (
                               <Check className="text-green-600" size={20} />
                             )}
@@ -932,14 +942,14 @@ export default function CommissionsDialog({
                     <TableRow>
                       <TableCell
                         colSpan={2}
-                        className="text-right font-semibold"
+                        className="text-right font-semibold text-xs sm:text-sm"
                       >
-                        Total commissions à enregistrer:
+                        Total :
                       </TableCell>
                       <TableCell className="font-semibold">
                         {totalEchographiesCommissions} CFA
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Button
                           onClick={handleSaveEchographiesCommissions}
                           disabled={
@@ -954,15 +964,23 @@ export default function CommissionsDialog({
                     </TableRow>
                   </TableFooter>
                 </Table>
+                <Button
+                  onClick={handleSaveEchographiesCommissions}
+                  disabled={isSaving || !selectedPrescripteur || !hasEchographiesChanges}
+                  className="w-full sm:hidden mt-2"
+                >
+                  {isSaving ? <Spinner /> : "Enregistrer"}
+                </Button>
+                </div>
               )}
             </div>
           </TabsContent>
 
           {/* Onglet Prescripteur */}
           <TabsContent value="prescripteur" className="space-y-4">
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
+            <div className="border rounded-lg p-2 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold">
                   {editingPrescripteur ? "Modifier le prescripteur" : "Ajouter un prescripteur"}
                 </h3>
                 {editingPrescripteur && (
@@ -984,7 +1002,7 @@ export default function CommissionsDialog({
                   )}
                   className="space-y-4"
                 >
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <FormField
                       control={prescripteurForm.control}
                       name="nom"
@@ -1053,12 +1071,12 @@ export default function CommissionsDialog({
               </Form>
             </div>
 
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
+            <div className="border rounded-lg p-2 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold">
                   Liste des prescripteurs
                 </h3>
-                <div className="relative w-64">
+                <div className="relative w-full sm:w-64">
                   <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <Input
                     placeholder="Rechercher un prescripteur..."
@@ -1090,13 +1108,14 @@ export default function CommissionsDialog({
                   Aucun prescripteur trouvé pour &quot;{prescripteurSearchQuery}&quot;
                 </p>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-112.5">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nom</TableHead>
                       <TableHead>Prénom</TableHead>
-                      <TableHead>Centre</TableHead>
-                      <TableHead>Contact</TableHead>
+                      <TableHead className="hidden sm:table-cell">Centre</TableHead>
+                      <TableHead className="hidden sm:table-cell">Contact</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1108,8 +1127,8 @@ export default function CommissionsDialog({
                       >
                         <TableCell>{prescripteur.nom}</TableCell>
                         <TableCell>{prescripteur.prenom}</TableCell>
-                        <TableCell>{prescripteur.centre}</TableCell>
-                        <TableCell>{prescripteur.contact}</TableCell>
+                        <TableCell className="hidden sm:table-cell">{prescripteur.centre}</TableCell>
+                        <TableCell className="hidden sm:table-cell">{prescripteur.contact}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button
@@ -1136,16 +1155,17 @@ export default function CommissionsDialog({
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </div>
           </TabsContent>
 
           {/* Onglet Doublons */}
           <TabsContent value="doublons" className="space-y-4">
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
+            <div className="border rounded-lg p-2 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
                     <Merge size={20} className="text-orange-500" />
                     Fusion des doublons
                   </h3>
@@ -1196,15 +1216,16 @@ export default function CommissionsDialog({
                           )}
                         </Button>
                       </div>
-                      <Table>
+                      <div className="overflow-x-auto">
+                      <Table className="min-w-112.5">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-12">Garder</TableHead>
                             <TableHead>Nom</TableHead>
                             <TableHead>Prénom</TableHead>
-                            <TableHead>Centre</TableHead>
-                            <TableHead>Contact</TableHead>
-                            <TableHead className="text-center">Commissions</TableHead>
+                            <TableHead className="hidden sm:table-cell">Centre</TableHead>
+                            <TableHead className="hidden sm:table-cell">Contact</TableHead>
+                            <TableHead className="text-center">Com.</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1234,8 +1255,8 @@ export default function CommissionsDialog({
                                   {isKept && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">conservé</span>}
                                 </TableCell>
                                 <TableCell className={isKept ? "font-bold text-green-700" : ""}>{p.prenom}</TableCell>
-                                <TableCell>{p.centre}</TableCell>
-                                <TableCell>{p.contact}</TableCell>
+                                <TableCell className="hidden sm:table-cell">{p.centre}</TableCell>
+                                <TableCell className="hidden sm:table-cell">{p.contact}</TableCell>
                                 <TableCell className="text-center">
                                   <span className={cn(
                                     "inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
@@ -1252,6 +1273,7 @@ export default function CommissionsDialog({
                           })}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   ))}
                 </div>
