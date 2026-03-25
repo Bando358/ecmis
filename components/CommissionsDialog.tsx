@@ -732,13 +732,17 @@ export default function CommissionsDialog({
                     {examensFacture.map((examen) => {
                       const commissionExistante = examensCommissionsExistantes[examen.id];
                       const hasExistingCommission = !!commissionExistante;
+                      // Récupérer le PU original (prix tarif) avant remise
+                      const prixUnitaire = examen.remiseExamen > 0 && examen.remiseExamen < 100
+                        ? Math.round(examen.prixExamen / (1 - examen.remiseExamen / 100))
+                        : examen.prixExamen;
                       return (
                         <TableRow
                           key={examen.id}
                           className={hasExistingCommission ? "bg-green-50" : ""}
                         >
                           <TableCell>{examen.libelleExamen}</TableCell>
-                          <TableCell>{examen.prixExamen} CFA</TableCell>
+                          <TableCell>{prixUnitaire.toLocaleString("fr-FR")} CFA</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Input
