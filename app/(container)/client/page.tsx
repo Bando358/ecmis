@@ -185,6 +185,8 @@ export default function Clients() {
   } | null>(null);
   const [showSecondConfirm, setShowSecondConfirm] = useState(false);
   const [quickDialogOpen, setQuickDialogOpen] = useState(false);
+  const [quickEditClient, setQuickEditClient] = useState<Client | null>(null);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
 
   const router = useRouter();
   const { setSelectedClientId } = useClientContext();
@@ -532,7 +534,24 @@ export default function Clients() {
                                     <FilePenLine className="h-4 w-4 text-amber-600" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Modifier</TooltipContent>
+                                <TooltipContent>Modifier (complet)</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setQuickEditClient(row);
+                                      setQuickEditOpen(true);
+                                    }}
+                                  >
+                                    <Zap className="h-4 w-4 text-emerald-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Modification rapide</TooltipContent>
                               </Tooltip>
 
                               <AlertDialog>
@@ -738,7 +757,29 @@ export default function Clients() {
         open={quickDialogOpen}
         onOpenChange={setQuickDialogOpen}
         onClientCreated={(newClient) => {
-          setClients((prev) => [newClient, ...prev]);
+          setClients((prev) => {
+            const updated = [newClient, ...prev];
+            setCache(updated, cliniques);
+            return updated;
+          });
+          setCurrentPage(1); // Revenir en page 1 pour voir le nouveau client
+        }}
+      />
+
+      {/* Dialog modification rapide */}
+      <QuickClientDialog
+        open={quickEditOpen}
+        onOpenChange={(v) => {
+          setQuickEditOpen(v);
+          if (!v) setQuickEditClient(null);
+        }}
+        clientToEdit={quickEditClient}
+        onClientUpdated={(updated) => {
+          setClients((prev) => {
+            const newList = prev.map((c) => (c.id === updated.id ? updated : c));
+            setCache(newList, cliniques);
+            return newList;
+          });
         }}
       />
 

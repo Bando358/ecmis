@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { format } from "date-fns";
-import { BadgePlus, Zap, Building2 } from "lucide-react";
+import { BadgePlus, Zap, Pencil, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Client, TableName } from "@prisma/client";
 
@@ -23,6 +22,7 @@ import { SpinnerCustom } from "@/components/ui/spinner";
 
 import {
   createClient,
+  updateClient,
   fetchIncrementCounter,
   checkClientCode,
 } from "@/lib/actions/clientActions";
@@ -50,6 +50,8 @@ interface QuickClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onClientCreated?: (client: Client) => void;
+  clientToEdit?: Client | null;
+  onClientUpdated?: (client: Client) => void;
 }
 
 const sexeOptions = [
@@ -61,10 +63,12 @@ export default function QuickClientDialog({
   open,
   onOpenChange,
   onClientCreated,
+  clientToEdit = null,
+  onClientUpdated,
 }: QuickClientDialogProps) {
+  const isEditMode = !!clientToEdit;
   const { data: session } = useSession();
-  const router = useRouter();
-  const { canCreate } = usePermissionContext();
+  const { canCreate, canUpdate } = usePermissionContext();
   const idPrestataire = session?.user?.id as string;
 
   const [cliniques, setCliniques] = useState<CliniqueData[]>([]);
@@ -121,26 +125,42 @@ export default function QuickClientDialog({
   useEffect(() => {
     if (open) {
       fetchData();
-      setCodeGenerated(false);
-      reset({
-        cliniqueId: "",
-        dateEnregistrement: format(new Date(), "yyyy-MM-dd") as unknown as Date,
-        nom: "",
-        prenom: "",
-        sexe: "",
-        code: "",
-        tel_1: "",
-        quartier: "",
-      });
+      if (clientToEdit) {
+        // Mode édition : pré-remplir avec les données du client
+        setCodeGenerated(true); // le code existe déjà
+        reset({
+          cliniqueId: clientToEdit.cliniqueId || clientToEdit.idClinique || "",
+          dateEnregistrement: format(new Date(clientToEdit.dateEnregistrement), "yyyy-MM-dd") as unknown as Date,
+          nom: clientToEdit.nom || "",
+          prenom: clientToEdit.prenom || "",
+          sexe: clientToEdit.sexe || "",
+          code: clientToEdit.code || "",
+          tel_1: clientToEdit.tel_1 || "",
+          quartier: clientToEdit.quartier || "",
+          dateNaissance: format(new Date(clientToEdit.dateNaissance), "yyyy-MM-dd") as unknown as Date,
+        });
+      } else {
+        setCodeGenerated(false);
+        reset({
+          cliniqueId: "",
+          dateEnregistrement: format(new Date(), "yyyy-MM-dd") as unknown as Date,
+          nom: "",
+          prenom: "",
+          sexe: "",
+          code: "",
+          tel_1: "",
+          quartier: "",
+        });
+      }
     }
-  }, [open, fetchData, reset]);
+  }, [open, fetchData, reset, clientToEdit]);
 
-  // Auto-select clinique when there's only one
+  // Auto-select clinique when there's only one (sauf en édition où la valeur est déjà définie)
   useEffect(() => {
-    if (cliniques.length === 1) {
+    if (cliniques.length === 1 && !clientToEdit) {
       setValue("cliniqueId", cliniques[0].id);
     }
-  }, [cliniques, setValue]);
+  }, [cliniques, setValue, clientToEdit]);
 
   const clinic = watch("cliniqueId");
   const selectedClinique = cliniques.find((c) => c.id === clinic);
@@ -178,44 +198,80 @@ export default function QuickClientDialog({
   };
 
   const onSubmit = async (data: Client) => {
-    if (!canCreate(TableName.CLIENT)) {
-      toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
-      return;
-    }
+    if (isEditMode) {
+      // — Mode édition —
+      if (!canUpdate(TableName.CLIENT)) {
+        toast.error(ERROR_MESSAGES.PERMISSION_DENIED_UPDATE);
+        return;
+      }
 
-    const formattedData: Client = {
-      ...data,
-      dateEnregistrement: new Date(data.dateEnregistrement),
-      dateNaissance: new Date(data.dateNaissance),
-      idUser: idPrestataire,
-      idClinique: clinic,
-      tel_1: data.tel_1 || "",
-      tel_2: "",
-      sourceInfo: "RECOMMANDATION",
-      statusClient: "nouveau",
-      populationVulnerable: "non",
-      lieuNaissance: null,
-      quartier: data.quartier || null,
-      niveauScolaire: null,
-      ethnie: null,
-      profession: null,
-      serologie: "inconnu",
-      etatMatrimonial: null,
-      codeVih: null,
-    } as Client;
+      // Conserver tous les champs existants, ne modifier que les champs du formulaire rapide
+      const updatedData = {
+        ...clientToEdit!,
+        nom: data.nom,
+        prenom: data.prenom,
+        sexe: data.sexe,
+        code: data.code,
+        tel_1: data.tel_1 || "",
+        quartier: data.quartier || null,
+        idClinique: clinic,
+        cliniqueId: clinic,
+        dateEnregistrement: new Date(data.dateEnregistrement),
+        dateNaissance: new Date(data.dateNaissance),
+      } as Client;
 
-    try {
-      const client = await createClient(formattedData);
-      toast.success(`Client ${data.nom} ${data.prenom} cree avec succes !`);
-      onClientCreated?.(client);
-      onOpenChange(false);
-      router.refresh();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la creation du client",
-      );
+      try {
+        const client = await updateClient(clientToEdit!.id, updatedData);
+        onOpenChange(false);
+        onClientUpdated?.(client);
+        toast.success(`Client ${data.nom} ${data.prenom} modifié avec succès !`);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la modification du client",
+        );
+      }
+    } else {
+      // — Mode création —
+      if (!canCreate(TableName.CLIENT)) {
+        toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
+        return;
+      }
+
+      const formattedData: Client = {
+        ...data,
+        dateEnregistrement: new Date(data.dateEnregistrement),
+        dateNaissance: new Date(data.dateNaissance),
+        idUser: idPrestataire,
+        idClinique: clinic,
+        tel_1: data.tel_1 || "",
+        tel_2: "",
+        sourceInfo: "RECOMMANDATION",
+        statusClient: "nouveau",
+        populationVulnerable: "non",
+        lieuNaissance: null,
+        quartier: data.quartier || null,
+        niveauScolaire: null,
+        ethnie: null,
+        profession: null,
+        serologie: "inconnu",
+        etatMatrimonial: null,
+        codeVih: null,
+      } as Client;
+
+      try {
+        const client = await createClient(formattedData);
+        onOpenChange(false);
+        onClientCreated?.(client);
+        toast.success(`Client ${data.nom} ${data.prenom} créé avec succès !`);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la création du client",
+        );
+      }
     }
   };
 
@@ -231,15 +287,16 @@ export default function QuickClientDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-emerald-700">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 shrink-0">
-              <Zap className="h-4 w-4 text-emerald-600" />
+          <DialogTitle className={`flex items-center gap-2 ${isEditMode ? "text-amber-700" : "text-emerald-700"}`}>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${isEditMode ? "bg-amber-100" : "bg-emerald-100"}`}>
+              {isEditMode ? <Pencil className="h-4 w-4 text-amber-600" /> : <Zap className="h-4 w-4 text-emerald-600" />}
             </div>
-            <span className="text-base sm:text-lg">Enregistrement rapide</span>
+            <span className="text-base sm:text-lg">{isEditMode ? "Modification rapide" : "Enregistrement rapide"}</span>
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
-            Champs essentiels uniquement. Les informations complementaires
-            pourront etre ajoutees via la modification du dossier.
+            {isEditMode
+              ? "Modifiez les champs essentiels du client. Les autres informations restent inchangées."
+              : "Champs essentiels uniquement. Les informations complémentaires pourront être ajoutées via la modification du dossier."}
           </DialogDescription>
         </DialogHeader>
 
@@ -414,8 +471,10 @@ export default function QuickClientDialog({
                     setValueAs: (v: string) => v?.toUpperCase(),
                     validate: async (value) => {
                       if (!value) return true;
+                      // En mode édition, ne pas bloquer si le code est inchangé
+                      if (clientToEdit && value.toUpperCase() === clientToEdit.code?.toUpperCase()) return true;
                       const taken = await checkClientCode(value);
-                      return !taken || "Ce code est deja utilise.";
+                      return !taken || "Ce code est déjà utilisé.";
                     },
                   })}
                   placeholder="Saisir un code ou cliquer sur +"
@@ -439,14 +498,16 @@ export default function QuickClientDialog({
             </div>
           </div>
 
-          {/* Info defaults */}
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-            <span className="font-semibold">Valeurs par defaut :</span>{" "}
-            Statut = Nouveau, Serologie = Inconnu, Source = Recommandation.
-            Modifiables ensuite via la fiche client.
-          </div>
+          {/* Info defaults — création uniquement */}
+          {!isEditMode && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+              <span className="font-semibold">Valeurs par défaut :</span>{" "}
+              Statut = Nouveau, Sérologie = Inconnu, Source = Recommandation.
+              Modifiables ensuite via la fiche client.
+            </div>
+          )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               type="button"
               variant="outline"
@@ -458,12 +519,12 @@ export default function QuickClientDialog({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
+              className={`w-full sm:w-auto text-white ${isEditMode ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
             >
               {isSubmitting && (
                 <SpinnerCustom className="mr-2 text-white/60" />
               )}
-              Creer le client
+              {isEditMode ? "Modifier le client" : "Créer le client"}
             </Button>
           </DialogFooter>
         </form>
