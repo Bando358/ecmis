@@ -17,13 +17,12 @@ type RegisterInput = {
 // ************* Create User **************
 export async function createUser(user: User) {
   await requirePermission(TableName.USER, "canCreate");
-  const { password, role, banned, banReason, banExpires, ...safeFields } = user;
+  const { password, banned, banReason, banExpires, ...safeFields } = user;
   const hashedPassword = await bcrypt.hash(password, 10);
   const newUser = await prisma.user.create({
     data: {
       ...safeFields,
       password: hashedPassword,
-      role: "USER",
       banned: false,
     },
     omit: { password: true },

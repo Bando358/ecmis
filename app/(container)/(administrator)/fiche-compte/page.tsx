@@ -82,6 +82,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const passwordSchema = z
+  .string()
+  .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+  .regex(/[A-Za-z]/, {
+    message: "Le mot de passe doit inclure au moins une lettre.",
+  })
+  .regex(/[0-9]/, {
+    message: "Le mot de passe doit inclure au moins un chiffre.",
+  });
+
 const signUpSchema = z.object({
   name: z.string().min(5, {
     message: "Le nom doit contenir au moins 5 caractères.",
@@ -90,16 +100,11 @@ const signUpSchema = z.object({
   username: z.string().min(5, {
     message: "Le nom d'utilisateur doit contenir au moins 5 caractères.",
   }),
-  password: z
-    .string()
-    .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-    .regex(/[A-Za-z]/, {
-      message: "Le mot de passe doit inclure au moins une lettre.",
-    })
-    .regex(/[0-9]/, {
-      message: "Le mot de passe doit inclure au moins un chiffre.",
-    }),
-  idCliniques: z.array(z.string()),
+  password: z.string(),
+  idCliniques: z.array(z.string()).refine(
+    (val) => val.length > 0 && val.every((v) => v.length > 0),
+    { message: "Veuillez sélectionner au moins une clinique." },
+  ),
   prescripteur: z.boolean().optional(),
   role: z.string().min(3, {
     message: "Le rôle doit contenir au moins 3 caractères.",
@@ -127,7 +132,6 @@ export default function RegisterForm() {
   const [isVisible, setIsVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [idUserUpdate, setIdUserUpdate] = useState<string>("");
-  const [positions, setPositions] = useState<number>(-1);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -215,7 +219,7 @@ export default function RegisterForm() {
       email: "",
       username: "",
       password: "",
-      idCliniques: [""],
+      idCliniques: [],
       role: UserRole.USER,
     },
   });
@@ -302,14 +306,17 @@ export default function RegisterForm() {
     if (isVisible) {
       setIsVisible(false);
       setIsUpdating(false);
+      setIdUserUpdate("");
       form.reset();
     } else {
+      setIsUpdating(false);
+      setIdUserUpdate("");
+      form.reset();
       setIsVisible(true);
     }
   };
 
-  const handleUpdateUser = async (id: string, position: number) => {
-    setPositions(position);
+  const handleUpdateUser = async (id: string) => {
     const userToUpdate = allUser.find((user) => user.id === id);
     setIdUserUpdate(id);
 
@@ -320,12 +327,32 @@ export default function RegisterForm() {
       form.setValue("username", userToUpdate.username);
       form.setValue("password", ""); // password is excluded from queries for security
       form.setValue("idCliniques", userToUpdate.idCliniques);
+      form.setValue("prescripteur", userToUpdate.prescripteur ?? false);
       form.setValue("role", userToUpdate.role);
       setIsVisible(true);
     }
   };
 
   const onSubmit = async (data: RegisterInput) => {
+    // Validation mot de passe : obligatoire en création, optionnel en modification
+    if (!isUpdating) {
+      const pwResult = passwordSchema.safeParse(data.password);
+      if (!pwResult.success) {
+        pwResult.error.issues.forEach((issue) => {
+          form.setError("password", { message: issue.message });
+        });
+        return;
+      }
+    } else if (data.password && data.password.length > 0) {
+      const pwResult = passwordSchema.safeParse(data.password);
+      if (!pwResult.success) {
+        pwResult.error.issues.forEach((issue) => {
+          form.setError("password", { message: issue.message });
+        });
+        return;
+      }
+    }
+
     const userToUpdate = allUser.find((user) => user.id === idUserUpdate);
     try {
       if (isUpdating) {
@@ -345,22 +372,18 @@ export default function RegisterForm() {
           emailVerified: false,
           image: null,
           role: (data.role as UserRole) || UserRole.USER,
-          banned: null,
+          banned: userToUpdate?.banned ?? null,
           banReason: null,
           banExpires: null,
         };
 
         await updateUser(idUserUpdate, userUpdate);
         toast.success("Compte modifié avec succès !");
-        setIsUpdating(false);
 
-        const updatedUsers = [...allUser];
-        if (positions !== -1) {
-          updatedUsers[positions] = { ...userUpdate };
-          setAllUser(updatedUsers);
-        }
-
-        form.reset();
+        // Mise à jour par ID (pas par index paginé)
+        setAllUser((prev) =>
+          prev.map((u) => (u.id === idUserUpdate ? { ...userUpdate } : u)),
+        );
       } else {
         const newUser = {
           id: crypto.randomUUID(),
@@ -381,15 +404,12 @@ export default function RegisterForm() {
         };
         await createUser(newUser);
         toast.success("Compte créé avec succès !");
-        const result = [...allUser, newUser];
-        setAllUser(result);
-        handleHiddenForm();
-        if (data?.role !== "ADMIN") {
-          router.push("/fiche-post");
-        }
+        setAllUser((prev) => [...prev, newUser]);
       }
 
       form.reset();
+      setIsUpdating(false);
+      setIdUserUpdate("");
       setIsVisible(false);
     } catch (error) {
       toast.error("La création/modification de compte a échoué !");
@@ -477,12 +497,15 @@ export default function RegisterForm() {
                     <Select
                       isMulti
                       options={cliniqueOptions}
+                      value={cliniqueOptions.filter((opt) =>
+                        form.watch("idCliniques")?.includes(opt.value),
+                      )}
                       className="basic-multi-select"
                       classNamePrefix="select"
                       placeholder="Sélectionner une ou plusieurs cliniques"
                       onChange={(selectedOptions) => {
                         const selectedValues = selectedOptions.map((option) => option.value);
-                        form.setValue("idCliniques", selectedValues);
+                        form.setValue("idCliniques", selectedValues, { shouldValidate: true });
                       }}
                     />
                   )}
@@ -533,9 +556,16 @@ export default function RegisterForm() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-gray-700">Mot de passe</FormLabel>
+                        <FormLabel className="text-sm font-medium text-gray-700">
+                          Mot de passe {isUpdating && <span className="text-xs text-gray-400 font-normal">(laisser vide pour ne pas changer)</span>}
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="*****" type="password" className="h-10 border-gray-200 focus:border-violet-400 focus:ring-violet-400" {...field} />
+                          <Input
+                            placeholder={isUpdating ? "Laisser vide pour garder l'actuel" : "*****"}
+                            type="password"
+                            className="h-10 border-gray-200 focus:border-violet-400 focus:ring-violet-400"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -718,7 +748,7 @@ export default function RegisterForm() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleUpdateUser(user.id, index)}
+                          onClick={() => handleUpdateUser(user.id)}
                           className="h-8 w-8 rounded-lg hover:bg-violet-100 hover:text-violet-700"
                         >
                           <Pencil className="h-4 w-4" />
