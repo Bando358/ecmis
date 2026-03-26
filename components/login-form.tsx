@@ -91,23 +91,24 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Connexion</CardTitle>
-          <CardDescription>Entrer vos paramètres de connexion</CardDescription>
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-slate-800 text-xl">Connexion</CardTitle>
+          <CardDescription className="text-slate-500">Entrer vos paramètres de connexion</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel className="text-slate-700">Nom d&apos;utilisateur</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Johndoe33"
+                        className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
                         {...field}
                         disabled={isPending}
                       />
@@ -122,11 +123,12 @@ export function LoginForm({
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-slate-700">Mot de passe</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="*****"
                         type="password"
+                        className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
                         {...field}
                         disabled={isPending}
                       />
@@ -138,7 +140,7 @@ export function LoginForm({
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full mt-2"
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? "Connexion..." : "Se connecter"}

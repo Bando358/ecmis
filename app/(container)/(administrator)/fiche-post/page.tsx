@@ -42,11 +42,11 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
-import { createPermissionBeforeChecked } from "@/lib/actions/permissionActions";
+import { createPermissionBeforeChecked, updatePermissionsBulk } from "@/lib/actions/permissionActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { TableSkeleton } from "@/components/ui/loading";
-import { dataPermission } from "@/lib/permissionData";
+import { buildPermissionsForPost } from "@/lib/permissionData";
 import Select from "react-select";
 
 export default function CreatePostForm() {
@@ -204,14 +204,7 @@ export default function CreatePostForm() {
   };
 
   const onSubmit: SubmitHandler<Post> = async (data) => {
-    const permissionsData = dataPermission.map((permission) => ({
-      userId: data.userId,
-      table: permission.table,
-      canCreate: permission.canCreate,
-      canRead: permission.canRead,
-      canUpdate: permission.canUpdate,
-      canDelete: permission.canDelete,
-    }));
+    const permissionsData = buildPermissionsForPost(data.title, data.userId);
     try {
       if (isUpdating) {
         const PostData = {
@@ -224,9 +217,9 @@ export default function CreatePostForm() {
         };
 
         await updatePost(idPost, PostData);
-        await createPermissionBeforeChecked(permissionsData);
+        await updatePermissionsBulk(permissionsData);
 
-        toast.success("Poste modifié avec succès !");
+        toast.success("Poste modifié avec succès et permissions mises à jour !");
         setIsUpdating(false);
 
         const onePost = await getOnePost(idPost);
