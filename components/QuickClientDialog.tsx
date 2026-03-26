@@ -59,6 +59,11 @@ const sexeOptions = [
   { label: "Masculin", value: "Masculin" },
 ];
 
+const statusClientOptions = [
+  { label: "Nouveau", value: "nouveau" },
+  { label: "Ancien", value: "ancien" },
+];
+
 export default function QuickClientDialog({
   open,
   onOpenChange,
@@ -93,6 +98,7 @@ export default function QuickClientDialog({
       nom: "",
       prenom: "",
       sexe: "",
+      statusClient: "",
       code: "",
       tel_1: "",
       quartier: "",
@@ -134,6 +140,7 @@ export default function QuickClientDialog({
           nom: clientToEdit.nom || "",
           prenom: clientToEdit.prenom || "",
           sexe: clientToEdit.sexe || "",
+          statusClient: clientToEdit.statusClient || "",
           code: clientToEdit.code || "",
           tel_1: clientToEdit.tel_1 || "",
           quartier: clientToEdit.quartier || "",
@@ -147,6 +154,7 @@ export default function QuickClientDialog({
           nom: "",
           prenom: "",
           sexe: "",
+          statusClient: "",
           code: "",
           tel_1: "",
           quartier: "",
@@ -211,6 +219,7 @@ export default function QuickClientDialog({
         nom: data.nom,
         prenom: data.prenom,
         sexe: data.sexe,
+        statusClient: data.statusClient,
         code: data.code,
         tel_1: data.tel_1 || "",
         quartier: data.quartier || null,
@@ -248,7 +257,7 @@ export default function QuickClientDialog({
         tel_1: data.tel_1 || "",
         tel_2: "",
         sourceInfo: "RECOMMANDATION",
-        statusClient: "nouveau",
+        statusClient: data.statusClient || "nouveau",
         populationVulnerable: "non",
         lieuNaissance: null,
         quartier: data.quartier || null,
@@ -439,7 +448,31 @@ export default function QuickClientDialog({
               )}
             </div>
 
-            {/* 7. Telephone */}
+            {/* 7. Statut client */}
+            <div className="sm:col-span-1">
+              <label className={labelClass}>
+                Statut client <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register("statusClient", { required: "Statut est requis" })}
+                className={selectCls}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Selectionner
+                </option>
+                {statusClientOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {errors.statusClient && (
+                <span className={errorCls}>{errors.statusClient.message}</span>
+              )}
+            </div>
+
+            {/* 8. Telephone */}
             <div className="sm:col-span-1">
               <label className={labelClass}>Telephone</label>
               <Input

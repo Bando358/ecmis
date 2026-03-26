@@ -1,9 +1,11 @@
 // components/DashboardServer.tsx
 // Ce composant est un Server Component (par défaut dans App Router)
-import { getAllUserIncludedTabIdClinique } from "@/lib/actions/authActions";
+import { getAllUserIncludedTabIdClinique, getOneUser } from "@/lib/actions/authActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import { fetchDashboardData } from "@/lib/actions/dashboardActions";
 import DashboardClient from "./DashboardClient";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
 interface DashboardServerProps {
   searchParams?: {
@@ -19,9 +21,19 @@ export default async function DashboardServer({
   searchParams,
 }: DashboardServerProps) {
   try {
-    // 🔹 Récupération des données des cliniques
+    // 🔹 Récupération de la session et du user
+    const session = await getServerSession(authOptions);
+    const isAdmin = session?.user?.role === "ADMIN";
+    const currentUser = session?.user?.id ? await getOneUser(session.user.id) : null;
+
+    // 🔹 Récupération des données des cliniques (filtrées par user)
     const cliniqueRaw = await getAllClinique();
-    const cliniqueMapped = cliniqueRaw.map(
+    const visibleCliniques = isAdmin
+      ? cliniqueRaw
+      : cliniqueRaw.filter((c: { id: string }) =>
+          currentUser?.idCliniques?.includes(c.id),
+        );
+    const cliniqueMapped = visibleCliniques.map(
       (c: { id: string; nomClinique: string }) => ({
         id: c.id,
         name: c.nomClinique,

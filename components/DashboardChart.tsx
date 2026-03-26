@@ -1054,12 +1054,33 @@ export default function DashboardChart({
                   >
                     <LabelList
                       dataKey="nouveau"
-                      position="top"
-                      offset={12}
-                      fill="#1e40af"
-                      fontSize={11}
-                      fontWeight="bold"
-                      formatter={(value: number) => (value > 0 ? value : "")}
+                      content={({ x, y, value, index }) => {
+                        const xN = Number(x);
+                        const yN = Number(y);
+                        const vNouveau = Number(value) || 0;
+                        const vAncien = Number(statusChartData[index as number]?.ancien) || 0;
+                        if (vNouveau <= 0 && vAncien <= 0) return null;
+                        // Position de base : au-dessus du point le plus haut
+                        const topY = Math.min(yN, yN) - 8;
+                        const label1Y = topY - 4;
+                        const label2Y = topY - 20;
+                        return (
+                          <g>
+                            {vNouveau > 0 && (
+                              <>
+                                <rect x={xN - 10} y={label1Y - 12} width={20} height={14} rx={3} fill="white" stroke="#3b82f6" strokeWidth={0.5} opacity={0.9} />
+                                <text x={xN} y={label1Y - 2} textAnchor="middle" fill="#1e40af" fontSize={9} fontWeight="bold">{vNouveau}</text>
+                              </>
+                            )}
+                            {vAncien > 0 && (
+                              <>
+                                <rect x={xN - 10} y={label2Y - 12} width={20} height={14} rx={3} fill="white" stroke="#8b5cf6" strokeWidth={0.5} opacity={0.9} />
+                                <text x={xN} y={label2Y - 2} textAnchor="middle" fill="#5b21b6" fontSize={9} fontWeight="bold">{vAncien}</text>
+                              </>
+                            )}
+                          </g>
+                        );
+                      }}
                     />
                   </Area>
                   <Area
@@ -1070,17 +1091,7 @@ export default function DashboardChart({
                     fillOpacity={0.3}
                     strokeWidth={2}
                     name={`Ancien client : `}
-                  >
-                    <LabelList
-                      dataKey="ancien"
-                      position="bottom"
-                      offset={12}
-                      fill="#5b21b6"
-                      fontSize={11}
-                      fontWeight="bold"
-                      formatter={(value: number) => (value > 0 ? value : "")}
-                    />
-                  </Area>
+                  />
                   <defs>
                     <linearGradient
                       id="gradientNouveau"
@@ -1391,12 +1402,32 @@ export default function DashboardChart({
                   >
                     <LabelList
                       dataKey="nouveaux"
-                      position="top"
-                      offset={12}
-                      fill="#1e40af"
-                      fontSize={11}
-                      fontWeight="bold"
-                      formatter={(value: number) => (value > 0 ? value : "")}
+                      content={({ x, y, value, index }) => {
+                        const xN = Number(x);
+                        const yN = Number(y);
+                        const vNouveaux = Number(value) || 0;
+                        const vAnciens = Number(transformedDataStatusPF[index as number]?.anciens) || 0;
+                        if (vNouveaux <= 0 && vAnciens <= 0) return null;
+                        const topY = Math.min(yN, yN) - 8;
+                        const label1Y = topY - 4;
+                        const label2Y = topY - 20;
+                        return (
+                          <g>
+                            {vNouveaux > 0 && (
+                              <>
+                                <rect x={xN - 10} y={label1Y - 12} width={20} height={14} rx={3} fill="white" stroke="#3b82f6" strokeWidth={0.5} opacity={0.9} />
+                                <text x={xN} y={label1Y - 2} textAnchor="middle" fill="#1e40af" fontSize={9} fontWeight="bold">{vNouveaux}</text>
+                              </>
+                            )}
+                            {vAnciens > 0 && (
+                              <>
+                                <rect x={xN - 10} y={label2Y - 12} width={20} height={14} rx={3} fill="white" stroke="#8b5cf6" strokeWidth={0.5} opacity={0.9} />
+                                <text x={xN} y={label2Y - 2} textAnchor="middle" fill="#5b21b6" fontSize={9} fontWeight="bold">{vAnciens}</text>
+                              </>
+                            )}
+                          </g>
+                        );
+                      }}
                     />
                   </Line>
                   <Line
@@ -1417,17 +1448,7 @@ export default function DashboardChart({
                       strokeWidth: 2,
                     }}
                     name="Anciens utilisateurs : "
-                  >
-                    <LabelList
-                      dataKey="anciens"
-                      position="bottom"
-                      offset={12}
-                      fill="#5b21b6"
-                      fontSize={11}
-                      fontWeight="bold"
-                      formatter={(value: number) => (value > 0 ? value : "")}
-                    />
-                  </Line>
+                  />
                 </LineChart>
               )}
             </ChartContainer>
