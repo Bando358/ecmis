@@ -128,10 +128,17 @@ export default function CreatePostForm() {
           allUserFilter.filter((user) => user.id !== idUser) as SafeUser[],
         );
       }
-      setPosts(postsResult.filter((post) => post.userId !== idUser) as Post[]);
-      setFilteredPosts(
-        postsResult.filter((post) => post.userId !== idUser) as Post[],
+      // Filtrer les postes : non-admin ne voit que les postes des users de ses cliniques
+      const visibleUserIds = new Set(
+        oneUser.role === "ADMIN"
+          ? filteredUsers.map((u) => u.id)
+          : allUserFilter.map((u) => u.id),
       );
+      const visiblePosts = (postsResult as Post[]).filter(
+        (post) => post.userId !== idUser && visibleUserIds.has(post.userId),
+      );
+      setPosts(visiblePosts);
+      setFilteredPosts(visiblePosts);
     };
     fetchData();
   }, [idUser, oneUser]);
