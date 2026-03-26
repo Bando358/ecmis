@@ -29,6 +29,7 @@ import {
   type ConflictField,
   type FusionHistorique,
 } from "@/lib/actions/fusionClientActions";
+import { getOneUser } from "@/lib/actions/authActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 
 import { Button } from "@/components/ui/button";
@@ -126,13 +127,20 @@ export default function DoublonsPage() {
   // Expanded groups
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  // Load cliniques
+  // Load cliniques (filtrées par user)
+  const userId = session?.user?.id;
+  const userRole = session?.user?.role;
+
   useEffect(() => {
-    getAllClinique().then((data) => {
-      setCliniques(data);
-      setSelectedCliniques(data.map((c) => c.id));
+    if (!userId || !userRole) return;
+    Promise.all([getAllClinique(), getOneUser(userId)]).then(([allCliniques, user]) => {
+      const visible = userRole === "ADMIN"
+        ? allCliniques
+        : allCliniques.filter((c) => user?.idCliniques?.includes(c.id));
+      setCliniques(visible);
+      setSelectedCliniques(visible.map((c) => c.id));
     });
-  }, []);
+  }, [userId, userRole]);
 
   // Permissions check
   const canRead = hasPermission(TableName.FUSION_CLIENT, "canRead");
