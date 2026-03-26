@@ -495,22 +495,23 @@ const tablesConseillerBase: PermissionOverride[] = [
   { table: TableName.LISTING, ...readOnly },
 ];
 
-// --- Tables administratives (AMD/ADMIN au niveau clinique) ---
-const tablesAdminClinique: PermissionOverride[] = [
+// Helper : lecture + suppression (pas de création/modification)
+const rd = { canRead: true, canDelete: true };
+
+// --- Tables communes AMD & ADMIN ---
+const tablesAdminBase: PermissionOverride[] = [
   ...tablesCliniquesFull,
+  { table: TableName.RESULTAT_EXAMEN, ...crud },
+  { table: TableName.RESULTAT_ECHOGRAPHIE, ...crud },
   { table: TableName.USER, ...cru },
-  { table: TableName.CLINIQUE, ...readOnly },
   { table: TableName.POST, ...crud },
   { table: TableName.PERMISSION, ...crud },
   { table: TableName.ACTIVITE, ...crud },
   { table: TableName.LIEU, ...crud },
   { table: TableName.PRESTATION, ...crud },
   { table: TableName.TARIF_PRESTATION, ...crud },
-  { table: TableName.PRODUIT, ...crud },
   { table: TableName.TARIF_PRODUIT, ...crud },
-  { table: TableName.EXAMEN, ...crud },
   { table: TableName.TARIF_EXAMEN, ...crud },
-  { table: TableName.ECHOGRAPHIE, ...crud },
   { table: TableName.TARIF_ECHOGRAPHIE, ...crud },
   { table: TableName.STOCK_PRODUIT, ...crud },
   { table: TableName.INVENTAIRE, ...crud },
@@ -520,21 +521,40 @@ const tablesAdminClinique: PermissionOverride[] = [
   { table: TableName.COMMANDE_FOURNISSEUR, ...crud },
   { table: TableName.DETAIL_COMMANDE, ...crud },
   { table: TableName.BILAN, ...crud },
-  { table: TableName.REGION, ...readOnly },
   { table: TableName.ADMINISTRATION, ...crud },
   { table: TableName.PRESCRIPTEUR, ...crud },
   { table: TableName.COMMISSION_EXAMEN, ...crud },
   { table: TableName.COMMISSION_ECHOGRAPHIE, ...crud },
-  { table: TableName.JOURNAL_PHARMACIE, ...readOnly },
+  { table: TableName.JOURNAL_PHARMACIE, ...crud },
   { table: TableName.VENTE_DIRECTE, ...crud },
   { table: TableName.FUSION_CLIENT, ...crud },
-  { table: TableName.DISTRICT, ...readOnly },
+  { table: TableName.DISTRICT, ...crud },
   { table: TableName.SAVED_ANALYSIS, ...crud },
   { table: TableName.ANALYSE_VISUALISER, ...crud },
   { table: TableName.RAPPORT, ...crud },
   { table: TableName.LISTING, ...crud },
   { table: TableName.CLIENT_VIH, ...crud },
   { table: TableName.IMPORT_CLIENT_VIH, ...crud },
+];
+
+// --- AMD : lecture seule sur REGION, CLINIQUE, PRODUIT, EXAMEN, ECHOGRAPHIE ---
+const tablesAMD: PermissionOverride[] = [
+  ...tablesAdminBase,
+  { table: TableName.REGION, ...readOnly },
+  { table: TableName.CLINIQUE, ...readOnly },
+  { table: TableName.PRODUIT, ...readOnly },
+  { table: TableName.EXAMEN, ...readOnly },
+  { table: TableName.ECHOGRAPHIE, ...readOnly },
+];
+
+// --- ADMIN : CRUD complet sur tout ---
+const tablesAdmin: PermissionOverride[] = [
+  ...tablesAdminBase,
+  { table: TableName.REGION, ...crud },
+  { table: TableName.CLINIQUE, ...crud },
+  { table: TableName.PRODUIT, ...crud },
+  { table: TableName.EXAMEN, ...crud },
+  { table: TableName.ECHOGRAPHIE, ...crud },
 ];
 
 // --- Tables labo ---
@@ -617,8 +637,8 @@ const tablesSuiviEvaluation: PermissionOverride[] = [
 // Map PostStatus → PermissionOverride[]
 // ============================================================
 export const postPermissionProfiles: Record<PostStatus, PermissionOverride[]> = {
-  [PostStatus.AMD]: tablesAdminClinique,
-  [PostStatus.ADMIN]: tablesAdminClinique,
+  [PostStatus.AMD]: tablesAMD,
+  [PostStatus.ADMIN]: tablesAdmin,
   [PostStatus.INFIRMIER]: tablesCliniquesFull,
   [PostStatus.SAGE_FEMME]: tablesCliniquesFull,
   [PostStatus.MEDECIN]: tablesCliniquesFull,
