@@ -230,7 +230,14 @@ export default function Clients() {
 
         if (cancelled) return;
 
-        setCliniques(cliniqueRes);
+        // Non-admin : ne voit que ses cliniques
+        const userCliniques =
+          utilisateur.role !== "ADMIN"
+            ? cliniqueRes.filter((c: { id: string }) =>
+                utilisateur.idCliniques.includes(c.id),
+              )
+            : cliniqueRes;
+        setCliniques(userCliniques);
 
         const filtered =
           utilisateur.role !== "ADMIN"
@@ -240,7 +247,7 @@ export default function Clients() {
             : clientRes;
 
         setClients(filtered);
-        setCache(filtered, cliniqueRes);
+        setCache(filtered, userCliniques);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {

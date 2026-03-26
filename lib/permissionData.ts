@@ -495,68 +495,6 @@ const tablesConseillerBase: PermissionOverride[] = [
   { table: TableName.LISTING, ...readOnly },
 ];
 
-// Helper : lecture + suppression (pas de création/modification)
-const rd = { canRead: true, canDelete: true };
-
-// --- Tables communes AMD & ADMIN ---
-const tablesAdminBase: PermissionOverride[] = [
-  ...tablesCliniquesFull,
-  { table: TableName.RESULTAT_EXAMEN, ...crud },
-  { table: TableName.RESULTAT_ECHOGRAPHIE, ...crud },
-  { table: TableName.USER, ...cru },
-  { table: TableName.POST, ...crud },
-  { table: TableName.PERMISSION, ...crud },
-  { table: TableName.ACTIVITE, ...crud },
-  { table: TableName.LIEU, ...crud },
-  { table: TableName.PRESTATION, ...crud },
-  { table: TableName.TARIF_PRESTATION, ...crud },
-  { table: TableName.TARIF_PRODUIT, ...crud },
-  { table: TableName.TARIF_EXAMEN, ...crud },
-  { table: TableName.TARIF_ECHOGRAPHIE, ...crud },
-  { table: TableName.STOCK_PRODUIT, ...crud },
-  { table: TableName.INVENTAIRE, ...crud },
-  { table: TableName.DETAIL_INVENTAIRE, ...crud },
-  { table: TableName.AJUSTEMENT_STOCK, ...crud },
-  { table: TableName.ANOMALIE_INVENTAIRE, ...crud },
-  { table: TableName.COMMANDE_FOURNISSEUR, ...crud },
-  { table: TableName.DETAIL_COMMANDE, ...crud },
-  { table: TableName.BILAN, ...crud },
-  { table: TableName.ADMINISTRATION, ...crud },
-  { table: TableName.PRESCRIPTEUR, ...crud },
-  { table: TableName.COMMISSION_EXAMEN, ...crud },
-  { table: TableName.COMMISSION_ECHOGRAPHIE, ...crud },
-  { table: TableName.JOURNAL_PHARMACIE, ...crud },
-  { table: TableName.VENTE_DIRECTE, ...crud },
-  { table: TableName.FUSION_CLIENT, ...crud },
-  { table: TableName.DISTRICT, ...crud },
-  { table: TableName.SAVED_ANALYSIS, ...crud },
-  { table: TableName.ANALYSE_VISUALISER, ...crud },
-  { table: TableName.RAPPORT, ...crud },
-  { table: TableName.LISTING, ...crud },
-  { table: TableName.CLIENT_VIH, ...crud },
-  { table: TableName.IMPORT_CLIENT_VIH, ...crud },
-];
-
-// --- AMD : lecture seule sur REGION, CLINIQUE, PRODUIT, EXAMEN, ECHOGRAPHIE ---
-const tablesAMD: PermissionOverride[] = [
-  ...tablesAdminBase,
-  { table: TableName.REGION, ...readOnly },
-  { table: TableName.CLINIQUE, ...readOnly },
-  { table: TableName.PRODUIT, ...readOnly },
-  { table: TableName.EXAMEN, ...readOnly },
-  { table: TableName.ECHOGRAPHIE, ...readOnly },
-];
-
-// --- ADMIN : CRUD complet sur tout ---
-const tablesAdmin: PermissionOverride[] = [
-  ...tablesAdminBase,
-  { table: TableName.REGION, ...crud },
-  { table: TableName.CLINIQUE, ...crud },
-  { table: TableName.PRODUIT, ...crud },
-  { table: TableName.EXAMEN, ...crud },
-  { table: TableName.ECHOGRAPHIE, ...crud },
-];
-
 // --- Tables labo ---
 const tablesLaborantin: PermissionOverride[] = [
   { table: TableName.CLIENT, ...readOnly },
@@ -578,18 +516,18 @@ const tablesCaissiere: PermissionOverride[] = [
   { table: TableName.VISITE, ...readOnly },
   { table: TableName.CONSTANTE, ...readOnly },
   { table: TableName.PRESTATION, ...readOnly },
-  { table: TableName.TARIF_PRESTATION, ...readOnly },
+  { table: TableName.TARIF_PRESTATION, ...cru },
   { table: TableName.FACTURE_PRESTATION, ...cru },
   { table: TableName.PRODUIT, ...readOnly },
   { table: TableName.TARIF_PRODUIT, ...cru },
   { table: TableName.FACTURE_PRODUIT, ...cru },
   { table: TableName.EXAMEN, ...readOnly },
   { table: TableName.TARIF_EXAMEN, ...cru },
-  { table: TableName.DEMANDE_EXAMEN, ...cru },
+  { table: TableName.DEMANDE_EXAMEN, ...crud },
   { table: TableName.FACTURE_EXAMEN, ...cru },
   { table: TableName.ECHOGRAPHIE, ...readOnly },
   { table: TableName.TARIF_ECHOGRAPHIE, ...cru },
-  { table: TableName.DEMANDE_ECHOGRAPHIE, ...cru },
+  { table: TableName.DEMANDE_ECHOGRAPHIE, ...crud },
   { table: TableName.FACTURE_ECHOGRAPHIE, ...cru },
   { table: TableName.STOCK_PRODUIT, ...readOnly },
   { table: TableName.PRESCRIPTEUR, ...cru },
@@ -602,20 +540,15 @@ const tablesCaissiere: PermissionOverride[] = [
 
 // --- Tables comptable ---
 const tablesComptable: PermissionOverride[] = [
-  { table: TableName.CLIENT, ...readOnly },
-  { table: TableName.FACTURE_PRESTATION, ...readOnly },
-  { table: TableName.FACTURE_PRODUIT, ...readOnly },
-  { table: TableName.FACTURE_EXAMEN, ...readOnly },
-  { table: TableName.FACTURE_ECHOGRAPHIE, ...readOnly },
+  // Hérite de toutes les permissions caissière en CRUD
+  ...tablesCaissiere.map((p) => ({ ...p, ...crud })),
+  // + Tables spécifiques comptable
   { table: TableName.BILAN, ...crud },
-  { table: TableName.RAPPORT, ...readOnly },
-  { table: TableName.LISTING, ...readOnly },
-  { table: TableName.JOURNAL_PHARMACIE, ...readOnly },
-  { table: TableName.STOCK_PRODUIT, ...readOnly },
-  { table: TableName.INVENTAIRE, ...readOnly },
-  { table: TableName.COMMANDE_FOURNISSEUR, ...readOnly },
-  { table: TableName.COMMISSION_EXAMEN, ...readOnly },
-  { table: TableName.COMMISSION_ECHOGRAPHIE, ...readOnly },
+  { table: TableName.RAPPORT, ...crud },
+  { table: TableName.LISTING, ...crud },
+  { table: TableName.JOURNAL_PHARMACIE, ...crud },
+  { table: TableName.INVENTAIRE, ...crud },
+  { table: TableName.COMMANDE_FOURNISSEUR, ...crud },
 ];
 
 // --- Tables suivi & évaluation ---
@@ -631,6 +564,46 @@ const tablesSuiviEvaluation: PermissionOverride[] = [
   { table: TableName.DISTRICT, ...readOnly },
   { table: TableName.ACTIVITE, ...readOnly },
   { table: TableName.BILAN, ...readOnly },
+];
+
+// --- AMD : hérite comptable + médecin + aide-soignant en CRUD ---
+const tablesAMD: PermissionOverride[] = [
+  ...tablesComptable.map((p) => ({ ...p, ...crud })),
+  ...tablesCliniquesFull.map((p) => ({ ...p, ...crud })),
+  ...tablesConseillerBase.map((p) => ({ ...p, ...crud })),
+  // Tables admin spécifiques
+  { table: TableName.RESULTAT_EXAMEN, ...crud },
+  { table: TableName.RESULTAT_ECHOGRAPHIE, ...crud },
+  { table: TableName.USER, ...cru },
+  { table: TableName.POST, ...crud },
+  { table: TableName.PERMISSION, ...crud },
+  { table: TableName.ACTIVITE, ...crud },
+  { table: TableName.LIEU, ...crud },
+  { table: TableName.ADMINISTRATION, ...crud },
+  { table: TableName.AJUSTEMENT_STOCK, ...crud },
+  { table: TableName.ANOMALIE_INVENTAIRE, ...crud },
+  { table: TableName.DETAIL_INVENTAIRE, ...crud },
+  { table: TableName.DETAIL_COMMANDE, ...crud },
+  { table: TableName.FUSION_CLIENT, ...crud },
+  { table: TableName.DISTRICT, ...crud },
+  { table: TableName.SAVED_ANALYSIS, ...crud },
+  { table: TableName.ANALYSE_VISUALISER, ...crud },
+  { table: TableName.CLIENT_VIH, ...crud },
+  { table: TableName.IMPORT_CLIENT_VIH, ...crud },
+  // Restreint : lecture seule (seul ADMIN peut créer/modifier/supprimer)
+  { table: TableName.PRODUIT, ...readOnly },
+  { table: TableName.EXAMEN, ...readOnly },
+  { table: TableName.ECHOGRAPHIE, ...readOnly },
+];
+
+// --- ADMIN : hérite AMD + CRUD complet sur les 5 tables restreintes ---
+const tablesAdmin: PermissionOverride[] = [
+  ...tablesAMD,
+  { table: TableName.REGION, ...crud },
+  { table: TableName.CLINIQUE, ...crud },
+  { table: TableName.PRODUIT, ...crud },
+  { table: TableName.EXAMEN, ...crud },
+  { table: TableName.ECHOGRAPHIE, ...crud },
 ];
 
 // ============================================================

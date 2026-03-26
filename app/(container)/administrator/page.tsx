@@ -18,8 +18,6 @@ import {
   DatabaseBackup,
   Settings2,
   ChevronRight,
-  Stethoscope,
-  DollarSign,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -84,26 +82,6 @@ export default function Administrator() {
       bgColor: "bg-gradient-to-br from-amber-50 to-amber-100/50",
       borderColor: "hover:border-amber-300 hover:shadow-amber-100/50",
       permission: TableName.POST,
-    },
-    {
-      label: "Prestations",
-      description: "Gérer les prestations médicales",
-      href: "/fiche-prestation/",
-      icon: Stethoscope,
-      color: "text-teal-600",
-      bgColor: "bg-gradient-to-br from-teal-50 to-teal-100/50",
-      borderColor: "hover:border-teal-300 hover:shadow-teal-100/50",
-      permission: TableName.PRESTATION,
-    },
-    {
-      label: "Tarifs prestations",
-      description: "Configurer les tarifs par clinique",
-      href: "/fiche-prix-prestation/",
-      icon: DollarSign,
-      color: "text-indigo-600",
-      bgColor: "bg-gradient-to-br from-indigo-50 to-indigo-100/50",
-      borderColor: "hover:border-indigo-300 hover:shadow-indigo-100/50",
-      permission: TableName.TARIF_PRESTATION,
     },
     {
       label: "Activités",

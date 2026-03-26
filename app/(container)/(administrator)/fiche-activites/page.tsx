@@ -121,7 +121,14 @@ export default function ActivitePage() {
             getAllLieu(),
           ]);
 
-        setCliniques(resultCliniques as Clinique[]);
+        // Non-admin : ne voit que ses cliniques
+        const visibleCliniques =
+          oneUser.role !== "ADMIN"
+            ? (resultCliniques as Clinique[]).filter((c) =>
+                oneUser.idCliniques.includes(c.id),
+              )
+            : (resultCliniques as Clinique[]);
+        setCliniques(visibleCliniques);
         setUsers(resultUsers as SafeUser[]);
 
         if (oneUser.role !== "ADMIN") {
@@ -137,10 +144,22 @@ export default function ActivitePage() {
           setActivites(resultActivites as Activite[]);
         }
 
-        setLieux(resultLieux as Lieu[]);
+        // Filtrer les lieux : ne garder que ceux liés aux activités visibles
+        if (oneUser.role !== "ADMIN") {
+          const visibleActiviteIds = new Set(
+            (resultActivites as Activite[])
+              .filter((a) => oneUser.idCliniques.includes(a.idClinique))
+              .map((a) => a.id),
+          );
+          setLieux(
+            (resultLieux as Lieu[]).filter((l) => visibleActiviteIds.has(l.idActivite)),
+          );
+        } else {
+          setLieux(resultLieux as Lieu[]);
+        }
 
-        if (resultCliniques.length > 0) {
-          const firstCliniqueId = resultCliniques[0].id;
+        if (visibleCliniques.length > 0) {
+          const firstCliniqueId = visibleCliniques[0].id;
           setSelectedCliniqueId(firstCliniqueId);
           const dialogActivites = await getAllActiviteByTabIdClinique([
             firstCliniqueId,
