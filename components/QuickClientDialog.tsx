@@ -448,31 +448,7 @@ export default function QuickClientDialog({
               )}
             </div>
 
-            {/* 7. Statut client */}
-            <div className="sm:col-span-1">
-              <label className={labelClass}>
-                Statut client <span className="text-red-500">*</span>
-              </label>
-              <select
-                {...register("statusClient", { required: "Statut est requis" })}
-                className={selectCls}
-                defaultValue=""
-              >
-                <option value="" disabled>
-                  Selectionner
-                </option>
-                {statusClientOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              {errors.statusClient && (
-                <span className={errorCls}>{errors.statusClient.message}</span>
-              )}
-            </div>
-
-            {/* 8. Telephone */}
+            {/* 7. Telephone */}
             <div className="sm:col-span-1">
               <label className={labelClass}>Telephone</label>
               <Input
@@ -527,6 +503,30 @@ export default function QuickClientDialog({
               </div>
               {errors.code && (
                 <span className={errorCls}>{errors.code.message}</span>
+              )}
+            </div>
+
+            {/* 10. Statut client */}
+            <div className="col-span-1 sm:col-span-2">
+              <label className={labelClass}>
+                Statut client <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register("statusClient", { required: "Statut est requis" })}
+                className={selectCls}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Selectionner
+                </option>
+                {statusClientOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {errors.statusClient && (
+                <span className={errorCls}>{errors.statusClient.message}</span>
               )}
             </div>
           </div>
