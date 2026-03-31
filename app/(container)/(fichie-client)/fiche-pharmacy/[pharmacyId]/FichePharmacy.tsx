@@ -897,46 +897,43 @@ export default function FichePharmacyClient({
 
     let lignesHtml = "";
 
+    const itemRow = (nom: string, qte: number, pu: number, montant: number) =>
+      `<tr>
+        <td class="td-nom">${nom}</td>
+        <td class="td-qte">${qte}</td>
+        <td class="td-pu">${pu.toLocaleString("fr-FR")}</td>
+        <td class="td-mt">${montant.toLocaleString("fr-FR")}</td>
+      </tr>`;
+
     if (produitFacture.length > 0) {
-      lignesHtml += `<div class="section-label">PRODUITS</div>`;
+      lignesHtml += `<tr><td colspan="4" class="section-label">PRODUITS</td></tr>`;
       produitFacture.forEach((p) => {
         const pu = Math.round((p.montantProduit || 0) / (p.quantite || 1));
-        lignesHtml += `<div class="item">
-          <div class="item-name">${p.nomProduit}</div>
-          <div class="row"><span>${p.quantite} x ${pu.toLocaleString("fr-FR")}</span><span>${p.montantProduit?.toLocaleString("fr-FR")}</span></div>
-        </div>`;
+        lignesHtml += itemRow(p.nomProduit, p.quantite, pu, p.montantProduit || 0);
       });
     }
 
     if (prestationfacture.length > 0) {
-      lignesHtml += `<div class="section-label">PRESTATIONS</div>`;
+      lignesHtml += `<tr><td colspan="4" class="section-label">PRESTATIONS</td></tr>`;
       prestationfacture.forEach((p) => {
-        lignesHtml += `<div class="item">
-          <div class="item-name">${nomPrestation(p.idPrestation)}</div>
-          <div class="row"><span>1 x ${Number(p.prixPrestation).toLocaleString("fr-FR")}</span><span>${Number(p.prixPrestation).toLocaleString("fr-FR")}</span></div>
-        </div>`;
+        const prix = Number(p.prixPrestation);
+        lignesHtml += itemRow(nomPrestation(p.idPrestation), 1, prix, prix);
       });
     }
 
     if (examensFacture.length > 0) {
-      lignesHtml += `<div class="section-label">EXAMENS</div>`;
+      lignesHtml += `<tr><td colspan="4" class="section-label">EXAMENS</td></tr>`;
       examensFacture.forEach((e) => {
         const prix = getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen;
-        lignesHtml += `<div class="item">
-          <div class="item-name">${e.libelleExamen}</div>
-          <div class="row"><span>1 x ${prix.toLocaleString("fr-FR")}</span><span>${prix.toLocaleString("fr-FR")}</span></div>
-        </div>`;
+        lignesHtml += itemRow(e.libelleExamen, 1, prix, prix);
       });
     }
 
     if (echographiesFacture.length > 0) {
-      lignesHtml += `<div class="section-label">ECHOGRAPHIES</div>`;
+      lignesHtml += `<tr><td colspan="4" class="section-label">ECHOGRAPHIES</td></tr>`;
       echographiesFacture.forEach((e) => {
         const prix = getPrixCatalogueEchographie(e.idDemandeEchographie) ?? e.prixEchographie;
-        lignesHtml += `<div class="item">
-          <div class="item-name">Echo. ${e.libelleEchographie}</div>
-          <div class="row"><span>1 x ${prix.toLocaleString("fr-FR")}</span><span>${prix.toLocaleString("fr-FR")}</span></div>
-        </div>`;
+        lignesHtml += itemRow("Echo. " + e.libelleEchographie, 1, prix, prix);
       });
     }
 
@@ -950,17 +947,25 @@ export default function FichePharmacyClient({
 <title>Facture Client</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 10px; font-size: 12px; }
+  body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 10px; font-size: 11px; }
   .center { text-align: center; }
   .bold { font-weight: bold; }
-  .line { border-top: 1px dashed #000; margin: 8px 0; }
+  .line { border-top: 1px dashed #000; margin: 6px 0; }
   .row { display: flex; justify-content: space-between; margin: 3px 0; }
-  .header { margin-bottom: 10px; }
+  .header { margin-bottom: 8px; }
   .header img { width: 80%; max-width: 220px; height: auto; margin-bottom: 6px; }
-  .section-label { font-size: 9px; color: #666; text-transform: uppercase; margin-top: 6px; border-bottom: 1px dotted #999; padding-bottom: 2px; margin-bottom: 4px; }
-  .item { margin: 4px 0; }
-  .item-name { font-weight: bold; font-size: 11px; }
-  .footer { margin-top: 12px; font-size: 10px; }
+  .footer { margin-top: 10px; font-size: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 1px 2px; font-size: 10px; white-space: nowrap; }
+  .td-nom { max-width: 110px; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+  .td-qte { width: 24px; text-align: center; }
+  .td-pu { width: 50px; text-align: right; }
+  .td-mt { width: 55px; text-align: right; font-weight: bold; }
+  .th-nom { text-align: left; }
+  .th-qte { width: 24px; text-align: center; }
+  .th-pu { width: 50px; text-align: right; }
+  .th-mt { width: 55px; text-align: right; }
+  .section-label { font-size: 8px; color: #666; text-transform: uppercase; padding-top: 4px; border-bottom: 1px dotted #999; }
   @media print {
     @page { margin: 0; size: 80mm auto; }
     body { width: 100%; padding: 5px; }
@@ -979,9 +984,19 @@ export default function FichePharmacyClient({
   <div class="line"></div>
   <div class="center bold" style="margin: 6px 0; font-size: 13px;">FACTURE CLIENT</div>
   <div class="line"></div>
-  <div class="row bold"><span>Désignation</span><span>Montant</span></div>
-  <div class="line"></div>
-  ${lignesHtml}
+  <table>
+    <thead>
+      <tr style="border-bottom: 1px solid #000;">
+        <th class="th-nom">Désig.</th>
+        <th class="th-qte">Qté</th>
+        <th class="th-pu">P.U.</th>
+        <th class="th-mt">Mnt</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${lignesHtml}
+    </tbody>
+  </table>
   <div class="line"></div>
   <div class="row bold" style="font-size: 14px; margin: 6px 0;">
     <span>TOTAL</span>
