@@ -114,14 +114,27 @@ export const authOptions: NextAuthOptions = {
       // Refresh JWT : re-vérifier que l'utilisateur existe et n'est pas banni
       // Exécuté toutes les updateAge (5 min) pour détecter ban/suppression mid-session
       if (token.id) {
+        // Helper : requête DB avec 1 retry (cold start Neon)
+        const fetchUser = async () => {
+          try {
+            return await prisma.user.findUnique({
+              where: { id: token.id as string },
+              select: { id: true, banned: true, role: true, name: true, email: true },
+            });
+          } catch {
+            // Retry après 2s (cold start Neon)
+            await new Promise((r) => setTimeout(r, 2000));
+            return await prisma.user.findUnique({
+              where: { id: token.id as string },
+              select: { id: true, banned: true, role: true, name: true, email: true },
+            });
+          }
+        };
+
         try {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.id as string },
-            select: { id: true, banned: true, role: true, name: true, email: true },
-          });
+          const dbUser = await fetchUser();
 
           if (!dbUser) {
-            // Utilisateur supprimé → invalider le token
             authLogger.warn("Token invalidé (user supprimé)", {
               userId: token.id as string,
             });
@@ -129,7 +142,6 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (dbUser.banned) {
-            // Utilisateur banni → invalider le token
             authLogger.warn("Token invalidé (user banni)", {
               userId: token.id as string,
             });
@@ -140,18 +152,21 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.name = dbUser.name;
           token.email = dbUser.email;
-          // Marquer la dernière vérification réussie
           token.lastVerified = Date.now();
         } catch (error) {
-          // Erreur DB (cold start Neon, réseau…) → conserver le token existant
-          // Ne déconnecter que si la dernière vérification réussie date de plus de 30 min
-          const lastVerified = (token.lastVerified as number) || 0;
-          const staleThreshold = 30 * 60 * 1000; // 30 minutes
-          if (lastVerified && Date.now() - lastVerified > staleThreshold) {
-            authLogger.warn("Token invalidé (DB inaccessible depuis 30+ min)", {
+          // Après retry échoué : conserver le token existant
+          // Ne déconnecter que si la DB est inaccessible depuis plus de 2h
+          const lastVerified = (token.lastVerified as number) || Date.now();
+          const staleThreshold = 2 * 60 * 60 * 1000; // 2 heures
+          if (Date.now() - lastVerified > staleThreshold) {
+            authLogger.warn("Token invalidé (DB inaccessible depuis 2h+)", {
               userId: token.id as string,
             });
             return {} as typeof token;
+          }
+          // Première fois sans lastVerified → l'initialiser maintenant
+          if (!token.lastVerified) {
+            token.lastVerified = Date.now();
           }
           authLogger.warn("Erreur DB lors du refresh JWT, token conservé");
         }

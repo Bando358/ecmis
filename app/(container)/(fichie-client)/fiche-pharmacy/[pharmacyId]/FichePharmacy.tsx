@@ -832,7 +832,6 @@ export default function FichePharmacyClient({
   const contentRef = useRef<HTMLDivElement>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
-  const reactToPrintTicket = useReactToPrint({ contentRef: ticketRef });
 
   // Nombre total de lignes brouillon
   const draftCount =
@@ -885,6 +884,122 @@ export default function FichePharmacyClient({
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
   }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen, getPrixCatalogueEchographie]);
+
+  // Impression ticket de caisse via window.open (compatible imprimantes thermiques Xprinter)
+  const printTicketThermal = useCallback(() => {
+    const cliniqueNom = client?.cliniqueId ? nomClinique(client.cliniqueId) : "";
+    const dateStr = dateVisiteSelectionnee.toLocaleDateString("fr-FR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+    const caissiere = session?.user?.name ?? "-";
+    const clientNom = `${client?.nom ?? ""} ${client?.prenom ?? ""}`.trim().toUpperCase();
+    const clientCode = client?.code ?? "";
+
+    let lignesHtml = "";
+
+    if (produitFacture.length > 0) {
+      lignesHtml += `<div class="section-label">PRODUITS</div>`;
+      produitFacture.forEach((p) => {
+        const pu = Math.round((p.montantProduit || 0) / (p.quantite || 1));
+        lignesHtml += `<div class="item">
+          <div class="item-name">${p.nomProduit}</div>
+          <div class="row"><span>${p.quantite} x ${pu.toLocaleString("fr-FR")}</span><span>${p.montantProduit?.toLocaleString("fr-FR")}</span></div>
+        </div>`;
+      });
+    }
+
+    if (prestationfacture.length > 0) {
+      lignesHtml += `<div class="section-label">PRESTATIONS</div>`;
+      prestationfacture.forEach((p) => {
+        lignesHtml += `<div class="item">
+          <div class="item-name">${nomPrestation(p.idPrestation)}</div>
+          <div class="row"><span>1 x ${Number(p.prixPrestation).toLocaleString("fr-FR")}</span><span>${Number(p.prixPrestation).toLocaleString("fr-FR")}</span></div>
+        </div>`;
+      });
+    }
+
+    if (examensFacture.length > 0) {
+      lignesHtml += `<div class="section-label">EXAMENS</div>`;
+      examensFacture.forEach((e) => {
+        const prix = getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen;
+        lignesHtml += `<div class="item">
+          <div class="item-name">${e.libelleExamen}</div>
+          <div class="row"><span>1 x ${prix.toLocaleString("fr-FR")}</span><span>${prix.toLocaleString("fr-FR")}</span></div>
+        </div>`;
+      });
+    }
+
+    if (echographiesFacture.length > 0) {
+      lignesHtml += `<div class="section-label">ECHOGRAPHIES</div>`;
+      echographiesFacture.forEach((e) => {
+        const prix = getPrixCatalogueEchographie(e.idDemandeEchographie) ?? e.prixEchographie;
+        lignesHtml += `<div class="item">
+          <div class="item-name">Echo. ${e.libelleEchographie}</div>
+          <div class="row"><span>1 x ${prix.toLocaleString("fr-FR")}</span><span>${prix.toLocaleString("fr-FR")}</span></div>
+        </div>`;
+      });
+    }
+
+    const w = window.open("", "_blank", "width=350,height=600");
+    if (!w) {
+      toast.error("Impossible d'ouvrir la fenêtre d'impression");
+      return;
+    }
+    w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Facture Client</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 10px; font-size: 12px; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .line { border-top: 1px dashed #000; margin: 8px 0; }
+  .row { display: flex; justify-content: space-between; margin: 3px 0; }
+  .header { margin-bottom: 10px; }
+  .header img { width: 80%; max-width: 220px; height: auto; margin-bottom: 6px; }
+  .section-label { font-size: 9px; color: #666; text-transform: uppercase; margin-top: 6px; border-bottom: 1px dotted #999; padding-bottom: 2px; margin-bottom: 4px; }
+  .item { margin: 4px 0; }
+  .item-name { font-weight: bold; font-size: 11px; }
+  .footer { margin-top: 12px; font-size: 10px; }
+  @media print {
+    @page { margin: 0; size: 80mm auto; }
+    body { width: 100%; padding: 5px; }
+  }
+</style></head>
+<body>
+  <div class="header center">
+    <img src="/LOGO_AIBEF_IPPF.png" alt="Logo AIBEF IPPF" />
+    <div class="bold">AIBEF - ${cliniqueNom}</div>
+    <div>${dateStr}</div>
+  </div>
+  <div class="line"></div>
+  <div class="row"><span>Client :</span><span class="bold">${clientNom}</span></div>
+  ${clientCode ? `<div class="row"><span>Code :</span><span>${clientCode}</span></div>` : ""}
+  <div class="row"><span>Caissiere :</span><span>${caissiere}</span></div>
+  <div class="line"></div>
+  <div class="center bold" style="margin: 6px 0; font-size: 13px;">FACTURE CLIENT</div>
+  <div class="line"></div>
+  <div class="row bold"><span>Désignation</span><span>Montant</span></div>
+  <div class="line"></div>
+  ${lignesHtml}
+  <div class="line"></div>
+  <div class="row bold" style="font-size: 14px; margin: 6px 0;">
+    <span>TOTAL</span>
+    <span>${totalSansReduction.toLocaleString("fr-FR")} CFA</span>
+  </div>
+  <div class="line"></div>
+  <div class="footer center">
+    <p>Merci pour votre visite !</p>
+    <p>AIBEF - ${cliniqueNom}</p>
+  </div>
+</body></html>`);
+    w.document.close();
+    w.onload = () => {
+      w.focus();
+      w.print();
+      w.onafterprint = () => w.close();
+    };
+  }, [client, dateVisiteSelectionnee, session, produitFacture, prestationfacture, examensFacture, echographiesFacture, totalSansReduction, nomClinique, nomPrestation, getPrixCatalogueExamen, getPrixCatalogueEchographie]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -2219,7 +2334,7 @@ export default function FichePharmacyClient({
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => reactToPrintTicket()}
+                onClick={() => printTicketThermal()}
                 className="gap-2"
               >
                 <Printer className="h-4 w-4" />
