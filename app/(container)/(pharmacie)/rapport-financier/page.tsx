@@ -902,15 +902,13 @@ export default function VentesPage() {
       facturesProduits.reduce((total, f) => total + f.prodMontantTotal, 0) +
       facturesPrestations.reduce((total, f) => total + f.prestPrixTotal, 0) +
       facturesExamens.reduce((total, f) => total + f.examPrixTotal, 0) +
-      facturesEchographies.reduce((total, f) => total + f.echoPrixTotal, 0) +
-      totalVentesDirectes
+      facturesEchographies.reduce((total, f) => total + f.echoPrixTotal, 0)
     );
   }, [
     facturesProduits,
     facturesPrestations,
     facturesExamens,
     facturesEchographies,
-    totalVentesDirectes,
   ]);
 
   const totalProduitsQuantite = useMemo(() => {
