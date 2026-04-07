@@ -137,6 +137,7 @@ export default function VenteDirectePage() {
   const [produits, setProduits] = useState<Produit[]>([]);
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [qteInputs, setQteInputs] = useState<Record<string, string>>({});
   const [ventesJour, setVentesJour] = useState<VenteDirecteRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -722,10 +723,30 @@ export default function VenteDirectePage() {
                                     type="number"
                                     min={1}
                                     max={item.stockDisponible}
-                                    value={item.quantite}
+                                    value={qteInputs[item.idTarifProduit] ?? item.quantite}
                                     onChange={(e) =>
-                                      updateQuantite(item.idTarifProduit, parseInt(e.target.value) || 1)
+                                      setQteInputs((prev) => ({
+                                        ...prev,
+                                        [item.idTarifProduit]: e.target.value,
+                                      }))
                                     }
+                                    onBlur={() => {
+                                      const raw = qteInputs[item.idTarifProduit];
+                                      if (raw != null) {
+                                        const val = parseInt(raw);
+                                        updateQuantite(item.idTarifProduit, isNaN(val) || val < 1 ? 1 : val);
+                                        setQteInputs((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.idTarifProduit];
+                                          return next;
+                                        });
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                    }}
                                     className="w-16 text-center mx-auto h-8"
                                   />
                                 </TableCell>
