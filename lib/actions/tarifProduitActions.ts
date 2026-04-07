@@ -111,9 +111,9 @@ export async function updateQuantiteStockTarifProduit(
       throw new Error("Produit non trouvé");
     }
 
-    await prisma.tarifProduit.update({
+    const updated = await prisma.tarifProduit.update({
       where: { id: idTarifProduit },
-      data: { quantiteStock: quantiteAjoutee },
+      data: { quantiteStock: { increment: quantiteAjoutee } },
     });
 
     await logAction({
@@ -122,12 +122,12 @@ export async function updateQuantiteStockTarifProduit(
       entite: "TarifProduit",
       entiteId: idTarifProduit,
       idClinique: tarif.idClinique,
-      description: `Ajustement stock: ${tarif.quantiteStock} -> ${quantiteAjoutee}`,
+      description: `Restauration stock: +${quantiteAjoutee} unites -> ${updated.quantiteStock}`,
       anciennesDonnees: { quantiteStock: tarif.quantiteStock },
-      nouvellesDonnees: { quantiteStock: quantiteAjoutee },
+      nouvellesDonnees: { quantiteStock: updated.quantiteStock },
     });
 
-    return { success: true, quantiteAjoutee };
+    return { success: true, quantiteAjoutee, nouveauStock: updated.quantiteStock };
   } catch (error) {
     console.error(
       "Erreur lors de la mise à jour de la quantité en stock :",
@@ -136,6 +136,48 @@ export async function updateQuantiteStockTarifProduit(
     return { success: false };
   }
 }
+// SET absolu du stock (utilisé par l'inventaire pour ajuster à la quantité réelle)
+export async function setQuantiteStockTarifProduit(
+  idTarifProduit: string,
+  nouvelleQuantite: number
+) {
+  await requirePermission(TableName.TARIF_PRODUIT, "canUpdate");
+  try {
+    const tarif = await prisma.tarifProduit.findUnique({
+      where: { id: idTarifProduit },
+      select: { quantiteStock: true, idUser: true, idClinique: true },
+    });
+
+    if (!tarif) {
+      throw new Error("Produit non trouvé");
+    }
+
+    await prisma.tarifProduit.update({
+      where: { id: idTarifProduit },
+      data: { quantiteStock: nouvelleQuantite },
+    });
+
+    await logAction({
+      idUser: tarif.idUser,
+      action: "MODIFICATION",
+      entite: "TarifProduit",
+      entiteId: idTarifProduit,
+      idClinique: tarif.idClinique,
+      description: `Ajustement inventaire: ${tarif.quantiteStock} -> ${nouvelleQuantite}`,
+      anciennesDonnees: { quantiteStock: tarif.quantiteStock },
+      nouvellesDonnees: { quantiteStock: nouvelleQuantite },
+    });
+
+    return { success: true, nouvelleQuantite };
+  } catch (error) {
+    console.error(
+      "Erreur lors de l'ajustement du stock par inventaire :",
+      error
+    );
+    return { success: false };
+  }
+}
+
 export async function updateQuantiteStockTarifProduitByDetailCommande(
   idTarifProduit: string,
   quantiteAjoutee: number

@@ -34,7 +34,7 @@ import { getAllProduits } from "@/lib/actions/produitActions";
 import { getAllClinique } from "@/lib/actions/cliniqueActions";
 import {
   getAllTarifProduits,
-  updateQuantiteStockTarifProduit,
+  setQuantiteStockTarifProduit,
 } from "@/lib/actions/tarifProduitActions";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -367,7 +367,7 @@ export default function DetailInventairePage() {
         });
 
         // Mettre à jour le stock avec la quantité réelle du détail d'inventaire
-        await updateQuantiteStockTarifProduit(
+        await setQuantiteStockTarifProduit(
           data.idTarifProduit,
           quantiteReelleDetail
         );

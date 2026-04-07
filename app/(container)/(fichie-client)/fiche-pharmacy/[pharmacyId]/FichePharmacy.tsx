@@ -521,7 +521,7 @@ export default function FichePharmacyClient({
     remise: number,
   ) => {
     const total = echographies.reduce(
-      (sum, e) => sum + (tarifEchographieMap.get(e.idTarifEchographie)?.prixEchographie || 0),
+      (sum, e) => sum + (e.prixEchographie || 0),
       0,
     );
     return total * (1 - (remise || 0) / 100);

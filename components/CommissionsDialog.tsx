@@ -195,20 +195,16 @@ export default function CommissionsDialog({
       // Commission examen = remise% × prix catalogue (TarifExamen.prixExamen)
       const defaultExamensCommissions: Record<string, number> = {};
       examensFacture.forEach((examen) => {
-        if (examen.remiseExamen > 0) {
-          const prixCatalogue = prixCatalogueExamenMap.get(examen.id) ?? examen.prixExamen;
-          defaultExamensCommissions[examen.id] = Math.round(prixCatalogue * examen.remiseExamen / 100);
-        }
+        const prixCatalogue = prixCatalogueExamenMap.get(examen.id) ?? examen.prixExamen;
+        defaultExamensCommissions[examen.id] = Math.round(prixCatalogue * examen.remiseExamen / 100);
       });
       setExamensCommissions(defaultExamensCommissions);
 
       // Commission échographie = remise% × prix catalogue (TarifEchographie.prixEchographie)
       const defaultEchographiesCommissions: Record<string, number> = {};
       echographiesFacture.forEach((echo) => {
-        if (echo.remiseEchographie > 0) {
-          const prixCatalogue = prixCatalogueEchographieMap.get(echo.id) ?? echo.prixEchographie;
-          defaultEchographiesCommissions[echo.id] = Math.round(prixCatalogue * echo.remiseEchographie / 100);
-        }
+        const prixCatalogue = prixCatalogueEchographieMap.get(echo.id) ?? echo.prixEchographie;
+        defaultEchographiesCommissions[echo.id] = Math.round(prixCatalogue * echo.remiseEchographie / 100);
       });
       setEchographiesCommissions(defaultEchographiesCommissions);
     }
@@ -256,6 +252,7 @@ export default function CommissionsDialog({
     setExamensCommissionsExistantes(existantes);
     // Initialiser les montants avec les valeurs existantes
     setExamensCommissions((prev) => ({ ...prev, ...montants }));
+    return existantes;
   };
 
   // Charger les commissions existantes pour les échographies
@@ -276,13 +273,23 @@ export default function CommissionsDialog({
     setEchographiesCommissionsExistantes(existantes);
     // Initialiser les montants avec les valeurs existantes
     setEchographiesCommissions((prev) => ({ ...prev, ...montants }));
+    return existantes;
   };
 
   useEffect(() => {
     if (open) {
       loadPrescripteurs();
-      loadExamensCommissionsExistantes();
-      loadEchographiesCommissionsExistantes();
+      // Charger les commissions et pré-sélectionner le prescripteur existant
+      Promise.all([
+        loadExamensCommissionsExistantes(),
+        loadEchographiesCommissionsExistantes(),
+      ]).then(([examensExistantes, echographiesExistantes]) => {
+        const allExistantes = { ...examensExistantes, ...echographiesExistantes };
+        const firstExistante = Object.values(allExistantes)[0];
+        if (firstExistante) {
+          setSelectedPrescripteur(firstExistante.idPrescripteur);
+        }
+      });
     }
   }, [open, idClinique]);
 
@@ -486,17 +493,15 @@ export default function CommissionsDialog({
     const commissionsToUpdate: [string, number, string][] = []; // [idFacture, montant, idCommission]
 
     Object.entries(examensCommissions).forEach(([idFacture, montant]) => {
-      if (montant > 0) {
-        const existante = examensCommissionsExistantes[idFacture];
-        if (existante) {
-          // Commission existante - vérifier si le montant a changé
-          if (existante.montant !== montant) {
-            commissionsToUpdate.push([idFacture, montant, existante.id]);
-          }
-        } else {
-          // Nouvelle commission
-          commissionsToCreate.push([idFacture, montant]);
+      const existante = examensCommissionsExistantes[idFacture];
+      if (existante) {
+        // Commission existante - vérifier si le montant a changé
+        if (existante.montant !== montant) {
+          commissionsToUpdate.push([idFacture, montant, existante.id]);
         }
+      } else {
+        // Nouvelle commission
+        commissionsToCreate.push([idFacture, montant]);
       }
     });
 
@@ -552,17 +557,15 @@ export default function CommissionsDialog({
     const commissionsToUpdate: [string, number, string][] = []; // [idFacture, montant, idCommission]
 
     Object.entries(echographiesCommissions).forEach(([idFacture, montant]) => {
-      if (montant > 0) {
-        const existante = echographiesCommissionsExistantes[idFacture];
-        if (existante) {
-          // Commission existante - vérifier si le montant a changé
-          if (existante.montant !== montant) {
-            commissionsToUpdate.push([idFacture, montant, existante.id]);
-          }
-        } else {
-          // Nouvelle commission
-          commissionsToCreate.push([idFacture, montant]);
+      const existante = echographiesCommissionsExistantes[idFacture];
+      if (existante) {
+        // Commission existante - vérifier si le montant a changé
+        if (existante.montant !== montant) {
+          commissionsToUpdate.push([idFacture, montant, existante.id]);
         }
+      } else {
+        // Nouvelle commission
+        commissionsToCreate.push([idFacture, montant]);
       }
     });
 
@@ -637,7 +640,7 @@ export default function CommissionsDialog({
       if (existante) {
         return existante.montant !== montant;
       }
-      return montant > 0;
+      return montant >= 0;
     });
   }, [examensCommissions, examensCommissionsExistantes]);
 
@@ -647,7 +650,7 @@ export default function CommissionsDialog({
       if (existante) {
         return existante.montant !== montant;
       }
-      return montant > 0;
+      return montant >= 0;
     });
   }, [echographiesCommissions, echographiesCommissionsExistantes]);
 
@@ -771,7 +774,7 @@ export default function CommissionsDialog({
                                   "w-24",
                                   hasExistingCommission && "border-green-500 text-green-600 font-medium"
                                 )}
-                                value={examensCommissions[examen.id] || ""}
+                                value={examensCommissions[examen.id] ?? ""}
                                 onChange={(e) =>
                                   setExamensCommissions((prev) => ({
                                     ...prev,
@@ -793,6 +796,19 @@ export default function CommissionsDialog({
                     })}
                   </TableBody>
                   <TableFooter>
+                    {selectedPrescripteurData && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Prescripteur : <span className="font-medium text-foreground">{selectedPrescripteurData.nom} {selectedPrescripteurData.prenom}</span>
+                          {selectedPrescripteurData.centre && (
+                            <span className="ml-1">— {selectedPrescripteurData.centre}</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     <TableRow>
                       <TableCell
                         colSpan={2}
@@ -928,7 +944,7 @@ export default function CommissionsDialog({
                                   "w-24",
                                   hasExistingCommission && "border-green-500 text-green-600 font-medium"
                                 )}
-                                value={echographiesCommissions[echo.id] || ""}
+                                value={echographiesCommissions[echo.id] ?? ""}
                                 onChange={(e) =>
                                   setEchographiesCommissions((prev) => ({
                                     ...prev,
@@ -950,6 +966,19 @@ export default function CommissionsDialog({
                     })}
                   </TableBody>
                   <TableFooter>
+                    {selectedPrescripteurData && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Prescripteur : <span className="font-medium text-foreground">{selectedPrescripteurData.nom} {selectedPrescripteurData.prenom}</span>
+                          {selectedPrescripteurData.centre && (
+                            <span className="ml-1">— {selectedPrescripteurData.centre}</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     <TableRow>
                       <TableCell
                         colSpan={2}
