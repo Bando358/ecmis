@@ -22,9 +22,6 @@ export type FactureEchographieType = {
   echoLibelle: string;
   echoPrixTotal: number;
   echoIdDemandeEchographie: string;
-  echoClient: unknown;
-  echoClinique: unknown;
-  echoUser: unknown;
 };
 
 export type ReferenceType = {
@@ -57,9 +54,6 @@ export type FactureExamenType = {
   examLibelle: string;
   examPrixTotal: number;
   examIdDemandeExamen: string;
-  examClient: unknown;
-  examClinique: unknown;
-  examUser: unknown;
 };
 
 export type FactureProduitType = {
@@ -75,9 +69,6 @@ export type FactureProduitType = {
   prodQuantite: number;
   prodMethode: string;
   prodIdTarifProduit: string;
-  prodClient: unknown;
-  prodClinique: unknown;
-  prodUser: unknown;
 };
 
 export type FacturePrestationType = {
@@ -92,9 +83,6 @@ export type FacturePrestationType = {
   prestPrixTotal: number;
   prestIdPrestation: string;
   prestLibellePrestation: string;
-  prestClient: unknown;
-  prestClinique: unknown;
-  prestUser: unknown;
 };
 
 export const fetchDashboardData = async (
@@ -243,12 +231,17 @@ export const fetchDashboardData = async (
         idClinique: { in: clinicIds },
         ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
-      include: {
-        Visite: true,
-        Client: true,
-        Clinique: true,
-        DemandeExamen: true,
-        User: true,
+      select: {
+        id: true,
+        idVisite: true,
+        idClient: true,
+        idClinique: true,
+        idUser: true,
+        libelleExamen: true,
+        remiseExamen: true,
+        prixExamen: true,
+        idDemandeExamen: true,
+        Visite: { select: { dateVisite: true } },
       },
     }),
     prisma.factureProduit.findMany({
@@ -256,12 +249,18 @@ export const fetchDashboardData = async (
         idClinique: { in: clinicIds },
         ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
-      include: {
-        Visite: true,
-        Client: true,
-        Clinique: true,
-        tarifProduit: true,
-        User: true,
+      select: {
+        id: true,
+        idVisite: true,
+        idClient: true,
+        idClinique: true,
+        idUser: true,
+        nomProduit: true,
+        montantProduit: true,
+        quantite: true,
+        methode: true,
+        idTarifProduit: true,
+        dateFacture: true,
       },
     }),
     prisma.facturePrestation.findMany({
@@ -269,12 +268,16 @@ export const fetchDashboardData = async (
         idClinique: { in: clinicIds },
         ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
-      include: {
-        Visite: true,
-        Client: true,
-        Clinique: true,
-        Prestation: true,
-        User: true,
+      select: {
+        id: true,
+        idVisite: true,
+        idClient: true,
+        idClinique: true,
+        idUser: true,
+        libellePrestation: true,
+        prixPrestation: true,
+        idPrestation: true,
+        dateFacture: true,
       },
     }),
     prisma.factureEchographie.findMany({
@@ -282,12 +285,17 @@ export const fetchDashboardData = async (
         idClinique: { in: clinicIds },
         ...(Object.keys(visiteWhere).length > 0 && { Visite: visiteWhere }),
       },
-      include: {
-        Visite: true,
-        Client: true,
-        Clinique: true,
-        DemandeEchographie: true,
-        User: true,
+      select: {
+        id: true,
+        idVisite: true,
+        idClient: true,
+        idClinique: true,
+        idUser: true,
+        libelleEchographie: true,
+        remiseEchographie: true,
+        prixEchographie: true,
+        idDemandeEchographie: true,
+        Visite: { select: { dateVisite: true } },
       },
     }),
   ]);
@@ -520,9 +528,6 @@ export const fetchDashboardData = async (
     examRemise: f.remiseExamen || 0,
     examPrixTotal: f.prixExamen,
     examIdDemandeExamen: f.idDemandeExamen,
-    examClient: f.Client,
-    examClinique: f.Clinique,
-    examUser: f.User,
   }));
 
   // Map FactureProduit
@@ -545,9 +550,6 @@ export const fetchDashboardData = async (
     // prodPrixUnitaire: f.montantProduit,
     prodMethode: String(f.methode),
     prodIdTarifProduit: f.idTarifProduit,
-    prodClient: f.Client,
-    prodClinique: f.Clinique,
-    prodUser: f.User,
   }));
 
   // Map FacturePrestation
@@ -568,9 +570,6 @@ export const fetchDashboardData = async (
     prestPrixTotal: f.prixPrestation,
     prestIdPrestation: f.idPrestation,
     prestLibellePrestation: f.libellePrestation,
-    prestClient: f.Client,
-    prestClinique: f.Clinique,
-    prestUser: f.User,
   }));
 
   // Map FactureEchographie
@@ -591,9 +590,6 @@ export const fetchDashboardData = async (
     echoLibelle: f.libelleEchographie,
     echoPrixTotal: f.prixEchographie,
     echoIdDemandeEchographie: f.idDemandeEchographie,
-    echoClient: f.Client,
-    echoClinique: f.Clinique,
-    echoUser: f.User,
   }));
 
   // ✅ Tableau final structuré

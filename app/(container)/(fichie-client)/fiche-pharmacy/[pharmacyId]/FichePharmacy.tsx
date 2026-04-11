@@ -98,6 +98,7 @@ import PrestationsModal from "@/components/prestationModal";
 import ExamensModal from "@/components/examenModal";
 import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -185,6 +186,26 @@ const montantFactureExamens = (examens: FactureExamen[]) =>
 const montantFactureEchographies = (echographies: FactureEchographie[]) =>
   echographies.reduce((total, e) => total + (Number(e.prixEchographie) || 0), 0);
 
+// Reconstitue le prix saisi dans la dialog "Ajouter une échographie" à partir du net stocké
+// Formule : gross = (net + partEchographe/n) / (1 - remise/100)
+// où n = nombre d'échographies dans le même batch (même idVisite + même partEchographe)
+const getPrixSaisiEchographie = (
+  echo: FactureEchographie,
+  allEchos: FactureEchographie[],
+): number => {
+  const batchSize = allEchos.filter(
+    (e) => e.idVisite === echo.idVisite && e.partEchographe === echo.partEchographe,
+  ).length;
+  const n = batchSize > 0 ? batchSize : 1;
+  const partEchoPerEcho = (Number(echo.partEchographe) || 0) / n;
+  const remise = Number(echo.remiseEchographie) || 0;
+  const denominateur = 1 - remise / 100;
+  if (denominateur <= 0) return Number(echo.prixEchographie) || 0;
+  return Math.round(
+    ((Number(echo.prixEchographie) || 0) + partEchoPerEcho) / denominateur,
+  );
+};
+
 // Composant client principal
 export default function FichePharmacyClient({
   params,
@@ -256,6 +277,12 @@ export default function FichePharmacyClient({
   const [produitFacture, setProduitFacture] = useState<FactureProduit[]>([]);
   const [selectedProduits, setSelectedProduits] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // IDs des factures cochées pour apparaître sur le ticket FACTURE CLIENT
+  // Par défaut, toutes les factures chargées sont cochées
+  const [ticketSelectedIds, setTicketSelectedIds] = useState<Set<string>>(new Set());
+  // Ref des IDs déjà vus (pour distinguer nouveaux IDs vs IDs décochés)
+  const knownFactureIdsRef = useRef<Set<string>>(new Set());
 
   const [selectedIdVisite, setSelectedIdVisite] = useState<string>("");
 
@@ -623,6 +650,90 @@ export default function FichePharmacyClient({
     serverData.tabEchographieFactureClient,
   ]);
 
+  // Synchroniser les IDs cochés du ticket avec les factures chargées :
+  // - Les nouveaux IDs (jamais vus) sont cochés par défaut
+  // - Les IDs supprimés sont retirés
+  // - Les choix utilisateur (cases décochées) sont préservés pour les IDs existants
+  useEffect(() => {
+    const currentIds = new Set<string>();
+    produitFacture.forEach((p) => currentIds.add(p.id));
+    prestationfacture.forEach((p) => currentIds.add(p.id));
+    examensFacture.forEach((e) => currentIds.add(e.id));
+    echographiesFacture.forEach((e) => currentIds.add(e.id));
+
+    const known = knownFactureIdsRef.current;
+    setTicketSelectedIds((prev) => {
+      const next = new Set<string>();
+      // Conserver les IDs déjà cochés qui existent encore
+      for (const id of prev) {
+        if (currentIds.has(id)) next.add(id);
+      }
+      // Cocher par défaut les nouveaux IDs (jamais vus avant)
+      for (const id of currentIds) {
+        if (!known.has(id)) {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+
+    // Mettre à jour la ref des IDs connus
+    knownFactureIdsRef.current = currentIds;
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture]);
+
+  // Toggle d'une ligne du ticket
+  const toggleTicketSelection = useCallback((id: string) => {
+    setTicketSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Tous les IDs des factures enregistrées
+  const allFactureIds = useMemo(() => {
+    const ids: string[] = [];
+    produitFacture.forEach((p) => ids.push(p.id));
+    prestationfacture.forEach((p) => ids.push(p.id));
+    examensFacture.forEach((e) => ids.push(e.id));
+    echographiesFacture.forEach((e) => ids.push(e.id));
+    return ids;
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture]);
+
+  // État du master checkbox : "checked", "unchecked" ou "indeterminate"
+  const allTicketChecked = useMemo(() => {
+    if (allFactureIds.length === 0) return false;
+    return allFactureIds.every((id) => ticketSelectedIds.has(id));
+  }, [allFactureIds, ticketSelectedIds]);
+
+  // Toggle tous les IDs
+  const toggleAllTicketSelection = useCallback(() => {
+    setTicketSelectedIds((prev) => {
+      const allChecked = allFactureIds.length > 0 && allFactureIds.every((id) => prev.has(id));
+      if (allChecked) return new Set();
+      return new Set(allFactureIds);
+    });
+  }, [allFactureIds]);
+
+  // Données filtrées pour le ticket FACTURE CLIENT (uniquement les lignes cochées)
+  const ticketProduits = useMemo(
+    () => produitFacture.filter((p) => ticketSelectedIds.has(p.id)),
+    [produitFacture, ticketSelectedIds],
+  );
+  const ticketPrestations = useMemo(
+    () => prestationfacture.filter((p) => ticketSelectedIds.has(p.id)),
+    [prestationfacture, ticketSelectedIds],
+  );
+  const ticketExamens = useMemo(
+    () => examensFacture.filter((e) => ticketSelectedIds.has(e.id)),
+    [examensFacture, ticketSelectedIds],
+  );
+  const ticketEchographies = useMemo(
+    () => echographiesFacture.filter((e) => ticketSelectedIds.has(e.id)),
+    [echographiesFacture, ticketSelectedIds],
+  );
+
   // Helper : vérifie si un produit est de type CONTRACEPTIF
   const isContraceptifProduit = (idTarifProduit: string): boolean => {
     const tarifProduit = tabTarifProduit.find((p) => p.id === idTarifProduit);
@@ -878,12 +989,25 @@ export default function FichePharmacyClient({
     const totalExamens = examensFacture.reduce((sum, e) => {
       return sum + (getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen);
     }, 0);
-    // Echographie : prix catalogue (TarifEchographie.prixEchographie)
+    // Echographie : prix saisi dans la dialog (reconstruit depuis net + remise + partEchographe)
     const totalEchographies = echographiesFacture.reduce((sum, e) => {
-      return sum + (getPrixCatalogueEchographie(e.idDemandeEchographie) ?? e.prixEchographie);
+      return sum + getPrixSaisiEchographie(e, echographiesFacture);
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
-  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen, getPrixCatalogueEchographie]);
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen]);
+
+  // Total affiché sur le ticket FACTURE CLIENT : uniquement les lignes cochées
+  const ticketTotal = useMemo(() => {
+    const totalProduits = montantProduits(ticketProduits);
+    const totalPrestations = montantPrestations(ticketPrestations);
+    const totalExamens = ticketExamens.reduce((sum, e) => {
+      return sum + (getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen);
+    }, 0);
+    const totalEchographies = ticketEchographies.reduce((sum, e) => {
+      return sum + getPrixSaisiEchographie(e, echographiesFacture);
+    }, 0);
+    return totalProduits + totalPrestations + totalExamens + totalEchographies;
+  }, [ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, echographiesFacture, getPrixCatalogueExamen]);
 
   // Impression ticket de caisse via window.open (compatible imprimantes thermiques Xprinter)
   const printTicketThermal = useCallback(() => {
@@ -905,34 +1029,34 @@ export default function FichePharmacyClient({
         <td class="td-mt">${montant.toLocaleString("fr-FR")}</td>
       </tr>`;
 
-    if (produitFacture.length > 0) {
+    if (ticketProduits.length > 0) {
       lignesHtml += `<tr><td colspan="4" class="section-label">PRODUITS</td></tr>`;
-      produitFacture.forEach((p) => {
+      ticketProduits.forEach((p) => {
         const pu = Math.round((p.montantProduit || 0) / (p.quantite || 1));
         lignesHtml += itemRow(p.nomProduit, p.quantite, pu, p.montantProduit || 0);
       });
     }
 
-    if (prestationfacture.length > 0) {
+    if (ticketPrestations.length > 0) {
       lignesHtml += `<tr><td colspan="4" class="section-label">PRESTATIONS</td></tr>`;
-      prestationfacture.forEach((p) => {
+      ticketPrestations.forEach((p) => {
         const prix = Number(p.prixPrestation);
         lignesHtml += itemRow(nomPrestation(p.idPrestation), 1, prix, prix);
       });
     }
 
-    if (examensFacture.length > 0) {
+    if (ticketExamens.length > 0) {
       lignesHtml += `<tr><td colspan="4" class="section-label">EXAMENS</td></tr>`;
-      examensFacture.forEach((e) => {
+      ticketExamens.forEach((e) => {
         const prix = getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen;
         lignesHtml += itemRow(e.libelleExamen, 1, prix, prix);
       });
     }
 
-    if (echographiesFacture.length > 0) {
+    if (ticketEchographies.length > 0) {
       lignesHtml += `<tr><td colspan="4" class="section-label">ECHOGRAPHIES</td></tr>`;
-      echographiesFacture.forEach((e) => {
-        const prix = getPrixCatalogueEchographie(e.idDemandeEchographie) ?? e.prixEchographie;
+      ticketEchographies.forEach((e) => {
+        const prix = getPrixSaisiEchographie(e, echographiesFacture);
         lignesHtml += itemRow("Echo. " + e.libelleEchographie, 1, prix, prix);
       });
     }
@@ -1000,7 +1124,7 @@ export default function FichePharmacyClient({
   <div class="line"></div>
   <div class="row bold" style="font-size: 14px; margin: 6px 0;">
     <span>TOTAL</span>
-    <span>${totalSansReduction.toLocaleString("fr-FR")} CFA</span>
+    <span>${ticketTotal.toLocaleString("fr-FR")} CFA</span>
   </div>
   <div class="line"></div>
   <div class="footer center">
@@ -1014,7 +1138,7 @@ export default function FichePharmacyClient({
       w.print();
       w.onafterprint = () => w.close();
     };
-  }, [client, dateVisiteSelectionnee, session, produitFacture, prestationfacture, examensFacture, echographiesFacture, totalSansReduction, nomClinique, nomPrestation, getPrixCatalogueExamen, getPrixCatalogueEchographie]);
+  }, [client, dateVisiteSelectionnee, session, ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, echographiesFacture, ticketTotal, nomClinique, nomPrestation, getPrixCatalogueExamen]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -1268,6 +1392,69 @@ export default function FichePharmacyClient({
                   )}
                 </form>
               </Form>
+
+              {/* ===== Badges récapitulatifs paramètres facturation ===== */}
+              {watchedIdVisite && (() => {
+                const hasExamensFacture = examensFacture.length > 0;
+                const hasEchosFacture = echographiesFacture.length > 0;
+
+                // Examens : utiliser facture si dispo, sinon valeur saisie
+                const examFromFacture = hasExamensFacture ? examensFacture[0] : null;
+                const remiseExamenAffichee = examFromFacture
+                  ? examFromFacture.remiseExamen
+                  : Number(watchedRemiseExamen) || 0;
+                const isSousTraiteAffiche = examFromFacture
+                  ? !!examFromFacture.soustraitanceExamen
+                  : Boolean(watchedSoustractionExamen);
+                const typeBilanAffiche = watchedTypeExamen || "";
+
+                // Echographies : utiliser facture si dispo, sinon valeur saisie
+                const echoFromFacture = hasEchosFacture ? echographiesFacture[0] : null;
+                const remiseEchoAffichee = echoFromFacture
+                  ? echoFromFacture.remiseEchographie
+                  : Number(watchedRemiseEchographie) || 0;
+                const partEchoAffichee = echoFromFacture
+                  ? echoFromFacture.partEchographe
+                  : Number(watchedPartEchographe) || 0;
+
+                const hasAnyExam = hasExamensFacture || demandeExamens.length > 0;
+                const hasAnyEcho = hasEchosFacture || demandeEchographies.length > 0;
+
+                if (!hasAnyExam && !hasAnyEcho) return null;
+
+                return (
+                  <div className="mt-4 px-3 sm:px-6 pb-3 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mr-1">
+                      Paramètres :
+                    </span>
+                    {hasAnyExam && typeBilanAffiche && (
+                      <Badge variant="outline" className="text-[10px] bg-yellow-50 border-yellow-300 text-yellow-800">
+                        Type bilan : {typeBilanAffiche}
+                      </Badge>
+                    )}
+                    {hasAnyExam && remiseExamenAffichee > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-yellow-50 border-yellow-300 text-yellow-800">
+                        Commission examen : {remiseExamenAffichee}%
+                      </Badge>
+                    )}
+                    {hasAnyExam && isSousTraiteAffiche && (
+                      <Badge variant="outline" className="text-[10px] bg-orange-50 border-orange-300 text-orange-800">
+                        Sous-traité
+                      </Badge>
+                    )}
+                    {hasAnyEcho && (
+                      <Badge variant="outline" className="text-[10px] bg-green-50 border-green-300 text-green-800">
+                        Commission écho : {remiseEchoAffichee}%
+                      </Badge>
+                    )}
+                    {hasAnyEcho && partEchoAffichee > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-blue-50 border-blue-300 text-blue-800">
+                        Part échographe : {partEchoAffichee.toLocaleString("fr-FR")} CFA
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
 
             <Separator />
@@ -1727,7 +1914,7 @@ export default function FichePharmacyClient({
                   <Table className="min-w-[500px]">
                     <TableHeader>
                       <TableRow className="border-b-0">
-                        <TableCell colSpan={6} className="text-center py-4">
+                        <TableCell colSpan={7} className="text-center py-4">
                           <Image
                             src="/LOGO_AIBEF_IPPF.png"
                             alt="Logo"
@@ -1738,6 +1925,13 @@ export default function FichePharmacyClient({
                         </TableCell>
                       </TableRow>
                       <TableRow className="bg-blue-50/60">
+                        <TableHead className="w-10 print:hidden">
+                          <Checkbox
+                            checked={allTicketChecked}
+                            onCheckedChange={toggleAllTicketSelection}
+                            aria-label="Tout cocher/décocher"
+                          />
+                        </TableHead>
                         <TableHead className="text-blue-900">
                           Designation
                         </TableHead>
@@ -1764,6 +1958,12 @@ export default function FichePharmacyClient({
                           }
                           className="group hover:bg-muted/30 transition-colors"
                         >
+                          <TableCell className="print:hidden">
+                            <Checkbox
+                              checked={ticketSelectedIds.has(produit.id)}
+                              onCheckedChange={() => toggleTicketSelection(produit.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {produit.nomProduit}
                           </TableCell>
@@ -1838,6 +2038,12 @@ export default function FichePharmacyClient({
                           }
                           className="group hover:bg-muted/30 transition-colors"
                         >
+                          <TableCell className="print:hidden">
+                            <Checkbox
+                              checked={ticketSelectedIds.has(prestation.id)}
+                              onCheckedChange={() => toggleTicketSelection(prestation.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {nomPrestation(prestation.idPrestation)}
                           </TableCell>
@@ -1911,6 +2117,12 @@ export default function FichePharmacyClient({
                           }
                           className="group hover:bg-muted/30 transition-colors"
                         >
+                          <TableCell className="print:hidden">
+                            <Checkbox
+                              checked={ticketSelectedIds.has(examen.id)}
+                              onCheckedChange={() => toggleTicketSelection(examen.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {examen.libelleExamen}
                           </TableCell>
@@ -1985,6 +2197,12 @@ export default function FichePharmacyClient({
                             }
                             className="group hover:bg-muted/30 transition-colors"
                           >
+                            <TableCell className="print:hidden">
+                              <Checkbox
+                                checked={ticketSelectedIds.has(echographie.id)}
+                                onCheckedChange={() => toggleTicketSelection(echographie.id)}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">
                               {echographie.libelleEchographie}
                             </TableCell>
@@ -2056,7 +2274,7 @@ export default function FichePharmacyClient({
                     <TableFooter>
                       <TableRow className="bg-blue-50/50 border-t-2 border-blue-300/40">
                         <TableCell
-                          colSpan={4}
+                          colSpan={5}
                           className="text-right text-sm font-bold"
                         >
                           Total :
@@ -2196,14 +2414,14 @@ export default function FichePharmacyClient({
                   </div>
 
                   {/* Label Produits */}
-                  {produitFacture.length > 0 && (
+                  {ticketProduits.length > 0 && (
                     <div className="mb-1">
                       <span className="text-[8px] text-gray-400 uppercase">Produits</span>
                     </div>
                   )}
 
                   {/* Lignes produits */}
-                  {produitFacture.map((produit, index) => (
+                  {ticketProduits.map((produit, index) => (
                     <div
                       key={produit.id || `ticket-produit-${index}`}
                       className="flex justify-between py-0.5 text-[10px]"
@@ -2222,14 +2440,14 @@ export default function FichePharmacyClient({
                   ))}
 
                   {/* Séparateur Produits → Prestations */}
-                  {produitFacture.length > 0 && prestationfacture.length > 0 && (
+                  {ticketProduits.length > 0 && ticketPrestations.length > 0 && (
                     <div className="border-t border-dashed border-gray-300 my-1.5 relative">
                       <span className="absolute -top-[7px] left-0 bg-white pr-1 text-[8px] text-gray-400 uppercase">Prestations</span>
                     </div>
                   )}
 
                   {/* Lignes prestations */}
-                  {prestationfacture.map((prestation, index) => (
+                  {ticketPrestations.map((prestation, index) => (
                     <div
                       key={prestation.id || `ticket-prestation-${index}`}
                       className="flex justify-between py-0.5 text-[10px]"
@@ -2248,14 +2466,14 @@ export default function FichePharmacyClient({
                   ))}
 
                   {/* Séparateur → Examens */}
-                  {(produitFacture.length > 0 || prestationfacture.length > 0) && examensFacture.length > 0 && (
+                  {(ticketProduits.length > 0 || ticketPrestations.length > 0) && ticketExamens.length > 0 && (
                     <div className="border-t border-dashed border-gray-300 my-1.5 relative">
                       <span className="absolute -top-[7px] left-0 bg-white pr-1 text-[8px] text-gray-400 uppercase">Examens</span>
                     </div>
                   )}
 
                   {/* Lignes examens — prix catalogue */}
-                  {examensFacture.map((examen, index) => {
+                  {ticketExamens.map((examen, index) => {
                     const prixCatalogue = getPrixCatalogueExamen(examen.idDemandeExamen) ?? examen.prixExamen;
                     return (
                       <div
@@ -2275,15 +2493,15 @@ export default function FichePharmacyClient({
                   })}
 
                   {/* Séparateur → Échographies */}
-                  {(produitFacture.length > 0 || prestationfacture.length > 0 || examensFacture.length > 0) && echographiesFacture.length > 0 && (
+                  {(ticketProduits.length > 0 || ticketPrestations.length > 0 || ticketExamens.length > 0) && ticketEchographies.length > 0 && (
                     <div className="border-t border-dashed border-gray-300 my-1.5 relative">
                       <span className="absolute -top-[7px] left-0 bg-white pr-1 text-[8px] text-gray-400 uppercase">Echographies</span>
                     </div>
                   )}
 
-                  {/* Lignes échographies — prix catalogue */}
-                  {echographiesFacture.map((echographie, index) => {
-                    const prixCatalogue = getPrixCatalogueEchographie(echographie.idDemandeEchographie) ?? echographie.prixEchographie;
+                  {/* Lignes échographies — prix saisi dans la dialog (reconstitué) */}
+                  {ticketEchographies.map((echographie, index) => {
+                    const prixSaisi = getPrixSaisiEchographie(echographie, echographiesFacture);
                     return (
                       <div
                         key={echographie.id || `ticket-echo-${index}`}
@@ -2294,10 +2512,10 @@ export default function FichePharmacyClient({
                         </span>
                         <span className="w-8 text-center">1</span>
                         <span className="w-14 text-right tabular-nums">
-                          {prixCatalogue.toLocaleString("fr-FR")}
+                          {prixSaisi.toLocaleString("fr-FR")}
                         </span>
                         <span className="w-16 text-right font-medium tabular-nums">
-                          {prixCatalogue.toLocaleString("fr-FR")}
+                          {prixSaisi.toLocaleString("fr-FR")}
                         </span>
                       </div>
                     );
@@ -2308,7 +2526,7 @@ export default function FichePharmacyClient({
                     <div className="flex justify-between font-bold text-xs">
                       <span>TOTAL</span>
                       <span className="tabular-nums">
-                        {totalSansReduction.toLocaleString("fr-FR")} CFA
+                        {ticketTotal.toLocaleString("fr-FR")} CFA
                       </span>
                     </div>
                   </div>

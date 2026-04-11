@@ -32,6 +32,7 @@ export interface ProduitCalculations {
   prixUnitaire: number;
   quantite: number;
   montant: number;
+  stockInitial: number;
   stockFinal: number;
 }
 
@@ -45,6 +46,7 @@ export interface PrestationCalculations {
 export interface CommissionDetailRow {
   dateVisite: string;
   prescripteur: string;
+  code: string;
   client: string;
   commission: number;
 }

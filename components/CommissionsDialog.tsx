@@ -150,22 +150,29 @@ export default function CommissionsDialog({
     return result;
   }, [examensFacture, tarifExamens, demandesExamens]);
 
-  // Lookup : FactureEchographie.id -> TarifEchographie.prixEchographie (prix catalogue)
-  const prixCatalogueEchographieMap = useMemo(() => {
-    const tarifMap = new Map(tarifEchographies.map((t) => [t.id, t.prixEchographie]));
-    const demandeMap = new Map(demandesEchographies.map((d) => [d.id, d.idTarifEchographie]));
-    const result = new Map<string, number>();
-    for (const facture of echographiesFacture) {
-      const idTarif = demandeMap.get(facture.idDemandeEchographie);
-      if (idTarif) {
-        const prixCatalogue = tarifMap.get(idTarif);
-        if (prixCatalogue != null) {
-          result.set(facture.id, prixCatalogue);
-        }
-      }
+  // Reconstitue le prix saisi dans la dialog "Ajouter une échographie" à partir du net stocké
+  // Formule : gross = (net + partEchographe/n) / (1 - remise/100)
+  const prixSaisiEchographieMap = useMemo(() => {
+    const map = new Map<string, number>();
+    // Compter les échographies par batch (idVisite + partEchographe)
+    const batchSizes = new Map<string, number>();
+    for (const e of echographiesFacture) {
+      const key = `${e.idVisite}-${e.partEchographe}`;
+      batchSizes.set(key, (batchSizes.get(key) || 0) + 1);
     }
-    return result;
-  }, [echographiesFacture, tarifEchographies, demandesEchographies]);
+    for (const e of echographiesFacture) {
+      const key = `${e.idVisite}-${e.partEchographe}`;
+      const n = batchSizes.get(key) || 1;
+      const partEchoPerEcho = (Number(e.partEchographe) || 0) / n;
+      const remise = Number(e.remiseEchographie) || 0;
+      const denominateur = 1 - remise / 100;
+      const prixSaisi = denominateur > 0
+        ? Math.round(((Number(e.prixEchographie) || 0) + partEchoPerEcho) / denominateur)
+        : Number(e.prixEchographie) || 0;
+      map.set(e.id, prixSaisi);
+    }
+    return map;
+  }, [echographiesFacture]);
 
   // Type pour stocker les détails d'une commission existante
   type CommissionExistante = {
@@ -190,25 +197,33 @@ export default function CommissionsDialog({
     useState<Record<string, CommissionExistante>>({});
 
   // Initialiser les commissions par défaut quand le dialog s'ouvre
+  // IMPORTANT : ne jamais écraser une commission déjà enregistrée en base (valeur fixée par l'utilisateur)
   useEffect(() => {
     if (open) {
-      // Commission examen = remise% × prix catalogue (TarifExamen.prixExamen)
-      const defaultExamensCommissions: Record<string, number> = {};
-      examensFacture.forEach((examen) => {
-        const prixCatalogue = prixCatalogueExamenMap.get(examen.id) ?? examen.prixExamen;
-        defaultExamensCommissions[examen.id] = Math.round(prixCatalogue * examen.remiseExamen / 100);
+      // Commission examen = remise% × prix catalogue, mais garde les valeurs existantes en DB
+      setExamensCommissions((prev) => {
+        const next: Record<string, number> = { ...prev };
+        examensFacture.forEach((examen) => {
+          // Si une commission a déjà été enregistrée en base pour cet examen, on ne recalcule pas
+          if (examensCommissionsExistantes[examen.id]) return;
+          const prixCatalogue = prixCatalogueExamenMap.get(examen.id) ?? examen.prixExamen;
+          next[examen.id] = Math.round(prixCatalogue * examen.remiseExamen / 100);
+        });
+        return next;
       });
-      setExamensCommissions(defaultExamensCommissions);
 
-      // Commission échographie = remise% × prix catalogue (TarifEchographie.prixEchographie)
-      const defaultEchographiesCommissions: Record<string, number> = {};
-      echographiesFacture.forEach((echo) => {
-        const prixCatalogue = prixCatalogueEchographieMap.get(echo.id) ?? echo.prixEchographie;
-        defaultEchographiesCommissions[echo.id] = Math.round(prixCatalogue * echo.remiseEchographie / 100);
+      // Commission échographie = remise% × prix saisi, mais garde les valeurs existantes en DB
+      setEchographiesCommissions((prev) => {
+        const next: Record<string, number> = { ...prev };
+        echographiesFacture.forEach((echo) => {
+          if (echographiesCommissionsExistantes[echo.id]) return;
+          const prixSaisi = prixSaisiEchographieMap.get(echo.id) ?? echo.prixEchographie;
+          next[echo.id] = Math.round(prixSaisi * echo.remiseEchographie / 100);
+        });
+        return next;
       });
-      setEchographiesCommissions(defaultEchographiesCommissions);
     }
-  }, [open, examensFacture, echographiesFacture, prixCatalogueExamenMap, prixCatalogueEchographieMap]);
+  }, [open, examensFacture, echographiesFacture, prixCatalogueExamenMap, prixSaisiEchographieMap, examensCommissionsExistantes, echographiesCommissionsExistantes]);
 
   const prescripteurForm = useForm<PrescripteurFormValues>({
     defaultValues: {
@@ -926,15 +941,15 @@ export default function CommissionsDialog({
                     {echographiesFacture.map((echo) => {
                       const commissionExistante = echographiesCommissionsExistantes[echo.id];
                       const hasExistingCommission = !!commissionExistante;
-                      // Prix catalogue d'origine (TarifEchographie.prixEchographie)
-                      const prixCatalogue = prixCatalogueEchographieMap.get(echo.id) ?? echo.prixEchographie;
+                      // Prix saisi dans la dialog "Ajouter une échographie" (reconstitué)
+                      const prixSaisi = prixSaisiEchographieMap.get(echo.id) ?? echo.prixEchographie;
                       return (
                         <TableRow
                           key={echo.id}
                           className={hasExistingCommission ? "bg-green-50" : ""}
                         >
                           <TableCell>{echo.libelleEchographie}</TableCell>
-                          <TableCell className="whitespace-nowrap">{prixCatalogue.toLocaleString("fr-FR")} CFA</TableCell>
+                          <TableCell className="whitespace-nowrap">{prixSaisi.toLocaleString("fr-FR")} CFA</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Input

@@ -291,7 +291,7 @@ export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
     category: "planification_familiale",
     dataSources: ["planning"],
     aggregation: "count",
-    compute: (data) => countRecords(data.planning, (r) => r.courtDuree === "noristera"),
+    compute: (data) => countRecords(data.planning, (r) => r.courtDuree === "noristerat"),
     valueType: "integer",
   },
   {
@@ -447,7 +447,7 @@ export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
     category: "planification_familiale",
     dataSources: ["planning"],
     aggregation: "count",
-    compute: (data) => countRecords(data.planning, (r) => r.courtDuree === "noristera"),
+    compute: (data) => countRecords(data.planning, (r) => r.courtDuree === "noristerat"),
     valueType: "integer",
   },
   {
@@ -597,7 +597,7 @@ export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
         countRecords(data.planning, (r) => r.counsellingPf === true),
         countRecords(data.planning, (r) => r.courtDuree === "preservatif"),
         countRecords(data.planning, (r) => r.courtDuree === "pilule"),
-        countRecords(data.planning, (r) => r.courtDuree === "noristera"),
+        countRecords(data.planning, (r) => r.courtDuree === "noristerat"),
         countRecords(data.planning, (r) => r.courtDuree === "injectable"),
         countRecords(data.planning, (r) => r.implanon === "insertion"),
         countRecords(data.planning, (r) => r.implanon === "controle"),
@@ -665,7 +665,7 @@ export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
     category: "planification_familiale",
     dataSources: ["planning"],
     aggregation: "count",
-    compute: (data) => countRecords(data.planning, (r) => r.methodePrise === true && r.courtDuree === "noristera"),
+    compute: (data) => countRecords(data.planning, (r) => r.methodePrise === true && r.courtDuree === "noristerat"),
     valueType: "integer",
   },
   {
@@ -734,9 +734,9 @@ export const INDICATOR_REGISTRY: IndicatorDefinition[] = [
   },
   {
     id: "PRO_PF_DIU",
-    name: "Protege - DIU (Sterilet)",
+    name: "Protege - COPPER TCU-DIU",
     shortName: "Pro DIU",
-    description: "Clients proteges - DIU Sterilet",
+    description: "Clients proteges - COPPER TCU-DIU",
     category: "planification_familiale",
     dataSources: ["planning"],
     aggregation: "count",

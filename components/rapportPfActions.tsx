@@ -1322,7 +1322,7 @@ export const fetchClientsStatusProtege = async (
 
       // === MÉTHODES DE LONGUE DURÉE (Implant, DIU) ===
       // Protection basée sur la durée de la méthode depuis l'insertion :
-      // Implanon = 3 ans, Jadelle = 5 ans, DIU (stérilet) = 10 ans
+      // Implanon = 3 ans, Jadelle = 5 ans, COPPER TCU-DIU = 10 ans
       // Sauf retrait avant la fin de la période de protection
       if (isLongueDuree) {
         // Durée de protection selon la méthode

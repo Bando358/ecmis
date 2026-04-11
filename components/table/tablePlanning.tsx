@@ -94,7 +94,7 @@ export function Table02({ id }: { id: string }) {
           <TableHead>Courte durée</TableHead>
           <TableHead>Implanon</TableHead>
           <TableHead>Jadelle</TableHead>
-          <TableHead>Stérilet</TableHead>
+          <TableHead>COPPER TCU-DIU</TableHead>
           <TableHead>Retrait</TableHead>
           <TableHead>Action</TableHead>
         </TableRow>

@@ -849,7 +849,7 @@ const AVAILABLE_PROPERTIES: Record<string, { key: string; label: string }[]> = {
     { key: "statut", label: "Statut" },
     { key: "motifVisite", label: "Motif de visite" },
     // Courte duree - options individuelles
-    { key: "courtDuree_noristera", label: "Injectable 2 mois (Noristera)" },
+    { key: "courtDuree_noristerat", label: "Injectable 2 mois (Noristerat)" },
     { key: "courtDuree_injectable", label: "Injectable 3 mois" },
     { key: "courtDuree_pilule", label: "Pilule" },
     { key: "courtDuree_spotting", label: "Spotting pilule" },

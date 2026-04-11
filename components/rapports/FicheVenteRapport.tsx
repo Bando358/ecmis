@@ -75,6 +75,9 @@ export default function FicheVenteRapport({
                       Libelle
                     </th>
                     <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                      Stock Initial
+                    </th>
+                    <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
                       Prix Unitaire (FCFA)
                     </th>
                     <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
@@ -94,12 +97,16 @@ export default function FicheVenteRapport({
                       prixUnitaire: 0,
                       quantite: 0,
                       montant: 0,
+                      stockInitial: 0,
                       stockFinal: 0,
                     };
                     return (
                       <tr key={produit.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-3 text-sm">
+                        <td className="border border-gray-300 px-4 py-3 text-sm uppercase">
                           {produit.nomProduit}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-3 text-sm text-right">
+                          {calc.stockInitial}
                         </td>
                         <td className="border border-gray-300 px-4 py-3 text-sm text-right">
                           {calc.prixUnitaire.toLocaleString("fr-FR")}
@@ -120,7 +127,7 @@ export default function FicheVenteRapport({
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td
-                      colSpan={2}
+                      colSpan={3}
                       className="border border-gray-300 px-4 py-3 text-sm font-medium"
                     >
                       Total {type === "CONTRACEPTIF" ? "Contraceptifs" : type === "MEDICAMENTS" ? "Medicaments" : "Consommables"}
@@ -151,7 +158,7 @@ export default function FicheVenteRapport({
             <tfoot className="bg-gray-100 font-bold">
               <tr>
                 <td
-                  colSpan={2}
+                  colSpan={3}
                   className="border border-gray-300 px-4 py-3 text-sm"
                 >
                   Total Produits
@@ -196,14 +203,14 @@ export default function FicheVenteRapport({
             </thead>
             <tbody className="divide-y divide-gray-200">
               {allPrestations.map((prestation) => {
-                const calc = prestationsCalculations[prestation.nomPrestation] || {
+                const calc = prestationsCalculations[prestation.nomPrestation.trim().toUpperCase()] || {
                   prixUnitaire: 0,
                   quantite: 0,
                   montant: 0,
                 };
                 return (
                   <tr key={prestation.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-3 text-sm">
+                    <td className="border border-gray-300 px-4 py-3 text-sm uppercase">
                       {prestation.nomPrestation}
                     </td>
                     <td className="border border-gray-300 px-4 py-3 text-sm text-right">
@@ -270,7 +277,7 @@ export default function FicheVenteRapport({
             <tbody className="divide-y divide-gray-200">
               {groupedExamens.map((examen, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3 text-sm">
+                  <td className="border border-gray-300 px-4 py-3 text-sm uppercase">
                     {formatExamenLibelle(examen)}
                   </td>
                   <td className="border border-gray-300 px-4 py-3 text-sm text-right">
@@ -350,7 +357,7 @@ export default function FicheVenteRapport({
               <tbody className="divide-y divide-gray-200">
                 {groupedEchographies.map((echographie, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-3 text-sm">
+                    <td className="border border-gray-300 px-4 py-3 text-sm uppercase">
                       {echographie.remise > 0
                         ? `${echographie.libelle} (${echographie.remise}%)`
                         : echographie.libelle}

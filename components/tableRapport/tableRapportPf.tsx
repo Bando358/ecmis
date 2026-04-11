@@ -104,7 +104,7 @@ const PF_METHOD_LABELS: Record<string, string> = {
   sayanaPress: "Sayana Press",
   implanon: "Implant 3 ans (Implanon)",
   jadelle: "Implant 5 ans (Jadelle)",
-  sterilet: "DIU (Stérilet)",
+  sterilet: "DIU",
   preservatif: "Préservatif (M/F)",
   urgence: "Contraception d'urgence",
   spermicide: "Spermicides",
@@ -139,7 +139,7 @@ const CLIENT_INDICATORS: IndicatorConfig[] = [
     label: "CLT - PF - Injectable 2 mois",
     type: "pf",
     field: "courtDuree",
-    value: "noristera",
+    value: "noristerat",
   },
   {
     label: "CLT - PF - Injectable 3 mois",
@@ -172,12 +172,12 @@ const CLIENT_INDICATORS: IndicatorConfig[] = [
     highlightNu: true,
   },
   {
-    label: "CLT - PF - DIU - 10 ans Diu (insertion, contrôle)",
+    label: "CLT - PF - DIU - 10 ans (insertion, contrôle)",
     type: "insertionControl",
     field: "sterilet",
   },
   {
-    label: "CLT - PF - Diu retrait",
+    label: "CLT - PF - DIU retrait",
     type: "retrait",
     field: "retraitSterilet",
     value: true,
@@ -226,7 +226,7 @@ const SERVICE_INDICATORS: IndicatorConfig[] = [
     label: "SRV - PF - Consultation - Injectable 2 mois",
     type: "pf",
     field: "courtDuree",
-    value: "noristera",
+    value: "noristerat",
   },
   {
     label: "SRV - PF - Consultation - Injectable 3 mois",
@@ -588,7 +588,7 @@ export default function TableRapportPf({
           // COC / COP : si produit identifié, sinon microgynon par défaut
           microgynon: isPilule && (hasMicrogynon || !hasMicrolut),
           microlut: isPilule && hasMicrolut && !hasMicrogynon,
-          injectable2mois: client.courtDuree === "noristera" && filterFn(client),
+          injectable2mois: client.courtDuree === "noristerat" && filterFn(client),
           // Depo / Sayana : si produit identifié, sinon depo-provera par défaut
           depoProvera: isInjectable3 && (hasDepo || !hasSayana),
           sayanaPress: isInjectable3 && hasSayana && !hasDepo,
@@ -1082,7 +1082,7 @@ export default function TableRapportPf({
         sayanaPress: "Sayana Press",
         implanon: "Implant 3 ans (Implanon)",
         jadelle: "Implant 5 ans (Jadelle)",
-        sterilet: "DIU (Stérilet)",
+        sterilet: "DIU",
         preservatif: "Préservatif (M/F)",
         urgence: "Contraception d'urgence",
         spermicide: "Spermicides",
@@ -1545,7 +1545,7 @@ export default function TableRapportPf({
         sayanaPress: "Sayana Press",
         implanon: "Implant 3 ans (Implanon)",
         jadelle: "Implant 5 ans (Jadelle)",
-        sterilet: "DIU (Stérilet)",
+        sterilet: "DIU",
         preservatif: "Préservatif (M/F)",
         urgence: "Contraception d'urgence",
         spermicide: "Spermicides",
@@ -2030,7 +2030,7 @@ export default function TableRapportPf({
               <TableHead>Court Durée</TableHead>
               <TableHead>Implanon</TableHead>
               <TableHead>Jadelle</TableHead>
-              <TableHead>Stérilet</TableHead>
+              <TableHead>DIU</TableHead>
               <TableHead>RDV</TableHead>
               <TableHead>Protégés</TableHead>
               <TableHead>PDV</TableHead>

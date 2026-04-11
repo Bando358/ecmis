@@ -27,10 +27,10 @@ export default function PlanningFamilial({ clients }: PlanningFamilialProps) {
       "Méthode courte durée": client.courtDuree || "N/A",
       Implanon: client.implanon || "N/A",
       Jadelle: client.jadelle || "N/A",
-      Stérilet: client.sterilet || "N/A",
+      "COPPER TCU-DIU": client.sterilet || "N/A",
       "Retrait Implanon": client.retraitImplanon ? "Oui" : "Non",
       "Retrait Jadelle": client.retraitJadelle ? "Oui" : "Non",
-      "Retrait Stérilet": client.retraitSterilet ? "Oui" : "Non",
+      "Retrait COPPER TCU-DIU": client.retraitSterilet ? "Oui" : "Non",
       "Prochain RDV PF": client.rdvPf
         ? new Date(client.rdvPf).toLocaleDateString()
         : "N/A",
@@ -76,7 +76,7 @@ export default function PlanningFamilial({ clients }: PlanningFamilialProps) {
               <th className="border border-gray-300 px-4 py-2">Courte durée</th>
               <th className="border border-gray-300 px-4 py-2">Implanon</th>
               <th className="border border-gray-300 px-4 py-2">Jadelle</th>
-              <th className="border border-gray-300 px-4 py-2">Stérilet</th>
+              <th className="border border-gray-300 px-4 py-2">COPPER TCU-DIU</th>
               <th className="border border-gray-300 px-4 py-2">RDV PF</th>
             </tr>
           </thead>

@@ -46,6 +46,9 @@ export default function CommissionExamenDetailRapport({
                   Prescripteur
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  Code
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
                   Client
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-right text-sm font-medium text-gray-700">
@@ -62,6 +65,9 @@ export default function CommissionExamenDetailRapport({
                   <td className="border border-gray-300 px-4 py-3 text-sm">
                     {row.prescripteur}
                   </td>
+                  <td className="border border-gray-300 px-4 py-3 text-sm font-mono">
+                    {row.code}
+                  </td>
                   <td className="border border-gray-300 px-4 py-3 text-sm">
                     {row.client}
                   </td>
@@ -74,7 +80,7 @@ export default function CommissionExamenDetailRapport({
             <tfoot className="bg-purple-50">
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={4}
                   className="border border-gray-300 px-4 py-3 text-sm font-bold"
                 >
                   TOTAL COMMISSIONS EXAMEN

@@ -104,6 +104,7 @@ interface CommissionExamenData {
       id: string;
       nom: string;
       prenom: string;
+      code: string;
     } | null;
   } | null;
 }
@@ -136,6 +137,7 @@ interface CommissionEchographieData {
       id: string;
       nom: string;
       prenom: string;
+      code: string;
     } | null;
   } | null;
 }
@@ -478,7 +480,7 @@ export default function VentesPage() {
     if (selectedCliniqueIds.length === 0) return calculations;
 
     facturesPrestations.forEach((facture) => {
-      const key = facture.prestLibelle;
+      const key = facture.prestLibelle.trim().toUpperCase();
       if (!calculations[key]) {
         calculations[key] = {
           prixUnitaire: 0,
@@ -490,23 +492,10 @@ export default function VentesPage() {
       calculations[key].montant += facture.prestPrixTotal;
     });
 
-    // Calculer les prix unitaires
+    // Calculer le prix unitaire moyen par groupe (montant / quantité)
     Object.keys(calculations).forEach((libelle) => {
-      const prestation = allPrestations.find(
-        (pr) => pr.nomPrestation === libelle,
-      );
-      if (prestation) {
-        const tarif = allTarifPrestations.filter(
-          (t) => t.idPrestation === prestation.id,
-        );
-        const tarifClinique = getTarifForClinique(
-          tarif,
-          selectedCliniqueIds[0],
-        );
-        calculations[libelle].prixUnitaire = tarifClinique
-          ? tarifClinique.montantPrestation
-          : 0;
-      }
+      const calc = calculations[libelle];
+      calc.prixUnitaire = calc.quantite > 0 ? Math.round(calc.montant / calc.quantite) : 0;
     });
 
     return calculations;
@@ -551,6 +540,7 @@ export default function VentesPage() {
               prixUnitaire: 0,
               quantite: 0,
               montant: 0,
+              stockInitial: 0,
               stockFinal: 0,
             };
           }
@@ -568,6 +558,7 @@ export default function VentesPage() {
           prixUnitaire: 0,
           quantite: 0,
           montant: 0,
+          stockInitial: 0,
           stockFinal: 0,
         };
       }
@@ -583,6 +574,9 @@ export default function VentesPage() {
           calculations[key].stockFinal = tarifClinique.quantiteStock;
         }
       }
+      // Stock initial = stock final + quantité vendue durant la période
+      calculations[key].stockInitial =
+        calculations[key].stockFinal + calculations[key].quantite;
     });
 
     return calculations;
@@ -613,33 +607,39 @@ export default function VentesPage() {
 
   // ================== Données groupées ==================
   const groupedExamens = useMemo(() => {
-    return Object.values(
-      facturesExamens.reduce(
-        (acc, examen) => {
-          const isSousTraite = examen.examSoustraitanceExamen;
-          const key = `${examen.examLibelle}-${isSousTraite}-${examen.examRemise}`;
-          const commissionForThis = commissionExamenByFactureId.get(examen.examId) || 0;
+    const grouped = facturesExamens.reduce(
+      (acc, examen) => {
+        const isSousTraite = !!examen.examSoustraitanceExamen;
+        const libelle = examen.examLibelle.trim().toUpperCase();
+        const remise = isSousTraite ? 0 : examen.examRemise;
+        const key = `${libelle}-${isSousTraite}-${remise}`;
+        const commissionForThis = commissionExamenByFactureId.get(examen.examId) || 0;
 
-          if (!acc[key]) {
-            acc[key] = {
-              libelle: examen.examLibelle,
-              remise: isSousTraite ? 0 : examen.examRemise,
-              soustraitance: isSousTraite,
-              prixUnitaire: examen.examPrixTotal,
-              quantite: 1,
-              montant: examen.examPrixTotal,
-              commission: commissionForThis,
-            };
-          } else {
-            acc[key].quantite += 1;
-            acc[key].montant += examen.examPrixTotal;
-            acc[key].commission += commissionForThis;
-          }
-          return acc;
-        },
-        {} as Record<string, GroupedExamen>,
-      ),
-    ).sort((a, b) => {
+        if (!acc[key]) {
+          acc[key] = {
+            libelle,
+            remise,
+            soustraitance: isSousTraite,
+            prixUnitaire: 0,
+            quantite: 0,
+            montant: 0,
+            commission: 0,
+          };
+        }
+        acc[key].quantite += 1;
+        acc[key].montant += examen.examPrixTotal;
+        acc[key].commission += commissionForThis;
+        return acc;
+      },
+      {} as Record<string, GroupedExamen>,
+    );
+
+    // Calculer le prix unitaire moyen pour chaque groupe
+    for (const g of Object.values(grouped)) {
+      g.prixUnitaire = g.quantite > 0 ? Math.round(g.montant / g.quantite) : 0;
+    }
+
+    return Object.values(grouped).sort((a, b) => {
       const cmpLibelle = a.libelle.localeCompare(b.libelle);
       if (cmpLibelle !== 0) return cmpLibelle;
 
@@ -652,34 +652,39 @@ export default function VentesPage() {
   }, [facturesExamens, commissionExamenByFactureId]);
 
   const groupedEchographies = useMemo(() => {
-    return Object.values(
-      facturesEchographies.reduce(
-        (acc, echographie) => {
-          const key = `${echographie.echoLibelle}-${echographie.echoRemise}`;
-          const commissionForThis = commissionEchographieByFactureId.get(echographie.echoId) || 0;
-          if (!acc[key]) {
-            acc[key] = {
-              libelle: echographie.echoLibelle,
-              remise: echographie.echoRemise,
-              prixUnitaire: echographie.echoPrixTotal,
-              quantite: 1,
-              montant: echographie.echoPrixTotal,
-              partEchographe: echographie.echoPartEchographe,
-              montantNet: echographie.echoPrixTotal,
-              commission: commissionForThis,
-            };
-          } else {
-            acc[key].quantite += 1;
-            acc[key].montant += echographie.echoPrixTotal;
-            acc[key].partEchographe += echographie.echoPartEchographe;
-            acc[key].montantNet += echographie.echoPrixTotal;
-            acc[key].commission += commissionForThis;
-          }
-          return acc;
-        },
-        {} as Record<string, GroupedEchographie>,
-      ),
-    ).sort((a, b) => {
+    const grouped = facturesEchographies.reduce(
+      (acc, echographie) => {
+        const libelle = echographie.echoLibelle.trim().toUpperCase();
+        const key = `${libelle}-${echographie.echoRemise}`;
+        const commissionForThis = commissionEchographieByFactureId.get(echographie.echoId) || 0;
+        if (!acc[key]) {
+          acc[key] = {
+            libelle,
+            remise: echographie.echoRemise,
+            prixUnitaire: 0,
+            quantite: 0,
+            montant: 0,
+            partEchographe: 0,
+            montantNet: 0,
+            commission: 0,
+          };
+        }
+        acc[key].quantite += 1;
+        acc[key].montant += echographie.echoPrixTotal;
+        acc[key].partEchographe += echographie.echoPartEchographe;
+        acc[key].montantNet += echographie.echoPrixTotal;
+        acc[key].commission += commissionForThis;
+        return acc;
+      },
+      {} as Record<string, GroupedEchographie>,
+    );
+
+    // Calculer le prix unitaire moyen pour chaque groupe
+    for (const g of Object.values(grouped)) {
+      g.prixUnitaire = g.quantite > 0 ? Math.round(g.montant / g.quantite) : 0;
+    }
+
+    return Object.values(grouped).sort((a, b) => {
       const cmpLibelle = a.libelle.localeCompare(b.libelle);
       if (cmpLibelle !== 0) return cmpLibelle;
       return a.remise - b.remise;
@@ -709,6 +714,7 @@ export default function VentesPage() {
       const clientNom = commission.Visite?.Client
         ? `${commission.Visite.Client.nom} ${commission.Visite.Client.prenom}`
         : "Inconnu";
+      const clientCode = commission.Visite?.Client?.code || "-";
       const prescripteurNom = commission.Prescripteur
         ? `${commission.Prescripteur.nom} ${commission.Prescripteur.prenom}`
         : "Inconnu";
@@ -725,6 +731,7 @@ export default function VentesPage() {
         groupedData[key] = {
           dateVisite,
           prescripteur: prescripteurNom,
+          code: clientCode,
           client: clientNom,
           commission: 0,
         };
@@ -792,6 +799,7 @@ export default function VentesPage() {
       const clientNom = commission.Visite?.Client
         ? `${commission.Visite.Client.nom} ${commission.Visite.Client.prenom}`
         : "Inconnu";
+      const clientCode = commission.Visite?.Client?.code || "-";
       const prescripteurNom = commission.Prescripteur
         ? `${commission.Prescripteur.nom} ${commission.Prescripteur.prenom}`
         : "Inconnu";
@@ -808,6 +816,7 @@ export default function VentesPage() {
         groupedData[key] = {
           dateVisite,
           prescripteur: prescripteurNom,
+          code: clientCode,
           client: clientNom,
           commission: 0,
         };
@@ -868,7 +877,7 @@ export default function VentesPage() {
 
   // ================== Fonctions utilitaires ==================
   const formatExamenLibelle = useCallback((examen: GroupedExamen) => {
-    let libelleFormate = examen.libelle;
+    let libelleFormate = examen.libelle.trim().toUpperCase();
 
     if (examen.remise > 0 && !examen.soustraitance) {
       libelleFormate += ` ${examen.remise}%`;
@@ -1083,7 +1092,8 @@ export default function VentesPage() {
               const calc = produitsCalculations[p.nomProduit];
               if (!calc) return null;
               return [
-                p.nomProduit,
+                p.nomProduit.toUpperCase(),
+                calc.stockInitial.toString(),
                 formatNumberForPDF(calc.prixUnitaire),
                 calc.quantite.toString(),
                 formatNumberForPDF(calc.montant),
@@ -1106,12 +1116,13 @@ export default function VentesPage() {
 
           autoTable(doc, {
             startY,
-            head: [[{ content: typeLabels[type] || type, colSpan: 5, styles: { halign: "left", fillColor: [229, 231, 235], textColor: 60, fontStyle: "bold" } }],
-              ["Produit", "PU", "Qté", "Montant", "Stock Final"]],
+            head: [[{ content: typeLabels[type] || type, colSpan: 6, styles: { halign: "left", fillColor: [229, 231, 235], textColor: 60, fontStyle: "bold" } }],
+              ["Produit", "Stock Initial", "PU", "Qté", "Montant", "Stock Final"]],
             body: categoryBody,
             foot: [
               [
                 `Total ${typeLabels[type] || type}`,
+                "",
                 "",
                 catQte.toString(),
                 formatNumberForPDF(catMontant),
@@ -1144,6 +1155,7 @@ export default function VentesPage() {
             [
               { content: "TOTAL PRODUITS", styles: { fontStyle: "bold" } },
               "",
+              "",
               { content: totalProduitsQte.toString(), styles: { fontStyle: "bold", halign: "right" } },
               { content: formatNumberForPDF(totalProduitsMontant), styles: { fontStyle: "bold", halign: "right" } },
               "",
@@ -1172,7 +1184,7 @@ export default function VentesPage() {
           head: [["Prestation", "PU", "Qté", "Montant"]],
           body: Object.entries(prestationsCalculations).map(
             ([libelle, calc]) => [
-              libelle,
+              libelle.toUpperCase(),
               formatNumberForPDF(calc.prixUnitaire),
               calc.quantite.toString(),
               formatNumberForPDF(calc.montant),
@@ -1222,7 +1234,7 @@ export default function VentesPage() {
           startY,
           head: [["Examen", "PU", "Qté", "Commission", "Montant"]],
           body: groupedExamens.map((ex) => [
-            formatExamenLibelle(ex),
+            formatExamenLibelle(ex).toUpperCase(),
             formatNumberForPDF(ex.prixUnitaire),
             ex.quantite.toString(),
             ex.commission > 0 ? formatNumberForPDF(ex.commission) : "0",
@@ -1278,9 +1290,9 @@ export default function VentesPage() {
             startY,
             head: [["Échographie", "PU", "Qté", "Commission", "Part Écho.", "Montant Net"]],
             body: groupedEchographies.map((echo) => [
-              echo.remise > 0
+              (echo.remise > 0
                 ? `${echo.libelle} (${echo.remise}%)`
-                : echo.libelle,
+                : echo.libelle).toUpperCase(),
               formatNumberForPDF(echo.prixUnitaire),
               echo.quantite.toString(),
               echo.commission > 0 ? formatNumberForPDF(echo.commission) : "0",
@@ -1342,17 +1354,19 @@ export default function VentesPage() {
         autoTable(doc, {
           startY,
           head: [
-            ["Date visite", "Prescripteur", "Client", "Commission (FCFA)"],
+            ["Date visite", "Prescripteur", "Code", "Client", "Commission (FCFA)"],
           ],
           body: commissionsExamenDetail.map((row) => [
             row.dateVisite,
             row.prescripteur,
+            row.code,
             row.client,
             formatNumberForPDF(row.commission),
           ]),
           foot: [
             [
               "TOTAL COMMISSIONS EXAMEN",
+              "",
               "",
               "",
               formatNumberForPDF(totalGlobalExamen),
@@ -1466,17 +1480,19 @@ export default function VentesPage() {
         autoTable(doc, {
           startY,
           head: [
-            ["Date visite", "Prescripteur", "Client", "Commission (FCFA)"],
+            ["Date visite", "Prescripteur", "Code", "Client", "Commission (FCFA)"],
           ],
           body: commissionsEchographieDetail.map((row) => [
             row.dateVisite,
             row.prescripteur,
+            row.code,
             row.client,
             formatNumberForPDF(row.commission),
           ]),
           foot: [
             [
               "TOTAL COMMISSIONS ÉCHOGRAPHIE",
+              "",
               "",
               "",
               formatNumberForPDF(totalGlobalEcho),

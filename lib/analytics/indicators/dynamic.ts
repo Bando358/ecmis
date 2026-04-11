@@ -37,7 +37,7 @@ const SUM_FIELDS = new Set([
  * Chaque propriete configuree pour un type de service produit un indicateur.
  *
  * Convention des cles :
- * - Cle composee "champ_valeur" (ex: courtDuree_noristera) : compte les enregistrements
+ * - Cle composee "champ_valeur" (ex: courtDuree_noristerat) : compte les enregistrements
  *   ou record[champ] === valeur
  * - Cle simple pour champ numerique (ex: accouchementEnfantVivant) : somme du champ
  * - Cle simple sinon (ex: consultation, motifVisite) : compte les valeurs truthy
@@ -103,7 +103,7 @@ export function generateDynamicIndicators(
         "integer";
 
       if (isCompound) {
-        // Cle composee : champ_valeur (ex: courtDuree_noristera)
+        // Cle composee : champ_valeur (ex: courtDuree_noristerat)
         const underscoreIdx = prop.key.indexOf("_");
         const field = prop.key.substring(0, underscoreIdx);
         const value = prop.key.substring(underscoreIdx + 1);

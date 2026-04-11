@@ -152,7 +152,7 @@ export default function TableRapportSaa({
         saaContraceptionPillule:
           item.saaConsultation === true && item.courtDuree === "pilule",
         saaContraceptionInjectable2mois:
-          item.saaConsultation === true && item.courtDuree === "noristera",
+          item.saaConsultation === true && item.courtDuree === "noristerat",
         saaContraceptionInjectable3mois:
           item.saaConsultation === true && item.courtDuree === "injectable",
         saaContraceptionDIU:

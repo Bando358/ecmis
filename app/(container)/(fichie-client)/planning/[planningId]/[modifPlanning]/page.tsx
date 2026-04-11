@@ -78,7 +78,7 @@ const motifs = [
   { value: "arret", label: "Arrêt" },
 ];
 const Mcd = [
-  { value: "noristera", label: "Injectable 2 mois" },
+  { value: "noristerat", label: "Injectable 2 mois" },
   { value: "injectable", label: "Injectable 3 mois" },
   { value: "pilule", label: "Pilule" },
   { value: "spotting", label: "Spotting pilule" },
@@ -698,7 +698,7 @@ export default function ModifPlanningPage({
                               )}
                             />
                           </div>
-                          {/* Stérilet */}
+                          {/* COPPER TCU-DIU */}
                           <div className="px-5 pb-2 font-sans relative">
                             <FormField
                               control={form.control}
@@ -706,7 +706,7 @@ export default function ModifPlanningPage({
                               render={({ field }) => (
                                 <FormItem className="">
                                   <div className="text-xl font-bold flex justify-between items-center">
-                                    <FormLabel>Stérilet</FormLabel>
+                                    <FormLabel>COPPER TCU-DIU</FormLabel>
                                     <div></div>
                                   </div>
                                   <FormControl>
@@ -1025,7 +1025,7 @@ export default function ModifPlanningPage({
                         {selectedPlanning.sterilet && (
                           <div className="grid grid-cols-3 gap-x-4 py-2.5">
                             <span className="text-sm font-medium text-blue-800">
-                              Stérilet
+                              COPPER TCU-DIU
                             </span>
                             <span className="col-span-2 text-sm text-gray-700">
                               {selectedPlanning.sterilet}
@@ -1055,7 +1055,7 @@ export default function ModifPlanningPage({
                         {selectedPlanning.retraitSterilet && (
                           <div className="grid grid-cols-3 gap-x-4 py-2.5">
                             <span className="text-sm font-medium text-blue-800">
-                              Retrait Stérilet
+                              Retrait COPPER TCU-DIU
                             </span>
                             <span className="col-span-2 text-sm text-gray-700">
                               Oui

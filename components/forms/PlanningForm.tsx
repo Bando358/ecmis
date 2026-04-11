@@ -51,7 +51,7 @@ const MOTIFS = [
   { value: "arret", label: "Arrêt" },
 ];
 const MCD = [
-  { value: "noristera", label: "Injectable 2 mois" },
+  { value: "noristerat", label: "Injectable 2 mois" },
   { value: "injectable", label: "Injectable 3 mois" },
   { value: "pilule", label: "Pilule" },
   { value: "spotting", label: "Spotting pilule" },
@@ -489,14 +489,14 @@ export default function PlanningForm({
                     />
                   </div>
 
-                  {/* Stérilet */}
+                  {/* COPPER TCU-DIU */}
                   <div className="px-5 pb-2 font-sans relative">
                     <FormField
                       control={form.control}
                       name="sterilet"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Stérilet</FormLabel>
+                          <FormLabel>COPPER TCU-DIU</FormLabel>
                           <FormControl>
                             <RadioGroup onValueChange={field.onChange} value={field.value ?? ""} className="flex gap-x-5 items-center">
                               {IMPLANS.map((o) => (

@@ -350,8 +350,8 @@ export default function ListeAllData({ clients }: ListeAllDataProps) {
         { colTitle: "Retrait Implanon", propriete: "retraitImplanon" },
         { colTitle: "Jadelle", propriete: "jadelle" },
         { colTitle: "Retrait Jadelle", propriete: "retraitJadelle" },
-        { colTitle: "stérilet", propriete: "sterilet" },
-        { colTitle: "Retrait stérilet", propriete: "retraitSterilet" },
+        { colTitle: "COPPER TCU-DIU", propriete: "sterilet" },
+        { colTitle: "Retrait COPPER TCU-DIU", propriete: "retraitSterilet" },
         { colTitle: "Raison Retrait", propriete: "raisonRetrait" },
         {
           colTitle: "Type Effet Secondaire",

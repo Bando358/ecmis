@@ -301,7 +301,7 @@ export const fetchClientsPlanningRDV = async (
             (planning.courtDuree && planning.courtDuree) ||
             (planning.implanon === "insertion" && "Implanon") ||
             (planning.jadelle === "insertion" && "Jadelle") ||
-            (planning.sterilet === "insertion" && "Stérilet"),
+            (planning.sterilet === "insertion" && "COPPER TCU-DIU"),
 
           consultationPf: planning.consultation || false,
           counsellingPf: planning.counsellingPf || false,

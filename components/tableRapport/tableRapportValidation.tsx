@@ -20,7 +20,7 @@ import autoTable from "jspdf-autotable";
 export type convertedType = clientDataProps & {
   pilule: boolean;
   spotting: boolean;
-  noristera: boolean;
+  noristerat: boolean;
   injectable: boolean;
   implanonInsertion: boolean;
   implanonControle: boolean;
@@ -93,7 +93,7 @@ export type convertedType = clientDataProps & {
 const tabContraception = [
   { value: "pilule", label: "Consultation - Pilule" },
   { value: "spotting", label: "Consultation - Spotting pilule" },
-  { value: "noristera", label: "Consultation - Injectable 2 mois" },
+  { value: "noristerat", label: "Consultation - Injectable 2 mois" },
   { value: "injectable", label: "Consultation - Injectable 3 mois" },
 
   { value: "implanonInsertion", label: "Consultation - Implanon (insertion)" },
@@ -313,7 +313,7 @@ export default function TableRapportValidation({
         ...item,
         pilule: item.courtDuree === "pilule",
         spotting: item.courtDuree === "spotting",
-        noristera: item.courtDuree === "noristera",
+        noristerat: item.courtDuree === "noristerat",
         injectable: item.courtDuree === "injectable",
         implanonInsertion: item.implanon === "insertion",
         implanonControle: item.implanon === "controle",
