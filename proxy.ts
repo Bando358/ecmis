@@ -73,8 +73,11 @@ export async function proxy(req: NextRequest) {
     });
     return response;
   } catch (error) {
-    console.error("Proxy error:", error);
-    return NextResponse.redirect(new URL("/login", req.url));
+    // Erreur temporaire (ex: glitch réseau lors de getToken)
+    // Laisser passer la requête plutôt que déconnecter l'utilisateur brutalement
+    // NextAuth re-vérifiera le token côté serveur à la prochaine requête
+    console.error("Proxy error (laisse passer):", error);
+    return NextResponse.next();
   }
 }
 

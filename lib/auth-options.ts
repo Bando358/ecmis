@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 12 * 60 * 60, // 12 heures (journée de travail complète)
-    updateAge: 5 * 60,    // Rafraîchir toutes les 5 min sur activité
+    updateAge: 30 * 60,   // Rafraîchir toutes les 30 min sur activité (réduit la charge DB)
   },
 
   pages: {

@@ -186,25 +186,6 @@ const montantFactureExamens = (examens: FactureExamen[]) =>
 const montantFactureEchographies = (echographies: FactureEchographie[]) =>
   echographies.reduce((total, e) => total + (Number(e.prixEchographie) || 0), 0);
 
-// Reconstitue le prix saisi dans la dialog "Ajouter une échographie" à partir du net stocké
-// Formule : gross = (net + partEchographe/n) / (1 - remise/100)
-// où n = nombre d'échographies dans le même batch (même idVisite + même partEchographe)
-const getPrixSaisiEchographie = (
-  echo: FactureEchographie,
-  allEchos: FactureEchographie[],
-): number => {
-  const batchSize = allEchos.filter(
-    (e) => e.idVisite === echo.idVisite && e.partEchographe === echo.partEchographe,
-  ).length;
-  const n = batchSize > 0 ? batchSize : 1;
-  const partEchoPerEcho = (Number(echo.partEchographe) || 0) / n;
-  const remise = Number(echo.remiseEchographie) || 0;
-  const denominateur = 1 - remise / 100;
-  if (denominateur <= 0) return Number(echo.prixEchographie) || 0;
-  return Math.round(
-    ((Number(echo.prixEchographie) || 0) + partEchoPerEcho) / denominateur,
-  );
-};
 
 // Composant client principal
 export default function FichePharmacyClient({
@@ -283,6 +264,11 @@ export default function FichePharmacyClient({
   const [ticketSelectedIds, setTicketSelectedIds] = useState<Set<string>>(new Set());
   // Ref des IDs déjà vus (pour distinguer nouveaux IDs vs IDs décochés)
   const knownFactureIdsRef = useRef<Set<string>>(new Set());
+  // Verrou synchrone pour empêcher le double-clic sur le bouton Facturer
+  const isFacturingRef = useRef(false);
+  // Verrou synchrone pour empêcher le double-clic sur le bouton d'impression du ticket
+  const isPrintingTicketRef = useRef(false);
+  const [isPrintingTicket, setIsPrintingTicket] = useState(false);
 
   const [selectedIdVisite, setSelectedIdVisite] = useState<string>("");
 
@@ -716,6 +702,28 @@ export default function FichePharmacyClient({
     });
   }, [allFactureIds]);
 
+  // Pré-calcul des prix saisis des échographies (optimisation O(n²) → O(n))
+  const prixSaisiEchoMap = useMemo(() => {
+    const batchSizes = new Map<string, number>();
+    for (const e of echographiesFacture) {
+      const key = `${e.idVisite}-${e.partEchographe}`;
+      batchSizes.set(key, (batchSizes.get(key) || 0) + 1);
+    }
+    const map = new Map<string, number>();
+    for (const e of echographiesFacture) {
+      const key = `${e.idVisite}-${e.partEchographe}`;
+      const n = batchSizes.get(key) || 1;
+      const partEchoPerEcho = (Number(e.partEchographe) || 0) / n;
+      const remise = Number(e.remiseEchographie) || 0;
+      const denom = 1 - remise / 100;
+      const prix = denom <= 0
+        ? Number(e.prixEchographie) || 0
+        : Math.round(((Number(e.prixEchographie) || 0) + partEchoPerEcho) / denom);
+      map.set(e.id, prix);
+    }
+    return map;
+  }, [echographiesFacture]);
+
   // Données filtrées pour le ticket FACTURE CLIENT (uniquement les lignes cochées)
   const ticketProduits = useMemo(
     () => produitFacture.filter((p) => ticketSelectedIds.has(p.id)),
@@ -743,6 +751,8 @@ export default function FichePharmacyClient({
   };
 
   const handleFacturation = async () => {
+    // Verrou synchrone : empêche toute double-facturation via double-clic rapide
+    if (isFacturingRef.current) return;
     if (!canCreate(TableName.FACTURE_PRODUIT)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
@@ -808,6 +818,7 @@ export default function FichePharmacyClient({
     }
 
     try {
+      isFacturingRef.current = true;
       setIsLoading(true);
 
       // Préparer toutes les données AVANT l'appel DB
@@ -937,6 +948,7 @@ export default function FichePharmacyClient({
       toast.error("Erreur lors de la facturation");
     } finally {
       setIsLoading(false);
+      isFacturingRef.current = false;
     }
   };
 
@@ -991,10 +1003,10 @@ export default function FichePharmacyClient({
     }, 0);
     // Echographie : prix saisi dans la dialog (reconstruit depuis net + remise + partEchographe)
     const totalEchographies = echographiesFacture.reduce((sum, e) => {
-      return sum + getPrixSaisiEchographie(e, echographiesFacture);
+      return sum + (prixSaisiEchoMap.get(e.id) ?? e.prixEchographie);
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
-  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen]);
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen, prixSaisiEchoMap]);
 
   // Total affiché sur le ticket FACTURE CLIENT : uniquement les lignes cochées
   const ticketTotal = useMemo(() => {
@@ -1004,13 +1016,17 @@ export default function FichePharmacyClient({
       return sum + (getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen);
     }, 0);
     const totalEchographies = ticketEchographies.reduce((sum, e) => {
-      return sum + getPrixSaisiEchographie(e, echographiesFacture);
+      return sum + (prixSaisiEchoMap.get(e.id) ?? e.prixEchographie);
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
-  }, [ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, echographiesFacture, getPrixCatalogueExamen]);
+  }, [ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, getPrixCatalogueExamen, prixSaisiEchoMap]);
 
   // Impression ticket de caisse via window.open (compatible imprimantes thermiques Xprinter)
   const printTicketThermal = useCallback(() => {
+    // Verrou synchrone : empêche le double-clic rapide d'ouvrir deux fenêtres
+    if (isPrintingTicketRef.current) return;
+    isPrintingTicketRef.current = true;
+    setIsPrintingTicket(true);
     const cliniqueNom = client?.cliniqueId ? nomClinique(client.cliniqueId) : "";
     const dateStr = dateVisiteSelectionnee.toLocaleDateString("fr-FR", {
       day: "2-digit", month: "2-digit", year: "numeric",
@@ -1056,7 +1072,7 @@ export default function FichePharmacyClient({
     if (ticketEchographies.length > 0) {
       lignesHtml += `<tr><td colspan="4" class="section-label">ECHOGRAPHIES</td></tr>`;
       ticketEchographies.forEach((e) => {
-        const prix = getPrixSaisiEchographie(e, echographiesFacture);
+        const prix = prixSaisiEchoMap.get(e.id) ?? e.prixEchographie;
         lignesHtml += itemRow("Echo. " + e.libelleEchographie, 1, prix, prix);
       });
     }
@@ -1064,14 +1080,57 @@ export default function FichePharmacyClient({
     const w = window.open("", "_blank", "width=350,height=600");
     if (!w) {
       toast.error("Impossible d'ouvrir la fenêtre d'impression");
+      isPrintingTicketRef.current = false;
+      setIsPrintingTicket(false);
       return;
     }
+    const ticketContent = `
+  <div class="ticket">
+    <div class="header center">
+      <img src="/LOGO_AIBEF_IPPF.png" alt="Logo AIBEF IPPF" />
+      <div class="bold">AIBEF - ${cliniqueNom}</div>
+      <div>${dateStr}</div>
+    </div>
+    <div class="line"></div>
+    <div class="row"><span>Client :</span><span class="bold">${clientNom}</span></div>
+    ${clientCode ? `<div class="row"><span>Code :</span><span>${clientCode}</span></div>` : ""}
+    <div class="row"><span>Caissiere :</span><span>${caissiere}</span></div>
+    <div class="line"></div>
+    <div class="center bold" style="margin: 6px 0; font-size: 13px;">FACTURE CLIENT</div>
+    <div class="line"></div>
+    <table>
+      <thead>
+        <tr style="border-bottom: 1px solid #000;">
+          <th class="th-nom">Désig.</th>
+          <th class="th-qte">Qté</th>
+          <th class="th-pu">P.U.</th>
+          <th class="th-mt">Mnt</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lignesHtml}
+      </tbody>
+    </table>
+    <div class="line"></div>
+    <div class="row bold" style="font-size: 14px; margin: 6px 0;">
+      <span>TOTAL</span>
+      <span>${ticketTotal.toLocaleString("fr-FR")} CFA</span>
+    </div>
+    <div class="line"></div>
+    <div class="footer center">
+      <p>Merci pour votre visite !</p>
+      <p>AIBEF - ${cliniqueNom}</p>
+    </div>
+  </div>`;
+
     w.document.write(`<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>Facture Client</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Courier New', monospace; width: 280px; margin: 0 auto; padding: 10px; font-size: 11px; }
+  .ticket { page-break-after: always; break-after: page; }
+  .ticket:last-child { page-break-after: auto; break-after: auto; }
   .center { text-align: center; }
   .bold { font-weight: bold; }
   .line { border-top: 1px dashed #000; margin: 6px 0; }
@@ -1096,49 +1155,25 @@ export default function FichePharmacyClient({
   }
 </style></head>
 <body>
-  <div class="header center">
-    <img src="/LOGO_AIBEF_IPPF.png" alt="Logo AIBEF IPPF" />
-    <div class="bold">AIBEF - ${cliniqueNom}</div>
-    <div>${dateStr}</div>
-  </div>
-  <div class="line"></div>
-  <div class="row"><span>Client :</span><span class="bold">${clientNom}</span></div>
-  ${clientCode ? `<div class="row"><span>Code :</span><span>${clientCode}</span></div>` : ""}
-  <div class="row"><span>Caissiere :</span><span>${caissiere}</span></div>
-  <div class="line"></div>
-  <div class="center bold" style="margin: 6px 0; font-size: 13px;">FACTURE CLIENT</div>
-  <div class="line"></div>
-  <table>
-    <thead>
-      <tr style="border-bottom: 1px solid #000;">
-        <th class="th-nom">Désig.</th>
-        <th class="th-qte">Qté</th>
-        <th class="th-pu">P.U.</th>
-        <th class="th-mt">Mnt</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${lignesHtml}
-    </tbody>
-  </table>
-  <div class="line"></div>
-  <div class="row bold" style="font-size: 14px; margin: 6px 0;">
-    <span>TOTAL</span>
-    <span>${ticketTotal.toLocaleString("fr-FR")} CFA</span>
-  </div>
-  <div class="line"></div>
-  <div class="footer center">
-    <p>Merci pour votre visite !</p>
-    <p>AIBEF - ${cliniqueNom}</p>
-  </div>
+  ${ticketContent}
+  ${ticketContent}
 </body></html>`);
     w.document.close();
+    const releaseLock = () => {
+      isPrintingTicketRef.current = false;
+      setIsPrintingTicket(false);
+    };
     w.onload = () => {
       w.focus();
       w.print();
-      w.onafterprint = () => w.close();
+      w.onafterprint = () => {
+        w.close();
+        releaseLock();
+      };
     };
-  }, [client, dateVisiteSelectionnee, session, ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, echographiesFacture, ticketTotal, nomClinique, nomPrestation, getPrixCatalogueExamen]);
+    // Filet de sécurité : si onafterprint ne se déclenche pas (ex: annulation), libérer le verrou après 30s
+    setTimeout(releaseLock, 30000);
+  }, [client, dateVisiteSelectionnee, session, ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, ticketTotal, nomClinique, nomPrestation, getPrixCatalogueExamen, prixSaisiEchoMap]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -2501,7 +2536,7 @@ export default function FichePharmacyClient({
 
                   {/* Lignes échographies — prix saisi dans la dialog (reconstitué) */}
                   {ticketEchographies.map((echographie, index) => {
-                    const prixSaisi = getPrixSaisiEchographie(echographie, echographiesFacture);
+                    const prixSaisi = prixSaisiEchoMap.get(echographie.id) ?? echographie.prixEchographie;
                     return (
                       <div
                         key={echographie.id || `ticket-echo-${index}`}
@@ -2568,10 +2603,11 @@ export default function FichePharmacyClient({
                 variant="outline"
                 size="lg"
                 onClick={() => printTicketThermal()}
+                disabled={isPrintingTicket}
                 className="gap-2"
               >
                 <Printer className="h-4 w-4" />
-                Imprimer ticket de caisse
+                {isPrintingTicket ? "Impression..." : "Imprimer ticket de caisse"}
               </Button>
               <Button
                 variant="secondary"
