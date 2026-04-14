@@ -1171,8 +1171,9 @@ export default function FichePharmacyClient({
         releaseLock();
       };
     };
-    // Filet de sécurité : si onafterprint ne se déclenche pas (ex: annulation), libérer le verrou après 30s
-    setTimeout(releaseLock, 30000);
+    // Filet de sécurité court : libère le verrou 2s après le clic (suffisant pour empêcher un double-clic)
+    // Si onafterprint arrive avant ou après, releaseLock est idempotent
+    setTimeout(releaseLock, 2000);
   }, [client, dateVisiteSelectionnee, session, ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, ticketTotal, nomClinique, nomPrestation, getPrixCatalogueExamen, prixSaisiEchoMap]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
@@ -1894,7 +1895,6 @@ export default function FichePharmacyClient({
                   disabled={
                     !watchedIdVisite ||
                     !watchedCouverture ||
-                    isLoading ||
                     (!watchedTypeExamen && demandeExamens.length > 0)
                   }
                   className="gap-1.5"
@@ -2603,11 +2603,10 @@ export default function FichePharmacyClient({
                 variant="outline"
                 size="lg"
                 onClick={() => printTicketThermal()}
-                disabled={isPrintingTicket}
                 className="gap-2"
               >
                 <Printer className="h-4 w-4" />
-                {isPrintingTicket ? "Impression..." : "Imprimer ticket de caisse"}
+                Imprimer ticket de caisse
               </Button>
               <Button
                 variant="secondary"
