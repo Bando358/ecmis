@@ -316,20 +316,6 @@ export default function FichePharmacyClient({
     [tabExamen],
   );
 
-  // Lookup : idDemandeExamen → TarifExamen.prixExamen (prix catalogue)
-  const demandeExamenMap = useMemo(
-    () => new Map(tabDemandeExamens.map((d) => [d.id, d.idTarifExamen])),
-    [tabDemandeExamens],
-  );
-  const getPrixCatalogueExamen = useCallback(
-    (idDemandeExamen: string): number | null => {
-      const idTarif = demandeExamenMap.get(idDemandeExamen);
-      if (!idTarif) return null;
-      return tarifExamenMap.get(idTarif)?.prixExamen ?? null;
-    },
-    [demandeExamenMap, tarifExamenMap],
-  );
-
   // Lookup : idDemandeEchographie → TarifEchographie.prixEchographie (prix catalogue)
   const demandeEchographieMap = useMemo(
     () => new Map(tabDemandeEchographies.map((d) => [d.id, d.idTarifEchographie])),
@@ -482,7 +468,8 @@ export default function FichePharmacyClient({
 
   const getExamenPrix = (id: string) => {
     const demand = demandeExamens.find((e) => e.id === id);
-    return tarifExamenMap.get(demand?.idTarifExamen || "")?.prixExamen || 0;
+    // Retourner le prix saisi manuellement dans la dialog (fallback sur catalogue si absent)
+    return demand?.prixExamen ?? tarifExamenMap.get(demand?.idTarifExamen || "")?.prixExamen ?? 0;
   };
 
   const renameExamen = (idDemandeExamen: string) => {
@@ -499,7 +486,8 @@ export default function FichePharmacyClient({
 
   const getEchographiePrix = (id: string) => {
     const demand = demandeEchographies.find((e) => e.id === id);
-    return tarifEchographieMap.get(demand?.idTarifEchographie || "")?.prixEchographie || 0;
+    // Retourner le prix saisi manuellement dans la dialog (fallback sur catalogue si absent)
+    return demand?.prixEchographie ?? tarifEchographieMap.get(demand?.idTarifEchographie || "")?.prixEchographie ?? 0;
   };
 
   const getServiceEchographie = (idTarifEchographie: string) => {
@@ -701,6 +689,29 @@ export default function FichePharmacyClient({
       return new Set(allFactureIds);
     });
   }, [allFactureIds]);
+
+  // Pré-calcul des prix saisis des examens à partir du prix stocké
+  // Formule : prix saisi = prix net / (1 - remise/100) si pas sous-traité, sinon prix net
+  // (car dans handleFacturation : prixExamen stocké = prix saisi * (1-remise/100) si pas sous-traité et remise > 0)
+  const prixSaisiExamenMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of examensFacture) {
+      const remise = Number(e.remiseExamen) || 0;
+      const isSousTraite = !!e.soustraitanceExamen;
+      // Si sous-traité ou remise = 0, prixExamen stocké = prix saisi
+      if (isSousTraite || remise === 0) {
+        map.set(e.id, Number(e.prixExamen) || 0);
+        continue;
+      }
+      // Sinon, prix saisi = prix net / (1 - remise/100)
+      const denom = 1 - remise / 100;
+      const prix = denom <= 0
+        ? Number(e.prixExamen) || 0
+        : Math.round((Number(e.prixExamen) || 0) / denom);
+      map.set(e.id, prix);
+    }
+    return map;
+  }, [examensFacture]);
 
   // Pré-calcul des prix saisis des échographies (optimisation O(n²) → O(n))
   const prixSaisiEchoMap = useMemo(() => {
@@ -999,27 +1010,27 @@ export default function FichePharmacyClient({
     const totalPrestations = montantPrestations(prestationfacture);
     // Examen : prix catalogue (TarifExamen.prixExamen)
     const totalExamens = examensFacture.reduce((sum, e) => {
-      return sum + (getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen);
+      return sum + (prixSaisiExamenMap.get(e.id) ?? e.prixExamen);
     }, 0);
     // Echographie : prix saisi dans la dialog (reconstruit depuis net + remise + partEchographe)
     const totalEchographies = echographiesFacture.reduce((sum, e) => {
       return sum + (prixSaisiEchoMap.get(e.id) ?? e.prixEchographie);
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
-  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, getPrixCatalogueExamen, prixSaisiEchoMap]);
+  }, [produitFacture, prestationfacture, examensFacture, echographiesFacture, prixSaisiExamenMap, prixSaisiEchoMap]);
 
   // Total affiché sur le ticket FACTURE CLIENT : uniquement les lignes cochées
   const ticketTotal = useMemo(() => {
     const totalProduits = montantProduits(ticketProduits);
     const totalPrestations = montantPrestations(ticketPrestations);
     const totalExamens = ticketExamens.reduce((sum, e) => {
-      return sum + (getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen);
+      return sum + (prixSaisiExamenMap.get(e.id) ?? e.prixExamen);
     }, 0);
     const totalEchographies = ticketEchographies.reduce((sum, e) => {
       return sum + (prixSaisiEchoMap.get(e.id) ?? e.prixEchographie);
     }, 0);
     return totalProduits + totalPrestations + totalExamens + totalEchographies;
-  }, [ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, getPrixCatalogueExamen, prixSaisiEchoMap]);
+  }, [ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, prixSaisiExamenMap, prixSaisiEchoMap]);
 
   // Impression ticket de caisse via window.open (compatible imprimantes thermiques Xprinter)
   const printTicketThermal = useCallback(() => {
@@ -1064,7 +1075,7 @@ export default function FichePharmacyClient({
     if (ticketExamens.length > 0) {
       lignesHtml += `<tr><td colspan="4" class="section-label">EXAMENS</td></tr>`;
       ticketExamens.forEach((e) => {
-        const prix = getPrixCatalogueExamen(e.idDemandeExamen) ?? e.prixExamen;
+        const prix = prixSaisiExamenMap.get(e.id) ?? e.prixExamen;
         lignesHtml += itemRow(e.libelleExamen, 1, prix, prix);
       });
     }
@@ -1174,7 +1185,7 @@ export default function FichePharmacyClient({
     // Filet de sécurité court : libère le verrou 2s après le clic (suffisant pour empêcher un double-clic)
     // Si onafterprint arrive avant ou après, releaseLock est idempotent
     setTimeout(releaseLock, 2000);
-  }, [client, dateVisiteSelectionnee, session, ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, ticketTotal, nomClinique, nomPrestation, getPrixCatalogueExamen, prixSaisiEchoMap]);
+  }, [client, dateVisiteSelectionnee, session, ticketProduits, ticketPrestations, ticketExamens, ticketEchographies, ticketTotal, nomClinique, nomPrestation, prixSaisiExamenMap, prixSaisiEchoMap]);
 
   // État du bouton Commissions : rouge si commissions manquantes, vert si appliquées
   const hasExams = demandeExamens.length > 0 || examensFacture.length > 0;
@@ -2173,7 +2184,7 @@ export default function FichePharmacyClient({
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {(getPrixCatalogueExamen(examen.idDemandeExamen) ?? examen.prixExamen).toLocaleString("fr-FR")}
+                            {(prixSaisiExamenMap.get(examen.id) ?? examen.prixExamen).toLocaleString("fr-FR")}
                           </TableCell>
                           <TableCell className="text-center tabular-nums">
                             1
@@ -2507,9 +2518,9 @@ export default function FichePharmacyClient({
                     </div>
                   )}
 
-                  {/* Lignes examens — prix catalogue */}
+                  {/* Lignes examens — prix saisi dans la dialog */}
                   {ticketExamens.map((examen, index) => {
-                    const prixCatalogue = getPrixCatalogueExamen(examen.idDemandeExamen) ?? examen.prixExamen;
+                    const prixCatalogue = prixSaisiExamenMap.get(examen.id) ?? examen.prixExamen;
                     return (
                       <div
                         key={examen.id || `ticket-examen-${index}`}
