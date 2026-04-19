@@ -22,6 +22,7 @@ import { Activity, CalendarDays, Save } from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { createVisite } from "@/lib/actions/visiteActions";
 import { createContante } from "@/lib/actions/constanteActions";
+import { createRecapVisite } from "@/lib/actions/recapActions";
 import { getAllActiviteByIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
@@ -197,6 +198,14 @@ export default function VisiteConstanteTab({
       } as Constante;
 
       await createContante(constanteData);
+
+      // 3. Créer/mettre à jour RecapVisite avec le prescripteur (idUser) et les formulaires
+      await createRecapVisite({
+        idVisite: newVisite.id,
+        idClient: clientId,
+        prescripteurs: [idUser],
+        formulaires: ["01 Créer la visite", "02 Fiche des constantes"],
+      });
 
       toast.success("Visite et constantes créées avec succès !");
 

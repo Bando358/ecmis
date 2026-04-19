@@ -78,39 +78,47 @@ export async function updateRecapVisite(
       where: { idVisite },
     });
 
+    // Si RecapVisite n'existe pas, le créer avec les valeurs initiales
     if (!recapVisite) {
-      throw new Error(`RecapVisite with idVisite ${idVisite} not found.`);
-    }
-
-    // Ajouter le nouveau formulaire à la liste existante
-    if (recapVisite.formulaires.includes(formulaire) === false) {
-      const updatedFormulaires = [...recapVisite.formulaires, formulaire];
-
-      // Mettre à jour le RecapVisite avec le nouveau tableau de formulaires
-      await prisma.recapVisite.update({
-        where: { idVisite },
+      // Récupérer l'idClient via la visite
+      const visite = await prisma.visite.findUnique({
+        where: { id: idVisite },
+        select: { idClient: true },
+      });
+      if (!visite) {
+        console.error(`Visite ${idVisite} introuvable pour créer RecapVisite`);
+        return;
+      }
+      await prisma.recapVisite.create({
         data: {
-          formulaires: updatedFormulaires,
+          idVisite,
+          idClient: visite.idClient,
+          prescripteurs: prescripteurs ? [prescripteurs] : [],
+          formulaires: formulaire ? [formulaire] : [],
         },
       });
+      return;
     }
-    // Ajouter le nouveau formulaire à la liste existante
-    if (recapVisite.prescripteurs.includes(prescripteurs) === false) {
-      const updatedPrescripteurs = [
-        ...recapVisite.prescripteurs,
-        prescripteurs,
-      ];
 
-      // Mettre à jour le RecapVisite avec le nouveau tableau de prescripteurs
+    // Ajouter le nouveau formulaire à la liste existante
+    const updates: { formulaires?: string[]; prescripteurs?: string[] } = {};
+
+    if (formulaire && !recapVisite.formulaires.includes(formulaire)) {
+      updates.formulaires = [...recapVisite.formulaires, formulaire];
+    }
+    if (prescripteurs && !recapVisite.prescripteurs.includes(prescripteurs)) {
+      updates.prescripteurs = [...recapVisite.prescripteurs, prescripteurs];
+    }
+
+    // Une seule requête DB si au moins un champ à mettre à jour
+    if (Object.keys(updates).length > 0) {
       await prisma.recapVisite.update({
         where: { idVisite },
-        data: {
-          prescripteurs: updatedPrescripteurs,
-        },
+        data: updates,
       });
     }
   } catch (error) {
-    console.error(error);
+    console.error("Erreur updateRecapVisite:", error);
   }
 }
 
