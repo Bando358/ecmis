@@ -13,4 +13,6 @@ export interface SharedFormProps {
   initialObstetriques?: Obstetrique[];
   /** Callback quand une grossesse est créée (pour synchroniser les onglets) */
   onGrossesseCreated?: (grossesse: Grossesse) => void;
+  /** Callback quand une visite est créée (pour synchroniser les onglets sans rechargement) */
+  onVisiteCreated?: (visite: Visite) => void;
 }

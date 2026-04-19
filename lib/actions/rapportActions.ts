@@ -1349,10 +1349,10 @@ export const fetchClientsStatusProteges = async (
       // -----------------------------
       // PRIORITÉ 1 : ARRÊT (retrait)
       // -----------------------------
-      const dateRetrait =
+      const hasRetrait =
         plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
 
-      if (dateRetrait) {
+      if (hasRetrait) {
         const visiteRetrait = client.Visite.find(
           (v): boolean => v.id === plan.idVisite
         );
@@ -1367,7 +1367,52 @@ export const fetchClientsStatusProteges = async (
       }
 
       // -----------------------------
-      // PRIORITÉ 2 : PROTÉGÉ
+      // MÉTHODES DE LONGUE DURÉE (Implanon=3 ans, Jadelle=5 ans, DIU=10 ans)
+      // Protection basée sur la durée depuis l'insertion, pas le rdvPf
+      // -----------------------------
+      const isLongueDuree = !!(plan.implanon || plan.jadelle || plan.sterilet);
+
+      if (isLongueDuree && !hasRetrait) {
+        let dureeProtectionAnnees = 0;
+        if (plan.implanon) dureeProtectionAnnees = 3;
+        else if (plan.jadelle) dureeProtectionAnnees = 5;
+        else if (plan.sterilet) dureeProtectionAnnees = 10;
+
+        // Date d'insertion = date de la visite associée au Planning
+        const visiteInsertion = client.Visite.find((v) => v.id === plan.idVisite);
+        if (visiteInsertion) {
+          const dateInsertion = new Date(visiteInsertion.dateVisite);
+          const dateFinProtection = new Date(dateInsertion);
+          dateFinProtection.setFullYear(dateFinProtection.getFullYear() + dureeProtectionAnnees);
+
+          // Vérifier si un retrait a eu lieu dans une visite ultérieure
+          const hasRetraitUlterieur = client.Planning.some((otherPlan) => {
+            if (otherPlan.id === plan.id) return false;
+            const otherVisite = client.Visite.find((v) => v.id === otherPlan.idVisite);
+            if (!otherVisite) return false;
+            const dAutre = new Date(otherVisite.dateVisite);
+            return (
+              dAutre > dateInsertion &&
+              dAutre <= dateVisite2 &&
+              (otherPlan.retraitImplanon || otherPlan.retraitJadelle || otherPlan.retraitSterilet)
+            );
+          });
+
+          if (hasRetraitUlterieur) {
+            status.arret = true;
+          } else if (dateVisite2 <= dateFinProtection) {
+            status.protege = true;
+          } else {
+            status.abandon = true;
+          }
+
+          resultMap.set(client.code, status);
+          continue;
+        }
+      }
+
+      // -----------------------------
+      // MÉTHODES DE COURTE DURÉE — PRIORITÉ 2 : PROTÉGÉ
       // -----------------------------
       if (rdvPf >= dateVisite1) {
         status.protege = true;

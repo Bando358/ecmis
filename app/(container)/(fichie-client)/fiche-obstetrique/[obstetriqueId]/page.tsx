@@ -32,8 +32,18 @@ import GynecoForm from "@/components/forms/GynecoForm";
 import DepistageVihForm from "@/components/forms/DepistageVihForm";
 import IstForm from "@/components/forms/IstForm";
 import MdgForm from "@/components/forms/MdgForm";
+import VisiteConstanteTab from "@/components/forms/VisiteConstanteTab";
+import { ClipboardPlus } from "lucide-react";
 
 const TABS_CONFIG = [
+  {
+    value: "visite-constante",
+    label: "Visite & Constante",
+    shortLabel: "Visite",
+    icon: ClipboardPlus,
+    accent: "#2563eb",
+    accentLight: "#eff6ff",
+  },
   {
     value: "grossesse",
     label: "Grossesse",
@@ -85,6 +95,7 @@ const TABS_CONFIG = [
 ] as const;
 
 const FORM_COMPONENTS: Record<string, React.ComponentType<SharedFormProps>> = {
+  "visite-constante": VisiteConstanteTab,
   grossesse: GrossesseForm,
   obstetrique: ObstetriqueForm,
   gyneco: GynecoForm,
@@ -197,6 +208,7 @@ export default function ObstetriquePage({
     initialGrossesses: grossesses,
     initialObstetriques: obstetriques,
     onGrossesseCreated: handleGrossesseCreated,
+    onVisiteCreated: (visite) => setVisites((prev) => [visite, ...prev]),
   };
 
   return (
@@ -217,7 +229,7 @@ export default function ObstetriquePage({
           onValueChange={handleTabChange}
           className="gap-3 m-4"
         >
-          <TabsList className="sticky top-0 z-20 grid grid-cols-3 sm:grid-cols-6 h-auto gap-2 p-2.5 w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm backdrop-blur-sm">
+          <TabsList className="sticky top-0 z-20 grid grid-cols-4 sm:grid-cols-7 h-auto gap-2 p-2.5 w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm backdrop-blur-sm">
             {TABS_CONFIG.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.value;

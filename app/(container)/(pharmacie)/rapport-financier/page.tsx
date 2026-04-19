@@ -612,7 +612,16 @@ export default function VentesPage() {
         const isSousTraite = !!examen.examSoustraitanceExamen;
         const libelle = examen.examLibelle.trim().toUpperCase();
         const remise = isSousTraite ? 0 : examen.examRemise;
-        const key = `${libelle}-${isSousTraite}-${remise}`;
+        // Reconstituer le prix saisi (brut, avant remise) à partir du prix stocké
+        // handleFacturation stocke : sous-traité/remise=0 → prix saisi ; sinon → prix saisi × (1 - remise/100)
+        const prixNetStocke = Number(examen.examPrixTotal) || 0;
+        const prixSaisi = (isSousTraite || remise === 0)
+          ? prixNetStocke
+          : Math.round(prixNetStocke / (1 - remise / 100));
+
+        // Prix saisi dans la clé : sépare les examens avec un prix catalogue/saisi différent
+        // (ex: CRP 3000 = ligne distincte de CRP 2000 en cas de partenariat)
+        const key = `${libelle}-${isSousTraite}-${remise}-${prixSaisi}`;
         const commissionForThis = commissionExamenByFactureId.get(examen.examId) || 0;
 
         if (!acc[key]) {
@@ -620,24 +629,19 @@ export default function VentesPage() {
             libelle,
             remise,
             soustraitance: isSousTraite,
-            prixUnitaire: 0,
+            prixUnitaire: prixSaisi,
             quantite: 0,
             montant: 0,
             commission: 0,
           };
         }
         acc[key].quantite += 1;
-        acc[key].montant += examen.examPrixTotal;
+        acc[key].montant += prixNetStocke;
         acc[key].commission += commissionForThis;
         return acc;
       },
       {} as Record<string, GroupedExamen>,
     );
-
-    // Calculer le prix unitaire moyen pour chaque groupe
-    for (const g of Object.values(grouped)) {
-      g.prixUnitaire = g.quantite > 0 ? Math.round(g.montant / g.quantite) : 0;
-    }
 
     return Object.values(grouped).sort((a, b) => {
       const cmpLibelle = a.libelle.localeCompare(b.libelle);
@@ -647,21 +651,45 @@ export default function VentesPage() {
         return a.soustraitance ? 1 : -1;
       }
 
-      return a.remise - b.remise;
+      if (a.remise !== b.remise) return a.remise - b.remise;
+
+      return a.prixUnitaire - b.prixUnitaire;
     });
   }, [facturesExamens, commissionExamenByFactureId]);
 
   const groupedEchographies = useMemo(() => {
+    // Pré-calculer le batch size par (idVisite, partEchographe)
+    const batchSizes = new Map<string, number>();
+    for (const e of facturesEchographies) {
+      const bKey = `${e.echoIdVisite}-${e.echoPartEchographe}`;
+      batchSizes.set(bKey, (batchSizes.get(bKey) || 0) + 1);
+    }
+
     const grouped = facturesEchographies.reduce(
       (acc, echographie) => {
         const libelle = echographie.echoLibelle.trim().toUpperCase();
-        const key = `${libelle}-${echographie.echoRemise}`;
+        const remise = Number(echographie.echoRemise) || 0;
+
+        // Reconstituer le prix saisi (brut, avant remise et part échographe) à partir du prix stocké
+        // handleFacturation stocke : prix stocké = (prix saisi × (1 - remise/100)) - partEcho/n
+        // Donc : prix saisi = (prix stocké + partEcho/n) / (1 - remise/100)
+        const bKey = `${echographie.echoIdVisite}-${echographie.echoPartEchographe}`;
+        const n = batchSizes.get(bKey) || 1;
+        const partEchoPerEcho = (Number(echographie.echoPartEchographe) || 0) / n;
+        const denom = 1 - remise / 100;
+        const prixNetStocke = Number(echographie.echoPrixTotal) || 0;
+        const prixSaisi = denom <= 0
+          ? prixNetStocke
+          : Math.round((prixNetStocke + partEchoPerEcho) / denom);
+
+        // Prix saisi dans la clé : sépare les échographies avec un prix catalogue/saisi différent
+        const key = `${libelle}-${remise}-${prixSaisi}`;
         const commissionForThis = commissionEchographieByFactureId.get(echographie.echoId) || 0;
         if (!acc[key]) {
           acc[key] = {
             libelle,
-            remise: echographie.echoRemise,
-            prixUnitaire: 0,
+            remise,
+            prixUnitaire: prixSaisi,
             quantite: 0,
             montant: 0,
             partEchographe: 0,
@@ -670,24 +698,20 @@ export default function VentesPage() {
           };
         }
         acc[key].quantite += 1;
-        acc[key].montant += echographie.echoPrixTotal;
-        acc[key].partEchographe += echographie.echoPartEchographe;
-        acc[key].montantNet += echographie.echoPrixTotal;
+        acc[key].montant += prixNetStocke;
+        acc[key].partEchographe += Number(echographie.echoPartEchographe) || 0;
+        acc[key].montantNet += prixNetStocke;
         acc[key].commission += commissionForThis;
         return acc;
       },
       {} as Record<string, GroupedEchographie>,
     );
 
-    // Calculer le prix unitaire moyen pour chaque groupe
-    for (const g of Object.values(grouped)) {
-      g.prixUnitaire = g.quantite > 0 ? Math.round(g.montant / g.quantite) : 0;
-    }
-
     return Object.values(grouped).sort((a, b) => {
       const cmpLibelle = a.libelle.localeCompare(b.libelle);
       if (cmpLibelle !== 0) return cmpLibelle;
-      return a.remise - b.remise;
+      if (a.remise !== b.remise) return a.remise - b.remise;
+      return a.prixUnitaire - b.prixUnitaire;
     });
   }, [facturesEchographies, commissionEchographieByFactureId]);
 

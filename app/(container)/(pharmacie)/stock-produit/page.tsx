@@ -266,34 +266,37 @@ export default function GestionStockProduitPage() {
     }
 
     try {
-      await updateQuantiteStockTarifProduitByDetailCommande(
-        tarifProduit.id,
-        quantite
-      );
-
       const uuid =
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
           : Math.random().toString(36).substring(2, 15);
 
-      const nouveauDetail = await createDetailCommande({
-        id: data.id && typeof data.id === "string" ? data.id : uuid,
-        idTarifProduit: tarifProduit.id,
-        quantiteCommandee: quantite,
-        idCommande: data.idCommande || "",
-        createdAt: new Date(),
-        idUser: idUser,
-        idClinique: selectedClinique || "",
-        quantiteInitiale: tarifProduit.quantiteStock,
-      });
+      const detailId = data.id && typeof data.id === "string" ? data.id : uuid;
 
-      const [updatedTarifs, updatedDetails] = await Promise.all([
-        getAllTarifProduits(),
-        getAllDetailCommande(),
+      // Exécuter les 2 opérations DB en parallèle (indépendantes)
+      const [, nouveauDetail] = await Promise.all([
+        updateQuantiteStockTarifProduitByDetailCommande(tarifProduit.id, quantite),
+        createDetailCommande({
+          id: detailId,
+          idTarifProduit: tarifProduit.id,
+          quantiteCommandee: quantite,
+          idCommande: data.idCommande || "",
+          createdAt: new Date(),
+          idUser: idUser,
+          idClinique: selectedClinique || "",
+          quantiteInitiale: tarifProduit.quantiteStock,
+        }),
       ]);
 
-      setListeTarifProduit(updatedTarifs);
-      setDetailCommande(updatedDetails);
+      // Mise à jour optimiste locale (pas de refetch DB)
+      setListeTarifProduit((prev) =>
+        prev.map((t) =>
+          t.id === tarifProduit.id
+            ? { ...t, quantiteStock: t.quantiteStock + quantite }
+            : t,
+        ),
+      );
+      setDetailCommande((prev) => [nouveauDetail, ...prev]);
 
       toast.success("Produit ajouté à la commande!");
     } catch (error) {
@@ -783,6 +786,7 @@ export default function GestionStockProduitPage() {
                                   {currentCommande ? (
                                     <DetailCommandeDialog
                                       tarifProduit={item}
+                                      nomProduit={produit?.nomProduit || ""}
                                       idCommande={currentCommande.id}
                                       onAddDetail={handleAddDetailCommande}
                                     >

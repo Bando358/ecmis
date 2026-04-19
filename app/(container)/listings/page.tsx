@@ -24,6 +24,7 @@ import {
 import {
   getAllUserIncludedTabIdClinique,
   getAllUserTabIdClinique,
+  getUsersByIds,
   getOneUser,
 } from "@/lib/actions/authActions";
 import {
@@ -306,12 +307,25 @@ export default function Page() {
       }
       setClientDataProtege(dataProtege);
 
+      // Charger les prescripteurs manquants (users non associés à une clinique)
+      const allKnownIds = new Set(allUsers.map((u) => u.id));
+      const missingIds = [
+        ...new Set(
+          clients.flatMap((c) => c.recapPrescripteur || []).filter((id) => !allKnownIds.has(id)),
+        ),
+      ];
+      let enrichedUsers = allUsers;
+      if (missingIds.length > 0) {
+        const missingUsers = await getUsersByIds(missingIds);
+        enrichedUsers = [...allUsers, ...missingUsers];
+      }
+
       const newAllData = clients.map((client) => ({
         ...client,
         nomPrescripteur: getPrescripteurName(
           client.recapPrescripteur,
           prescripteurs,
-          allUsers
+          enrichedUsers
         ),
       }));
 
@@ -546,18 +560,51 @@ export default function Page() {
   );
 }
 
+// ✅ Postes prioritaires pour l'affichage du prescripteur (ordre de priorité)
+const POSTES_PRIORITE_ORDRE = ["MEDECIN", "SAGE_FEMME", "INFIRMIER", "LABORANTIN", "AIDE_SOIGNANT"];
+const POSTES_PRIORITAIRES = new Set(POSTES_PRIORITE_ORDRE);
+
+type UserWithPost = SafeUser & { post?: { title: string }[] };
+
+// Retourne le rang de priorité le plus élevé (0 = médecin, 4 = aide-soignant)
+const getPostePriorite = (user: UserWithPost): number => {
+  const posts = user.post || [];
+  let meilleur = POSTES_PRIORITE_ORDRE.length;
+  for (const p of posts) {
+    const idx = POSTES_PRIORITE_ORDRE.indexOf(p.title);
+    if (idx !== -1 && idx < meilleur) meilleur = idx;
+  }
+  return meilleur;
+};
+
 // ✅ Fonction utilitaire stable
+// Privilégie : médecin > sage-femme > infirmier > laborantin > aide-soignant
+// Si plusieurs intervenants prioritaires, les sépare par ", " triés par priorité
+// Sinon affiche tous les intervenants trouvés
 const getPrescripteurName = (
   prescripteurIds: string[],
   tabPrescripteur: SafeUser[],
   tabAllUser: SafeUser[]
 ): string => {
-  const prescripteur = tabPrescripteur.find((p) =>
-    prescripteurIds.includes(p.id)
-  );
-  if (prescripteur && prescripteur.name) {
-    return prescripteur.name;
+  if (!prescripteurIds || prescripteurIds.length === 0) return "";
+
+  const allMatching = tabAllUser.filter((u) => prescripteurIds.includes(u.id));
+  if (allMatching.length === 0) {
+    const prescripteur = tabPrescripteur.find((p) => prescripteurIds.includes(p.id));
+    return prescripteur?.name || "";
   }
-  const allUser = tabAllUser.find((u) => prescripteurIds.includes(u.id));
-  return allUser && allUser.name ? allUser.name : "";
+
+  // Filtrer ceux avec un poste prioritaire
+  const prioritaires = (allMatching as UserWithPost[]).filter((u) =>
+    u.post?.some((p) => POSTES_PRIORITAIRES.has(p.title)),
+  );
+
+  if (prioritaires.length > 0) {
+    // Trier par priorité de poste (médecin en premier, aide-soignant en dernier)
+    const tries = prioritaires.sort((a, b) => getPostePriorite(a) - getPostePriorite(b));
+    return [...new Set(tries.map((p) => p.name).filter(Boolean))].join(", ");
+  }
+
+  const noms = [...new Set(allMatching.map((u) => u.name).filter(Boolean))];
+  return noms.join(", ");
 };

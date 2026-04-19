@@ -1,5 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { CommissionExamenDetailRapportProps } from "./types";
 
 export default function CommissionExamenDetailRapport({
@@ -7,14 +10,25 @@ export default function CommissionExamenDetailRapport({
   dateFin,
   commissionsExamenDetail,
 }: CommissionExamenDetailRapportProps) {
+  const [search, setSearch] = useState("");
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("fr-FR");
   };
 
-  const totalGlobal = commissionsExamenDetail.reduce(
-    (sum, row) => sum + row.commission,
-    0
-  );
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return commissionsExamenDetail;
+    return commissionsExamenDetail.filter(
+      (r) =>
+        r.prescripteur.toLowerCase().includes(q) ||
+        r.client.toLowerCase().includes(q) ||
+        r.code.toLowerCase().includes(q) ||
+        r.dateVisite.toLowerCase().includes(q),
+    );
+  }, [commissionsExamenDetail, search]);
+
+  const totalGlobal = filteredRows.reduce((sum, row) => sum + row.commission, 0);
 
   return (
     <>
@@ -35,63 +49,86 @@ export default function CommissionExamenDetailRapport({
           Aucune commission d&apos;examen trouvee pour cette periode
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200">
-            <thead className="bg-purple-50">
-              <tr>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  Date visite
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  Prescripteur
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  Code
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  Client
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-right text-sm font-medium text-gray-700">
-                  Commission (FCFA)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {commissionsExamenDetail.map((row, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-3 text-sm">
-                    {row.dateVisite}
+        <>
+          <div className="flex items-center gap-2 print:hidden">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Rechercher (prescripteur, code, client, date)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {filteredRows.length} / {commissionsExamenDetail.length} ligne(s)
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-200">
+              <thead className="bg-purple-50">
+                <tr>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700 w-12">
+                    N°
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    Date visite
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    Prescripteur
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    Code
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    Client
+                  </th>
+                  <th className="border border-gray-300 px-4 py-3 text-right text-sm font-medium text-gray-700">
+                    Commission (FCFA)
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredRows.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3 text-sm text-center text-muted-foreground">
+                      {idx + 1}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm">
+                      {row.dateVisite}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm">
+                      {row.prescripteur}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm font-mono">
+                      {row.code}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm">
+                      {row.client}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
+                      {row.commission.toLocaleString("fr-FR")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-purple-50">
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="border border-gray-300 px-4 py-3 text-sm font-bold"
+                  >
+                    TOTAL COMMISSIONS EXAMEN ({filteredRows.length} ligne{filteredRows.length > 1 ? "s" : ""})
                   </td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm">
-                    {row.prescripteur}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm font-mono">
-                    {row.code}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm">
-                    {row.client}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-3 text-sm text-right font-medium">
-                    {row.commission.toLocaleString("fr-FR")}
+                  <td className="border border-gray-300 px-4 py-3 text-sm font-bold text-right text-purple-700">
+                    {totalGlobal.toLocaleString("fr-FR")} FCFA
                   </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-purple-50">
-              <tr>
-                <td
-                  colSpan={4}
-                  className="border border-gray-300 px-4 py-3 text-sm font-bold"
-                >
-                  TOTAL COMMISSIONS EXAMEN
-                </td>
-                <td className="border border-gray-300 px-4 py-3 text-sm font-bold text-right text-purple-700">
-                  {totalGlobal.toLocaleString("fr-FR")} FCFA
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </tfoot>
+            </table>
+          </div>
+        </>
       )}
     </>
   );

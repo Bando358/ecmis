@@ -164,6 +164,7 @@ export const getUsersByIds = async (ids: string[]) => {
   const users = await prisma.user.findMany({
     where: { id: { in: uniqueIds } },
     omit: { password: true },
+    include: { post: true },
   });
   return users;
 };
@@ -240,6 +241,7 @@ export const getAllUserIncludedTabIdClinique = async (
     },
     orderBy: { createdAt: "desc" },
     omit: { password: true },
+    include: { post: true },
   });
 
   return allUser;
@@ -254,6 +256,7 @@ export const getAllUserTabIdClinique = async (idCliniques: string[]) => {
     },
     orderBy: { createdAt: "desc" },
     omit: { password: true },
+    include: { post: true },
   });
 
   return allUser;

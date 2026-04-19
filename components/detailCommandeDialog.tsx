@@ -15,19 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
-import {
-  CommandeFournisseur,
-  DetailCommande,
-  Produit,
-  TarifProduit,
-} from "@prisma/client";
-import { getAllCommandesFournisseur } from "@/lib/actions/commandeFournisseurActions";
-import { getAllProduits } from "@/lib/actions/produitActions";
+import { useState } from "react";
+import { DetailCommande, TarifProduit } from "@prisma/client";
 
 interface DetailCommandeDialogProps {
   children: React.ReactNode;
   tarifProduit: TarifProduit;
+  nomProduit: string;
   idCommande: string;
   onAddDetail: (
     data: Partial<DetailCommande>,
@@ -38,32 +32,16 @@ interface DetailCommandeDialogProps {
 export function DetailCommandeDialog({
   children,
   tarifProduit,
+  nomProduit,
   idCommande,
   onAddDetail,
 }: DetailCommandeDialogProps) {
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
-  const [produits, setProduits] = useState<Produit[]>([]);
-  const [commandeFournisseur, setCommandeFournisseur] = useState<
-    CommandeFournisseur[]
-  >([]);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const allCommandesFournisseur = await getAllCommandesFournisseur();
-      const allProduit = await getAllProduits();
-      setProduits(allProduit);
-      // Filtrer les commandes pour ne garder que celles qui ont des détails
-      setCommandeFournisseur(allCommandesFournisseur);
-    };
-
-    fetchData();
-  }, []);
 
   const onSubmit = async (data: Partial<DetailCommande>) => {
     try {
-      await onAddDetail(data, tarifProduit); // <-- ici on passe les 2 paramètres
-      // toast.success("Produit ajouté à la commande!");
+      await onAddDetail(data, tarifProduit);
       setOpen(false);
       reset();
     } catch (error) {
@@ -72,11 +50,6 @@ export function DetailCommandeDialog({
     }
   };
 
-  // Retourne le nom du produit à partir de son id
-  const nameProduit = (id: string) => {
-    const produit = produits.find((p) => p.id === id);
-    return produit ? produit.nomProduit : undefined;
-  };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -93,35 +66,16 @@ export function DetailCommandeDialog({
               <Label htmlFor="produit">Produit</Label>
               <Input
                 id="produit"
-                value={nameProduit(tarifProduit?.idProduit) || "Non spécifié"}
+                value={nomProduit || "Non spécifié"}
                 disabled
                 className="font-bold uppercase"
               />
             </div>
-            {/* Champ caché pour idCommande, toujours présent et initialisé via la prop */}
             <Input
               type="hidden"
               {...register("idCommande")}
               value={idCommande}
             />
-            <div className="hidden">
-              <Label htmlFor="idClinique">
-                Sélectionnez la commande fournisseur
-              </Label>
-              <select
-                id="idCommande"
-                {...register("idCommande", { required: false })}
-                className="border rounded-md p-2"
-                defaultValue={idCommande}
-              >
-                <option value="">Sélectionnez une commande fournisseur</option>
-                {commandeFournisseur.map((commande) => (
-                  <option key={commande.id} value={commande.id}>
-                    {commande.dateCommande?.toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="grid gap-3">
               <Label htmlFor="quantiteCommandee">Quantité</Label>
               <Input
