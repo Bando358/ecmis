@@ -16,14 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Client, Grossesse, Obstetrique, Visite } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
-import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
-import { getOneClient } from "@/lib/actions/clientActions";
-import {
-  getAllUserIncludedIdClinique,
-  getOneUser,
-} from "@/lib/actions/authActions";
-import { getAllGrossesseByIdClient } from "@/lib/actions/grossesseActions";
-import { getAllObstetriqueByIdClient } from "@/lib/actions/obstetriqueActions";
+import { getObstetriquePageData } from "@/lib/actions/obstetriqueActions";
 import type { SharedFormProps } from "@/components/forms/types";
 
 import GrossesseForm from "@/components/forms/GrossesseForm";
@@ -150,27 +143,15 @@ export default function ObstetriquePage({
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        const [user, resultVisites, cliniqueClient, resultGrossesses, resultObstetriques] =
-          await Promise.all([
-            getOneUser(idUser),
-            getAllVisiteByIdClient(obstetriqueId),
-            getOneClient(obstetriqueId),
-            getAllGrossesseByIdClient(obstetriqueId),
-            getAllObstetriqueByIdClient(obstetriqueId),
-          ]);
+        // Un seul round-trip serveur qui charge toutes les données en parallèle
+        const data = await getObstetriquePageData(obstetriqueId, idUser);
 
-        setIsPrescripteur(!!user?.prescripteur);
-        setVisites(resultVisites as Visite[]);
-        setClient(cliniqueClient);
-        setGrossesses(resultGrossesses as Grossesse[]);
-        setObstetriques(resultObstetriques as Obstetrique[]);
-
-        if (cliniqueClient?.idClinique) {
-          const users = await getAllUserIncludedIdClinique(
-            cliniqueClient.idClinique,
-          );
-          setAllPrescripteur(users.filter((u) => u.prescripteur) as SafeUser[]);
-        }
+        setIsPrescripteur(!!data.user?.prescripteur);
+        setVisites(data.visites as Visite[]);
+        setClient(data.client);
+        setGrossesses(data.grossesses as Grossesse[]);
+        setObstetriques(data.obstetriques as Obstetrique[]);
+        setAllPrescripteur(data.prescripteurs as SafeUser[]);
       } catch (error) {
         console.error(
           "Erreur lors du chargement des données:",

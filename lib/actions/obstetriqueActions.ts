@@ -7,6 +7,36 @@ import { validateServerData } from "@/lib/validations";
 import { ObstetriqueCreateSchema } from "@/lib/validations/clinical";
 import { logAction } from "./journalPharmacyActions";
 
+// Charge toutes les données nécessaires à la page fiche-obstetrique en 1 round-trip
+// (au lieu de 5 requêtes parallèles + 1 série côté client)
+export async function getObstetriquePageData(clientId: string, userId: string) {
+  const [user, client, visites, grossesses, obstetriques] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, prescripteur: true },
+    }),
+    prisma.client.findUnique({ where: { id: clientId } }),
+    prisma.visite.findMany({
+      where: { idClient: clientId },
+      orderBy: { dateVisite: "desc" },
+    }),
+    prisma.grossesse.findMany({ where: { grossesseIdClient: clientId } }),
+    prisma.obstetrique.findMany({ where: { obstIdClient: clientId } }),
+  ]);
+
+  let prescripteurs: Array<{ id: string; name: string; prescripteur: boolean }> = [];
+  if (client?.idClinique) {
+    const users = await prisma.user.findMany({
+      where: { idCliniques: { has: client.idClinique }, prescripteur: true },
+      select: { id: true, name: true, prescripteur: true },
+      orderBy: { createdAt: "desc" },
+    });
+    prescripteurs = users;
+  }
+
+  return { user, client, visites, grossesses, obstetriques, prescripteurs };
+}
+
 // Création d'une Fiche Obstétricale
 export async function createObstetrique(data: Obstetrique) {
   await requirePermission(TableName.OBSTETRIQUE, "canCreate");
