@@ -133,25 +133,22 @@ export default function CommissionsDialog({
   const [isMerging, setIsMerging] = useState(false);
   const [isLoadingDoublons, setIsLoadingDoublons] = useState(false);
 
-  // Reconstitue le prix saisi dans la dialog "Ajouter Examen" à partir du prix stocké
-  // Formule : prix saisi = prix stocké / (1 - remise/100) si pas sous-traité, sinon prix stocké
-  const prixSaisiExamenMap = useMemo(() => {
+  // Map prix à afficher dans la dialog Gestion des Commissions :
+  // - Avec réduction : prix catalogue - réduction
+  // - Sans réduction : prix catalogue
+  const prixAfficheExamenMap = useMemo(() => {
+    const tarifMap = new Map(tarifExamens.map((t) => [t.id, t.prixExamen]));
+    const demandeMap = new Map(demandesExamens.map((d) => [d.id, d.idTarifExamen]));
     const map = new Map<string, number>();
-    for (const e of examensFacture) {
-      const remise = Number(e.remiseExamen) || 0;
-      const isSousTraite = !!e.soustraitanceExamen;
-      if (isSousTraite || remise === 0) {
-        map.set(e.id, Number(e.prixExamen) || 0);
-        continue;
-      }
-      const denom = 1 - remise / 100;
-      const prix = denom <= 0
-        ? Number(e.prixExamen) || 0
-        : Math.round((Number(e.prixExamen) || 0) / denom);
-      map.set(e.id, prix);
+    for (const examen of examensFacture) {
+      const idTarif = demandeMap.get(examen.idDemandeExamen);
+      const prixCatalogue = idTarif ? tarifMap.get(idTarif) ?? 0 : 0;
+      const reduction = Number(examen.reductionExamen) || 0;
+      const prix = reduction > 0 ? prixCatalogue - reduction : prixCatalogue;
+      map.set(examen.id, prix || examen.prixExamen);
     }
     return map;
-  }, [examensFacture]);
+  }, [examensFacture, tarifExamens, demandesExamens]);
 
   // Reconstitue le prix saisi dans la dialog "Ajouter une échographie" à partir du net stocké
   // Formule : gross = (net + partEchographe/n) / (1 - remise/100)
@@ -209,8 +206,9 @@ export default function CommissionsDialog({
         examensFacture.forEach((examen) => {
           // Si une commission a déjà été enregistrée en base pour cet examen, on ne recalcule pas
           if (examensCommissionsExistantes[examen.id]) return;
-          const prixCatalogue = prixSaisiExamenMap.get(examen.id) ?? examen.prixExamen;
-          next[examen.id] = Math.round(prixCatalogue * examen.remiseExamen / 100);
+          // Commission calculée sur : prix catalogue (ou prix catalogue - réduction si réduction)
+          const prixAffiche = prixAfficheExamenMap.get(examen.id) ?? examen.prixExamen;
+          next[examen.id] = Math.round(prixAffiche * examen.remiseExamen / 100);
         });
         return next;
       });
@@ -226,7 +224,7 @@ export default function CommissionsDialog({
         return next;
       });
     }
-  }, [open, examensFacture, echographiesFacture, prixSaisiExamenMap, prixSaisiEchographieMap, examensCommissionsExistantes, echographiesCommissionsExistantes]);
+  }, [open, examensFacture, echographiesFacture, prixAfficheExamenMap, prixSaisiEchographieMap, examensCommissionsExistantes, echographiesCommissionsExistantes]);
 
   const prescripteurForm = useForm<PrescripteurFormValues>({
     defaultValues: {
@@ -774,8 +772,8 @@ export default function CommissionsDialog({
                     {examensFacture.map((examen) => {
                       const commissionExistante = examensCommissionsExistantes[examen.id];
                       const hasExistingCommission = !!commissionExistante;
-                      // Prix catalogue d'origine (TarifExamen), indépendant du montant facturé/remise/sous-traitance
-                      const prixCatalogue = prixSaisiExamenMap.get(examen.id) ?? examen.prixExamen;
+                      // Prix affiché : prix catalogue (ou prix catalogue - réduction si réduction appliquée)
+                      const prixCatalogue = prixAfficheExamenMap.get(examen.id) ?? examen.prixExamen;
                       return (
                         <TableRow
                           key={examen.id}

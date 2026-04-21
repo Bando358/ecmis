@@ -606,22 +606,35 @@ export default function VentesPage() {
   }, [commissionsEchographie]);
 
   // ================== Données groupées ==================
+  // Map prix catalogue par libellé d'examen (pour les sous-traités)
+  const prixCatalogueParLibelle = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tarif of allTarifExamens) {
+      const examen = allExamens.find((e) => e.id === tarif.idExamen);
+      if (!examen) continue;
+      const key = examen.nomExamen.trim().toUpperCase();
+      if (!map.has(key)) map.set(key, tarif.prixExamen);
+    }
+    return map;
+  }, [allTarifExamens, allExamens]);
+
   const groupedExamens = useMemo(() => {
     const grouped = facturesExamens.reduce(
       (acc, examen) => {
         const isSousTraite = !!examen.examSoustraitanceExamen;
         const libelle = examen.examLibelle.trim().toUpperCase();
         const remise = isSousTraite ? 0 : examen.examRemise;
-        // Reconstituer le prix saisi (brut, avant remise) à partir du prix stocké
-        // handleFacturation stocke : sous-traité/remise=0 → prix saisi ; sinon → prix saisi × (1 - remise/100)
         const prixNetStocke = Number(examen.examPrixTotal) || 0;
-        const prixSaisi = (isSousTraite || remise === 0)
-          ? prixNetStocke
-          : Math.round(prixNetStocke / (1 - remise / 100));
 
-        // Prix saisi dans la clé : sépare les examens avec un prix catalogue/saisi différent
-        // (ex: CRP 3000 = ligne distincte de CRP 2000 en cas de partenariat)
-        const key = `${libelle}-${isSousTraite}-${remise}-${prixSaisi}`;
+        // PU affiché :
+        // - Sous-traité : prix catalogue (ce que paie officiellement le client)
+        // - Non sous-traité : prix final stocké (= prix saisi - réduction - remise%)
+        const prixAffiche = isSousTraite
+          ? prixCatalogueParLibelle.get(libelle) ?? prixNetStocke
+          : prixNetStocke;
+
+        // Clé : sépare les examens avec un PU différent (ex: CRP 3000 vs CRP 2000)
+        const key = `${libelle}-${isSousTraite}-${remise}-${prixAffiche}`;
         const commissionForThis = commissionExamenByFactureId.get(examen.examId) || 0;
 
         if (!acc[key]) {
@@ -629,7 +642,7 @@ export default function VentesPage() {
             libelle,
             remise,
             soustraitance: isSousTraite,
-            prixUnitaire: prixSaisi,
+            prixUnitaire: prixAffiche,
             quantite: 0,
             montant: 0,
             commission: 0,
@@ -655,7 +668,7 @@ export default function VentesPage() {
 
       return a.prixUnitaire - b.prixUnitaire;
     });
-  }, [facturesExamens, commissionExamenByFactureId]);
+  }, [facturesExamens, commissionExamenByFactureId, prixCatalogueParLibelle]);
 
   const groupedEchographies = useMemo(() => {
     // Pré-calculer le batch size par (idVisite, partEchographe)

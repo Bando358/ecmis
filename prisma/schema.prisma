@@ -1368,6 +1368,7 @@ model FactureExamen {
   idClient            String
   idClinique          String
   remiseExamen        Int     @default(0)
+  reductionExamen     Int     @default(0)
   soustraitanceExamen Boolean @default(false)
   idDemandeExamen     String
   idUser              String

@@ -25,6 +25,7 @@ import { Input } from "./ui/input";
 
 type DemandeExamenFormValues = {
   prixExamen: number;
+  reduction: number;
   id: string;
   idVisite: string;
   idClient: string;
@@ -53,6 +54,7 @@ interface ExamensModalProps {
 
 type FormValues = {
   prixExamens: number[];
+  reductions: number[];
 };
 
 export default function ExamensModal({
@@ -86,14 +88,16 @@ export default function ExamensModal({
   const form = useForm<FormValues>({
     defaultValues: {
       prixExamens: [],
+      reductions: [],
     },
   });
 
   const onSubmit = (data: FormValues) => {
-    // Associer chaque prix à l'examen correspondant
+    // Associer chaque prix + réduction à l'examen correspondant
     const examensAvecPrix = selectedOptions.map((exam, index) => ({
       ...exam,
       prixExamen: data.prixExamens[index] || 0,
+      reduction: data.reductions[index] || 0,
     }));
 
     // setExamensSelectionnes(examensAvecPrix);
@@ -121,6 +125,7 @@ export default function ExamensModal({
           tarifExamens.find((t) => t.id === demande.idTarifExamen)
             ?.prixExamen || 0
       ),
+      reductions: selectedOptions.map(() => 0),
     });
   }, [selectedOptions, tarifExamens, form]);
 
@@ -146,32 +151,52 @@ export default function ExamensModal({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableCell>{"Nom de l'examen"}</TableCell>
-                  <TableCell>Prix</TableCell>
+                  <TableCell className="font-semibold">Nom de l&apos;examen</TableCell>
+                  <TableCell className="font-semibold text-center w-28">Réduction (CFA)</TableCell>
+                  <TableCell className="font-semibold text-center w-28">Prix (CFA)</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedOptions.map((demande, index) => (
                   <TableRow key={index}>
-                    <TableCell>{getNomExamen(demande)}</TableCell>
-                    <TableCell className="flex flex-row items-center ">
+                    <TableCell className="align-middle">{getNomExamen(demande)}</TableCell>
+                    <TableCell className="w-28 align-middle">
                       <FormField
                         control={form.control}
-                        name={`prixExamens.${index}`}
+                        name={`reductions.${index}`}
                         render={({ field }) => (
                           <Input
                             type="number"
+                            min={0}
+                            placeholder="0"
+                            className="w-full text-right"
                             {...field}
                             value={field.value ?? 0}
                             onChange={(e) => {
-                              // Utilise valueAsNumber qui retourne NaN pour les valeurs invalides
                               const value = e.target.valueAsNumber;
                               field.onChange(isNaN(value) ? 0 : value);
                             }}
                           />
                         )}
                       />
-                      <div>CFA</div>
+                    </TableCell>
+                    <TableCell className="w-28 align-middle">
+                      <FormField
+                        control={form.control}
+                        name={`prixExamens.${index}`}
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            className="w-full text-right"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => {
+                              const value = e.target.valueAsNumber;
+                              field.onChange(isNaN(value) ? 0 : value);
+                            }}
+                          />
+                        )}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

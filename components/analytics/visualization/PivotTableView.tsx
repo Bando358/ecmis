@@ -89,14 +89,6 @@ function buildHeaderRows(
 }
 
 export function PivotTableView({ result, showTotals = true, maxHeight = "600px" }: PivotTableViewProps) {
-  if (result.rows.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
-        Aucune donnee disponible pour cette analyse.
-      </div>
-    );
-  }
-
   // Determiner les labels des dimensions en ligne
   const rowDimKeys = result.rows.length > 0
     ? Object.keys(result.rows[0].dimensionValues)
@@ -108,6 +100,14 @@ export function PivotTableView({ result, showTotals = true, maxHeight = "600px" 
     [result.columns, showTotals]
   );
   const useMultiHeaders = multiHeaders.length > 0;
+
+  if (result.rows.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
+        Aucune donnee disponible pour cette analyse.
+      </div>
+    );
+  }
 
   return (
     <div data-viz-scroll className="overflow-auto border rounded-lg" style={{ maxHeight }}>
