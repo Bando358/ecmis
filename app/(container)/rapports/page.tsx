@@ -79,6 +79,7 @@ import { FactureExamen, Lieu, ResultatExamen } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
 import TableRapportValidation from "@/components/tableRapport/tableRapportValidation";
 import TableRapportSigAccouchement from "@/components/tableRapport/tableRapportSigAccouchement";
+import TableRapportConsultation from "@/components/tableRapport/tableRapportConsultation";
 
 interface CliniqueOption {
   value: string;
@@ -123,6 +124,7 @@ const FormValuesSchema = z.object({
 type FormValuesType = z.infer<typeof FormValuesSchema>;
 
 const tabRapport = [
+  { value: "consultation", label: "Consultation" },
   { value: "planning", label: "Planification Familiale" },
   { value: "gynecologique", label: "Gynecologique" },
   { value: "obstetrique", label: "Obtétrique" },
@@ -718,6 +720,19 @@ const AnalyseReportPlanning = () => {
         <div className="mt-6 mx-auto max-w-240 w-full">
           {(() => {
             switch (rapportClinique) {
+              case "consultation":
+                return (
+                  <TableRapportConsultation
+                    ageRanges={ageRangesSig}
+                    clientData={clientAllData}
+                    dateDebut={watch("dateDebut")}
+                    dateFin={watch("dateFin")}
+                    clinic={getAllClinicNameByIds(
+                      cliniques,
+                      watch("idCliniques").map((item) => item.value),
+                    ).join(", ")}
+                  />
+                );
               case "planning":
                 return (
                   <TableRapportPf
