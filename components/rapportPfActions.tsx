@@ -361,6 +361,12 @@ export type ClientData = {
   // Facturation
   couverture: string;
   montantTotalPaiement: number;
+
+  // Nutrition (Constante)
+  poids?: number | null;
+  taille?: number | null;
+  imc?: number | null;
+  etatImc?: string;
 };
 // } & ClientData; // Étendre ClientData pour inclure les champs supplémentaires
 export type clientDataProps = ClientData;

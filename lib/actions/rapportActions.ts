@@ -189,6 +189,7 @@ export const fetchClientsData = async (
       FacturePrestation: true,
       FactureProduit: true,
       Couverture: true,
+      Constante: true,
     },
   });
 
@@ -304,6 +305,9 @@ export const fetchClientsData = async (
         );
         const couverture = client.Couverture?.filter(
           (c) => c.couvertIdVisite === visite.id
+        );
+        const constante = client.Constante?.find(
+          (c) => c.idVisite === visite.id
         );
 
         visitsData.push({
@@ -615,6 +619,11 @@ export const fetchClientsData = async (
               : 0),
           couverture:
             couverture.length > 0 ? couverture[0].couvertIdVisite : "Aucune",
+          // Constante (nutrition)
+          poids: constante?.poids ?? null,
+          taille: constante?.taille ?? null,
+          imc: constante?.imc ?? null,
+          etatImc: constante?.etatImc ?? "",
         });
       }
     });
