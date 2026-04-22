@@ -43,6 +43,11 @@ import PlanningFamilial from "@/components/listings/ListePlanningFamilial";
 import Obstetrique from "@/components/listings/ListeObstetrique";
 import PecVih from "@/components/listings/ListePecVih";
 import ListeAllData from "@/components/listings/ListeAllData";
+import ListeFactureProduitPf from "@/components/listings/ListeFactureProduitPf";
+import {
+  getFactureProduitPfByClinique,
+  FactureProduitPfItem,
+} from "@/lib/actions/factureProduitActions";
 import { getAllActiviteByTabIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { Lieu } from "@prisma/client";
@@ -95,6 +100,7 @@ const tabListing = [
   { value: "planning", label: "Planification Familiale" },
   { value: "obstetrique", label: "Obstétrique" },
   { value: "pecVih", label: "PEC VIH" },
+  { value: "factureProduitPf", label: "Clients par produit PF facturé" },
   { value: "listeAllData", label: "Liste de toutes les données" },
 ];
 
@@ -118,6 +124,9 @@ export default function Page() {
     []
   );
   const [tabExament, setTabExament] = useState<string[]>([]);
+  const [factureProduitPf, setFactureProduitPf] = useState<
+    FactureProduitPfItem[]
+  >([]);
 
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
@@ -290,13 +299,16 @@ export default function Page() {
         allUsers,
         dataProtege,
         clients,
+        factureProduitPfData,
       ] = await Promise.all([
         fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
         getAllUserIncludedTabIdClinique(selectedIds),
         getAllUserTabIdClinique(selectedIds),
         fetchClientsStatusProtege(selectedIds, dateDebutObj, dateFinObj),
         fetchClientsData(selectedIds, dateDebutObj, dateFinObj),
+        getFactureProduitPfByClinique(selectedIds, dateDebutObj, dateFinObj),
       ]);
+      setFactureProduitPf(factureProduitPfData);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -554,6 +566,9 @@ export default function Page() {
         {rapportClinique === "pecVih" && <PecVih clients={clients} />}
         {rapportClinique === "listeAllData" && (
           <ListeAllData clients={clientAllData} />
+        )}
+        {rapportClinique === "factureProduitPf" && (
+          <ListeFactureProduitPf items={factureProduitPf} />
         )}
       </div>
     </div>

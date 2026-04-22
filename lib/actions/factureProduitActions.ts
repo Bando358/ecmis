@@ -150,3 +150,67 @@ export async function getFactureProduitsPaginated(
 
   return buildPaginatedResult(data, total, validPage, validPageSize);
 }
+
+// Liste des factures produit PF (méthode de contraception) avec données client,
+// visite et prescripteur, filtrée par cliniques + période.
+export type FactureProduitPfItem = {
+  id: string;
+  dateFacture: Date;
+  nomProduit: string;
+  quantite: number;
+  montantProduit: number;
+  clientCode: string;
+  clientNom: string;
+  clientPrenom: string;
+  clientAge: number;
+  clientSexe: string;
+  clinique: string;
+  prescripteur: string;
+  idVisite: string;
+  dateVisite: Date | null;
+};
+
+export async function getFactureProduitPfByClinique(
+  clinicIds: string[],
+  dateDebut: Date,
+  dateFin: Date,
+): Promise<FactureProduitPfItem[]> {
+  if (!clinicIds || clinicIds.length === 0) return [];
+
+  const factures = await prisma.factureProduit.findMany({
+    where: {
+      idClinique: { in: clinicIds },
+      methode: true,
+      dateFacture: { gte: dateDebut, lte: dateFin },
+    },
+    include: {
+      Client: true,
+      Clinique: { select: { nomClinique: true } },
+      User: { select: { name: true } },
+      Visite: { select: { dateVisite: true } },
+    },
+    orderBy: [{ nomProduit: "asc" }, { dateFacture: "desc" }],
+  });
+
+  const calcAge = (dob: Date): number => {
+    const diff = Date.now() - new Date(dob).getTime();
+    return Math.abs(new Date(diff).getUTCFullYear() - 1970);
+  };
+
+  return factures.map((f) => ({
+    id: f.id,
+    dateFacture: f.dateFacture,
+    nomProduit: f.nomProduit,
+    quantite: f.quantite,
+    montantProduit: f.montantProduit,
+    clientCode: f.Client?.code ?? "",
+    clientNom: f.Client?.nom ?? "",
+    clientPrenom: f.Client?.prenom ?? "",
+    clientAge: f.Client?.dateNaissance ? calcAge(f.Client.dateNaissance) : 0,
+    clientSexe: f.Client?.sexe ?? "",
+    clinique: f.Clinique?.nomClinique ?? "",
+    prescripteur: f.User?.name ?? "",
+    idVisite: f.idVisite,
+    dateVisite: f.Visite?.dateVisite ?? null,
+  }));
+}
