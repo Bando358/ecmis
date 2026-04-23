@@ -391,6 +391,121 @@ export async function fusionnerClients(
     const couverture = await tx.couverture.updateMany({ where: { couvertIdClient: clientSecondaireId }, data: { couvertIdClient: clientPrincipalId } });
     relationsTransferees += couverture.count;
 
+    // 1.bis. Fusionner les visites dupliquées du client principal (même jour)
+    // Après transfert, le principal peut avoir 2 visites le même jour
+    // (une d'origine + une venant du secondaire). On les fusionne en gardant
+    // la plus ancienne et en réassignant toutes les données liées.
+    const visitesPrincipal = await tx.visite.findMany({
+      where: { idClient: clientPrincipalId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, dateVisite: true, createdAt: true },
+    });
+
+    const visitesParJour = new Map<string, typeof visitesPrincipal>();
+    for (const v of visitesPrincipal) {
+      const d = new Date(v.dateVisite);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!visitesParJour.has(key)) visitesParJour.set(key, []);
+      visitesParJour.get(key)!.push(v);
+    }
+
+    for (const groupe of visitesParJour.values()) {
+      if (groupe.length < 2) continue;
+
+      const target = groupe[0];
+      const sources = groupe.slice(1);
+      const sourceIds = sources.map((s) => s.id);
+
+      // RecapVisite: idVisite est @unique -> fusionner les contenus
+      const targetRecap = await tx.recapVisite.findUnique({
+        where: { idVisite: target.id },
+      });
+      const sourceRecaps = await tx.recapVisite.findMany({
+        where: { idVisite: { in: sourceIds } },
+      });
+      if (sourceRecaps.length > 0) {
+        const mergedFormulaires = new Set<string>(
+          targetRecap?.formulaires || [],
+        );
+        const mergedPrescripteurs = new Set<string>(
+          targetRecap?.prescripteurs || [],
+        );
+        sourceRecaps.forEach((r) => {
+          (r.formulaires || []).forEach((f) => mergedFormulaires.add(f));
+          (r.prescripteurs || []).forEach((p) => mergedPrescripteurs.add(p));
+        });
+
+        if (targetRecap) {
+          await tx.recapVisite.update({
+            where: { idVisite: target.id },
+            data: {
+              formulaires: Array.from(mergedFormulaires),
+              prescripteurs: Array.from(mergedPrescripteurs),
+            },
+          });
+          await tx.recapVisite.deleteMany({
+            where: { idVisite: { in: sourceIds } },
+          });
+        } else {
+          // Aucun recap sur target : on en réaffecte un et on supprime les autres
+          const [first, ...rest] = sourceRecaps;
+          await tx.recapVisite.update({
+            where: { id: first.id },
+            data: {
+              idVisite: target.id,
+              formulaires: Array.from(mergedFormulaires),
+              prescripteurs: Array.from(mergedPrescripteurs),
+            },
+          });
+          if (rest.length > 0) {
+            await tx.recapVisite.deleteMany({
+              where: { id: { in: rest.map((r) => r.id) } },
+            });
+          }
+        }
+      }
+
+      // Réassignation des tables liées à la visite
+      const relatedUpdates = [
+        tx.constante.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.planning.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.gynecologie.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.ist.updateMany({ where: { istIdVisite: { in: sourceIds } }, data: { istIdVisite: target.id } }),
+        tx.infertilite.updateMany({ where: { infertIdVisite: { in: sourceIds } }, data: { infertIdVisite: target.id } }),
+        tx.vbg.updateMany({ where: { vbgIdVisite: { in: sourceIds } }, data: { vbgIdVisite: target.id } }),
+        tx.medecine.updateMany({ where: { mdgIdVisite: { in: sourceIds } }, data: { mdgIdVisite: target.id } }),
+        tx.grossesse.updateMany({ where: { grossesseIdVisite: { in: sourceIds } }, data: { grossesseIdVisite: target.id } }),
+        tx.obstetrique.updateMany({ where: { obstIdVisite: { in: sourceIds } }, data: { obstIdVisite: target.id } }),
+        tx.accouchement.updateMany({ where: { accouchementIdVisite: { in: sourceIds } }, data: { accouchementIdVisite: target.id } }),
+        tx.cpon.updateMany({ where: { cponIdVisite: { in: sourceIds } }, data: { cponIdVisite: target.id } }),
+        tx.testGrossesse.updateMany({ where: { testIdVisite: { in: sourceIds } }, data: { testIdVisite: target.id } }),
+        tx.saa.updateMany({ where: { saaIdVisite: { in: sourceIds } }, data: { saaIdVisite: target.id } }),
+        tx.depistageVih.updateMany({ where: { depistageVihIdVisite: { in: sourceIds } }, data: { depistageVihIdVisite: target.id } }),
+        tx.pecVih.updateMany({ where: { pecVihIdVisite: { in: sourceIds } }, data: { pecVihIdVisite: target.id } }),
+        tx.examenPvVih.updateMany({ where: { examenPvVihIdVisite: { in: sourceIds } }, data: { examenPvVihIdVisite: target.id } }),
+        tx.reference.updateMany({ where: { refIdVisite: { in: sourceIds } }, data: { refIdVisite: target.id } }),
+        tx.contreReference.updateMany({ where: { refIdVisite: { in: sourceIds } }, data: { refIdVisite: target.id } }),
+        tx.ordonnance.updateMany({ where: { ordonnanceIdVisite: { in: sourceIds } }, data: { ordonnanceIdVisite: target.id } }),
+        tx.couverture.updateMany({ where: { couvertIdVisite: { in: sourceIds } }, data: { couvertIdVisite: target.id } }),
+        tx.bilan.updateMany({ where: { bilanIdVisite: { in: sourceIds } }, data: { bilanIdVisite: target.id } }),
+        tx.facturePrestation.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.factureProduit.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.factureExamen.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.demandeExamen.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.resultatExamen.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.factureEchographie.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.demandeEchographie.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.resultatEchographie.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.commissionExamen.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.commissionEchographie.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+        tx.gestionVisite.updateMany({ where: { idVisite: { in: sourceIds } }, data: { idVisite: target.id } }),
+      ];
+      await Promise.all(relatedUpdates);
+
+      // Supprimer les visites sources
+      await tx.visite.deleteMany({ where: { id: { in: sourceIds } } });
+    }
+
     // 2. Appliquer les résolutions de conflits au client principal
     if (Object.keys(conflictResolutions).length > 0) {
       await tx.client.update({

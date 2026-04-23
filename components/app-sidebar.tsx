@@ -103,6 +103,11 @@ const data = {
           permission: TableName.TARIF_PRODUIT,
         },
         {
+          title: "Grille Tarifaire",
+          url: "/grille-tarifaire",
+          permission: TableName.TARIF_PRODUIT,
+        },
+        {
           title: "Gestion de Stock",
           url: "/stock-produit",
           permission: TableName.STOCK_PRODUIT,
