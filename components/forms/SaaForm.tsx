@@ -245,7 +245,7 @@ const ConditionalFields = ({ form }: { form: UseFormReturn<Saa> }) => {
   );
 };
 
-export default function SaaForm({ clientId, visites, allPrescripteur, isPrescripteur, client, idUser }: SharedFormProps) {
+export default function SaaForm({ clientId, visites, allPrescripteur, isPrescripteur, client, idUser, selectedPrescripteurId }: SharedFormProps) {
   const [grossesses, setGrossesses] = useState<Grossesse[]>([]);
   const [selectedSaa, setSelectedSaa] = useState<Saa[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -278,14 +278,25 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
     },
   });
 
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("saaIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("saaIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
+
   const onSubmit: SubmitHandler<Saa> = async (data) => {
     if (!canCreate(TableName.SAA)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("saaIdUser") || idUser;
     const formattedData = {
       ...data,
-      saaIdUser: form.getValues("saaIdUser"),
+      saaIdUser: effectiveIdUser,
       saaIdClient: clientId,
       saaIdClinique: client?.idClinique || "",
       saaCounsellingPre: form.getValues("saaCounsellingPre") ?? false,
@@ -298,7 +309,7 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
       const newRecord = await createSaa(formattedData);
       await updateRecapVisite(
         form.watch("saaIdVisite"),
-        form.watch("saaIdUser"),
+        effectiveIdUser,
         "11 Fiche SAA"
       );
       setSelectedSaa((prev) => [...prev, newRecord as Saa]);
@@ -509,46 +520,18 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
             <ConditionalFields form={form} />
           </div>
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="saaIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input {...field} value={idUser} className="hidden" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="saaIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Sélectionnez le prescripteur
-                  </FormLabel>
-                  <Select required onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sélectionner un prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur, index) => (
-                        <SelectItem key={index} value={prescripteur.id}>
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="saaIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input {...field} value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""} className="hidden" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

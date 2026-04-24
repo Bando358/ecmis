@@ -83,6 +83,7 @@ export default function ReferenceForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [idReference, setIdReference] = useState<string>();
   const [tabReference, setTabReference] = useState<Reference[]>([]);
@@ -137,7 +138,10 @@ export default function ReferenceForm({
       qualification: "",
       refIdVisite: "",
       idClient: clientId,
-      idUser: isPrescripteur === true ? idUser || "" : "",
+      idUser:
+        isPrescripteur === true
+          ? idUser || ""
+          : selectedPrescripteurId || "",
       examenClinique: "",
       antecedentMedicaux: "",
       allergies: "",
@@ -192,6 +196,14 @@ export default function ReferenceForm({
   useEffect(() => {
     form.setValue("idClient", clientId);
   }, [clientId, form]);
+
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("idUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("idUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
 
   // Quand selectedVisite change, on recupere la reference associee
   useEffect(() => {
@@ -301,7 +313,9 @@ export default function ReferenceForm({
         idClient: selectedReference.idClient ?? clientId,
         idUser:
           selectedReference.idUser ??
-          (isPrescripteur === true ? idUser || "" : ""),
+          (isPrescripteur === true
+            ? idUser || ""
+            : selectedPrescripteurId || ""),
         dateReference: selectedReference.dateReference ?? new Date(),
         idClinique: selectedReference?.idClinique || "",
       });
@@ -919,57 +933,22 @@ export default function ReferenceForm({
                   {/* Informations du référent */}
                   <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md ">
                     <div className="grid grid-cols-2 gap-4">
-                      {isPrescripteur === true ? (
-                        <FormField
-                          control={form.control}
-                          name="idUser"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  value={idUser}
-                                  readOnly
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      ) : (
-                        <FormField
-                          control={form.control}
-                          name="idUser"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="font-medium">
-                                Selectionnez le prescripteur
-                              </FormLabel>
-                              <Select
-                                required
-                                value={field.value || ""}
-                                onValueChange={field.onChange}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select Prescripteur" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {allPrescripteur.map((prescripteur) => (
-                                    <SelectItem
-                                      key={prescripteur.id}
-                                      value={prescripteur.id}
-                                    >
-                                      <span>{prescripteur.name}</span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                      {/* Prescripteur (masqué, géré au niveau de la page) */}
+                      <FormField
+                        control={form.control}
+                        name="idUser"
+                        render={({ field }) => (
+                          <FormItem className="hidden">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""}
+                                readOnly
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
                       <FormField
                         control={form.control}
@@ -1058,7 +1037,7 @@ export default function ReferenceForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input {...field} className="hidden" />
+                          <Input {...field} value={field.value ?? ""} className="hidden" />
                         </FormControl>
                       </FormItem>
                     )}

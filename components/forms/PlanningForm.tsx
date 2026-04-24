@@ -84,6 +84,7 @@ export default function PlanningForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [selectedPlanning, setSelectedPlanning] = useState<Planning[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -176,9 +177,13 @@ export default function PlanningForm({
         : new Date(String(rawRdv))
       : null;
 
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("idUser") || idUser;
+
     const formattedData = {
       ...data,
-      idUser,
+      idUser: effectiveIdUser,
       consultation: form.getValues("consultation"),
       idClient: clientId,
       statut: form.getValues("statut"),
@@ -195,7 +200,7 @@ export default function PlanningForm({
     };
     try {
       const newRecord = await createPlanning(formattedData);
-      await updateRecapVisite(form.watch("idVisite"), idUser, "03 Fiche Planification familiale");
+      await updateRecapVisite(form.watch("idVisite"), effectiveIdUser, "03 Fiche Planification familiale");
       setSelectedPlanning((prev) => [...prev, newRecord as Planning]);
       toast.success("Formulaire créer avec succès!");
       setIsSubmitted(true);
@@ -610,39 +615,14 @@ export default function PlanningForm({
             )}
           />
 
-          {/* Prescripteur */}
-          {isPrescripteur ? (
-            <FormField
-              control={form.control}
-              name="idUser"
-              render={({ field }) => (
-                <FormItem><FormControl><Input {...field} value={idUser} className="hidden" /></FormControl></FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="idUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">Selectionnez le precripteur</FormLabel>
-                  <Select required onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur ....." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((p, i) => (
-                        <SelectItem key={i} value={p.id}><span>{p.name}</span></SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="idUser"
+            render={({ field }) => (
+              <FormItem><FormControl><Input {...field} value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""} className="hidden" /></FormControl></FormItem>
+            )}
+          />
 
           <Button type="submit" className="my-2 mx-auto block" disabled={form.formState.isSubmitting || isSubmitted}>
             {form.formState.isSubmitting ? "En cours..." : isSubmitted ? "Soumis" : "Soumettre"}

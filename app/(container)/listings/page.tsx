@@ -48,6 +48,11 @@ import {
   getFactureProduitPfByClinique,
   FactureProduitPfItem,
 } from "@/lib/actions/factureProduitActions";
+import ListeTousFactures from "@/components/listings/ListeTousFactures";
+import {
+  getAllFacturesByClinique,
+  FactureItem,
+} from "@/lib/actions/facturesListingActions";
 import { getAllActiviteByTabIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { Lieu } from "@prisma/client";
@@ -101,6 +106,7 @@ const tabListing = [
   { value: "obstetrique", label: "Obstétrique" },
   { value: "pecVih", label: "PEC VIH" },
   { value: "factureProduitPf", label: "Clients par produit PF facturé" },
+  { value: "tousFactures", label: "Tous les éléments facturés" },
   { value: "listeAllData", label: "Liste de toutes les données" },
 ];
 
@@ -127,6 +133,7 @@ export default function Page() {
   const [factureProduitPf, setFactureProduitPf] = useState<
     FactureProduitPfItem[]
   >([]);
+  const [tousFactures, setTousFactures] = useState<FactureItem[]>([]);
 
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
@@ -300,6 +307,7 @@ export default function Page() {
         dataProtege,
         clients,
         factureProduitPfData,
+        tousFacturesData,
       ] = await Promise.all([
         fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
         getAllUserIncludedTabIdClinique(selectedIds),
@@ -307,8 +315,10 @@ export default function Page() {
         fetchClientsStatusProtege(selectedIds, dateDebutObj, dateFinObj),
         fetchClientsData(selectedIds, dateDebutObj, dateFinObj),
         getFactureProduitPfByClinique(selectedIds, dateDebutObj, dateFinObj),
+        getAllFacturesByClinique(selectedIds, dateDebutObj, dateFinObj),
       ]);
       setFactureProduitPf(factureProduitPfData);
+      setTousFactures(tousFacturesData);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -569,6 +579,9 @@ export default function Page() {
         )}
         {rapportClinique === "factureProduitPf" && (
           <ListeFactureProduitPf items={factureProduitPf} />
+        )}
+        {rapportClinique === "tousFactures" && (
+          <ListeTousFactures items={tousFactures} />
         )}
       </div>
     </div>

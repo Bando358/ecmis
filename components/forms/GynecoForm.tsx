@@ -77,6 +77,7 @@ export default function GynecoForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [selectedGyneco, setSelectedGyneco] = useState<Gynecologie[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -105,8 +106,10 @@ export default function GynecoForm({
     form.setValue("idClient", clientId);
     if (isPrescripteur) {
       form.setValue("idUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("idUser", selectedPrescripteurId);
     }
-  }, [clientId, isPrescripteur, idUser]);
+  }, [clientId, isPrescripteur, idUser, selectedPrescripteurId]);
 
   const form = useForm<Gynecologie>({
     defaultValues: {
@@ -120,9 +123,12 @@ export default function GynecoForm({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("idUser") || idUser;
     const formattedData = {
       ...data,
-      idUser: isPrescripteur ? idUser : form.getValues("idUser") || idUser,
+      idUser: effectiveIdUser,
       consultation: form.getValues("consultation"),
       idClient: form.getValues("idClient"),
       idClinique: client?.idClinique ?? "",
@@ -132,7 +138,7 @@ export default function GynecoForm({
       const newRecord = await createGyneco(formattedData as Gynecologie);
       await updateRecapVisite(
         form.watch("idVisite"),
-        form.watch("idUser"),
+        effectiveIdUser,
         "04 Fiche gynécologique",
       );
       setSelectedGyneco((prev) => [...prev, newRecord as Gynecologie]);
@@ -626,58 +632,23 @@ export default function GynecoForm({
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="idUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={idUser ?? ""}
-                      onChange={field.onChange}
-                      className="hidden"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="idUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur ....." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="idUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""}
+                    onChange={field.onChange}
+                    className="hidden"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

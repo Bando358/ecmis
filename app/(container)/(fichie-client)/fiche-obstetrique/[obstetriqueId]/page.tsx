@@ -9,7 +9,9 @@ import {
   ShieldCheck,
   Stethoscope,
   Syringe,
+  UserCog,
 } from "lucide-react";
+import ReactSelect from "react-select";
 import { useSession } from "next-auth/react";
 import { useClientContext } from "@/components/ClientContext";
 import { Button } from "@/components/ui/button";
@@ -120,6 +122,7 @@ export default function ObstetriquePage({
     new Set(["obstetrique"]),
   );
   const [activeTab, setActiveTab] = useState("obstetrique");
+  const [selectedPrescripteurId, setSelectedPrescripteurId] = useState("");
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -186,6 +189,7 @@ export default function ObstetriquePage({
     isPrescripteur,
     client,
     idUser,
+    selectedPrescripteurId,
     initialGrossesses: grossesses,
     initialObstetriques: obstetriques,
     onGrossesseCreated: handleGrossesseCreated,
@@ -205,6 +209,51 @@ export default function ObstetriquePage({
       </Button>
 
       <div className="pt-8 relative">
+        {!isPrescripteur && allPrescripteur.length > 0 && (
+          <div className="mx-4 mb-3 rounded-xl border border-blue-200/60 bg-blue-50/50 p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+            <label className="text-sm font-semibold text-blue-900 flex items-center gap-1.5 shrink-0">
+              <UserCog className="h-4 w-4" />
+              Prestataire pour tous les onglets
+              <span className="text-red-500">*</span>
+            </label>
+            <div className="w-full sm:max-w-sm">
+              <ReactSelect
+                instanceId="prescripteur-obstetrique"
+                isClearable
+                options={allPrescripteur.map((p) => ({
+                  value: p.id,
+                  label: p.name || "",
+                }))}
+                value={
+                  selectedPrescripteurId
+                    ? {
+                        value: selectedPrescripteurId,
+                        label:
+                          allPrescripteur.find(
+                            (p) => p.id === selectedPrescripteurId,
+                          )?.name || "",
+                      }
+                    : null
+                }
+                onChange={(opt) =>
+                  setSelectedPrescripteurId(
+                    (opt as { value: string } | null)?.value || "",
+                  )
+                }
+                placeholder="Rechercher un prestataire..."
+                noOptionsMessage={() => "Aucun prestataire trouvé"}
+                classNamePrefix="select"
+                menuPortalTarget={
+                  typeof document !== "undefined" ? document.body : undefined
+                }
+                styles={{
+                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         <Tabs
           value={activeTab}
           onValueChange={handleTabChange}

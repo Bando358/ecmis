@@ -45,21 +45,32 @@ export default function TestGrossesseForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [selectedTest, setSelectedTest] = useState<TestGrossesse[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { canCreate } = usePermissionContext();
 
-  const form = useForm<TestGrossesse>();
+  const form = useForm<TestGrossesse>({
+    defaultValues: {
+      testIdVisite: "",
+      testIdUser: "",
+      testIdClient: clientId || "",
+      testIdClinique: client?.idClinique || "",
+      testResultat: "",
+    },
+  });
 
 
   // Set idUser in form when available
   useEffect(() => {
-    if (idUser) {
+    if (isPrescripteur && idUser) {
       form.setValue("testIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("testIdUser", selectedPrescripteurId);
     }
-  }, [idUser, form]);
+  }, [idUser, isPrescripteur, selectedPrescripteurId, form]);
 
   useEffect(() => {
     form.setValue("testIdClient", clientId);
@@ -84,9 +95,12 @@ export default function TestGrossesseForm({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("testIdUser") || idUser;
     const formattedData = {
       ...data,
-      testIdUser: form.getValues("testIdUser"),
+      testIdUser: effectiveIdUser,
       testIdClient: form.getValues("testIdClient"),
       testIdVisite: form.getValues("testIdVisite"),
       testIdClinique: client?.idClinique || "",
@@ -96,7 +110,7 @@ export default function TestGrossesseForm({
       const newRecord = await createTestGrossesse(formattedData);
       await updateRecapVisite(
         form.watch("testIdVisite"),
-        form.watch("testIdUser"),
+        effectiveIdUser,
         "07 Fiche Test TBG"
       );
       setSelectedTest((prev) => [...prev, newRecord as TestGrossesse]);
@@ -205,59 +219,24 @@ export default function TestGrossesseForm({
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input {...field} className="hidden" />
+                  <Input {...field} value={field.value ?? ""} className="hidden" />
                 </FormControl>
               </FormItem>
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="testIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    {/* Hidden controlled input. value is stable string to avoid uncontrolled->controlled warning */}
-                    <Input {...field} value={idUser} className="hidden" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="testIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="testIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input {...field} value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""} className="hidden" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

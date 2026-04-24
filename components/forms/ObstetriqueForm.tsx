@@ -80,6 +80,7 @@ export default function ObstetriqueForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
   initialGrossesses,
   initialObstetriques,
 }: SharedFormProps) {
@@ -152,6 +153,14 @@ export default function ObstetriqueForm({
     form.setValue("obstIdClient", clientId);
   }, [clientId]);
 
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("obstIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("obstIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
+
   const handleVisiteChange = async (idVisite: string) => {
     try {
       form.setValue("obstIdVisite", idVisite);
@@ -186,10 +195,13 @@ export default function ObstetriqueForm({
           : new Date(String(rawRdv))
       : null;
 
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("obstIdUser") || idUser;
     const formattedData = {
       ...data,
       obstIdVisite: form.getValues("obstIdVisite"),
-      obstIdUser: form.getValues("obstIdUser"),
+      obstIdUser: effectiveIdUser,
       obstIdClient: form.getValues("obstIdClient"),
       obstRdv: obstRdvDate,
       obstIdClinique: client?.idClinique || "",
@@ -198,7 +210,7 @@ export default function ObstetriqueForm({
       const newRecord = await createObstetrique(formattedData);
       await updateRecapVisite(
         form.watch("obstIdVisite"),
-        form.watch("obstIdUser"),
+        effectiveIdUser,
         "08 Fiche CPN",
       );
       setSelectedObstetrique((prev) => [...prev, newRecord as Obstetrique]);
@@ -766,59 +778,24 @@ export default function ObstetriqueForm({
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input {...field} className="hidden" />
+                  <Input {...field} value={field.value ?? ""} className="hidden" />
                 </FormControl>
               </FormItem>
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="obstIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input {...field} value={idUser} className="hidden" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="obstIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur .....
-                  </FormLabel>
-                  <Select
-                    required
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="obstIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input {...field} value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""} className="hidden" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

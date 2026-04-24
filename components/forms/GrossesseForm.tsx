@@ -46,6 +46,7 @@ export default function GrossesseForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
   initialGrossesses,
   onGrossesseCreated,
 }: SharedFormProps) {
@@ -76,6 +77,14 @@ export default function GrossesseForm({
   useEffect(() => {
     form.setValue("grossesseIdClient", clientId);
   }, [clientId]);
+
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("grossesseIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("grossesseIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
 
   // Calcul automatique bidirectionnel : âge ↔ DDR → terme prévu
   const watchedAge = form.watch("grossesseAge");
@@ -148,9 +157,12 @@ export default function GrossesseForm({
       ? new Date(data.termePrevu + "T00:00:00")
       : null;
 
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("grossesseIdUser") || idUser;
     const formattedData = {
       ...data,
-      grossesseIdUser: idUser,
+      grossesseIdUser: effectiveIdUser,
       grossesseIdVisite: form.getValues("grossesseIdVisite"),
       grossesseDdr: ddrValue,
       termePrevu: termeValue,
@@ -166,7 +178,7 @@ export default function GrossesseForm({
       const newGrossesse = await createGrossesse(formattedData);
       await updateRecapVisite(
         form.watch("grossesseIdVisite"),
-        form.watch("grossesseIdUser"),
+        effectiveIdUser,
         "06 Fiche grossesse",
       );
       setSelectedGrossesse((prev) => [...prev, newGrossesse as Grossesse]);
@@ -408,54 +420,23 @@ export default function GrossesseForm({
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="grossesseIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={idUser ?? ""}
-                      onChange={field.onChange}
-                      className="hidden"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="grossesseIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur
-                  </FormLabel>
-                  <Select required onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id ?? ""}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="grossesseIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""}
+                    onChange={field.onChange}
+                    className="hidden"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

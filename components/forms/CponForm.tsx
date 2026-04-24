@@ -45,6 +45,7 @@ export default function CponForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [selectedCpon, setSelectedCpon] = useState<Cpon[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -70,14 +71,25 @@ export default function CponForm({
     },
   });
 
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("cponIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("cponIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
+
   const onSubmit: SubmitHandler<Cpon> = async (data) => {
     if (!canCreate(TableName.CPON)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("cponIdUser") || idUser;
     const formattedData = {
       ...data,
-      cponIdUser: form.getValues("cponIdUser"),
+      cponIdUser: effectiveIdUser,
       cponIdClient: form.getValues("cponIdClient"),
       cponIdVisite: form.getValues("cponIdVisite"),
       cponIdClinique: client?.idClinique || "",
@@ -87,7 +99,7 @@ export default function CponForm({
       const newRecord = await createCpon(formattedData);
       await updateRecapVisite(
         form.watch("cponIdVisite"),
-        form.watch("cponIdUser"),
+        effectiveIdUser,
         "10 Fiche CPoN"
       );
       setSelectedCpon((prev) => [...prev, newRecord as Cpon]);
@@ -258,53 +270,22 @@ export default function CponForm({
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="cponIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={idUser ?? ""}
-                      className="hidden"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="cponIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le precripteur .....
-                  </FormLabel>
-                  <Select
-                    required
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescipteur, index) => (
-                        <SelectItem key={index} value={prescipteur.id}>
-                          <span>{prescipteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="cponIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""}
+                    className="hidden"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

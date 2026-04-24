@@ -212,6 +212,7 @@ export default function DepistageVihForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [selectedDepistageVih, setSelectedDepistageVih] = useState<
     DepistageVih[]
@@ -246,6 +247,14 @@ export default function DepistageVihForm({
     form.setValue("depistageVihIdClient", clientId);
   }, [clientId]);
 
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("depistageVihIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("depistageVihIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
+
   // Mettre à jour depistageVihIdClinique dès que client est chargé
   useEffect(() => {
     if (client?.idClinique) {
@@ -258,16 +267,22 @@ export default function DepistageVihForm({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId ||
+        form.getValues("depistageVihIdUser") ||
+        idUser;
     const formattedData = {
       ...data,
       depistageVihIdClient: form.getValues("depistageVihIdClient"),
+      depistageVihIdUser: effectiveIdUser,
     };
 
     try {
       const newRecord = await createDepistageVih(formattedData as DepistageVih);
       await updateRecapVisite(
         form.watch("depistageVihIdVisite"),
-        form.watch("depistageVihIdUser"),
+        effectiveIdUser,
         "14 Fiche de dépistage VIH"
       );
       setSelectedDepistageVih((prev) => [...prev, newRecord as DepistageVih]);
@@ -432,58 +447,23 @@ export default function DepistageVihForm({
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="depistageVihIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={idUser ?? ""}
-                      onChange={field.onChange}
-                      className="hidden"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="depistageVihIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le prescripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Prescripteur ....." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="depistageVihIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""}
+                    onChange={field.onChange}
+                    className="hidden"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <Button
             type="submit"

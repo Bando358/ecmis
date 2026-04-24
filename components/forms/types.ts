@@ -8,6 +8,10 @@ export interface SharedFormProps {
   isPrescripteur: boolean;
   client: Client | null;
   idUser: string;
+  /** Prescripteur sélectionné au niveau de la page (partagé entre tous les onglets).
+   *  Quand il est fourni, les formulaires l'utilisent comme idUser sans afficher
+   *  leur propre sélecteur. */
+  selectedPrescripteurId?: string;
   /** Données pré-chargées par le parent pour éviter un double fetch */
   initialGrossesses?: Grossesse[];
   initialObstetriques?: Obstetrique[];

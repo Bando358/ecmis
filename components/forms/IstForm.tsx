@@ -76,6 +76,7 @@ export default function IstForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [selectedIst, setSelectedIst] = useState<Ist[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -100,11 +101,22 @@ export default function IstForm({
     fetchData();
   }, [clientId]);
 
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("istIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("istIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
+
   const onSubmit: SubmitHandler<Ist> = async (data) => {
     if (!canCreate(TableName.IST)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || form.getValues("istIdUser") || idUser;
     const formattedData = {
       ...data,
       istTypeClient: form.getValues("istTypeClient") ?? "",
@@ -119,7 +131,7 @@ export default function IstForm({
         form.getValues("istCounselingReductionRisque") ?? false,
       istTypePec: form.getValues("istTypePec") ?? "",
       istPecEtiologique: form.getValues("istPecEtiologique") ?? "",
-      istIdUser: form.getValues("istIdUser") ?? "",
+      istIdUser: effectiveIdUser,
       istIdVisite: form.getValues("istIdVisite") ?? "",
       istIdClinique: client?.idClinique ?? "",
     };
@@ -128,7 +140,7 @@ export default function IstForm({
       const newRecord = await createIst(formattedData as Ist);
       await updateRecapVisite(
         form.watch("istIdVisite"),
-        form.watch("istIdUser"),
+        effectiveIdUser,
         "12 Fiche Ist"
       );
       setSelectedIst((prev) => [...prev, newRecord as Ist]);
@@ -424,59 +436,24 @@ export default function IstForm({
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input {...field} className="hidden" />
+                  <Input {...field} value={field.value ?? ""} className="hidden" />
                 </FormControl>
               </FormItem>
             )}
           />
 
-          {isPrescripteur === true ? (
-            <FormField
-              control={form.control}
-              name="istIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input {...field} value={idUser} className="hidden" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <FormField
-              control={form.control}
-              name="istIdUser"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le prescripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    onValueChange={field.onChange}
-                    value={field.value || ""}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sélectionnez un prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Prescripteur (masqué, géré au niveau de la page) */}
+          <FormField
+            control={form.control}
+            name="istIdUser"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input {...field} value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""} className="hidden" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
           <div className="flex flex-row justify-center py-2">
             <Button type="submit" disabled={form.formState.isSubmitting || isSubmitted}>

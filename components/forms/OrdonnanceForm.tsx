@@ -56,6 +56,7 @@ export default function OrdonnanceForm({
   isPrescripteur,
   client,
   idUser,
+  selectedPrescripteurId,
 }: SharedFormProps) {
   const [idOrdonnance, setIdOrdonnance] = useState<string>();
   const [tabOrdonnance, setTabOrdonnance] = useState<Ordonnance[]>([]);
@@ -95,9 +96,20 @@ export default function OrdonnanceForm({
       ordonnanceMedicaments: [""],
       ordonnanceIdVisite: selectedVisite,
       ordonnanceIdClient: clientId,
-      ordonnanceIdUser: isPrescripteur === true ? idUser || "" : "",
+      ordonnanceIdUser:
+        isPrescripteur === true
+          ? idUser || ""
+          : selectedPrescripteurId || "",
     },
   });
+
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("ordonnanceIdUser", idUser);
+    } else if (selectedPrescripteurId) {
+      form.setValue("ordonnanceIdUser", selectedPrescripteurId);
+    }
+  }, [isPrescripteur, idUser, selectedPrescripteurId, form]);
 
   const getOrdonnanceByIdVisite = useCallback(
     (idVisite: string) => {
@@ -118,7 +130,10 @@ export default function OrdonnanceForm({
           ordonnanceMedicaments: [""],
           ordonnanceIdVisite: idVisite,
           ordonnanceIdClient: clientId,
-          ordonnanceIdUser: isPrescripteur === true ? idUser || "" : "",
+          ordonnanceIdUser:
+            isPrescripteur === true
+              ? idUser || ""
+              : selectedPrescripteurId || "",
         });
       }
       setIsLoading(false);
@@ -376,58 +391,23 @@ export default function OrdonnanceForm({
                     </Label>
 
                     <div className="grid grid-cols-1 gap-4">
-                      {isPrescripteur === true ? (
-                        <FormField
-                          control={form.control}
-                          name="ordonnanceIdUser"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  value={idUser}
-                                  className="hidden"
-                                  readOnly
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      ) : (
-                        <FormField
-                          control={form.control}
-                          name="ordonnanceIdUser"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="font-medium">
-                                Selectionnez le prescripteur
-                              </FormLabel>
-                              <Select
-                                required
-                                value={field.value || ""}
-                                onValueChange={field.onChange}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select Prescripteur" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {allPrescripteur.map((prescripteur) => (
-                                    <SelectItem
-                                      key={prescripteur.id}
-                                      value={prescripteur.id}
-                                    >
-                                      <span>{prescripteur.name}</span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                      {/* Prescripteur (masqué, géré au niveau de la page) */}
+                      <FormField
+                        control={form.control}
+                        name="ordonnanceIdUser"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={(isPrescripteur ? idUser : selectedPrescripteurId) ?? ""}
+                                className="hidden"
+                                readOnly
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
 
