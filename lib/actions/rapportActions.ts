@@ -3,7 +3,6 @@
 import prisma from "@/lib/prisma";
 import { getOneVisite } from "./visiteActions";
 import { ClientData } from "@/components/rapportPfActions";
-import { getOneGrossesse } from "./grossesseActions";
 import { FactureExamen, ResultatExamen, TypeExamen } from "@prisma/client";
 
 type ClientAvecMethodePrise = {
@@ -152,6 +151,12 @@ export const fetchClientsData = async (
     },
   });
 
+  // Filtres réutilisés pour ne charger que les enregistrements de la période
+  const visiteDateFilter = {
+    dateVisite: { gte: dateVisite1, lte: dateVisite2 },
+  };
+  const onlyVisitesInPeriod = { Visite: visiteDateFilter };
+
   const clients = await prisma.client.findMany({
     where: {
       idClinique: {
@@ -167,29 +172,30 @@ export const fetchClientsData = async (
       },
     },
     include: {
-      Visite: true,
-      Planning: true,
-      Gynecologie: true,
-      Ist: true,
-      Infertilite: true,
-      Vbg: true,
-      Medecine: true,
-      Grossesse: true,
-      Obstetrique: true,
-      Cpon: true,
-      TestGrossesse: true,
-      Accouchement: true,
-      Saa: true,
-      DepistageVih: true,
-      PecVih: true,
-      RecapVisite: true,
-      ExamenPvVih: true,
-      FactureEchographie: true,
-      FactureExamen: true,
-      FacturePrestation: true,
-      FactureProduit: true,
-      Couverture: true,
-      Constante: true,
+      Visite: { where: visiteDateFilter },
+      Planning: { where: onlyVisitesInPeriod },
+      Gynecologie: { where: onlyVisitesInPeriod },
+      Ist: { where: { Visite: visiteDateFilter } },
+      Infertilite: { where: { Visite: visiteDateFilter } },
+      Vbg: { where: { Visite: visiteDateFilter } },
+      Medecine: { where: { Visite: visiteDateFilter } },
+      Grossesse: { where: { Visite: visiteDateFilter } },
+      Obstetrique: { where: { Visite: visiteDateFilter } },
+      Cpon: { where: { Visite: visiteDateFilter } },
+      TestGrossesse: { where: { Visite: visiteDateFilter } },
+      Accouchement: { where: { Visite: visiteDateFilter } },
+      Saa: { where: { Visite: visiteDateFilter } },
+      DepistageVih: { where: { Visite: visiteDateFilter } },
+      PecVih: { where: { Visite: visiteDateFilter } },
+      RecapVisite: { where: onlyVisitesInPeriod },
+      ExamenPvVih: { where: { Visite: visiteDateFilter } },
+      FactureEchographie: { where: onlyVisitesInPeriod },
+      FactureExamen: { where: onlyVisitesInPeriod },
+      FacturePrestation: { where: onlyVisitesInPeriod },
+      FactureProduit: { where: onlyVisitesInPeriod },
+      Couverture: { where: onlyVisitesInPeriod },
+      Constante: { where: onlyVisitesInPeriod },
+      TraitementIva: { where: onlyVisitesInPeriod },
     },
   });
 
@@ -255,6 +261,12 @@ export const fetchClientsData = async (
         const gyneco = client.Gynecologie?.find(
           (g) => g.idVisite === visite.id
         );
+        // Traitement IVA lié à cette visite (diagnostic initial) — ou différé
+        const traitementIvaDirect = gyneco
+          ? client.TraitementIva?.find(
+              (t) => t.idGynecologie === gyneco.id,
+            )
+          : undefined;
         const ist = client.Ist?.find((i) => i.istIdVisite === visite.id);
         const infert = client.Infertilite?.find(
           (f) => f.infertIdVisite === visite.id
@@ -361,8 +373,14 @@ export const fetchClientsData = async (
           counsellingAvantDepistage: gyneco?.counsellingAvantDepitage || false,
           counsellingApresDepistage: gyneco?.counsellingApresDepitage || false,
           resultatIva: gyneco?.resultatIva || "",
-          eligibleTraitementIva: gyneco?.eligibleTraitementIva || false,
-          typeTraitementIva: gyneco?.typeTraitement || "",
+          eligibleTraitementIva:
+            gyneco?.eligibleTraitementIva ||
+            !!traitementIvaDirect ||
+            false,
+          typeTraitementIva:
+            gyneco?.typeTraitement ||
+            traitementIvaDirect?.typeTraitement ||
+            "",
           counsellingCancerSein: gyneco?.counselingCancerSein || false,
           resultatCancerSein: gyneco?.resultatCancerSein || "",
           counsellingAutreProbleme: gyneco?.counselingAutreProbleme || false,
@@ -684,8 +702,24 @@ export const fetchClientsData = async (
 };
 
 const visiteDataCpnUpdate = async (clients: ClientData[]) => {
+  // Batch: une seule requête pour toutes les grossesses référencées
+  const idsGrossesse = Array.from(
+    new Set(
+      clients
+        .map((c) => c.obstIdGrossesse)
+        .filter((id): id is string => !!id),
+    ),
+  );
+
+  if (idsGrossesse.length === 0) return clients;
+
+  const grossesses = await prisma.grossesse.findMany({
+    where: { id: { in: idsGrossesse } },
+  });
+  const grossesseById = new Map(grossesses.map((g) => [g.id, g]));
+
   for (const client of clients) {
-    const data = await getOneGrossesse(client.obstIdGrossesse);
+    const data = grossesseById.get(client.obstIdGrossesse);
     if (data) {
       client.grossesseHta = data.grossesseHta;
       client.grossesseDiabete = data.grossesseDiabete;
@@ -1317,6 +1351,10 @@ export const fetchClientsStatusProteges = async (
   // Traitement par client
   // -----------------------------
   for (const client of filteredClients) {
+    // Map O(1) des visites du client pour éviter les .find() répétés et
+    // supprimer le N+1 sur getDateVisite.
+    const visiteById = new Map(client.Visite.map((v) => [v.id, v]));
+
     for (const plan of client.Planning) {
       if (!plan.rdvPf) continue;
 
@@ -1326,13 +1364,13 @@ export const fetchClientsStatusProteges = async (
         (dateVisite1.getTime() - rdvPf.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // Date visite liée au planning
+      // Date visite liée au planning (lookup mémoire, plus de requête DB)
       let dateVisisteStr = "";
-      if (plan.idVisite) {
-        const d = await getDateVisite(plan.idVisite);
-        if (d instanceof Date) {
-          dateVisisteStr = d.toLocaleDateString("fr-FR");
-        }
+      const visitePlan = plan.idVisite ? visiteById.get(plan.idVisite) : null;
+      if (visitePlan?.dateVisite) {
+        dateVisisteStr = new Date(visitePlan.dateVisite).toLocaleDateString(
+          "fr-FR",
+        );
       }
 
       const status: ClientStatusInfo = {
@@ -1362,9 +1400,7 @@ export const fetchClientsStatusProteges = async (
         plan.retraitImplanon || plan.retraitJadelle || plan.retraitSterilet;
 
       if (hasRetrait) {
-        const visiteRetrait = client.Visite.find(
-          (v): boolean => v.id === plan.idVisite
-        );
+        const visiteRetrait = visiteById.get(plan.idVisite);
         if (visiteRetrait?.dateVisite) {
           const dRetrait = new Date(visiteRetrait.dateVisite);
           if (dRetrait >= dateVisite1 && dRetrait <= dateVisite2) {
@@ -1388,7 +1424,7 @@ export const fetchClientsStatusProteges = async (
         else if (plan.sterilet) dureeProtectionAnnees = 10;
 
         // Date d'insertion = date de la visite associée au Planning
-        const visiteInsertion = client.Visite.find((v) => v.id === plan.idVisite);
+        const visiteInsertion = visiteById.get(plan.idVisite);
         if (visiteInsertion) {
           const dateInsertion = new Date(visiteInsertion.dateVisite);
           const dateFinProtection = new Date(dateInsertion);
@@ -1397,7 +1433,7 @@ export const fetchClientsStatusProteges = async (
           // Vérifier si un retrait a eu lieu dans une visite ultérieure
           const hasRetraitUlterieur = client.Planning.some((otherPlan) => {
             if (otherPlan.id === plan.id) return false;
-            const otherVisite = client.Visite.find((v) => v.id === otherPlan.idVisite);
+            const otherVisite = visiteById.get(otherPlan.idVisite);
             if (!otherVisite) return false;
             const dAutre = new Date(otherVisite.dateVisite);
             return (

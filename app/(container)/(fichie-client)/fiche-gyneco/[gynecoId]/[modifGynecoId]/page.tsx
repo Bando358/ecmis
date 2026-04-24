@@ -56,10 +56,6 @@ import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import Retour from "@/components/retour";
 
-const tabTypeTraitement = [
-  { value: "chryotherapie", label: "Chryothérapie" },
-  { value: "thermocoagulation", label: "Thermocoagulation" },
-];
 const TabMotifConsultation = [
   { value: "PF", label: "Client PF" },
   { value: "iva", label: "Dépistage cancer du col de utérus" },
@@ -268,7 +264,7 @@ export default function GynecoPage({
                     <Form {...form}>
                       <form
                         onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
+                        className="space-y-2 w-full max-w-100 mx-auto px-4 py-4"
                       >
                         <FormField
                           control={form.control}
@@ -437,59 +433,14 @@ export default function GynecoPage({
                             )}
                           />
                           {form.watch("resultatIva") === "positif" && (
-                            <div>
-                              <FormField
-                                control={form.control}
-                                name="eligibleTraitementIva"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value ?? false}
-                                        onCheckedChange={field.onChange}
-                                      />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                      <FormLabel className="font-normal">
-                                        Eligibilité au traitement IVA
-                                      </FormLabel>
-                                    </div>
-                                  </FormItem>
-                                )}
-                              />
-                              {form.watch("eligibleTraitementIva") === true && (
-                                <FormField
-                                  control={form.control}
-                                  name="typeTraitement"
-                                  render={({ field }) => (
-                                    <FormItem className="mx-6 mb-3 outline-red-500">
-                                      <FormLabel className="font-medium">
-                                        Selectionnez le type de traitement
-                                      </FormLabel>
-                                      <Select onValueChange={field.onChange}>
-                                        <FormControl>
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Traitement à sélectionner" />
-                                          </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          {tabTypeTraitement.map(
-                                            (option, index) => (
-                                              <SelectItem
-                                                key={index}
-                                                value={option.value}
-                                              >
-                                                {option.label}
-                                              </SelectItem>
-                                            ),
-                                          )}
-                                        </SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
+                            <div className="px-4 py-2">
+                              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                                Le traitement est à saisir via la fiche{" "}
+                                <span className="font-semibold">
+                                  Traitement IVA
+                                </span>{" "}
+                                (peut être différé).
+                              </div>
                             </div>
                           )}
 

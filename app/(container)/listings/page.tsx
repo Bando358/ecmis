@@ -53,6 +53,11 @@ import {
   getAllFacturesByClinique,
   FactureItem,
 } from "@/lib/actions/facturesListingActions";
+import ListeIvaPositifEnAttente from "@/components/listings/ListeIvaPositifEnAttente";
+import {
+  getIvaPositifEnAttente,
+  IvaPositifPendingItem,
+} from "@/lib/actions/traitementIvaActions";
 import { getAllActiviteByTabIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { Lieu } from "@prisma/client";
@@ -107,6 +112,7 @@ const tabListing = [
   { value: "pecVih", label: "PEC VIH" },
   { value: "factureProduitPf", label: "Clients par produit PF facturé" },
   { value: "tousFactures", label: "Tous les éléments facturés" },
+  { value: "ivaPositifAttente", label: "IVA positif en attente de traitement" },
   { value: "listeAllData", label: "Liste de toutes les données" },
 ];
 
@@ -134,6 +140,9 @@ export default function Page() {
     FactureProduitPfItem[]
   >([]);
   const [tousFactures, setTousFactures] = useState<FactureItem[]>([]);
+  const [ivaPositifAttente, setIvaPositifAttente] = useState<
+    IvaPositifPendingItem[]
+  >([]);
 
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
@@ -308,6 +317,7 @@ export default function Page() {
         clients,
         factureProduitPfData,
         tousFacturesData,
+        ivaPositifAttenteData,
       ] = await Promise.all([
         fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
         getAllUserIncludedTabIdClinique(selectedIds),
@@ -316,9 +326,11 @@ export default function Page() {
         fetchClientsData(selectedIds, dateDebutObj, dateFinObj),
         getFactureProduitPfByClinique(selectedIds, dateDebutObj, dateFinObj),
         getAllFacturesByClinique(selectedIds, dateDebutObj, dateFinObj),
+        getIvaPositifEnAttente(selectedIds),
       ]);
       setFactureProduitPf(factureProduitPfData);
       setTousFactures(tousFacturesData);
+      setIvaPositifAttente(ivaPositifAttenteData);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -582,6 +594,9 @@ export default function Page() {
         )}
         {rapportClinique === "tousFactures" && (
           <ListeTousFactures items={tousFactures} />
+        )}
+        {rapportClinique === "ivaPositifAttente" && (
+          <ListeIvaPositifEnAttente items={ivaPositifAttente} />
         )}
       </div>
     </div>

@@ -89,6 +89,7 @@ enum TableName {
   RAPPORT
   VENTE_DIRECTE
   FUSION_CLIENT
+  TRAITEMENT_IVA
 }
 
 model Permission {
@@ -185,6 +186,7 @@ model User {
   DemandeExamen       DemandeExamen[]
   FactureExamen       FactureExamen[]
   Gynecologie         Gynecologie[]         @relation("UserGynecologies")
+  TraitementIva       TraitementIva[]
   Ist                 Ist[]                 @relation("UserIst")
   Infertilite         Infertilite[]
   Vbg                 Vbg[]
@@ -335,6 +337,7 @@ model Clinique {
   planning            Planning[]
   Visite              Visite[]
   Gynecologie         Gynecologie[]
+  TraitementIva       TraitementIva[]
   Ist                 Ist[]
   Infertilite         Infertilite[]
   Vbg                 Vbg[]
@@ -408,6 +411,7 @@ model Client {
   DemandeExamen       DemandeExamen[]
   FactureExamen       FactureExamen[]
   Gynecologie         Gynecologie[]         @relation("ClientGynecologies")
+  TraitementIva       TraitementIva[]
   Ist                 Ist[]                 @relation("ClientIst")
   Infertilite         Infertilite[]
   Vbg                 Vbg[]
@@ -514,6 +518,7 @@ model Visite {
   Constante     Constante[]
   Planning      Planning[]
   Gynecologie   Gynecologie[]
+  TraitementIva TraitementIva[]
   Ist           Ist[]
   Infertilite   Infertilite[]
   Vbg           Vbg[]
@@ -680,6 +685,8 @@ model Gynecologie {
   Client   Client   @relation("ClientGynecologies", fields: [idClient], references: [id], onDelete: Cascade)
   Visite   Visite   @relation(fields: [idVisite], references: [id], onDelete: Cascade)
 
+  TraitementIva TraitementIva[]
+
   @@index([idUser])
   @@index([idClient])
   @@index([idVisite])
@@ -687,6 +694,33 @@ model Gynecologie {
 }
 
 // Fin Fiche Gynécologique
+
+// Model TraitementIva : saisie différée du traitement pour un IVA positif
+model TraitementIva {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  dateTraitement  DateTime @default(now())
+  typeTraitement  String   // chryotherapie, thermocoagulation, LEEP, biopsie, autre
+  observations    String?
+
+  idGynecologie String? // lien vers le diagnostic initial (optionnel)
+  idVisite      String
+  idClient      String
+  idClinique    String
+  idUser        String
+
+  Gynecologie Gynecologie? @relation(fields: [idGynecologie], references: [id], onDelete: SetNull)
+  Visite      Visite       @relation(fields: [idVisite], references: [id], onDelete: Cascade)
+  Client      Client       @relation(fields: [idClient], references: [id], onDelete: Cascade)
+  Clinique    Clinique     @relation(fields: [idClinique], references: [id], onDelete: Cascade)
+  User        User         @relation(fields: [idUser], references: [id], onDelete: Cascade)
+
+  @@index([idClient])
+  @@index([idClinique])
+  @@index([idVisite])
+  @@index([idGynecologie])
+}
 
 // Model Ist
 model Ist {

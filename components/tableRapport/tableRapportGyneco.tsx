@@ -30,6 +30,7 @@ type convertedType = clientDataProps & {
   resultatIvaPos: boolean;
   traitementChryo: boolean;
   traitementThermo: boolean;
+  traitementTotal: boolean;
 };
 type DateType = string | Date;
 interface TableRapportGynecoProps {
@@ -72,6 +73,11 @@ const tabClientGyneco = [
     label:
       "Nombre de femmes dépistées positives à l'IVA et traitées à la thermocoagulation",
     value: "traitementThermo",
+  },
+  {
+    label:
+      "Nombre total de femmes dépistées positives à l'IVA et traitées",
+    value: "traitementTotal",
   },
   {
     label:
@@ -147,14 +153,21 @@ export default function TableRapportGyneco({
     if (!clientData || clientData.length === 0) {
       setConverted([]);
     } else {
-      const newConverted = clientData.map((item) => ({
-        ...item,
-        ivaAndPf: item.motifVisiteGyneco === "true",
-        resultatCancerSeinPos: item.resultatCancerSein === "positif",
-        resultatIvaPos: item.resultatIva === "positif",
-        traitementChryo: item.typeTraitementIva === "chryotherapie",
-        traitementThermo: item.typeTraitementIva === "thermocoagulation",
-      }));
+      const newConverted = clientData.map((item) => {
+        const t = (item.typeTraitementIva || "").toLowerCase();
+        const isPositif = item.resultatIva === "positif";
+        const isChryo = isPositif && t === "chryotherapie";
+        const isThermo = isPositif && t === "thermocoagulation";
+        return {
+          ...item,
+          ivaAndPf: item.motifVisiteGyneco === "true",
+          resultatCancerSeinPos: item.resultatCancerSein === "positif",
+          resultatIvaPos: isPositif,
+          traitementChryo: isChryo,
+          traitementThermo: isThermo,
+          traitementTotal: isChryo || isThermo,
+        };
+      });
       setConverted(newConverted);
     }
   }, [clientData]);

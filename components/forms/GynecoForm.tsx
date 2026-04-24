@@ -37,10 +37,6 @@ import { ERROR_MESSAGES } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
 import type { SharedFormProps } from "./types";
 
-const tabTypeTraitement = [
-  { value: "chryotherapie", label: "Chryothérapie" },
-  { value: "thermocoagulation", label: "Thermocoagulation" },
-];
 const TabMotifConsultation = [
   { value: "PF", label: "Client PF" },
   { value: "iva", label: "Dépistage cancer du col de utérus" },
@@ -159,7 +155,7 @@ export default function GynecoForm({
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-2 max-w-6xl rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
+          className="space-y-2 w-full max-w-100 rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
         >
           <FormField
             control={form.control}
@@ -326,80 +322,15 @@ export default function GynecoForm({
                 </FormItem>
               )}
             />
-            <AnimatePresence>
-              {form.watch("resultatIva") === "positif" && (
-                <motion.div
-                  key="gyneco-iva-positif"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <FormField
-                    control={form.control}
-                    name="eligibleTraitementIva"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md px-4 py-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="font-normal">
-                            Eligibilité au traitement IVA
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <AnimatePresence>
-                    {form.watch("eligibleTraitementIva") === true && (
-                      <motion.div
-                        key="gyneco-type-traitement"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="overflow-hidden"
-                      >
-                        <FormField
-                          control={form.control}
-                          name="typeTraitement"
-                          render={({ field }) => (
-                            <FormItem className="mx-6 mb-3 outline-red-500">
-                              <FormLabel className="font-medium">
-                                Selectionnez le type de traitement
-                              </FormLabel>
-                              <Select onValueChange={field.onChange}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Traitement à sélectionner" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {tabTypeTraitement.map((option, index) => (
-                                    <SelectItem
-                                      key={index}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {form.watch("resultatIva") === "positif" && (
+              <div className="px-4 py-2">
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Le traitement est à saisir via la fiche{" "}
+                  <span className="font-semibold">Traitement IVA</span> (peut
+                  être différé).
+                </div>
+              </div>
+            )}
 
             {/* counselingCancerSein */}
             <Separator />

@@ -160,6 +160,13 @@ const Table16 = dynamic(
     })),
   { loading: TableLoader },
 );
+const Table17 = dynamic(
+  () =>
+    import("@/components/table/tableTraitementIva").then((mod) => ({
+      default: mod.Table17,
+    })),
+  { loading: TableLoader },
+);
 
 // Types
 interface FicheLink {
@@ -207,6 +214,11 @@ const createCategories = (fichesId: string): Category[] => [
         label: "Gynécologique",
         href: `/fiche-gyneco/${fichesId}`,
         tableComponent: Table03,
+      },
+      {
+        label: "Traitement IVA",
+        href: `/fiche-traitement-iva/${fichesId}`,
+        tableComponent: Table17,
       },
       {
         label: "Infertilité",
