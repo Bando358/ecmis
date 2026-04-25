@@ -120,9 +120,11 @@ export const fetchVentesData = async (
     prisma.factureProduit.findMany({
       where: {
         idClinique: { in: clinicIds },
-        dateFacture: {
-          gte: dateFrom,
-          lte: dateTo,
+        Visite: {
+          dateVisite: {
+            gte: dateFrom,
+            lte: dateTo,
+          },
         },
       },
       include: {
@@ -137,9 +139,11 @@ export const fetchVentesData = async (
     prisma.facturePrestation.findMany({
       where: {
         idClinique: { in: clinicIds },
-        dateFacture: {
-          gte: dateFrom,
-          lte: dateTo,
+        Visite: {
+          dateVisite: {
+            gte: dateFrom,
+            lte: dateTo,
+          },
         },
       },
       include: {
@@ -202,14 +206,14 @@ export const fetchVentesData = async (
     examUser: f.User,
   }));
 
-  // Map FactureProduit
+  // Map FactureProduit (date = date de la visite, pas date d'enregistrement)
   const produits = facturesProduits.map((f) => ({
     prodId: f.id,
     prodIdVisite: f.idVisite,
     prodIdClient: f.idClient,
     prodIdClinique: f.idClinique,
     prodIdUser: f.idUser,
-    prodDate: f.dateFacture,
+    prodDate: f.Visite?.dateVisite ?? f.dateFacture,
     prodLibelle: f.idTarifProduit,
     prodMontantTotal: f.montantProduit || 0,
     prodQuantite: f.quantite,
@@ -239,14 +243,14 @@ export const fetchVentesData = async (
     prodUser: v.User,
   }));
 
-  // Map FacturePrestation
+  // Map FacturePrestation (date = date de la visite, pas date d'enregistrement)
   const prestations = facturesPrestations.map((f) => ({
     prestId: f.id,
     prestIdVisite: f.idVisite,
     prestIdClient: f.idClient,
     prestIdClinique: f.idClinique,
     prestIdUser: f.idUser,
-    prestDate: f.dateFacture,
+    prestDate: f.Visite?.dateVisite ?? f.dateFacture,
     prestLibelle: f.libellePrestation,
     prestPrixTotal: f.prixPrestation,
     prestIdPrestation: f.idPrestation,
