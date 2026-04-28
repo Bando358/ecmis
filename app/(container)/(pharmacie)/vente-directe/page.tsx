@@ -138,6 +138,7 @@ export default function VenteDirectePage() {
   const [cliniques, setCliniques] = useState<Clinique[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [qteInputs, setQteInputs] = useState<Record<string, string>>({});
+  const [prixInputs, setPrixInputs] = useState<Record<string, string>>({});
   const [ventesJour, setVentesJour] = useState<VenteDirecteRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -308,6 +309,16 @@ export default function VenteDirectePage() {
       prev.map((item) =>
         item.idTarifProduit === idTarifProduit
           ? { ...item, quantite: Math.max(1, Math.min(quantite, item.stockDisponible)) }
+          : item
+      )
+    );
+  };
+
+  const updatePrix = (idTarifProduit: string, prix: number) => {
+    setCart((prev) =>
+      prev.map((item) =>
+        item.idTarifProduit === idTarifProduit
+          ? { ...item, prixUnitaire: Math.max(0, prix) }
           : item
       )
     );
@@ -704,9 +715,25 @@ export default function VenteDirectePage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {cart.map((item) => (
+                            {cart.map((item) => {
+                              const prixCatalogue = tarifs.find((t) => t.id === item.idTarifProduit)?.prixUnitaire;
+                              const prixModifie = prixCatalogue !== undefined && item.prixUnitaire !== prixCatalogue;
+                              return (
                               <TableRow key={item.idTarifProduit}>
-                                <TableCell className="font-medium">{item.nomProduit}</TableCell>
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <span>{item.nomProduit}</span>
+                                    {prixModifie && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] bg-amber-50 text-amber-700 border-amber-200"
+                                        title={`Prix catalogue : ${prixCatalogue?.toLocaleString("fr-FR")} FCFA`}
+                                      >
+                                        Prix modifié
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
                                 <TableCell>
                                   <Badge
                                     variant="outline"
@@ -716,7 +743,36 @@ export default function VenteDirectePage() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums">
-                                  {item.prixUnitaire.toLocaleString("fr-FR")}
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={prixInputs[item.idTarifProduit] ?? item.prixUnitaire}
+                                    onChange={(e) =>
+                                      setPrixInputs((prev) => ({
+                                        ...prev,
+                                        [item.idTarifProduit]: e.target.value,
+                                      }))
+                                    }
+                                    onBlur={() => {
+                                      const raw = prixInputs[item.idTarifProduit];
+                                      if (raw != null) {
+                                        const val = parseFloat(raw);
+                                        updatePrix(item.idTarifProduit, isNaN(val) || val < 0 ? 0 : val);
+                                        setPrixInputs((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.idTarifProduit];
+                                          return next;
+                                        });
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                    }}
+                                    className="w-24 text-right ml-auto h-8"
+                                  />
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -764,7 +820,8 @@ export default function VenteDirectePage() {
                                   </Button>
                                 </TableCell>
                               </TableRow>
-                            ))}
+                              );
+                            })}
                           </TableBody>
                           <TableFooter>
                             <TableRow>

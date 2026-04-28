@@ -382,7 +382,7 @@ export default function SaaPage({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-2 max-w-100 rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
+            className="space-y-2 w-full max-w-100 rounded-sm mx-auto px-4 py-2 bg-white border border-blue-200/50 shadow-md shadow-blue-100/30"
           >
             <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md">
               <FormField

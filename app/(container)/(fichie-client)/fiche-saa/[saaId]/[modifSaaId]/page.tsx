@@ -434,7 +434,7 @@ export default function ModifSaaPage({
                     <Form {...form}>
                       <form
                         onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-2 max-w-4xl mx-auto px-4 py-4"
+                        className="space-y-2 w-full max-w-100 mx-auto px-4 py-4"
                       >
                         <div className="my-2 px-4 py-2 shadow-sm border-blue-200/50 rounded-md ">
                           <FormField
