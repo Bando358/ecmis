@@ -197,7 +197,13 @@ export default function MdgForm({
     const { mdgDureeObservation, ...rest } = data;
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("mdgIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("mdgIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...rest,
       mdgIdUser: effectiveIdUser,

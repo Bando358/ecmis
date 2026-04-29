@@ -93,7 +93,13 @@ export default function VbgForm({
     }
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("vbgIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("vbgIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       vbgType: form.getValues("vbgType") ?? "",

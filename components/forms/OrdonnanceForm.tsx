@@ -174,12 +174,21 @@ export default function OrdonnanceForm({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || data.ordonnanceIdUser;
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       id: crypto.randomUUID(),
       ordonnanceMedicaments: medicaments.filter((med) => med.trim() !== ""),
       ordonnanceIdVisite: data.ordonnanceIdVisite,
       ordonnanceIdClient: data.ordonnanceIdClient,
-      ordonnanceIdUser: data.ordonnanceIdUser,
+      ordonnanceIdUser: effectiveIdUser,
       ordonnanceCreatedAt: new Date(),
       ordonnanceUpdatedAt: new Date(),
       ordonnanceIdClinique: client?.idClinique || "",

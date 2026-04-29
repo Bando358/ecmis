@@ -293,7 +293,13 @@ export default function SaaForm({ clientId, visites, allPrescripteur, isPrescrip
     }
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("saaIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("saaIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       saaIdUser: effectiveIdUser,

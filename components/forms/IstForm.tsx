@@ -116,7 +116,13 @@ export default function IstForm({
     }
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("istIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("istIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       istTypeClient: form.getValues("istTypeClient") ?? "",

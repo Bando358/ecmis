@@ -218,6 +218,15 @@ export default function ReferenceForm({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    const effectiveIdUser = isPrescripteur
+      ? idUser
+      : selectedPrescripteurId || data.idUser;
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       id: crypto.randomUUID(),
       consultation: data.consultation,
@@ -235,12 +244,12 @@ export default function ReferenceForm({
       ivaResultat: data.ivaResultat || false,
       observations: data.observations || "",
       nomPrenomReferant:
-        allPrescripteur.find((p) => p.id === data.idUser)?.name || "",
+        allPrescripteur.find((p) => p.id === effectiveIdUser)?.name || "",
       telReferant: data.telReferant,
       qualification: data.qualification,
       refIdVisite: data.refIdVisite,
       idClient: data.idClient,
-      idUser: data.idUser,
+      idUser: effectiveIdUser,
       dateReference: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),

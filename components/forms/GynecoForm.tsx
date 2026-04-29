@@ -121,7 +121,13 @@ export default function GynecoForm({
     }
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("idUser") || idUser;
+      : selectedPrescripteurId || form.getValues("idUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       idUser: effectiveIdUser,

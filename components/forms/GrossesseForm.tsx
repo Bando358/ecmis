@@ -159,7 +159,13 @@ export default function GrossesseForm({
 
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("grossesseIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("grossesseIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       grossesseIdUser: effectiveIdUser,

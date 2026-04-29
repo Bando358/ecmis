@@ -269,9 +269,13 @@ export default function DepistageVihForm({
     }
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId ||
-        form.getValues("depistageVihIdUser") ||
-        idUser;
+      : selectedPrescripteurId || form.getValues("depistageVihIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       depistageVihIdClient: form.getValues("depistageVihIdClient"),

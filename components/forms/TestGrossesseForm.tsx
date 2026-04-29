@@ -97,7 +97,13 @@ export default function TestGrossesseForm({
     }
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("testIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("testIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       testIdUser: effectiveIdUser,

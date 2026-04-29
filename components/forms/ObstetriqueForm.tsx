@@ -197,7 +197,13 @@ export default function ObstetriqueForm({
 
     const effectiveIdUser = isPrescripteur
       ? idUser
-      : selectedPrescripteurId || form.getValues("obstIdUser") || idUser;
+      : selectedPrescripteurId || form.getValues("obstIdUser");
+    if (!effectiveIdUser) {
+      toast.error(
+        "Veuillez d'abord sélectionner le prestataire en haut de la page",
+      );
+      return;
+    }
     const formattedData = {
       ...data,
       obstIdVisite: form.getValues("obstIdVisite"),
