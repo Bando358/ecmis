@@ -111,8 +111,10 @@ const typeEchographieColors: Record<TypeEchographie, string> = {
 
 export default function PageDemandeEchographie({
   params,
+  hideRetour = false,
 }: {
   params: Promise<{ demandeEchoId: string }>;
+  hideRetour?: boolean;
 }) {
   const { demandeEchoId } = use(params);
   const [visites, setVisites] = useState<Visite[]>([]);
@@ -366,7 +368,7 @@ export default function PageDemandeEchographie({
 
   return (
     <div className="w-full relative">
-      <Retour />
+      {!hideRetour && <Retour />}
       <div className="px-4 sm:px-6 pb-8 space-y-5">
         {/* ===== HEADER ===== */}
         <Card className="overflow-hidden border-purple-200 shadow-md shadow-purple-100/40">

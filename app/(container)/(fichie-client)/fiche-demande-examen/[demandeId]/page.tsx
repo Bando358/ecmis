@@ -111,8 +111,10 @@ const typeExamenColors: Record<TypeExamen, string> = {
 
 export default function PageDemandeExamen({
   params,
+  hideRetour = false,
 }: {
   params: Promise<{ demandeId: string }>;
+  hideRetour?: boolean;
 }) {
   const { demandeId } = use(params);
   const [visites, setVisites] = useState<Visite[]>([]);
@@ -361,7 +363,7 @@ export default function PageDemandeExamen({
 
   return (
     <div className="w-full relative">
-      <Retour />
+      {!hideRetour && <Retour />}
       <div className="px-4 sm:px-6 pb-8 space-y-5">
         {/* ===== HEADER ===== */}
         <Card className="overflow-hidden border-amber-200 shadow-md shadow-amber-100/40">

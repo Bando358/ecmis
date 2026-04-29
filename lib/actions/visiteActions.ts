@@ -181,7 +181,7 @@ export async function getVisitePageData(idClient: string) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [client, visites] = await Promise.all([
+  const [client, visites, constantesByVisite] = await Promise.all([
     prisma.client.findUnique({
       where: { id: idClient },
       select: { id: true, idClinique: true },
@@ -190,6 +190,10 @@ export async function getVisitePageData(idClient: string) {
       where: { idClient },
       orderBy: { dateVisite: "desc" },
       select: { id: true, dateVisite: true, motifVisite: true },
+    }),
+    prisma.constante.findMany({
+      where: { idClient },
+      select: { idVisite: true },
     }),
   ]);
 
@@ -204,9 +208,16 @@ export async function getVisitePageData(idClient: string) {
       })
     : [];
 
+  const visiteIdsWithConstante = new Set(
+    constantesByVisite.map((c) => c.idVisite),
+  );
+
   return {
     idClinique: client?.idClinique || "",
-    visites,
+    visites: visites.map((v) => ({
+      ...v,
+      hasConstante: visiteIdsWithConstante.has(v.id),
+    })),
     activites,
   };
 }
