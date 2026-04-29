@@ -495,21 +495,36 @@ export default function FormVisite({
             idUser={idUser}
             visites={allVisite}
             initialVisiteId={lastCreatedVisiteId}
-            onCreated={() => {
-              router.push(`/fiches/${visiteId}`);
+            onCreated={async (mode) => {
+              // Recharger les données pour propager la nouvelle constante
+              // (et toute visite éventuelle) aux autres onglets.
+              await refreshData();
+              if (mode === "return") {
+                router.push(`/fiches/${visiteId}`);
+              } else {
+                // Reste sur la page : laisser l'utilisateur saisir
+                // les demandes d'examen/échographie sur la nouvelle visite.
+                setLastCreatedVisiteId("");
+              }
             }}
           />
         </TabsContent>
 
         {/* Onglets Examen et Échographie : montés en permanence (forceMount)
             pour précharger les données dès l'ouverture de la page visite,
-            puis simplement masqués via CSS quand l'onglet n'est pas actif. */}
+            puis simplement masqués via CSS quand l'onglet n'est pas actif.
+            Le key dépend du nombre de visites : quand une nouvelle visite est
+            créée, les composants remountent et rechargent la liste à jour. */}
         <TabsContent
           value="examen"
           forceMount
           className="mt-2 data-[state=inactive]:hidden"
         >
-          <PageDemandeExamen params={examenParams} hideRetour />
+          <PageDemandeExamen
+            key={`exam-${allVisite.length}`}
+            params={examenParams}
+            hideRetour
+          />
         </TabsContent>
 
         <TabsContent
@@ -517,7 +532,11 @@ export default function FormVisite({
           forceMount
           className="mt-2 data-[state=inactive]:hidden"
         >
-          <PageDemandeEchographie params={echoParams} hideRetour />
+          <PageDemandeEchographie
+            key={`echo-${allVisite.length}`}
+            params={echoParams}
+            hideRetour
+          />
         </TabsContent>
       </Tabs>
     </div>

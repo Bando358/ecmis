@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { Constante, TableName } from "@prisma/client";
@@ -38,7 +38,10 @@ interface ConstanteCreationFormProps {
   idUser: string;
   visites: ConstanteVisiteOption[];
   initialVisiteId?: string;
-  onCreated?: () => void;
+  /** Action après soumission, basée sur le bouton cliqué.
+   *  - "return"   : retour vers la fiche
+   *  - "continue" : rester sur la page (pour saisir examen/écho ensuite) */
+  onCreated?: (mode: "return" | "continue") => void;
 }
 
 export default function ConstanteCreationForm({
@@ -48,6 +51,7 @@ export default function ConstanteCreationForm({
   initialVisiteId,
   onCreated,
 }: ConstanteCreationFormProps) {
+  const submitModeRef = useRef<"return" | "continue">("return");
   const [resulImc, setResulImc] = useState<number>(0);
   const [etatImc, setEtatImc] = useState<string>("");
   const [styleImc, setStyleImc] = useState<string>("");
@@ -156,7 +160,27 @@ export default function ConstanteCreationForm({
         formulaires: ["01 Créer la visite", "02 Fiche des constantes"],
       });
       toast.success("Constante créée avec succès !");
-      onCreated?.();
+      onCreated?.(submitModeRef.current);
+      // Réinitialiser le formulaire pour permettre une nouvelle saisie
+      // si on reste sur la page
+      if (submitModeRef.current === "continue") {
+        form.reset({
+          idClient: clientId,
+          idUser,
+          poids: 0,
+          taille: 0,
+          psSystolique: null,
+          psDiastolique: null,
+          temperature: null,
+          lieuTemprature: "",
+          pouls: null,
+          frequenceRespiratoire: null,
+          saturationOxygene: null,
+          imc: 0,
+          etatImc: "",
+          idVisite: "",
+        });
+      }
     } catch (error) {
       toast.error("La création de la constante a échoué.");
       console.error("Erreur lors de la création de la constante :", error);
@@ -419,13 +443,32 @@ export default function ConstanteCreationForm({
         <input type="hidden" {...form.register("idClient")} />
         <input type="hidden" {...form.register("idUser")} value={idUser} />
 
-        <Button
-          type="submit"
-          className="mt-4 mx-auto block"
-          disabled={form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? "En cours..." : "Créer la constante"}
-        </Button>
+        <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+          <Button
+            type="submit"
+            disabled={form.formState.isSubmitting}
+            onClick={() => {
+              submitModeRef.current = "continue";
+            }}
+            variant="outline"
+            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            {form.formState.isSubmitting
+              ? "En cours..."
+              : "Enregistrer et continuer"}
+          </Button>
+          <Button
+            type="submit"
+            disabled={form.formState.isSubmitting}
+            onClick={() => {
+              submitModeRef.current = "return";
+            }}
+          >
+            {form.formState.isSubmitting
+              ? "En cours..."
+              : "Enregistrer et retourner à la fiche"}
+          </Button>
+        </div>
       </form>
     </Form>
   );
