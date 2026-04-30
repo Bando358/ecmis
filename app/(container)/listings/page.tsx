@@ -58,6 +58,16 @@ import {
   getIvaPositifEnAttente,
   IvaPositifPendingItem,
 } from "@/lib/actions/traitementIvaActions";
+import ListeFacturesSansPrestation from "@/components/listings/ListeFacturesSansPrestation";
+import {
+  getClientsFacturesSansPrestation,
+  ClientFactureSansPrestationItem,
+} from "@/lib/actions/facturesSansPrestationActions";
+import ListeEchographiesSansCommission from "@/components/listings/ListeEchographiesSansCommission";
+import {
+  getEchographiesSansCommission,
+  EchographieSansCommissionItem,
+} from "@/lib/actions/echographiesSansCommissionActions";
 import { getAllActiviteByTabIdClinique } from "@/lib/actions/activiteActions";
 import { getAllLieuByTabIdActivite } from "@/lib/actions/lieuActions";
 import { Lieu } from "@prisma/client";
@@ -112,6 +122,14 @@ const tabListing = [
   { value: "pecVih", label: "PEC VIH" },
   { value: "factureProduitPf", label: "Clients par produit PF facturé" },
   { value: "tousFactures", label: "Tous les éléments facturés" },
+  {
+    value: "facturesSansPrestation",
+    label: "Clients facturés sans prestation enregistrée",
+  },
+  {
+    value: "echoSansCommission",
+    label: "Échographies sans commission attribuée",
+  },
   { value: "ivaPositifAttente", label: "IVA positif en attente de traitement" },
   { value: "listeAllData", label: "Liste de toutes les données" },
 ];
@@ -142,6 +160,12 @@ export default function Page() {
   const [tousFactures, setTousFactures] = useState<FactureItem[]>([]);
   const [ivaPositifAttente, setIvaPositifAttente] = useState<
     IvaPositifPendingItem[]
+  >([]);
+  const [facturesSansPrestation, setFacturesSansPrestation] = useState<
+    ClientFactureSansPrestationItem[]
+  >([]);
+  const [echographiesSansCommission, setEchographiesSansCommission] = useState<
+    EchographieSansCommissionItem[]
   >([]);
 
   const { data: session } = useSession();
@@ -318,6 +342,8 @@ export default function Page() {
         factureProduitPfData,
         tousFacturesData,
         ivaPositifAttenteData,
+        facturesSansPrestationData,
+        echographiesSansCommissionData,
       ] = await Promise.all([
         fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
         getAllUserIncludedTabIdClinique(selectedIds),
@@ -327,10 +353,14 @@ export default function Page() {
         getFactureProduitPfByClinique(selectedIds, dateDebutObj, dateFinObj),
         getAllFacturesByClinique(selectedIds, dateDebutObj, dateFinObj),
         getIvaPositifEnAttente(selectedIds),
+        getClientsFacturesSansPrestation(selectedIds, dateDebutObj, dateFinObj),
+        getEchographiesSansCommission(selectedIds, dateDebutObj, dateFinObj),
       ]);
       setFactureProduitPf(factureProduitPfData);
       setTousFactures(tousFacturesData);
       setIvaPositifAttente(ivaPositifAttenteData);
+      setFacturesSansPrestation(facturesSansPrestationData);
+      setEchographiesSansCommission(echographiesSansCommissionData);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -597,6 +627,12 @@ export default function Page() {
         )}
         {rapportClinique === "ivaPositifAttente" && (
           <ListeIvaPositifEnAttente items={ivaPositifAttente} />
+        )}
+        {rapportClinique === "facturesSansPrestation" && (
+          <ListeFacturesSansPrestation items={facturesSansPrestation} />
+        )}
+        {rapportClinique === "echoSansCommission" && (
+          <ListeEchographiesSansCommission items={echographiesSansCommission} />
         )}
       </div>
     </div>
