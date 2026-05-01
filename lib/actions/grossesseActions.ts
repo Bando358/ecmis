@@ -44,6 +44,37 @@ export const getAllGrossesseByIdClient = async (id: string | null) => {
   return allGrossesse;
 };
 
+// Renvoie la grossesse "en cours" pour ce client si elle existe.
+// Le blocage de création d'une nouvelle grossesse n'est levé que par :
+//   - un accouchement enregistré
+//   - un soin après avortement (SAA) enregistré
+//   - un terme prévu dépassé (termePrevu < aujourd'hui)
+// Une grossesse est donc encore "en cours" si :
+//   - grossesseInterruption === false
+//   - ET aucun Accouchement
+//   - ET aucun Saa
+//   - ET (termePrevu null OU termePrevu >= aujourd'hui)
+export const getOngoingGrossesseByIdClient = async (
+  idClient: string | null,
+) => {
+  if (!idClient) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const candidates = await prisma.grossesse.findMany({
+    where: {
+      grossesseIdClient: idClient,
+      grossesseInterruption: false,
+      Accouchement: { none: {} },
+      Saa: { none: {} },
+      OR: [{ termePrevu: null }, { termePrevu: { gte: today } }],
+    },
+    orderBy: { grossesseCreatedAt: "desc" },
+    take: 1,
+  });
+  return candidates[0] ?? null;
+};
+
 // Récupération de une seul Fiche Grossesse
 export const getOneGrossesse = async (id: string | null) => {
   if (!id) {

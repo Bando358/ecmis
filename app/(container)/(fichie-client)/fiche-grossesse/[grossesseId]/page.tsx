@@ -50,6 +50,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   createGrossesse,
   getAllGrossesseByIdClient,
+  getOngoingGrossesseByIdClient,
 } from "@/lib/actions/grossesseActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneClient } from "@/lib/actions/clientActions";
@@ -77,6 +78,9 @@ export default function GrossessePage({
   const [isPrescripteur, setIsPrescripteur] = useState<boolean>();
   const { canCreate } = usePermissionContext();
   const [isLoading, setIsLoading] = useState(true);
+  const [ongoingGrossesse, setOngoingGrossesse] = useState<Grossesse | null>(
+    null,
+  );
 
   const { data: session } = useSession();
   const idUser = session?.user.id as string;
@@ -90,11 +94,12 @@ export default function GrossessePage({
       setIsLoading(true);
       try {
         // Étape 1: Requêtes indépendantes en parallèle
-        const [user, resultGrossesse, resultVisites, cliniqueClient] = await Promise.all([
+        const [user, resultGrossesse, resultVisites, cliniqueClient, ongoing] = await Promise.all([
           getOneUser(idUser),
           getAllGrossesseByIdClient(grossesseId),
           getAllVisiteByIdClient(grossesseId),
           getOneClient(grossesseId),
+          getOngoingGrossesseByIdClient(grossesseId),
         ]);
 
         setIsPrescripteur(user?.prescripteur ? true : false);
@@ -102,6 +107,7 @@ export default function GrossessePage({
         setSelectedGrossesse(resultGrossesse as Grossesse[]);
         setVisites(resultVisites as Visite[]);
         setClient(cliniqueClient);
+        setOngoingGrossesse(ongoing as Grossesse | null);
 
         // Étape 2: Requêtes dépendantes en parallèle
         const allPrestataire = cliniqueClient?.idClinique
@@ -191,6 +197,12 @@ export default function GrossessePage({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    if (ongoingGrossesse) {
+      toast.error(
+        "Une grossesse est déjà en cours pour ce client. Veuillez la clôturer (interruption ou accouchement) avant d'en créer une nouvelle.",
+      );
+      return;
+    }
 
     // Convertir les dates string en objets Date valides
     const ddrValue = data.grossesseDdr
@@ -266,6 +278,49 @@ export default function GrossessePage({
         <h2 className="text-2xl text-blue-900 font-black text-center">
           {`Formulaire de Création de Grossesse`}
         </h2>
+        {ongoingGrossesse && (
+          <div className="mx-auto my-3 max-w-3xl w-full rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-semibold">
+              ⚠ Une grossesse est déjà en cours pour ce client.
+            </p>
+            <p className="mt-1">
+              La création d&apos;une nouvelle grossesse sera débloquée
+              automatiquement dans l&apos;un de ces trois cas :
+            </p>
+            <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
+              <li>un accouchement est enregistré pour cette grossesse</li>
+              <li>un soin après avortement (SAA) est enregistré</li>
+              <li>le terme prévu est dépassé</li>
+            </ul>
+            {(ongoingGrossesse.grossesseDdr || ongoingGrossesse.termePrevu) && (
+              <p className="mt-2 text-xs">
+                {ongoingGrossesse.grossesseDdr && (
+                  <>
+                    DDR :{" "}
+                    <span className="font-medium">
+                      {new Date(
+                        ongoingGrossesse.grossesseDdr,
+                      ).toLocaleDateString("fr-FR")}
+                    </span>
+                  </>
+                )}
+                {ongoingGrossesse.grossesseDdr &&
+                  ongoingGrossesse.termePrevu &&
+                  " — "}
+                {ongoingGrossesse.termePrevu && (
+                  <>
+                    Terme prévu :{" "}
+                    <span className="font-medium">
+                      {new Date(
+                        ongoingGrossesse.termePrevu,
+                      ).toLocaleDateString("fr-FR")}
+                    </span>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+        )}
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -542,11 +597,13 @@ export default function GrossessePage({
             <Button
               type="submit"
               className="mt-4"
-              disabled={form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting || !!ongoingGrossesse}
             >
               {form.formState.isSubmitting
                 ? "En cours..."
-                : "Créer la Grossesse"}
+                : ongoingGrossesse
+                  ? "Grossesse en cours — création bloquée"
+                  : "Créer la Grossesse"}
             </Button>
           </form>
         </Form>

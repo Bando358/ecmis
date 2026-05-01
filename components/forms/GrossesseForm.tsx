@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   createGrossesse,
   getAllGrossesseByIdClient,
+  getOngoingGrossesseByIdClient,
 } from "@/lib/actions/grossesseActions";
 import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { usePermissionContext } from "@/contexts/PermissionContext";
@@ -53,16 +54,33 @@ export default function GrossesseForm({
 
   const [selectedGrossesse, setSelectedGrossesse] = useState<Grossesse[]>(initialGrossesses || []);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [ongoingGrossesse, setOngoingGrossesse] = useState<Grossesse | null>(
+    null,
+  );
   const { canCreate } = usePermissionContext();
   const [isFormLoading, setIsFormLoading] = useState(!initialGrossesses);
 
   useEffect(() => {
-    if (initialGrossesses) return;
+    if (initialGrossesses) {
+      // initialGrossesses est passée par le parent : on calcule en mémoire
+      const ongoing = initialGrossesses.find(
+        (g) => g.grossesseInterruption !== true,
+      );
+      // On ne peut pas vérifier l'accouchement côté client sans plus d'info ;
+      // on appelle quand même le serveur pour fiabilité.
+      setOngoingGrossesse(ongoing ?? null);
+    }
     const fetchData = async () => {
       setIsFormLoading(true);
       try {
-        const resultGrossesse = await getAllGrossesseByIdClient(clientId);
+        const [resultGrossesse, ongoing] = await Promise.all([
+          initialGrossesses
+            ? Promise.resolve(initialGrossesses)
+            : getAllGrossesseByIdClient(clientId),
+          getOngoingGrossesseByIdClient(clientId),
+        ]);
         setSelectedGrossesse(resultGrossesse as Grossesse[]);
+        setOngoingGrossesse(ongoing as Grossesse | null);
       } catch (error) {
         console.error("Erreur lors du chargement des grossesses:", error);
       } finally {
@@ -149,6 +167,12 @@ export default function GrossesseForm({
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
       return;
     }
+    if (ongoingGrossesse) {
+      toast.error(
+        "Une grossesse est déjà en cours pour ce client. Veuillez la clôturer (interruption ou accouchement) avant d'en créer une nouvelle.",
+      );
+      return;
+    }
 
     const ddrValue = data.grossesseDdr
       ? new Date(data.grossesseDdr + "T00:00:00")
@@ -211,6 +235,49 @@ export default function GrossesseForm({
       <h2 className="text-2xl text-blue-900 font-black text-center">
         Formulaire de Création de Grossesse
       </h2>
+      {ongoingGrossesse && (
+        <div className="mx-auto my-3 max-w-3xl w-full rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">
+            ⚠ Une grossesse est déjà en cours pour ce client.
+          </p>
+          <p className="mt-1">
+            La création d&apos;une nouvelle grossesse sera débloquée
+            automatiquement dans l&apos;un de ces trois cas :
+          </p>
+          <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
+            <li>un accouchement est enregistré pour cette grossesse</li>
+            <li>un soin après avortement (SAA) est enregistré</li>
+            <li>le terme prévu est dépassé</li>
+          </ul>
+          {(ongoingGrossesse.grossesseDdr || ongoingGrossesse.termePrevu) && (
+            <p className="mt-2 text-xs">
+              {ongoingGrossesse.grossesseDdr && (
+                <>
+                  DDR :{" "}
+                  <span className="font-medium">
+                    {new Date(
+                      ongoingGrossesse.grossesseDdr,
+                    ).toLocaleDateString("fr-FR")}
+                  </span>
+                </>
+              )}
+              {ongoingGrossesse.grossesseDdr &&
+                ongoingGrossesse.termePrevu &&
+                " — "}
+              {ongoingGrossesse.termePrevu && (
+                <>
+                  Terme prévu :{" "}
+                  <span className="font-medium">
+                    {new Date(ongoingGrossesse.termePrevu).toLocaleDateString(
+                      "fr-FR",
+                    )}
+                  </span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      )}
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -447,11 +514,17 @@ export default function GrossesseForm({
           <Button
             type="submit"
             className="mt-4"
-            disabled={form.formState.isSubmitting || isSubmitted}
+            disabled={
+              form.formState.isSubmitting || isSubmitted || !!ongoingGrossesse
+            }
           >
             {form.formState.isSubmitting
               ? "En cours..."
-              : isSubmitted ? "Soumis" : "Créer la Grossesse"}
+              : isSubmitted
+                ? "Soumis"
+                : ongoingGrossesse
+                  ? "Grossesse en cours — création bloquée"
+                  : "Créer la Grossesse"}
           </Button>
         </form>
       </Form>
