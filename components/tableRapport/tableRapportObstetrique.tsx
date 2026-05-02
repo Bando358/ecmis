@@ -198,14 +198,17 @@ export default function TableRapportObstetrique({
         obstCpn3: item.obstTypeVisite === "cpn3",
         obstCpn4Plus:
           item.obstTypeVisite === "cpn4" || item.obstTypeVisite === "cpn5",
+        // CPN 1 au 1er trimestre : la cliente est venue à sa 1ère CPN
+        // alors que la grossesse était encore au 1er trimestre (≤ 12 SA)
         obstCpn1Trim1:
-          item.grossesseDdr &&
-          depasseUnTrimestre(item.grossesseDdr, new Date(dateFin)) &&
-          item.grossesseAge < 13 &&
-          item.obstTypeVisite === "cpn1",
+          item.obstTypeVisite === "cpn1" &&
+          item.grossesseAge != null &&
+          item.grossesseAge <= 12,
+        // CPN 1 autre trimestre : 1ère CPN tardive (> 12 SA)
+        // Sous-ensemble strict de obstCpn1, ne peut donc jamais le dépasser.
         obstCpn1Trim2:
-          item.grossesseDdr &&
-          depasseUnTrimestre(item.grossesseDdr, new Date(dateFin)) &&
+          item.obstTypeVisite === "cpn1" &&
+          item.grossesseAge != null &&
           item.grossesseAge > 12,
         // obstEtatGrossesseRisque: item.obstEtatGrossesse === "risque",
         obstEtatNutritionnelMalnutri:

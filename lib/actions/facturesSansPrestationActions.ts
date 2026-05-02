@@ -2,7 +2,16 @@
 
 import prisma from "@/lib/prisma";
 
+export type AnomalieType =
+  | "aucune_prestation" // visite avec facture(s) mais aucun formulaire médical
+  | "cpn_sans_obstetrique" // FacturePrestation CPN mais pas de fiche obstétrique
+  | "test_grossesse_sans_fiche"; // FactureProduit Test de grossesse mais pas de fiche TestGrossesse
+
 export type ClientFactureSansPrestationItem = {
+  /** clé unique : idVisite + typeAnomalie pour permettre plusieurs lignes par visite */
+  key: string;
+  typeAnomalie: AnomalieType;
+  libelleAnomalie: string;
   idVisite: string;
   idClient: string;
   dateVisite: Date;
@@ -15,7 +24,7 @@ export type ClientFactureSansPrestationItem = {
   clinique: string;
   prescripteur: string;
   totalFacture: number;
-  // Détail par type de facturation pour mieux comprendre la situation
+  // détails facturation
   nbProduits: number;
   nbPrestations: number;
   nbExamens: number;
@@ -27,15 +36,19 @@ const calcAge = (dob: Date): number => {
   return Math.abs(new Date(diff).getUTCFullYear() - 1970);
 };
 
-// Liste des visites de la période où le client a été facturé
-// (au moins 1 Facture*) mais où aucune prestation n'a été enregistrée
-// (aucun formulaire médical et aucun résultat d'examen/écho).
-//
-// Optimisation : au lieu de 17 sous-requêtes "none" empilées (très coûteux),
-// on procède en 2 étapes :
-//   1) Récupérer toutes les visites de la période avec au moins une facture.
-//   2) Identifier en parallèle les visites qui possèdent au moins une
-//      prestation médicale, puis filtrer en mémoire.
+const ANOMALIE_LABELS: Record<AnomalieType, string> = {
+  aucune_prestation: "Visite facturée sans aucune prestation enregistrée",
+  cpn_sans_obstetrique: "Facture CPN sans fiche obstétrique (CPN)",
+  test_grossesse_sans_fiche:
+    "Vente d'un test de grossesse sans fiche Test grossesse",
+};
+
+/**
+ * Liste les anomalies de facturation sur la période :
+ *  1) Visites facturées sans aucune prestation médicale enregistrée
+ *  2) Facture de prestation CPN sans fiche obstétrique pour la même visite
+ *  3) Vente d'un test de grossesse sans fiche TestGrossesse pour la même visite
+ */
 export async function getClientsFacturesSansPrestation(
   clinicIds: string[],
   dateDebut: Date,
@@ -43,7 +56,7 @@ export async function getClientsFacturesSansPrestation(
 ): Promise<ClientFactureSansPrestationItem[]> {
   if (!clinicIds || clinicIds.length === 0) return [];
 
-  // Étape 1 : visites facturées de la période
+  // ---------------- Étape 1 : visites avec au moins une facture sur la période
   const visitesAvecFacture = await prisma.visite.findMany({
     where: {
       idClinique: { in: clinicIds },
@@ -59,8 +72,21 @@ export async function getClientsFacturesSansPrestation(
       Client: true,
       Clinique: { select: { nomClinique: true } },
       User: { select: { name: true } },
-      FactureProduit: { select: { montantProduit: true } },
-      FacturePrestation: { select: { prixPrestation: true } },
+      FactureProduit: {
+        select: {
+          montantProduit: true,
+          tarifProduit: {
+            select: { Produit: { select: { nomProduit: true } } },
+          },
+        },
+      },
+      FacturePrestation: {
+        select: {
+          prixPrestation: true,
+          libellePrestation: true,
+          Prestation: { select: { nomPrestation: true } },
+        },
+      },
       FactureExamen: {
         select: {
           prixExamen: true,
@@ -79,9 +105,7 @@ export async function getClientsFacturesSansPrestation(
 
   const visiteIds = visitesAvecFacture.map((v) => v.id);
 
-  // Étape 2 : visites qui ont au moins une prestation médicale
-  // 17 requêtes simples (idVisite IN (...)) lancées en parallèle.
-  // Chacune utilise l'index sur idVisite -> très rapide.
+  // ---------------- Étape 2 : visites ayant au moins une prestation médicale
   const [
     planning,
     gyneco,
@@ -171,7 +195,7 @@ export async function getClientsFacturesSansPrestation(
     }),
   ]);
 
-  const idsAvecPrestation = new Set<string>([
+  const idsAvecAuMoinsUnePrestation = new Set<string>([
     ...planning.map((p) => p.idVisite),
     ...gyneco.map((g) => g.idVisite),
     ...ist.map((i) => i.istIdVisite),
@@ -191,12 +215,17 @@ export async function getClientsFacturesSansPrestation(
     ...resultEcho.map((r) => r.idVisite),
   ]);
 
-  // Filtrer : ne garder que les visites SANS prestation
-  const visitesSansPrestation = visitesAvecFacture.filter(
-    (v) => !idsAvecPrestation.has(v.id),
-  );
+  // Sets dédiés pour les vérifications spécifiques
+  const idsAvecObstetrique = new Set(obst.map((o) => o.obstIdVisite));
+  const idsAvecTestGrossesse = new Set(test.map((t) => t.testIdVisite));
 
-  return visitesSansPrestation.map((v) => {
+  // ---------------- Préparer un helper pour générer un item à partir d'une visite
+  const buildBase = (
+    v: (typeof visitesAvecFacture)[number],
+  ): Omit<
+    ClientFactureSansPrestationItem,
+    "key" | "typeAnomalie" | "libelleAnomalie"
+  > => {
     const totalProduits = v.FactureProduit.reduce(
       (s, f) => s + (f.montantProduit || 0),
       0,
@@ -248,5 +277,75 @@ export async function getClientsFacturesSansPrestation(
       nbExamens: v.FactureExamen.length,
       nbEchographies: v.FactureEchographie.length,
     };
-  });
+  };
+
+  const items: ClientFactureSansPrestationItem[] = [];
+
+  for (const v of visitesAvecFacture) {
+    const base = buildBase(v);
+
+    // -------- Cas 1 : aucune prestation enregistrée
+    if (!idsAvecAuMoinsUnePrestation.has(v.id)) {
+      items.push({
+        ...base,
+        key: `${v.id}-aucune`,
+        typeAnomalie: "aucune_prestation",
+        libelleAnomalie: ANOMALIE_LABELS.aucune_prestation,
+      });
+    }
+
+    // -------- Cas 2 : facture CPN sans fiche obstétrique
+    // Détection sur le libellé saisi ET sur le nom canonique de la prestation
+    // (table Prestation), pour couvrir les variantes "CPN", "CPN1", "CPN 2",
+    // "CPN-1", "Consultation prénatale", "1ère CPN", etc.
+    const isCpnLibelle = (txt: string | null | undefined): boolean => {
+      if (!txt) return false;
+      const t = txt
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, ""); // supprime les accents
+      return (
+        t.includes("cpn") ||
+        t.includes("consultation prenatale") ||
+        t.includes("consult prenatale") ||
+        t.includes("pre natale") ||
+        t.includes("prenatal")
+      );
+    };
+
+    const aFactureCpn = v.FacturePrestation.some(
+      (p) =>
+        isCpnLibelle(p.libellePrestation) ||
+        isCpnLibelle(p.Prestation?.nomPrestation),
+    );
+    if (aFactureCpn && !idsAvecObstetrique.has(v.id)) {
+      items.push({
+        ...base,
+        key: `${v.id}-cpn`,
+        typeAnomalie: "cpn_sans_obstetrique",
+        libelleAnomalie: ANOMALIE_LABELS.cpn_sans_obstetrique,
+      });
+    }
+
+    // -------- Cas 3 : vente test de grossesse sans fiche TestGrossesse
+    const aVenteTestGrossesse = v.FactureProduit.some((f) => {
+      const nom = f.tarifProduit?.Produit?.nomProduit || "";
+      const lower = nom.toLowerCase();
+      return (
+        (lower.includes("test") && lower.includes("grossesse")) ||
+        lower.includes("tbg") ||
+        lower.includes("hcg")
+      );
+    });
+    if (aVenteTestGrossesse && !idsAvecTestGrossesse.has(v.id)) {
+      items.push({
+        ...base,
+        key: `${v.id}-test`,
+        typeAnomalie: "test_grossesse_sans_fiche",
+        libelleAnomalie: ANOMALIE_LABELS.test_grossesse_sans_fiche,
+      });
+    }
+  }
+
+  return items;
 }
