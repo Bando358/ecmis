@@ -9,6 +9,8 @@ import {
   getOneDepistageVih,
   updateDepistageVih,
 } from "@/lib/actions/depistageVihActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import {
   getAllUserIncludedIdClinique,
   getOneUser,
@@ -321,6 +323,11 @@ export default function ModifDepistageVihPage({
     try {
       if (selectedDepistageVih) {
         await updateDepistageVih(selectedDepistageVih.id, formattedData);
+        const newIdUser = form.getValues("depistageVihIdUser");
+        const idVisite = form.getValues("depistageVihIdVisite") || selectedDepistageVih.depistageVihIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "14 Fiche de dépistage VIH");
+        }
         const oneDepistageVih = await getOneDepistageVih(modifDepistageVihId);
         if (oneDepistageVih) {
           setSelectedDepistageVih(oneDepistageVih as DepistageVih);
@@ -602,29 +609,15 @@ export default function ModifDepistageVihPage({
                                 <FormLabel className="font-medium">
                                   Selectionnez le prescripteur
                                 </FormLabel>
-                                <Select
-                                  required
-                                  value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur ....." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescripteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescripteur.id}
-                                        >
-                                          <span>{prescripteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="depistage-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

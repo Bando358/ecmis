@@ -7,6 +7,7 @@ import {
   getOneVisite,
   getAllVisiteByIdClient,
 } from "@/lib/actions/visiteActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
@@ -247,6 +248,10 @@ export default function FormVisiteModification({
 
       if (oneVisite) {
         const updatedVisite = await updateVisite(modifvisiteId, formattedData);
+        const newIdUser = formattedData.idUser;
+        if (newIdUser && modifvisiteId) {
+          await updateRecapVisite(modifvisiteId, newIdUser, "01 Créer la visite");
+        }
         setOneVisite(updatedVisite);
         setIsVisible(false);
         toast.success("Visite modifiée avec succès !");

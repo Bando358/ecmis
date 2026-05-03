@@ -14,6 +14,84 @@ export async function getRecapVisitesByTabIdVisite(idVisites: string[]) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// Déduplication des prescripteurs par "fonction" (post principal).
+//
+// Règle métier : pour une même visite, on ne doit pas avoir deux prescripteurs
+// qui exercent la même fonction (ex: deux sage-femmes). Quand on ajoute un
+// nouveau prescripteur dont la fonction est déjà représentée dans le tableau
+// existant, on remplace l'ancien par le nouveau.
+//
+// Le post principal d'un utilisateur est le plus prioritaire dans cet ordre :
+// MEDECIN > SAGE_FEMME > INFIRMIER > LABORANTIN > AIDE_SOIGNANT > AMD >
+// CONSEILLER > CAISSIERE > COMPTABLE > SUIVI_EVALLUATION > ADMIN.
+// -----------------------------------------------------------------------------
+const POSTES_PRIORITE_ORDRE: string[] = [
+  "MEDECIN",
+  "SAGE_FEMME",
+  "INFIRMIER",
+  "LABORANTIN",
+  "AIDE_SOIGNANT",
+  "AMD",
+  "CONSEILLER",
+  "CAISSIERE",
+  "COMPTABLE",
+  "SUIVI_EVALLUATION",
+  "ADMIN",
+];
+
+function getPrimaryPost(titles: string[]): string | null {
+  if (!titles || titles.length === 0) return null;
+  for (const p of POSTES_PRIORITE_ORDRE) {
+    if (titles.includes(p)) return p;
+  }
+  return titles[0] ?? null;
+}
+
+/**
+ * Retourne un nouveau tableau de prescripteurs où chaque "fonction" (post
+ * principal) n'apparaît qu'une seule fois. Les nouveaux prescripteurs (toAdd)
+ * remplacent les anciens (existing) qui partagent la même fonction.
+ */
+async function mergePrescripteursDedupedByPost(
+  existing: string[],
+  toAdd: string[],
+): Promise<string[]> {
+  const cleanedToAdd = (toAdd || []).filter((id): id is string => !!id);
+  if (cleanedToAdd.length === 0) return Array.from(new Set(existing));
+
+  const allIds = Array.from(new Set([...(existing || []), ...cleanedToAdd]));
+  const users = await prisma.user.findMany({
+    where: { id: { in: allIds } },
+    select: { id: true, post: { select: { title: true } } },
+  });
+  const postById = new Map<string, string | null>();
+  for (const u of users) {
+    const titles = (u.post || []).map((p) => p.title as string);
+    postById.set(u.id, getPrimaryPost(titles));
+  }
+
+  // On part du tableau existant puis on applique chaque nouveau prescripteur
+  // en évinçant ceux qui partagent la même fonction.
+  let result = Array.from(new Set(existing || []));
+  for (const newId of cleanedToAdd) {
+    const newPost = postById.get(newId);
+    if (newPost) {
+      result = result.filter((id) => {
+        if (id === newId) return false; // évite les doublons d'id
+        const p = postById.get(id);
+        return p !== newPost;
+      });
+    } else {
+      // Pas de post connu pour le nouvel utilisateur : on retire juste l'id
+      // s'il existait déjà pour ne pas le dupliquer.
+      result = result.filter((id) => id !== newId);
+    }
+    result.push(newId);
+  }
+  return result;
+}
+
 export async function createRecapVisite(data: {
   idVisite: string;
   idClient: string;
@@ -27,11 +105,9 @@ export async function createRecapVisite(data: {
     });
 
     if (existing) {
-      const mergedPrescripteurs = Array.from(
-        new Set([
-          ...(existing.prescripteurs || []),
-          ...(data.prescripteurs || []),
-        ])
+      const mergedPrescripteurs = await mergePrescripteursDedupedByPost(
+        existing.prescripteurs || [],
+        data.prescripteurs || [],
       );
       const mergedFormulaires = Array.from(
         new Set([...(existing.formulaires || []), ...(data.formulaires || [])])
@@ -47,12 +123,17 @@ export async function createRecapVisite(data: {
       return updated;
     }
 
-    // Sinon, création normale
+    // Sinon, création normale (on dédoublonne quand même : utile si la liste
+    // initiale contient elle-même deux prescripteurs avec la même fonction).
+    const dedupedPrescripteurs = await mergePrescripteursDedupedByPost(
+      [],
+      data.prescripteurs || [],
+    );
     const recapVisite = await prisma.recapVisite.create({
       data: {
         idVisite: data.idVisite,
         idClient: data.idClient,
-        prescripteurs: data.prescripteurs,
+        prescripteurs: dedupedPrescripteurs,
         formulaires: data.formulaires,
       },
     });
@@ -106,8 +187,22 @@ export async function updateRecapVisite(
     if (formulaire && !recapVisite.formulaires.includes(formulaire)) {
       updates.formulaires = [...recapVisite.formulaires, formulaire];
     }
-    if (prescripteurs && !recapVisite.prescripteurs.includes(prescripteurs)) {
-      updates.prescripteurs = [...recapVisite.prescripteurs, prescripteurs];
+    // Pour le prescripteur, on délègue au helper de dédoublonnage par
+    // fonction : si l'ancien tableau contient déjà un user partageant la
+    // même fonction (post principal) que le nouveau, il sera remplacé.
+    if (prescripteurs) {
+      const merged = await mergePrescripteursDedupedByPost(
+        recapVisite.prescripteurs || [],
+        [prescripteurs],
+      );
+      // On ne déclenche un update que si la liste a effectivement changé.
+      const before = recapVisite.prescripteurs || [];
+      const sameLength = merged.length === before.length;
+      const sameContent =
+        sameLength && merged.every((id, i) => id === before[i]);
+      if (!sameContent) {
+        updates.prescripteurs = merged;
+      }
     }
 
     // Une seule requête DB si au moins un champ à mettre à jour

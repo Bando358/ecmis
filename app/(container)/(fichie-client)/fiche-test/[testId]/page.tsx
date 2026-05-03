@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 // import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import {
   getAllUserIncludedIdClinique,
   getOneUser,
@@ -281,30 +282,15 @@ export default function GynecoPage({
                 name="testIdUser"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-medium">
-                      Selectionnez le precripteur
-                    </FormLabel>
-                    <Select
-                      required
-                      // value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Prescripteur" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {allPrescripteur.map((prescripteur) => (
-                          <SelectItem
-                            key={prescripteur.id}
-                            value={prescripteur.id}
-                          >
-                            <span>{prescripteur.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PrescripteurFieldBlock
+                        instanceId="test-create-prescripteur"
+                        prescripteurs={allPrescripteur}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        required
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

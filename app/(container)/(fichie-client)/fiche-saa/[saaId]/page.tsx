@@ -19,6 +19,7 @@ import { Saa, Grossesse, Visite, Client } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
 import { TableName } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 
 import {
   Form,
@@ -321,6 +322,17 @@ export default function SaaPage({
     },
   });
 
+  // Quand l'utilisateur connecté est lui-même prescripteur, le champ de
+  // sélection du prescripteur n'est pas affiché et l'<Input value={idUser}>
+  // hidden n'alimente pas l'état RHF. On synchronise donc explicitement
+  // saaIdUser avec idUser pour que form.getValues("saaIdUser") soit correct
+  // au moment du submit (et donc dans recapVisite).
+  useEffect(() => {
+    if (isPrescripteur && idUser) {
+      form.setValue("saaIdUser", idUser);
+    }
+  }, [isPrescripteur, idUser, form]);
+
   const onSubmit: SubmitHandler<Saa> = async (data) => {
     if (!canCreate(TableName.SAA)) {
       toast.error(ERROR_MESSAGES.PERMISSION_DENIED_CREATE);
@@ -571,23 +583,15 @@ export default function SaaPage({
                 name="saaIdUser"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-medium">
-                      Sélectionnez le prescripteur
-                    </FormLabel>
-                    <Select required onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Sélectionner un prescripteur" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {allPrescripteur.map((prescripteur, index) => (
-                          <SelectItem key={index} value={prescripteur.id}>
-                            <span>{prescripteur.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PrescripteurFieldBlock
+                        instanceId="saa-create-prescripteur"
+                        prescripteurs={allPrescripteur}
+                        value={field.value}
+                        onChange={field.onChange}
+                        required
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

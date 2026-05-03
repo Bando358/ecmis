@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 // import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import {
   getAllUserIncludedIdClinique,
   getOneUser,
@@ -351,24 +352,15 @@ export default function CponPage({
                     <FormLabel className="font-medium">
                       Selectionnez le precripteur .....
                     </FormLabel>
-                    <Select
-                      required
-                      // value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Prescripteur" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {allPrescripteur.map((prescipteur, index) => (
-                          <SelectItem key={index} value={prescipteur.id}>
-                            <span>{prescipteur.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PrescripteurFieldBlock
+                        instanceId="cpon-create-prescripteur"
+                        prescripteurs={allPrescripteur}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        required
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

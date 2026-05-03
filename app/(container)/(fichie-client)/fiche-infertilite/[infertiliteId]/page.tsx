@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 
 import { toast } from "sonner";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { useClientContext } from "@/components/ClientContext";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import {
@@ -361,27 +362,15 @@ export default function IstPage({
                     <FormLabel className="font-medium">
                       Selectionnez le precripteur .....
                     </FormLabel>
-                    <Select
-                      required
-                      // value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Prescripteur ....." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {allPrescripteur.map((prescipteur) => (
-                          <SelectItem
-                            key={prescipteur.id}
-                            value={prescipteur.id}
-                          >
-                            <span>{prescipteur.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PrescripteurFieldBlock
+                        instanceId="infert-create-prescripteur"
+                        prescripteurs={allPrescripteur}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        required
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -10,6 +10,8 @@ import {
 
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneIst, updateIst } from "@/lib/actions/istActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 
 import { useSession } from "next-auth/react";
 import { Ist, Visite } from "@prisma/client";
@@ -192,6 +194,11 @@ export default function IstPage({
       if (selectedIst) {
         console.log(formattedData);
         await updateIst(selectedIst.id, formattedData);
+        const newIdUser = form.getValues("istIdUser");
+        const idVisite = form.getValues("istIdVisite") || selectedIst.istIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "12 Fiche Ist");
+        }
         const oneIst = await getOneIst(modifIstId);
         if (oneIst) {
           setSelectedIst(oneIst as Ist);
@@ -554,32 +561,15 @@ export default function IstPage({
                             name="istIdUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur ....." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescipteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescipteur.id}
-                                        >
-                                          <span>{prescipteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="ist-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

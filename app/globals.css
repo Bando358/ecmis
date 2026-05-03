@@ -3,6 +3,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Empêche le décalage horizontal de la page lorsqu'une barre de défilement
+ * apparaît / disparaît (notamment quand on ouvre un menu déroulant
+ * react-select rendu en portail au niveau du body). On réserve toujours
+ * la place de la scrollbar verticale. */
+html {
+  scrollbar-gutter: stable;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

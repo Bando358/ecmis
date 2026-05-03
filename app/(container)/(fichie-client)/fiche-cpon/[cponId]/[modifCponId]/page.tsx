@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneCpon, updateCpon } from "@/lib/actions/cponActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import {
   getAllUserIncludedIdClinique,
   getOneUser,
@@ -154,6 +156,11 @@ export default function CpnPage({
       if (selectedCpon) {
         console.log(formattedData);
         await updateCpon(selectedCpon.id, formattedData);
+        const newIdUser = form.getValues("cponIdUser");
+        const idVisite = form.getValues("cponIdVisite") || selectedCpon.cponIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "10 Fiche CPoN");
+        }
         const oneCpon = await getOneCpon(modifCponId);
         if (oneCpon) {
           setSelectedCpon(oneCpon as Cpon);
@@ -381,32 +388,15 @@ export default function CpnPage({
                             name="cponIdUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur ....." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescripteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescripteur.id}
-                                        >
-                                          <span>{prescripteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="cpon-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

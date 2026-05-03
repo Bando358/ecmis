@@ -454,7 +454,183 @@ const CONFIGS: Record<string, ClientDataConfig> = {
       { label: "Complications", get: (c) => c.accouchementComplications || "" },
     ],
   },
+  // ----- Sous-sections du rapport "Validation" --------------------------------
+  // Le rapport de validation est composé de 11 tableaux. Chaque sous-section
+  // a son propre listing dérivé des configs ci-dessus.
+  "validation:contraception": {
+    filter: (c) => c.consultationPf === true || c.methodePrise === true,
+    columns: [
+      ...baseColumns,
+      { label: "Statut", get: (c) => c.statut || "" },
+      { label: "Type contraception", get: (c) => c.typeContraception || "" },
+      { label: "Méthode prise", get: (c) => yn(c.methodePrise) },
+      { label: "Counselling PF", get: (c) => yn(c.counsellingPf) },
+      { label: "Court durée", get: (c) => c.courtDuree || "" },
+      { label: "Implanon", get: (c) => c.implanon || "" },
+      { label: "Jadelle", get: (c) => c.jadelle || "" },
+      { label: "Stérilet", get: (c) => c.sterilet || "" },
+      { label: "Retrait Implanon", get: (c) => yn(c.retraitImplanon) },
+      { label: "Retrait Jadelle", get: (c) => yn(c.retraitJadelle) },
+      { label: "Retrait Stérilet", get: (c) => yn(c.retraitSterilet) },
+    ],
+  },
+  "validation:vih": {
+    // Combinaison Dépistage VIH + PEC VIH
+    filter: (c) =>
+      c.depistageVihConsultation === true ||
+      c.pecVihCounselling === true ||
+      !!c.pecVihTypeclient,
+    columns: [
+      ...baseColumns,
+      {
+        label: "Volet",
+        get: (c) =>
+          c.depistageVihConsultation && (c.pecVihCounselling || c.pecVihTypeclient)
+            ? "Dépistage + PEC"
+            : c.depistageVihConsultation
+              ? "Dépistage"
+              : "PEC VIH",
+      },
+      { label: "Type client dépistage", get: (c) => c.depistageVihTypeClient || "" },
+      { label: "Résultat VIH", get: (c) => c.depistageVihResultat || "" },
+      {
+        label: "Mis sous ARV",
+        get: (c) => yn(c.depistageVihResultatPositifMisSousArv),
+      },
+      { label: "Type client PEC", get: (c) => c.pecVihTypeclient || "" },
+      { label: "Molécule ARV", get: (c) => c.pecVihMoleculeArv || "" },
+      { label: "Cotrimo", get: (c) => yn(c.pecVihCotrimo) },
+      { label: "IO Paludisme", get: (c) => yn(c.pecVihIoPaludisme) },
+      { label: "IO Tuberculose", get: (c) => yn(c.pecVihIoTuberculose) },
+    ],
+  },
+  "validation:saa": {
+    filter: (c) => c.saaConsultation === true,
+    columns: [
+      ...baseColumns,
+      { label: "Type avortement", get: (c) => c.saaTypeAvortement || "" },
+      { label: "Méthode avortement", get: (c) => c.saaMethodeAvortement || "" },
+      { label: "Type PEC", get: (c) => c.saaTypePec || "" },
+      { label: "Suivi post-avortement", get: (c) => yn(c.saaSuiviPostAvortement) },
+      { label: "Counselling pré", get: (c) => yn(c.saaCounsellingPre) },
+      { label: "Counselling post", get: (c) => yn(c.saaCounsellingPost) },
+      {
+        label: "Traitement complication",
+        get: (c) => c.saaTraitementComplication || "",
+      },
+    ],
+  },
+  "validation:infertilite": {
+    filter: (c) => c.infertConsultation === true,
+    columns: [
+      ...baseColumns,
+      { label: "Counselling", get: (c) => yn(c.infertCounselling) },
+      { label: "Examen physique", get: (c) => yn(c.infertExamenPhysique) },
+      { label: "Traitement", get: (c) => c.infertTraitement || "" },
+    ],
+  },
+  "validation:ist": {
+    filter: (c) => !!c.istType || !!c.istTypePec,
+    columns: [
+      ...baseColumns,
+      { label: "Type IST", get: (c) => c.istType || "" },
+      { label: "Type PEC", get: (c) => c.istTypePec || "" },
+      { label: "Type client", get: (c) => c.istTypeClient || "" },
+      { label: "PEC étiologique", get: (c) => c.istPecEtiologique || "" },
+    ],
+  },
+  "validation:gyneco": {
+    filter: (c) => c.consultationGyneco === true,
+    columns: [
+      ...baseColumns,
+      { label: "Motif", get: (c) => c.motifVisiteGyneco || "" },
+      { label: "Résultat IVA", get: (c) => c.resultatIva || "" },
+      { label: "Eligible traitement IVA", get: (c) => yn(c.eligibleTraitementIva) },
+      { label: "Type traitement IVA", get: (c) => c.typeTraitementIva || "" },
+      { label: "Résultat cancer sein", get: (c) => c.resultatCancerSein || "" },
+    ],
+  },
+  "validation:obstetrique": {
+    filter: (c) => c.obstConsultation === true || !!c.obstTypeVisite,
+    columns: [
+      ...baseColumns,
+      { label: "Type CPN", get: (c) => c.obstTypeVisite || "" },
+      { label: "Âge grossesse (SA)", get: (c) => c.grossesseAge ?? 0 },
+      { label: "État grossesse", get: (c) => c.obstEtatGrossesse || "" },
+      { label: "VAT", get: (c) => c.obstVat || "" },
+      { label: "SP", get: (c) => c.obstSp || "" },
+      { label: "Anémie", get: (c) => c.obstAnemie || "" },
+      { label: "Syphilis", get: (c) => c.obstSyphilis || "" },
+      { label: "AgHBs", get: (c) => c.obstAghbs || "" },
+    ],
+  },
+  "validation:pediatrie": {
+    filter: (c) => c.mdgConsultation === true && c.age != null && c.age <= 9,
+    columns: [
+      ...baseColumns,
+      { label: "Motif", get: (c) => c.mdgMotifConsultation || "" },
+      { label: "Type visite", get: (c) => c.mdgTypeVisite || "" },
+      { label: "Suspicion palu", get: (c) => c.mdgSuspicionPalu || "" },
+      {
+        label: "Diagnostic",
+        get: (c) =>
+          Array.isArray(c.mdgDiagnostic) ? c.mdgDiagnostic.join(", ") : "",
+      },
+    ],
+  },
+  "validation:medecine": {
+    filter: (c) => c.mdgConsultation === true && c.age != null && c.age > 9,
+    columns: [
+      ...baseColumns,
+      { label: "Motif", get: (c) => c.mdgMotifConsultation || "" },
+      { label: "Type visite", get: (c) => c.mdgTypeVisite || "" },
+      { label: "État femme", get: (c) => c.mdgEtatFemme || "" },
+      { label: "Suspicion palu", get: (c) => c.mdgSuspicionPalu || "" },
+      {
+        label: "Diagnostic",
+        get: (c) =>
+          Array.isArray(c.mdgDiagnostic) ? c.mdgDiagnostic.join(", ") : "",
+      },
+      { label: "Type affection", get: (c) => c.mdgTypeAffection || "" },
+    ],
+  },
+  "validation:vbg": {
+    filter: (c) => !!c.vbgType,
+    columns: [
+      ...baseColumns,
+      { label: "Type VBG", get: (c) => c.vbgType || "" },
+      { label: "Durée", get: (c) => c.vbgDuree ?? 0 },
+      { label: "Consultation", get: (c) => c.vbgConsultation || "" },
+      {
+        label: "Counselling relation",
+        get: (c) => yn(c.vbgCounsellingRelation),
+      },
+      {
+        label: "Counselling violence sexuelle",
+        get: (c) => yn(c.vbgCounsellingViolenceSexuel),
+      },
+      {
+        label: "Counselling violence physique",
+        get: (c) => yn(c.vbgCounsellingViolencePhysique),
+      },
+    ],
+  },
 };
+
+// Sections (onglets) du rapport de validation, dans l'ordre du rapport.
+const VALIDATION_SECTIONS: { key: string; label: string }[] = [
+  { key: "validation:contraception", label: "Contraception" },
+  { key: "validation:vih", label: "VIH" },
+  { key: "validation:saa", label: "SAA" },
+  { key: "validation:infertilite", label: "Infertilité" },
+  { key: "validation:ist", label: "IST" },
+  { key: "validation:gyneco", label: "Gynécologie" },
+  { key: "validation:obstetrique", label: "Obstétrique" },
+  { key: "validation:pediatrie", label: "Pédiatrie" },
+  { key: "validation:medecine", label: "Médecine générale" },
+  { key: "validation:vbg", label: "VBG" },
+  { key: "validation:laboratoire", label: "Laboratoire" },
+];
 
 // ---- Composant ---------------------------------------------------------------
 
@@ -470,19 +646,29 @@ export default function ListingRapportBrut({
   clinic,
 }: Props) {
   const [search, setSearch] = useState("");
+  // Sous-section sélectionnée pour le rapport de validation (onglets)
+  const [validationSection, setValidationSection] = useState<string>(
+    VALIDATION_SECTIONS[0].key,
+  );
+
+  // Quand le rapport est "validation", la section active devient le rapportType
+  // effectif utilisé pour construire les lignes.
+  const effectiveRapportType =
+    rapportType === "validation" ? validationSection : rapportType;
 
   // Construction des lignes selon le type de rapport
   const { headers, rows, title } = useMemo(() => {
-    if (rapportType === "laboratoire") {
+    if (effectiveRapportType === "laboratoire") {
       return buildLaboRows(clientLaboData);
     }
-    if (rapportType === "echographie") {
+    if (effectiveRapportType === "echographie") {
       return buildEchoRows(clientEchoData);
     }
-    if (rapportType === "validation") {
+    if (effectiveRapportType === "validation:laboratoire") {
+      // Croisement factures examen / résultats examens du rapport de validation
       return buildValidationRows(factureLaboratoire, resultatLaboratoire);
     }
-    const config = CONFIGS[rapportType];
+    const config = CONFIGS[effectiveRapportType];
     if (!config) {
       return {
         headers: [] as string[],
@@ -501,10 +687,10 @@ export default function ListingRapportBrut({
     return {
       headers,
       rows,
-      title: `Listing brut — ${rapportTypeLabel(rapportType)}`,
+      title: `Listing brut — ${rapportTypeLabel(effectiveRapportType)}`,
     };
   }, [
-    rapportType,
+    effectiveRapportType,
     clientData,
     clientLaboData,
     clientEchoData,
@@ -547,10 +733,19 @@ export default function ListingRapportBrut({
     {},
   );
 
-  // Réinitialiser les filtres quand le type de rapport change
+  // Réinitialiser les filtres quand le type de rapport (ou la sous-section
+  // de validation) change.
   useEffect(() => {
     setColumnFilters({});
     setSearch("");
+  }, [effectiveRapportType]);
+
+  // Si on quitte/entre dans le rapport "validation", remettre la sous-section
+  // sur le 1er onglet pour éviter de garder une section orpheline.
+  useEffect(() => {
+    if (rapportType === "validation") {
+      setValidationSection(VALIDATION_SECTIONS[0].key);
+    }
   }, [rapportType]);
 
   const toggleFilterValue = (col: string, val: string) => {
@@ -599,9 +794,10 @@ export default function ListingRapportBrut({
 
   const handleExport = async () => {
     if (filtered.length === 0) return;
+    const namePart = effectiveRapportType.replace(/[:\s]/g, "_");
     await exportReportToExcel.medical(
       filtered,
-      `listing_${rapportType}_${dateDebut}_${dateFin}`,
+      `listing_${namePart}_${dateDebut}_${dateFin}`,
     );
   };
 
@@ -626,6 +822,26 @@ export default function ListingRapportBrut({
           Excel
         </button>
       </div>
+
+      {/* Onglets des sous-sections du rapport de validation */}
+      {rapportType === "validation" && (
+        <div className="mb-4 flex flex-wrap gap-1 border-b border-gray-200">
+          {VALIDATION_SECTIONS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setValidationSection(s.key)}
+              className={`px-3 py-1.5 text-sm rounded-t-md border-b-2 transition ${
+                validationSection === s.key
+                  ? "border-blue-600 text-blue-700 font-semibold bg-blue-50/40"
+                  : "border-transparent text-gray-600 hover:text-blue-700 hover:bg-gray-50"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mb-3 flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="relative w-full sm:max-w-sm">
@@ -936,6 +1152,17 @@ function rapportTypeLabel(t: string): string {
     sigMedecine: "SIG : Médecine générale",
     sigObstetrique: "SIG : Obstétrique",
     sigAccouchement: "SIG : Accouchement",
+    "validation:contraception": "Validation : Contraception",
+    "validation:vih": "Validation : VIH (Dépistage + PEC)",
+    "validation:saa": "Validation : SAA",
+    "validation:infertilite": "Validation : Infertilité",
+    "validation:ist": "Validation : IST",
+    "validation:gyneco": "Validation : Gynécologie",
+    "validation:obstetrique": "Validation : Obstétrique",
+    "validation:pediatrie": "Validation : Pédiatrie",
+    "validation:medecine": "Validation : Médecine générale",
+    "validation:vbg": "Validation : VBG",
+    "validation:laboratoire": "Validation : Laboratoire (factures vs résultats)",
   };
   return labels[t] ?? t;
 }

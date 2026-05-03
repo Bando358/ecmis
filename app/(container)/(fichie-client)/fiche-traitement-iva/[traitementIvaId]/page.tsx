@@ -4,6 +4,7 @@ import { use, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { ArrowBigLeftDash, Stethoscope } from "lucide-react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { TableName, Client, Visite } from "@prisma/client";
@@ -430,27 +431,15 @@ export default function TraitementIvaPage({
                   name="idUser"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-medium">
-                        Selectionnez le precripteur
-                      </FormLabel>
-                      <Select
-                        value={field.value || ""}
-                        onValueChange={field.onChange}
-                        required
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Prescripteur ....." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {allPrescripteur.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              <span>{p.name}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <PrescripteurFieldBlock
+                          instanceId="traitement-iva-create-prescripteur"
+                          prescripteurs={allPrescripteur}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          required
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

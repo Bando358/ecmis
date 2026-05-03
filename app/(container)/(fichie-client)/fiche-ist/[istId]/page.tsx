@@ -20,6 +20,7 @@ import {
 } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
 import { Button } from "@/components/ui/button";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 
 import {
   Tooltip,
@@ -502,31 +503,15 @@ export default function IstPage({
               name="istIdUser"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-medium">
-                    Selectionnez le prescripteur
-                  </FormLabel>
-                  <Select
-                    required
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    defaultValue={isPrescripteur ? idUser : undefined}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sélectionnez un prescripteur" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allPrescripteur.map((prescripteur) => (
-                        <SelectItem
-                          key={prescripteur.id}
-                          value={prescripteur.id}
-                        >
-                          <span>{prescripteur.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <PrescripteurFieldBlock
+                      instanceId="ist-create-prescripteur"
+                      prescripteurs={allPrescripteur}
+                      value={field.value ?? (isPrescripteur ? idUser : "")}
+                      onChange={field.onChange}
+                      required
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

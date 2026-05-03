@@ -11,6 +11,8 @@ import {
   updateGrossesse,
   getOneGrossesse,
 } from "@/lib/actions/grossesseActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { useSession } from "next-auth/react";
 import { Grossesse, Visite } from "@prisma/client";
 import { TableName } from "@prisma/client";
@@ -213,6 +215,11 @@ export default function GynecoPage({
       if (selectedGrossesse) {
         console.log(formattedData);
         await updateGrossesse(selectedGrossesse.id, formattedData);
+        const newIdUser = form.getValues("grossesseIdUser");
+        const idVisite = form.getValues("grossesseIdVisite") || selectedGrossesse.grossesseIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "06 Fiche grossesse");
+        }
         const grossesseUpdated = await getOneGrossesse(selectedGrossesse.id);
         if (grossesseUpdated) {
           setSelectedGrossesse(grossesseUpdated as Grossesse);
@@ -528,30 +535,15 @@ export default function GynecoPage({
                             name="grossesseIdUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map((prescripteur) => (
-                                      <SelectItem
-                                        key={prescripteur.id}
-                                        value={prescripteur.id ?? ""}
-                                      >
-                                        <span>{prescripteur.name}</span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="grossesse-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

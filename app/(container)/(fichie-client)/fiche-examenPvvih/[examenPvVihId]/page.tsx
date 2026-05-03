@@ -158,7 +158,7 @@ export default function ExamenPvVihPage({
       await createRecapVisite({
         idVisite: form.watch("examenPvVihIdVisite"),
         idClient: examenPvVihId,
-        prescripteurs: [],
+        prescripteurs: idUser ? [idUser] : [],
         formulaires: ["Examen PV VIH"],
       });
       toast.success("Examen PV VIH créé avec succès !");

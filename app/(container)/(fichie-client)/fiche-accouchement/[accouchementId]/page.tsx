@@ -5,6 +5,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { toast } from "sonner";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import {
@@ -745,20 +746,15 @@ export default function AccouchementPage({
                     <FormLabel className="font-medium">
                       Sélectionnez le prescripteur
                     </FormLabel>
-                    <Select required onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Sélectionner un prescripteur" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {allPrescripteur.map((prescripteur, index) => (
-                          <SelectItem key={index} value={prescripteur.id}>
-                            <span>{prescripteur.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PrescripteurFieldBlock
+                        instanceId="accouchement-create-prescripteur"
+                        prescripteurs={allPrescripteur}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        required
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -8,6 +8,8 @@ import {
   getOneAccouchement,
   updateAccouchement,
 } from "@/lib/actions/accouchementActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import {
   getAllUserIncludedIdClinique,
@@ -199,6 +201,11 @@ export default function ModifAccouchemtPage({
       if (selectedAccouchement) {
         console.log(formattedData);
         await updateAccouchement(selectedAccouchement.id, formattedData);
+        const newIdUser = form.getValues("accouchementIdUser");
+        const idVisite = form.getValues("accouchementIdVisite") || selectedAccouchement.accouchementIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "09 Fiche Accouchement");
+        }
         const oneAccouchement = await getOneAccouchement(modifAccouchementId);
         setSelectedAccouchement(oneAccouchement as Accouchement);
       }
@@ -839,32 +846,15 @@ export default function ModifAccouchemtPage({
                             name="accouchementIdUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescripteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescripteur.id}
-                                        >
-                                          <span>{prescripteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="accouchement-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

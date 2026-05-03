@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useClientContext } from "@/components/ClientContext";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneGyneco, updateGyneco } from "@/lib/actions/gynecoActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
@@ -176,6 +178,11 @@ export default function GynecoPage({
     try {
       if (selectedGyneco) {
         await updateGyneco(selectedGyneco.id, formattedData);
+        const newIdUser = form.getValues("idUser");
+        const idVisite = form.getValues("idVisite") || selectedGyneco.idVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "04 Fiche gynécologique");
+        }
         const gyneco = await getOneGyneco(selectedGyneco.id);
         if (gyneco) {
           setSelectedGyneco(gyneco as Gynecologie);
@@ -684,32 +691,15 @@ export default function GynecoPage({
                             name="idUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur ....." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescipteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescipteur.id}
-                                        >
-                                          <span>{prescipteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="gyneco-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

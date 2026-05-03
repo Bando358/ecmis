@@ -8,6 +8,7 @@ import {
   updateConstante,
   getOneConstante,
 } from "@/lib/actions/constanteActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { useSession } from "next-auth/react";
 import { TableName, Visite } from "@prisma/client";
 import { usePermissionContext } from "@/contexts/PermissionContext";
@@ -195,6 +196,11 @@ export default function ConstantePage({
     try {
       if (constante) {
         await updateConstante(modifConstanteId, formattedData);
+        const newIdUser = form.getValues("idUser");
+        const idVisite = form.getValues("idVisite") || constante.idVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "02 Fiche des constantes");
+        }
         const oneConstante = await getOneConstante(modifConstanteId);
         if (oneConstante) {
           setConstante(oneConstante);

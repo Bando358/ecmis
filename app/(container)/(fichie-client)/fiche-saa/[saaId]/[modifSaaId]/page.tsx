@@ -5,6 +5,8 @@ import { useForm, SubmitHandler, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { getOneGrossesse } from "@/lib/actions/grossesseActions";
 import { getOneSaa, updateSaa } from "@/lib/actions/saaActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import {
   getAllUserIncludedIdClinique,
@@ -362,6 +364,11 @@ export default function ModifSaaPage({
     try {
       if (selectedSaa) {
         await updateSaa(selectedSaa.id, formattedData);
+        const newIdUser = form.getValues("saaIdUser");
+        const idVisite = form.getValues("saaIdVisite") || selectedSaa.saaIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "11 Fiche SAA");
+        }
         const oneSaa = await getOneSaa(modifSaaId);
         setSelectedSaa(oneSaa as Saa);
       }
@@ -631,25 +638,15 @@ export default function ModifSaaPage({
                                 <FormLabel className="font-medium">
                                   {"S\u00e9lectionnez le prescripteur"}
                                 </FormLabel>
-                                <Select required onValueChange={field.onChange}>
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="S\u00e9lectionner un prescripteur" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescripteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescripteur.id}
-                                        >
-                                          <span>{prescripteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="saa-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

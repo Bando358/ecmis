@@ -47,6 +47,8 @@ import {
   getOneVbg,
   updateVbg,
 } from "@/lib/actions/vbgActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil } from "lucide-react";
@@ -195,6 +197,11 @@ export default function IstPage({
       if (selectedOneVbg) {
         console.log(formattedData);
         await updateVbg(selectedOneVbg.id, formattedData);
+        const newIdUser = form.getValues("vbgIdUser");
+        const idVisite = form.getValues("vbgIdVisite") || selectedOneVbg.vbgIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "16 Fiche Vbg");
+        }
         const oneVbg = await getOneVbg(modifvbgId);
         if (oneVbg) {
           setSelectedOneVbg(oneVbg as Vbg);
@@ -557,30 +564,15 @@ export default function IstPage({
                               <FormLabel className="font-medium">
                                 Selectionnez le prescripteur
                               </FormLabel>
-                              <Select
-                                required
-                                onValueChange={field.onChange}
-                                value={field.value}
-                                defaultValue={
-                                  isPrescripteur ? idUser : undefined
-                                }
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Sélectionnez un prescripteur" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {allPrescripteur.map((prescripteur) => (
-                                    <SelectItem
-                                      key={prescripteur.id}
-                                      value={prescripteur.id}
-                                    >
-                                      <span>{prescripteur.name}</span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <PrescripteurFieldBlock
+                                  instanceId="vbg-modif-prescripteur"
+                                  prescripteurs={allPrescripteur}
+                                  value={field.value ?? (isPrescripteur ? idUser : "")}
+                                  onChange={field.onChange}
+                                  required
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}

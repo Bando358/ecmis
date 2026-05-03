@@ -14,6 +14,8 @@ import {
 import { getOneClient } from "@/lib/actions/clientActions";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOnePlanning, updatePlanning } from "@/lib/actions/planningActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { useSession } from "next-auth/react";
 import { Planning, TableName, Visite } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
@@ -246,16 +248,16 @@ export default function ModifPlanningPage({
     try {
       if (selectedPlanning) {
         await updatePlanning(selectedPlanning.id, formattedData);
+        const newIdUser = form.getValues("idUser");
+        const idVisite = form.getValues("idVisite") || selectedPlanning.idVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "03 Fiche Planification familiale");
+        }
         const pf = await getOnePlanning(modifPlanning);
         if (pf) {
           setSelectedPlanning(pf as Planning);
         }
       }
-      // await updateRecapVisite(
-      //   form.watch("idVisite"),
-      //   idPrestataire,
-      //   "03 Fiche Planification familiale"
-      // );
       console.log(formattedData);
       toast.info("Formulaire modifiée avec succès! 🎉");
       // router.push(`/fiches/${params.planningId}`);
@@ -859,32 +861,15 @@ export default function ModifPlanningPage({
                             name="idUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur ....." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map(
-                                      (prescripteur, index) => (
-                                        <SelectItem
-                                          key={index}
-                                          value={prescripteur.id}
-                                        >
-                                          <span>{prescripteur.name}</span>
-                                        </SelectItem>
-                                      ),
-                                    )}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="planning-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

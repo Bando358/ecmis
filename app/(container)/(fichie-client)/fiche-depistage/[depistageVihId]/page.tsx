@@ -3,6 +3,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { useClientContext } from "@/components/ClientContext";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import {
@@ -543,27 +544,15 @@ export default function DepistageVihPage({
                     <FormLabel className="font-medium">
                       Selectionnez le prescripteur
                     </FormLabel>
-                    <Select
-                      required
-                      value={field.value ?? ""}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Prescripteur ....." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {allPrescripteur.map((prescripteur) => (
-                          <SelectItem
-                            key={prescripteur.id}
-                            value={prescripteur.id}
-                          >
-                            <span>{prescripteur.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PrescripteurFieldBlock
+                        instanceId="depistage-create-prescripteur"
+                        prescripteurs={allPrescripteur}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        required
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

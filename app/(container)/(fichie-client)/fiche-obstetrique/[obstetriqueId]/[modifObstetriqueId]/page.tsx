@@ -13,6 +13,8 @@ import {
   updateObstetrique,
   getEtatImcByIdVisite,
 } from "@/lib/actions/obstetriqueActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 import { useSession } from "next-auth/react";
 import { Grossesse, Obstetrique, TableName, Visite } from "@prisma/client";
 import { SafeUser } from "@/types/prisma";
@@ -233,6 +235,11 @@ export default function GynecoPage({
       if (selectedObstetrique) {
         console.log(formattedData);
         await updateObstetrique(selectedObstetrique.id, formattedData);
+        const newIdUser = form.getValues("obstIdUser");
+        const idVisite = form.getValues("obstIdVisite") || selectedObstetrique.obstIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "08 Fiche CPN");
+        }
         const oneObtetrique = await getOneObstetrique(modifObstetriqueId);
         if (oneObtetrique) {
           setSelectedObstetrique(oneObtetrique as Obstetrique);
@@ -924,27 +931,15 @@ export default function GynecoPage({
                                 <FormLabel className="font-medium">
                                   Selectionnez le precripteur .....
                                 </FormLabel>
-                                <Select
-                                  required
-                                  value={field.value || ""}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map((prescripteur) => (
-                                      <SelectItem
-                                        key={prescripteur.id}
-                                        value={prescripteur.id}
-                                      >
-                                        <span>{prescripteur.name}</span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="obst-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}

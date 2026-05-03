@@ -234,7 +234,34 @@ export default function TableRapportSigObstetrique({
     if (!clientData || clientData.length === 0) {
       setConverted([]);
     } else {
-      const newConverted = clientData.map((item) => ({
+      // Indicateur "Femmes enceintes/allaitantes conseillées et testées
+      // pour le VIH en CPN1" : on compte
+      //   - toutes les visites CPN (cpn1..cpn5) où un dépistage VIH a été fait
+      //   - + les visites hors CPN où le type client du dépistage est "ptme"
+      // Un même client ne doit être compté qu'une seule fois sur la période,
+      // d'où ce Set partagé pendant le mapping.
+      const isCpnVisite = (t: string | null | undefined): boolean =>
+        t === "cpn1" ||
+        t === "cpn2" ||
+        t === "cpn3" ||
+        t === "cpn4" ||
+        t === "cpn5";
+      const seenCpn1Test = new Set<string>();
+
+      const newConverted = clientData.map((item) => {
+        const isCpnAvecDepistage =
+          isCpnVisite(item.obstTypeVisite) &&
+          item.depistageVihConsultation === true;
+        const isHorsCpnPtme =
+          !isCpnVisite(item.obstTypeVisite) &&
+          item.depistageVihTypeClient === "ptme";
+        const matchesCpn1Test = isCpnAvecDepistage || isHorsCpnPtme;
+        let cpn1TestUnique = false;
+        if (matchesCpn1Test && item.id && !seenCpn1Test.has(item.id)) {
+          seenCpn1Test.add(item.id);
+          cpn1TestUnique = true;
+        }
+        return {
         ...item,
         sp1: item.obstSp === "sp1",
         sp2: item.obstSp === "sp2",
@@ -297,9 +324,7 @@ export default function TableRapportSigObstetrique({
         femmeEnceinteConseilleeEtTesteePourVIHEnCpn1:
           item.obstTypeVisite === "cpn1" &&
           item.depistageVihConsultation === true,
-        femmeEnceinteOuAllaitanteConseilleeEtTesteePourVIHEnCpn1:
-          item.accouchementConsultation === false &&
-          item.depistageVihTypeClient === "ptme",
+        femmeEnceinteOuAllaitanteConseilleeEtTesteePourVIHEnCpn1: cpn1TestUnique,
         femmeEnceinteOuAllaitanteTesteePositiveAuVIHCpn:
           item.accouchementConsultation === false &&
           item.depistageVihTypeClient === "ptme" &&
@@ -324,7 +349,8 @@ export default function TableRapportSigObstetrique({
           item.pecVihCounselling === true,
         femmeEnceinteChargeViraleControleeCpn:
           item.grossesseFeChargViralIndetectable,
-      }));
+        };
+      });
 
       setConverted(newConverted);
     }

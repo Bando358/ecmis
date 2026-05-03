@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useClientContext } from "@/components/ClientContext";
 import { getAllVisiteByIdClient } from "@/lib/actions/visiteActions";
 import { getOneMedecine, updateMedecine } from "@/lib/actions/mdgActions";
+import { updateRecapVisite } from "@/lib/actions/recapActions";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getAllUserIncludedIdClinique,
@@ -17,6 +18,7 @@ import { TableName } from "@prisma/client";
 import { usePermissionContext } from "@/contexts/PermissionContext";
 import { ERROR_MESSAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import PrescripteurFieldBlock from "@/components/ui/PrescripteurFieldBlock";
 
 import {
   Form,
@@ -269,6 +271,11 @@ export default function MdgPage({
     try {
       if (selectedMedecine) {
         await updateMedecine(selectedMedecine.id, formattedData);
+        const newIdUser = form.getValues("mdgIdUser");
+        const idVisite = form.getValues("mdgIdVisite") || selectedMedecine.mdgIdVisite;
+        if (newIdUser && idVisite) {
+          await updateRecapVisite(idVisite, newIdUser, "17 Fiche Medecine générale");
+        }
         const oneMedecine = await getOneMedecine(selectedMedecine.id);
         if (oneMedecine) {
           setSelectedMedecine(oneMedecine as Medecine);
@@ -860,30 +867,15 @@ export default function MdgPage({
                             name="mdgIdUser"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-medium">
-                                  Selectionnez le precripteur
-                                </FormLabel>
-                                <Select
-                                  required
-                                  // value={field.value}
-                                  onValueChange={field.onChange}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select Prescripteur ....." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {allPrescripteur.map((prescipteur) => (
-                                      <SelectItem
-                                        key={prescipteur.id}
-                                        value={prescipteur.id}
-                                      >
-                                        <span>{prescipteur.name}</span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <PrescripteurFieldBlock
+                                    instanceId="mdg-modif-prescripteur"
+                                    prescripteurs={allPrescripteur}
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                    required
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
