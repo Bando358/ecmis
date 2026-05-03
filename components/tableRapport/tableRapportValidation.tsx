@@ -1094,7 +1094,12 @@ export default function TableRapportValidation({
         );
         currentY += 5;
 
-        const fmtNb = (n: number) => (n ?? 0).toLocaleString("fr-FR");
+        // jsPDF (avec la police Helvetica par défaut) ne rend pas correctement
+        // l'espace insécable (U+00A0) que produit toLocaleString("fr-FR") :
+        // il l'affiche comme "/". On insère donc un espace ASCII classique
+        // tous les trois chiffres en partant de la droite.
+        const fmtNb = (n: number) =>
+          (n ?? 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
         const variationStr = (current: number, previous: number) => {
           const pct =
             previous === 0
