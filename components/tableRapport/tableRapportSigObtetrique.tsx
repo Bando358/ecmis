@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { weeksBetween } from "@/lib/dateUtils";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import jsPDF from "jspdf";
@@ -247,21 +246,32 @@ export default function TableRapportSigObstetrique({
           item.obstFer === true && item.obstFolate === true,
         femmeEnceinteDeparasitée: item.obstDeparasitant === true,
         femmeEnceinteCounselingPFPPI: item.obstPfppi === true,
+        // Sous-ensembles stricts de totalCpn1 : on utilise grossesseAge
+        // (âge gestationnel pré-calculé) au lieu de weeksBetween(ddr, dateVisite),
+        // car grossesseDdr peut être absent et est alors remplacé par new Date()
+        // dans rapportPfActions, ce qui rendait le découpage trimestre incohérent.
         cpn1premierTrimestre:
           item.obstTypeVisite === "cpn1" &&
-          weeksBetween(item.grossesseDdr, item.dateVisite) <= 12,
+          item.grossesseAge != null &&
+          item.grossesseAge <= 12,
         cpn1AutreTrimestre:
           item.obstTypeVisite === "cpn1" &&
-          weeksBetween(item.grossesseDdr, item.dateVisite) > 12,
+          item.grossesseAge != null &&
+          item.grossesseAge > 12,
         totalCpn1: item.obstTypeVisite === "cpn1",
         cpn2: item.obstTypeVisite === "cpn2",
         cpn3: item.obstTypeVisite === "cpn3",
+        // Sous-ensembles stricts du total CPN4 : on s'appuie sur grossesseAge
+        // (âge gestationnel pré-calculé) plutôt que sur weeksBetween(ddr, dateVisite),
+        // qui devenait incohérent quand grossesseDdr était absent.
         cpn4AuNeuviemeMois:
           item.obstTypeVisite === "cpn4" &&
-          weeksBetween(item.grossesseDdr, item.dateVisite) <= 36,
+          item.grossesseAge != null &&
+          item.grossesseAge <= 36,
         cpn4AutreTrimestre:
           item.obstTypeVisite === "cpn4" &&
-          weeksBetween(item.grossesseDdr, item.dateVisite) > 36,
+          item.grossesseAge != null &&
+          item.grossesseAge > 36,
         Cpn5EtPlus: item.obstTypeVisite === "cpn5",
         totalCpn:
           item.obstTypeVisite === "cpn1" ||

@@ -81,6 +81,7 @@ import TableRapportValidation from "@/components/tableRapport/tableRapportValida
 import TableRapportSigAccouchement from "@/components/tableRapport/tableRapportSigAccouchement";
 import TableRapportConsultation from "@/components/tableRapport/tableRapportConsultation";
 import TableRapportNutrition from "@/components/tableRapport/tableRapportNutrition";
+import ListingRapportBrut from "@/components/listings/ListingRapportBrut";
 
 interface CliniqueOption {
   value: string;
@@ -173,6 +174,8 @@ const AnalyseReportPlanning = () => {
   >([]);
   const [tabExament, setTabExament] = useState<string[]>([]);
   const [clientEchoData, setClientEchoData] = useState<EchoServiceItem[]>([]);
+  // Bascule "vue rapport agrégé" / "listing brut pour vérification"
+  const [showListing, setShowListing] = useState(false);
 
   const { data: session, status } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
@@ -337,14 +340,14 @@ const AnalyseReportPlanning = () => {
     const selectedIds = idCliniques.map((cl) => cl.value);
 
     // Logique activité :
-    //   - Activités sélectionnées + checkbox coché → filtrer par ces activités
-    //   - Activités sélectionnées + checkbox décoché → "*" = toutes les visites
+    //   - Activités sélectionnées + checkbox coché → uniquement ces activités
+    //   - Activités sélectionnées + checkbox décoché → routine + ces activités
+    //     (sentinel "ROUTINE" ajouté à la liste)
     //   - Aucune activité sélectionnée → [] = routine uniquement (sans activité)
     let selectedActivites: string[];
     if (idActivite?.length) {
-      selectedActivites = activitesUniquement
-        ? idActivite.map((act) => act.value)
-        : ["*"];
+      const ids = idActivite.map((act) => act.value);
+      selectedActivites = activitesUniquement ? ids : [...ids, "ROUTINE"];
     } else {
       selectedActivites = [];
     }
@@ -720,7 +723,47 @@ const AnalyseReportPlanning = () => {
 
       {(clients.length > 0 || clientDataProtege.length > 0 || clientEchoData.length > 0) && (
         <div className="mt-6 mx-auto max-w-240 w-full">
-          {(() => {
+          {/* Bascule entre la vue agrégée et le listing brut pour vérification */}
+          <div className="flex items-center justify-end gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setShowListing(false)}
+              className={`px-3 py-1.5 text-sm rounded-md border ${
+                !showListing
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              Vue rapport
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowListing(true)}
+              className={`px-3 py-1.5 text-sm rounded-md border ${
+                showListing
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              Listing brut (vérification)
+            </button>
+          </div>
+          {showListing ? (
+            <ListingRapportBrut
+              rapportType={rapportClinique}
+              clientData={clientAllData}
+              clientLaboData={clientLaboData}
+              clientEchoData={clientEchoData}
+              factureLaboratoire={factureLaboratoire}
+              resultatLaboratoire={resultatLaboratoire}
+              dateDebut={watch("dateDebut")}
+              dateFin={watch("dateFin")}
+              clinic={getAllClinicNameByIds(
+                cliniques,
+                watch("idCliniques").map((item) => item.value),
+              ).join(", ")}
+            />
+          ) : (() => {
             switch (rapportClinique) {
               case "consultation":
                 return (

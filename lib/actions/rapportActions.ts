@@ -132,6 +132,76 @@ export type ClientStatusInfo = {
   arret: boolean;
 };
 
+// -----------------------------------------------------------------------------
+// Helper de filtrage par activité / lieu — utilisé par tous les fetchers de
+// rapport pour garantir une sémantique cohérente.
+//
+// Sémantique de `activiteIds` :
+//   []                        → routine uniquement (aucune activité saisie)
+//   ["actA>lieuA"]            → uniquement cette activité
+//   ["actA>lieuA", "ROUTINE"] → routine + cette activité
+//   ["*"]                     → toutes les visites (sans filtre)
+// -----------------------------------------------------------------------------
+type ActiviteFilter = {
+  noFilter: boolean;
+  includeRoutine: boolean;
+  hasActivities: boolean;
+  tabIdActivite: string[];
+  tabIdLieu: string[];
+};
+
+const parseActiviteFilter = (activiteIds: string[]): ActiviteFilter => {
+  const safe = Array.isArray(activiteIds) ? activiteIds : [];
+  const noFilter = safe.includes("*");
+  const includeRoutine = safe.includes("ROUTINE");
+
+  const [tabIdActivite, tabIdLieu] = safe
+    .filter((v) => v !== "*" && v !== "ROUTINE")
+    .reduce<[string[], string[]]>(
+      ([a, l], v) => {
+        if (typeof v !== "string") return [a, l];
+        const [act, lieu] = v.split(">").map((s) => s?.trim());
+        if (act) a.push(act);
+        if (lieu) l.push(lieu);
+        return [a, l];
+      },
+      [[], []]
+    );
+
+  return {
+    noFilter,
+    includeRoutine,
+    hasActivities: tabIdActivite.length > 0,
+    tabIdActivite,
+    tabIdLieu,
+  };
+};
+
+const matchesActivite = (
+  filter: ActiviteFilter,
+  idActivite: string | null | undefined,
+  idLieu: string | null | undefined
+): boolean => {
+  if (filter.noFilter) return true;
+
+  const act = idActivite ?? "";
+  const lieu = idLieu ?? "";
+
+  if (!filter.hasActivities) {
+    // Aucune activité saisie : routine uniquement.
+    return !act;
+  }
+
+  // Visite "routine" (sans activité) → incluse seulement si ROUTINE est demandé
+  if (!act) return filter.includeRoutine;
+
+  if (!filter.tabIdActivite.includes(act)) return false;
+  if (filter.tabIdLieu.length > 0 && !filter.tabIdLieu.includes(lieu)) {
+    return false;
+  }
+  return true;
+};
+
 export const fetchClientsData = async (
   clinicIds: string[],
   activiteIds: string[],
@@ -671,32 +741,10 @@ export const fetchClientsData = async (
     };
   });
 
-  // Parsing activiteIds : séparer les idActivite et idLieu (seules les valeurs non-vides)
-  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
-    ([a, l], v) => {
-      const [act, lieu] = v.split(">").map((s) => s?.trim());
-      if (act) a.push(act);
-      if (lieu) l.push(lieu);
-      return [a, l];
-    },
-    [[], []]
+  const filter = parseActiviteFilter(activiteIds);
+  const visitsFiltered = visitsAllDataWithCliniqueName.filter((visit) =>
+    matchesActivite(filter, visit.idActiviteVisite, visit.idLieu)
   );
-
-  // Sentinel "*" → pas de filtre (toutes les visites)
-  const noFilter = activiteIds.includes("*");
-
-  const visitsFiltered = noFilter
-    ? visitsAllDataWithCliniqueName
-    : visitsAllDataWithCliniqueName.filter((visit) => {
-        if (!tabIdActivite.length) {
-          // Aucune activité sélectionnée → routine uniquement (sans activité)
-          return !visit.idActiviteVisite;
-        }
-        const okActivite = tabIdActivite.includes(visit.idActiviteVisite);
-        const okLieu =
-          !tabIdLieu.length || tabIdLieu.includes(visit.idLieu);
-        return okActivite && okLieu;
-      });
 
   return visitsFiltered;
 };
@@ -1045,50 +1093,18 @@ export const fetchClientsStatusProtege = async (
 
   // on va filtrer et garder de façon unique le client qui a la visite la plus proche de dateVisite2
 
-  // Parsing des activités et lieux
-  const [tabIdactivite, tabIdLieu] = (
-    Array.isArray(activiteIds) ? activiteIds : []
-  ).reduce<[string[], string[]]>(
-    ([left, right], str) => {
-      if (typeof str !== "string") return [left, right];
+  // Filtrage activité / lieu (helper centralisé)
+  const filter = parseActiviteFilter(activiteIds);
 
-      const parts = str.split(">");
-      const l = parts[0]?.trim() ?? "";
-      const r = parts[1]?.trim() ?? "";
-
-      if (l) left.push(l);
-      if (r) right.push(r);
-
-      return [left, right];
-    },
-    [[], []]
-  );
-
-  // Filtrer les clients par activité et lieu
   let filteredClients = clients;
-
   if (Array.isArray(activiteIds) && activiteIds.length > 0) {
-    if (tabIdactivite.length > 0) {
-      filteredClients = filteredClients.filter(
-        (client) =>
-          Array.isArray(client.Visite) &&
-          client.Visite.some((visite) => {
-            const idAct = visite.idActivite ?? "";
-            return idAct !== "" && tabIdactivite.includes(idAct);
-          })
-      );
-    }
-
-    if (tabIdLieu.length > 0) {
-      filteredClients = filteredClients.filter(
-        (client) =>
-          Array.isArray(client.Visite) &&
-          client.Visite.some((visite) => {
-            const idLieu = visite.idLieu ?? "";
-            return idLieu !== "" && tabIdLieu.includes(idLieu);
-          })
-      );
-    }
+    filteredClients = filteredClients.filter(
+      (client) =>
+        Array.isArray(client.Visite) &&
+        client.Visite.some((visite) =>
+          matchesActivite(filter, visite.idActivite, visite.idLieu)
+        )
+    );
   }
 
   // Fonction pour vérifier le statut d'un client
@@ -1313,37 +1329,13 @@ export const fetchClientsStatusProteges = async (
   });
 
   // -----------------------------
-  // Parsing activite > lieu
+  // Filtrage activité / lieu (helper centralisé)
   // -----------------------------
-  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
-    ([a, l], v) => {
-      const [act, lieu] = v.split(">").map((s) => s?.trim());
-      if (act) a.push(act);
-      if (lieu) l.push(lieu);
-      return [a, l];
-    },
-    [[], []]
+  const filter = parseActiviteFilter(activiteIds);
+
+  const filteredClients = clients.filter((client) =>
+    client.Visite.some((v) => matchesActivite(filter, v.idActivite, v.idLieu))
   );
-
-  // -----------------------------
-  // Filtrage activité / lieu
-  // -----------------------------
-  const noFilter = activiteIds.includes("*");
-
-  const filteredClients = noFilter
-    ? clients
-    : clients.filter((client) =>
-        client.Visite.some((v) => {
-          if (!tabIdActivite.length) {
-            // Aucune activité sélectionnée → routine uniquement (sans activité)
-            return !v.idActivite;
-          }
-          const okActivite = tabIdActivite.includes(v.idActivite ?? "");
-          const okLieu =
-            !tabIdLieu.length || tabIdLieu.includes(v.idLieu ?? "");
-          return okActivite && okLieu;
-        })
-      );
 
   const resultMap = new Map<string, ClientStatusInfo>();
 
@@ -1555,30 +1547,12 @@ export const fetchClientsDataLaboratoire = async (
     }),
   ]);
 
-  // Parsing activiteIds : séparer les idActivite et idLieu
-  const [tabIdActivite, tabIdLieu] = activiteIds.reduce<[string[], string[]]>(
-    ([a, l], v) => {
-      const [act, lieu] = v.split(">").map((s) => s?.trim());
-      if (act) a.push(act);
-      if (lieu) l.push(lieu);
-      return [a, l];
-    },
-    [[], []]
-  );
-
-  // Sentinel "*" → pas de filtre (toutes les visites)
-  const noFilter = activiteIds.includes("*");
-
-  const matchesActivityFilter = (visite: { idActivite: string | null; idLieu: string | null } | null) => {
+  const filter = parseActiviteFilter(activiteIds);
+  const matchesActivityFilter = (
+    visite: { idActivite: string | null; idLieu: string | null } | null
+  ) => {
     if (!visite) return false;
-    if (noFilter) return true;
-    if (!tabIdActivite.length) {
-      // Aucune activité sélectionnée → routine uniquement (sans activité)
-      return !visite.idActivite;
-    }
-    const okActivite = tabIdActivite.includes(visite.idActivite ?? "");
-    const okLieu = !tabIdLieu.length || tabIdLieu.includes(visite.idLieu ?? "");
-    return okActivite && okLieu;
+    return matchesActivite(filter, visite.idActivite, visite.idLieu);
   };
 
   const filteredFacture = facture.filter((f) => matchesActivityFilter(f.Visite));
