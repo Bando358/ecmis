@@ -64,6 +64,10 @@ import {
   EchoServiceItem,
   fetchEchoData,
 } from "@/lib/actions/rapportEchoActions";
+import {
+  RecettesMois,
+  getRecettesTroisDerniersMois,
+} from "@/lib/actions/recettesActions";
 import TableRapportLabo from "@/components/tableRapport/tableRapportLabo";
 import TableRapportEchographie from "@/components/tableRapport/tableRapportEchographie";
 import TableRapportPecVih from "@/components/tableRapport/tableRapportPecVih";
@@ -174,6 +178,10 @@ const AnalyseReportPlanning = () => {
   >([]);
   const [tabExament, setTabExament] = useState<string[]>([]);
   const [clientEchoData, setClientEchoData] = useState<EchoServiceItem[]>([]);
+  // Recettes des 3 derniers mois (utilisé par le rapport de Validation)
+  const [recettesTroisMois, setRecettesTroisMois] = useState<RecettesMois[]>(
+    [],
+  );
   // Bascule "vue rapport agrégé" / "listing brut pour vérification"
   const [showListing, setShowListing] = useState(false);
 
@@ -407,6 +415,16 @@ const AnalyseReportPlanning = () => {
         dateDebutObj,
         dateFinObj,
       );
+
+      // Recettes des 3 derniers mois (mois sélectionné + 2 mois en arrière)
+      // pour le tableau comparatif du rapport de Validation. La date d'ancrage
+      // est la dateFin pour que le mois "sélectionné" corresponde au mois
+      // dans lequel se termine la période demandée.
+      const recettes = await getRecettesTroisDerniersMois(
+        selectedIds,
+        dateFinObj,
+      );
+      setRecettesTroisMois(recettes);
 
       // Charger les prescripteurs manquants (users non associés à une clinique)
       const allKnownIds = new Set(allUsers.map((u: { id: string }) => u.id));
@@ -979,6 +997,7 @@ const AnalyseReportPlanning = () => {
                     resultatLaboratoire={resultatLaboratoire}
                     clientData={clientAllData}
                     dataPrescripteur={dataPrescripteur}
+                    recettesTroisMois={recettesTroisMois}
                     clinic={getAllClinicNameByIds(
                       cliniques,
                       watch("idCliniques").map((item) => item.value),

@@ -10,6 +10,7 @@ import {
 } from "../ui/table";
 import { Separator } from "../ui/separator";
 import { FactureExamen, ResultatExamen } from "@prisma/client";
+import type { RecettesMois } from "@/lib/actions/recettesActions";
 import ExcelJS from "exceljs";
 // tableExport previously used; replaced by direct export logic below
 import { Spinner } from "../ui/spinner";
@@ -286,6 +287,7 @@ export default function TableRapportValidation({
   tabExament,
   factureLaboratoire,
   resultatLaboratoire,
+  recettesTroisMois,
   clinic,
   dateDebut,
   dateFin,
@@ -295,6 +297,7 @@ export default function TableRapportValidation({
   tabExament: string[];
   factureLaboratoire: FactureExamen[];
   resultatLaboratoire: (ResultatExamen & { libelleExamen?: string })[];
+  recettesTroisMois?: RecettesMois[];
   clinic: string;
   dateDebut: string;
   dateFin: string;
@@ -594,6 +597,158 @@ export default function TableRapportValidation({
       }
     }
 
+    // === Clients ayant réalisé un examen (selon la facturation) ===
+    currentRow += 2;
+    worksheet.getCell(currentRow, 1).value =
+      "Clients ayant réalisé un examen (selon la facturation)";
+    worksheet.getCell(currentRow, 1).font = { bold: true };
+    currentRow += 1;
+    // En-têtes
+    worksheet.getCell(currentRow, 1).value = "Type";
+    worksheet.getCell(currentRow, 2).value = "Nombre de clients";
+    worksheet.getCell(currentRow, 3).value = "Nombre total d'actes";
+    [1, 2, 3].forEach((col) => {
+      const cell = worksheet.getCell(currentRow, col);
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center" };
+    });
+    currentRow += 1;
+    {
+      const examensByClient = new Map<string, number>();
+      (factureLaboratoire || []).forEach((f) => {
+        if (!f.idClient) return;
+        examensByClient.set(
+          f.idClient,
+          (examensByClient.get(f.idClient) || 0) + 1,
+        );
+      });
+      const echosByClient = new Map<string, number>();
+      (converted || []).forEach((c) => {
+        if (!c.id || !Array.isArray(c.echographie)) return;
+        if (c.echographie.length === 0) return;
+        echosByClient.set(
+          c.id,
+          (echosByClient.get(c.id) || 0) + c.echographie.length,
+        );
+      });
+      const clientsLabo = new Set(examensByClient.keys());
+      const clientsEcho = new Set(echosByClient.keys());
+      const clientsBoth = Array.from(clientsLabo).filter((id) =>
+        clientsEcho.has(id),
+      );
+      const clientsEither = new Set([...clientsLabo, ...clientsEcho]);
+      const totalExamens = (factureLaboratoire || []).length;
+      const totalEchos = Array.from(echosByClient.values()).reduce(
+        (a, b) => a + b,
+        0,
+      );
+      const totalActesBoth = clientsBoth.reduce(
+        (acc, id) =>
+          acc +
+          (examensByClient.get(id) || 0) +
+          (echosByClient.get(id) || 0),
+        0,
+      );
+
+      const rows: Array<[string, number, number]> = [
+        ["Examen de laboratoire", clientsLabo.size, totalExamens],
+        ["Échographie", clientsEcho.size, totalEchos],
+        ["Examen labo ET échographie", clientsBoth.length, totalActesBoth],
+      ];
+      for (const [label, nb, total] of rows) {
+        worksheet.getCell(currentRow, 1).value = label;
+        worksheet.getCell(currentRow, 2).value = nb;
+        worksheet.getCell(currentRow, 3).value = total;
+        currentRow += 1;
+      }
+      // Total
+      worksheet.getCell(currentRow, 1).value =
+        "Total clients (au moins un examen ou une écho)";
+      worksheet.getCell(currentRow, 1).font = { bold: true };
+      worksheet.getCell(currentRow, 2).value = clientsEither.size;
+      worksheet.getCell(currentRow, 2).font = { bold: true };
+      worksheet.getCell(currentRow, 3).value = totalExamens + totalEchos;
+      worksheet.getCell(currentRow, 3).font = { bold: true };
+      currentRow += 1;
+    }
+
+    // === Comparaison des recettes des 3 derniers mois ===
+    if (recettesTroisMois && recettesTroisMois.length > 0) {
+      currentRow += 2;
+      worksheet.getCell(currentRow, 1).value =
+        "Comparaison des recettes des 3 derniers mois (en CFA)";
+      worksheet.getCell(currentRow, 1).font = { bold: true };
+      currentRow += 1;
+      // En-têtes : Type | <mois1> | <mois2> | <mois3> | Évolution vs mois précédent
+      worksheet.getCell(currentRow, 1).value = "Type de recette";
+      recettesTroisMois.forEach((m, idx) => {
+        worksheet.getCell(currentRow, 2 + idx).value = m.label;
+      });
+      worksheet.getCell(
+        currentRow,
+        2 + recettesTroisMois.length,
+      ).value = "Évolution vs mois précédent";
+      [1, 2, 3, 4, 5].forEach((col) => {
+        const cell = worksheet.getCell(currentRow, col);
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: "center" };
+      });
+      currentRow += 1;
+
+      const recettesRows: Array<{
+        label: string;
+        values: number[];
+        bold?: boolean;
+      }> = [
+        {
+          label: "Produits (avec visite)",
+          values: recettesTroisMois.map((m) => m.produits ?? 0),
+        },
+        {
+          label: "Ventes directes",
+          values: recettesTroisMois.map((m) => m.ventesDirectes ?? 0),
+        },
+        {
+          label: "Prestations",
+          values: recettesTroisMois.map((m) => m.prestations ?? 0),
+        },
+        {
+          label: "Examens laboratoire",
+          values: recettesTroisMois.map((m) => m.examens ?? 0),
+        },
+        {
+          label: "Échographies",
+          values: recettesTroisMois.map((m) => m.echographies ?? 0),
+        },
+        {
+          label: "Total recettes",
+          values: recettesTroisMois.map((m) => m.total ?? 0),
+          bold: true,
+        },
+      ];
+      for (const r of recettesRows) {
+        worksheet.getCell(currentRow, 1).value = r.label;
+        if (r.bold) worksheet.getCell(currentRow, 1).font = { bold: true };
+        r.values.forEach((v, idx) => {
+          const cell = worksheet.getCell(currentRow, 2 + idx);
+          cell.value = v;
+          cell.numFmt = "#,##0";
+          if (r.bold) cell.font = { bold: true };
+        });
+        const last = r.values[r.values.length - 1];
+        const prev = r.values[r.values.length - 2] ?? 0;
+        const pct = prev === 0 ? (last === 0 ? 0 : 1) : (last - prev) / prev;
+        const pctCell = worksheet.getCell(
+          currentRow,
+          2 + recettesTroisMois.length,
+        );
+        pctCell.value = pct;
+        pctCell.numFmt = "0.0%";
+        if (r.bold) pctCell.font = { bold: true };
+        currentRow += 1;
+      }
+    }
+
     // === Données répartition des consultations par prescripteur ===
     // (Optionnel : ajouter un petit espacement)
     currentRow += 2;
@@ -612,24 +767,20 @@ export default function TableRapportValidation({
       cell.alignment = { horizontal: "center" };
     });
     currentRow += 1;
-    // total consultations for percentage base
-    const totalConsultations = converted.length;
-    for (const prescripteur of dataPrescripteur) {
-      const countConsults = converted.filter(
-        (item) => item.nomPrescripteur === prescripteur.name
-      ).length;
-      worksheet.getCell(currentRow, 1).value = prescripteur.name;
-      worksheet.getCell(currentRow, 2).value = countConsults;
-      // percentage on same row, format to 2 decimals
-      const percentage =
-        totalConsultations > 0 ? (countConsults / totalConsultations) * 100 : 0;
+    // Total = somme des consultations attribuées à un prescripteur listé
+    // (pas converted.length, qui inclurait des lignes sans prescripteur).
+    // Garantit que les pourcentages somment à 100 %.
+    const xlsxCounts = dataPrescripteur.map((p) => ({
+      name: p.name,
+      count: converted.filter((item) => item.nomPrescripteur === p.name).length,
+    }));
+    const totalConsultations = xlsxCounts.reduce((acc, c) => acc + c.count, 0);
+    for (const { name, count } of xlsxCounts) {
+      worksheet.getCell(currentRow, 1).value = name;
+      worksheet.getCell(currentRow, 2).value = count;
       const pctCell = worksheet.getCell(currentRow, 3);
-      pctCell.value = Math.round(percentage * 100) / 100; // store numeric value
-      pctCell.numFmt = "0.0%"; // Excel percent format (value expected as fraction)
-      // since numFmt expects fraction (eg 1 = 100%), store as decimal
-      pctCell.value =
-        totalConsultations > 0 ? countConsults / totalConsultations : 0;
-
+      pctCell.numFmt = "0.0%";
+      pctCell.value = totalConsultations > 0 ? count / totalConsultations : 0;
       currentRow += 1;
     }
 
@@ -640,7 +791,7 @@ export default function TableRapportValidation({
     totalCell.value = totalConsultations;
     totalCell.font = { bold: true };
     const totalPctCell = worksheet.getCell(currentRow, 3);
-    totalPctCell.value = 1; // 100% as fraction
+    totalPctCell.value = totalConsultations > 0 ? 1 : 0;
     totalPctCell.numFmt = "0.0%";
     totalPctCell.font = { bold: true };
     currentRow += 1;
@@ -836,6 +987,194 @@ export default function TableRapportValidation({
         currentY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
       }
 
+      // === Clients ayant réalisé un examen (selon la facturation) ===
+      if (currentY > 180) {
+        doc.addPage();
+        currentY = 20;
+      }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        "Clients ayant réalisé un examen (selon la facturation)",
+        14,
+        currentY,
+      );
+      currentY += 5;
+      {
+        const examensByClient = new Map<string, number>();
+        (factureLaboratoire || []).forEach((f) => {
+          if (!f.idClient) return;
+          examensByClient.set(
+            f.idClient,
+            (examensByClient.get(f.idClient) || 0) + 1,
+          );
+        });
+        const echosByClient = new Map<string, number>();
+        (converted || []).forEach((c) => {
+          if (!c.id || !Array.isArray(c.echographie)) return;
+          if (c.echographie.length === 0) return;
+          echosByClient.set(
+            c.id,
+            (echosByClient.get(c.id) || 0) + c.echographie.length,
+          );
+        });
+        const clientsLabo = new Set(examensByClient.keys());
+        const clientsEcho = new Set(echosByClient.keys());
+        const clientsBoth = Array.from(clientsLabo).filter((id) =>
+          clientsEcho.has(id),
+        );
+        const clientsEither = new Set([...clientsLabo, ...clientsEcho]);
+        const totalExamens = (factureLaboratoire || []).length;
+        const totalEchos = Array.from(echosByClient.values()).reduce(
+          (a, b) => a + b,
+          0,
+        );
+        const totalActesBoth = clientsBoth.reduce(
+          (acc, id) =>
+            acc +
+            (examensByClient.get(id) || 0) +
+            (echosByClient.get(id) || 0),
+          0,
+        );
+
+        const examHeaders = [
+          ["Type", "Nombre de clients", "Nombre total d'actes"],
+        ];
+        const examRows = [
+          [
+            "Examen de laboratoire",
+            String(clientsLabo.size),
+            String(totalExamens),
+          ],
+          [
+            "Échographie",
+            String(clientsEcho.size),
+            String(totalEchos),
+          ],
+          [
+            "Examen labo ET échographie",
+            String(clientsBoth.length),
+            String(totalActesBoth),
+          ],
+          [
+            "Total clients (au moins un examen ou une écho)",
+            String(clientsEither.size),
+            String(totalExamens + totalEchos),
+          ],
+        ];
+        autoTable(doc, {
+          startY: currentY,
+          head: examHeaders,
+          body: examRows,
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: {
+            fillColor: [200, 200, 200],
+            textColor: 0,
+            fontStyle: "bold",
+          },
+        });
+        currentY =
+          (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+            .finalY + 10;
+      }
+
+      // === Comparaison des recettes des 3 derniers mois ===
+      if (recettesTroisMois && recettesTroisMois.length > 0) {
+        if (currentY > 170) {
+          doc.addPage();
+          currentY = 20;
+        }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(
+          "Comparaison des recettes des 3 derniers mois (en CFA)",
+          14,
+          currentY,
+        );
+        currentY += 5;
+
+        const fmtNb = (n: number) => (n ?? 0).toLocaleString("fr-FR");
+        const variationStr = (current: number, previous: number) => {
+          const pct =
+            previous === 0
+              ? current === 0
+                ? 0
+                : 100
+              : ((current - previous) / previous) * 100;
+          return `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`;
+        };
+        const monthLabels = recettesTroisMois.map((m) => m.label);
+        const recettesHeaders = [
+          [
+            "Type de recette",
+            ...monthLabels,
+            "Évolution vs mois précédent",
+          ],
+        ];
+        const recettesRowsDef: Array<{ label: string; values: number[] }> = [
+          {
+            label: "Produits (avec visite)",
+            values: recettesTroisMois.map((m) => m.produits ?? 0),
+          },
+          {
+            label: "Ventes directes",
+            values: recettesTroisMois.map((m) => m.ventesDirectes ?? 0),
+          },
+          {
+            label: "Prestations",
+            values: recettesTroisMois.map((m) => m.prestations ?? 0),
+          },
+          {
+            label: "Examens laboratoire",
+            values: recettesTroisMois.map((m) => m.examens ?? 0),
+          },
+          {
+            label: "Échographies",
+            values: recettesTroisMois.map((m) => m.echographies ?? 0),
+          },
+          {
+            label: "Total recettes",
+            values: recettesTroisMois.map((m) => m.total ?? 0),
+          },
+        ];
+        const recettesRows = recettesRowsDef.map(({ label, values }) => {
+          const last = values[values.length - 1];
+          const prev = values[values.length - 2] ?? 0;
+          return [
+            label,
+            ...values.map(fmtNb),
+            variationStr(last, prev),
+          ];
+        });
+        autoTable(doc, {
+          startY: currentY,
+          head: recettesHeaders,
+          body: recettesRows,
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 2, halign: "right" },
+          columnStyles: { 0: { halign: "left" } },
+          headStyles: {
+            fillColor: [200, 200, 200],
+            textColor: 0,
+            fontStyle: "bold",
+            halign: "center",
+          },
+          // Mettre la dernière ligne (Total) en gras
+          didParseCell: (data) => {
+            if (
+              data.section === "body" &&
+              data.row.index === recettesRows.length - 1
+            ) {
+              data.cell.styles.fontStyle = "bold";
+            }
+          },
+        });
+        currentY =
+          (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+            .finalY + 10;
+      }
+
       // Répartition des consultations par prescripteur
       if (currentY > 180) {
         doc.addPage();
@@ -847,15 +1186,21 @@ export default function TableRapportValidation({
       doc.text("Répartition des consultations par prescripteur", 14, currentY);
       currentY += 5;
 
-      const totalConsultations = converted.length;
+      // Total = somme des consultations attribuées à un prescripteur listé
+      // (pas converted.length, qui inclurait des visites multi-prescripteurs
+      // ou sans prescripteur). Garantit que les pourcentages somment à 100%.
+      const repartCounts = prescripteurs.map((pres) => ({
+        name: pres.name,
+        count: converted.filter((item) => item.nomPrescripteur === pres.name).length,
+      }));
+      const totalConsultations = repartCounts.reduce((acc, r) => acc + r.count, 0);
       const repartHeaders = [["Prescripteur", "Nombre de consultations", "Pourcentage"]];
-      const repartRows = prescripteurs.map((pres) => {
-        const countConsults = converted.filter((item) => item.nomPrescripteur === pres.name).length;
-        const percentage = totalConsultations > 0 ? ((countConsults / totalConsultations) * 100).toFixed(1) : "0.0";
-        return [pres.name, String(countConsults), `${percentage}%`];
+      const repartRows = repartCounts.map(({ name, count }) => {
+        const percentage = totalConsultations > 0 ? ((count / totalConsultations) * 100).toFixed(1) : "0.0";
+        return [name, String(count), `${percentage}%`];
       });
       // Ajouter ligne total
-      repartRows.push(["Total", String(totalConsultations), "100.0%"]);
+      repartRows.push(["Total", String(totalConsultations), totalConsultations > 0 ? "100.0%" : "0.0%"]);
 
       autoTable(doc, {
         startY: currentY,
@@ -2131,82 +2476,302 @@ export default function TableRapportValidation({
               ))}
             </TableBody>
           </Table>
-          {/* table de repartion des client par prescripteur */}
+          {/* Tableau : nombre de clients ayant réalisé un examen labo / une
+              échographie, basé sur la facturation. Un client est compté une
+              seule fois même s'il a plusieurs factures sur la période. */}
+          <Separator className="bg-green-300 my-2" />
+          <h2 className="font-bold mx-auto px-auto">
+            Clients ayant réalisé un examen (selon la facturation)
+          </h2>
+          {(() => {
+            // Comptage par client (dédoublonné) ET nombre total d'actes
+            // facturés (un client peut avoir plusieurs examens / échos sur
+            // la période → on compte tout dans la colonne "Nombre total").
+            const examensByClient = new Map<string, number>();
+            (factureLaboratoire || []).forEach((f) => {
+              if (!f.idClient) return;
+              examensByClient.set(
+                f.idClient,
+                (examensByClient.get(f.idClient) || 0) + 1,
+              );
+            });
+            const echosByClient = new Map<string, number>();
+            (converted || []).forEach((c) => {
+              if (!c.id || !Array.isArray(c.echographie)) return;
+              if (c.echographie.length === 0) return;
+              echosByClient.set(
+                c.id,
+                (echosByClient.get(c.id) || 0) + c.echographie.length,
+              );
+            });
 
+            const clientsWithLabo = new Set(examensByClient.keys());
+            const clientsWithEcho = new Set(echosByClient.keys());
+            const clientsWithEither = new Set<string>([
+              ...clientsWithLabo,
+              ...clientsWithEcho,
+            ]);
+            const clientsWithBoth = Array.from(clientsWithLabo).filter((id) =>
+              clientsWithEcho.has(id),
+            );
+
+            const totalExamens = (factureLaboratoire || []).length;
+            const totalEchos = Array.from(echosByClient.values()).reduce(
+              (acc, n) => acc + n,
+              0,
+            );
+            const totalActesBoth = clientsWithBoth.reduce(
+              (acc, id) =>
+                acc +
+                (examensByClient.get(id) || 0) +
+                (echosByClient.get(id) || 0),
+              0,
+            );
+            return (
+              <Table className="border">
+                <TableHeader className="bg-slate-100">
+                  <TableRow>
+                    <TableHead className="border border-gray-300 font-semibold">
+                      Type
+                    </TableHead>
+                    <TableHead className="border border-gray-300 font-semibold text-center">
+                      Nombre de clients
+                    </TableHead>
+                    <TableHead className="border border-gray-300 font-semibold text-center">
+                      Nombre total d&apos;actes
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="border border-l-gray-400">
+                      Examen de laboratoire
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 text-center">
+                      {clientsWithLabo.size}
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 text-center">
+                      {totalExamens}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="border border-l-gray-400">
+                      Échographie
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 text-center">
+                      {clientsWithEcho.size}
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 text-center">
+                      {totalEchos}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="border border-l-gray-400">
+                      Examen labo ET échographie
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 text-center">
+                      {clientsWithBoth.length}
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 text-center">
+                      {totalActesBoth}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className="bg-gray-100">
+                    <TableCell className="border border-l-gray-400 font-bold">
+                      Total clients (au moins un examen ou une écho)
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 font-bold text-center">
+                      {clientsWithEither.size}
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 font-bold text-center">
+                      {totalExamens + totalEchos}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            );
+          })()}
+
+          {/* Comparaison des recettes des 3 derniers mois (mois sélectionné
+              + 2 mois en arrière). Permet d'identifier rapidement une dérive
+              ou une tendance entre périodes. */}
+          {recettesTroisMois && recettesTroisMois.length > 0 && (
+            <>
+              <Separator className="bg-green-300 my-2" />
+              <h2 className="font-bold mx-auto px-auto">
+                Comparaison des recettes des 3 derniers mois (en CFA)
+              </h2>
+              {(() => {
+                // fmt est défensif : n peut être undefined si la donnée
+                // est ancienne (avant ajout du champ ventesDirectes côté
+                // server action) — on remplace par 0 plutôt que de planter.
+                const fmt = (n: number | null | undefined) =>
+                  (n ?? 0).toLocaleString("fr-FR");
+                const months = recettesTroisMois;
+                // Ligne par catégorie : produits / prestations / examens / écho / total
+                const rows: Array<{
+                  label: string;
+                  values: number[];
+                  bold?: boolean;
+                }> = [
+                  {
+                    label: "Produits (avec visite)",
+                    values: months.map((m) => m.produits ?? 0),
+                  },
+                  {
+                    label: "Ventes directes",
+                    values: months.map((m) => m.ventesDirectes ?? 0),
+                  },
+                  {
+                    label: "Prestations",
+                    values: months.map((m) => m.prestations ?? 0),
+                  },
+                  {
+                    label: "Examens laboratoire",
+                    values: months.map((m) => m.examens ?? 0),
+                  },
+                  {
+                    label: "Échographies",
+                    values: months.map((m) => m.echographies ?? 0),
+                  },
+                  {
+                    label: "Total recettes",
+                    values: months.map((m) => m.total ?? 0),
+                    bold: true,
+                  },
+                ];
+                // Variation en % entre le mois courant (dernière colonne) et
+                // le mois précédent (avant-dernière). Affichée en colonne à droite.
+                const variationPct = (current: number, previous: number) => {
+                  if (previous === 0) return current === 0 ? 0 : 100;
+                  return ((current - previous) / previous) * 100;
+                };
+                return (
+                  <Table className="border">
+                    <TableHeader className="bg-slate-100">
+                      <TableRow>
+                        <TableHead className="border border-gray-300 font-semibold">
+                          Type de recette
+                        </TableHead>
+                        {months.map((m) => (
+                          <TableHead
+                            key={`${m.year}-${m.month}`}
+                            className="border border-gray-300 font-semibold text-center"
+                          >
+                            {m.label}
+                          </TableHead>
+                        ))}
+                        <TableHead className="border border-gray-300 font-semibold text-center">
+                          Évolution vs mois précédent
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((r) => {
+                        const last = r.values[r.values.length - 1];
+                        const prev = r.values[r.values.length - 2] ?? 0;
+                        const pct = variationPct(last, prev);
+                        const cellBold = r.bold ? "font-bold" : "";
+                        const rowBg = r.bold ? "bg-gray-100" : "";
+                        return (
+                          <TableRow key={r.label} className={rowBg}>
+                            <TableCell
+                              className={`border border-l-gray-400 ${cellBold}`}
+                            >
+                              {r.label}
+                            </TableCell>
+                            {r.values.map((v, i) => (
+                              <TableCell
+                                key={i}
+                                className={`border border-l-gray-400 text-right tabular-nums ${cellBold}`}
+                              >
+                                {fmt(v)}
+                              </TableCell>
+                            ))}
+                            <TableCell
+                              className={`border border-l-gray-400 text-right tabular-nums ${cellBold} ${
+                                pct > 0
+                                  ? "text-green-700"
+                                  : pct < 0
+                                    ? "text-red-700"
+                                    : "text-gray-700"
+                              }`}
+                            >
+                              {pct > 0 ? "+" : ""}
+                              {pct.toFixed(1)}%
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
+            </>
+          )}
+
+          {/* Répartition des consultations par prescripteur (tableau final). */}
           <Separator className="bg-green-300 my-2" />
           <h2 className="font-bold mx-auto px-auto">
             Repartition des consultations par prescripteur{" "}
           </h2>
-          <Table className="border">
-            <TableHeader className="bg-slate-100">
-              <TableRow>
-                <TableHead className="border border-gray-300 font-semibold">
-                  Prescripteur
-                </TableHead>
-                <TableHead className="border border-gray-300 font-semibold">
-                  Nombre de clients
-                </TableHead>
-                <TableHead className="border border-gray-300 font-semibold">
-                  Pourcentage
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dataPrescripteur.map((prescripteur) => (
-                <TableRow key={prescripteur.id}>
-                  <TableCell className="border border-l-gray-400">
-                    {prescripteur.name}
-                  </TableCell>
-                  <TableCell className="border border-l-gray-400">
-                    {getClientCountByPrescripteur(converted, prescripteur.name)}
-                  </TableCell>
-                  <TableCell className="border border-l-gray-400">
-                    {(
-                      (getClientCountByPrescripteur(
-                        converted,
-                        prescripteur.name
-                      ) /
-                        converted.length) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="bg-gray-100">
-                <TableCell className="border border-l-gray-400 font-bold">
-                  Total général
-                </TableCell>
-                <TableCell className="border border-l-gray-400">
-                  {dataPrescripteur.reduce(
-                    (acc, prescripteur) =>
-                      acc +
-                      getClientCountByPrescripteur(
-                        converted,
-                        prescripteur.name
-                      ),
-                    0
-                  )}
-                </TableCell>
-                <TableCell className="border border-l-gray-400">
-                  {(
-                    (dataPrescripteur.reduce(
-                      (acc, prescripteur) =>
-                        acc +
-                        getClientCountByPrescripteur(
-                          converted,
-                          prescripteur.name
-                        ),
-                      0
-                    ) /
-                      converted.length) *
-                    100
-                  ).toFixed(1)}
-                  %
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {(() => {
+            // Le pourcentage est calculé sur le total des consultations
+            // attribuées à un prescripteur listé (et non sur converted.length
+            // qui inclut aussi les visites multi-prescripteurs ou sans
+            // prescripteur). Cela garantit que la somme des pourcentages
+            // affichés vaut bien 100 %.
+            const counts = dataPrescripteur.map((p) => ({
+              prescripteur: p,
+              count: getClientCountByPrescripteur(converted, p.name),
+            }));
+            const totalCount = counts.reduce((acc, c) => acc + c.count, 0);
+            const pct = (n: number) =>
+              totalCount > 0 ? ((n / totalCount) * 100).toFixed(1) : "0.0";
+            return (
+              <Table className="border">
+                <TableHeader className="bg-slate-100">
+                  <TableRow>
+                    <TableHead className="border border-gray-300 font-semibold">
+                      Prescripteur
+                    </TableHead>
+                    <TableHead className="border border-gray-300 font-semibold">
+                      Nombre de clients
+                    </TableHead>
+                    <TableHead className="border border-gray-300 font-semibold">
+                      Pourcentage
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {counts.map(({ prescripteur, count }) => (
+                    <TableRow key={prescripteur.id}>
+                      <TableCell className="border border-l-gray-400">
+                        {prescripteur.name}
+                      </TableCell>
+                      <TableCell className="border border-l-gray-400">
+                        {count}
+                      </TableCell>
+                      <TableCell className="border border-l-gray-400">
+                        {pct(count)}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-gray-100">
+                    <TableCell className="border border-l-gray-400 font-bold">
+                      Total général
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 font-bold">
+                      {totalCount}
+                    </TableCell>
+                    <TableCell className="border border-l-gray-400 font-bold">
+                      {totalCount > 0 ? "100.0" : "0.0"}%
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            );
+          })()}
         </div>
       </div>
     </div>
