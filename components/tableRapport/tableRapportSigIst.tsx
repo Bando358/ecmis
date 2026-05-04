@@ -85,13 +85,23 @@ export default function TableRapportSigIst({
       setConverted([]);
       return;
     }
+    // Couverture exhaustive des 12 valeurs possibles d'istType pour que la
+    // somme des indicateurs égale le nombre total de cas IST.
+    //   - syndrome vaginal regroupé : ecoulementVaginal + cervicite +
+    //     brulureOuPrurit + malOdeurVaginal (cohérent avec le libellé
+    //     « Écoulement vaginal et/ou brûlure ou prurit et/ou mauvaise
+    //     odeur vaginale »)
+    //   - ulceration + bubon + autres (cas non-spécifiques regroupés
+    //     selon la règle métier validée)
     const newConverted = clientData.map<convertedType>((item) => ({
       ...item,
       conjonctiviteNouveauNe: item.istType === "conjonctivite",
       ecoulementUretralMasculin: item.istType === "ecoulementUretral",
-      ecoulementVaginal: item.istType === "ecoulementVaginal",
-      // Règle métier : « Autres IST » est comptabilisé avec
-      // l'Ulcération génitale et/ou bubon (cas non spécifiques).
+      ecoulementVaginal:
+        item.istType === "ecoulementVaginal" ||
+        item.istType === "cervicite" ||
+        item.istType === "brulureOuPrurit" ||
+        item.istType === "malOdeurVaginal",
       ulcerationGenitaleBubon:
         item.istType === "ulceration" ||
         item.istType === "bubon" ||

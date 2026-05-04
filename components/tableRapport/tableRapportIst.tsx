@@ -34,6 +34,8 @@ export type convertedType = clientDataProps & {
   istPecEtiologiqueChancreMouIst: boolean;
   istDouleursAbdominalesBassesIst: boolean;
   istUlcerationGenitaleIst: boolean;
+  istConjonctiviteIst: boolean;
+  istCondylomeIst: boolean;
   istPecEtiologiqueCandidoseIst: boolean;
 };
 
@@ -71,6 +73,14 @@ const tabClientIst = [
   {
     label: "Nombre de personnes reçues pour Bubon inguinal",
     value: "istBubonInguinalIst",
+  },
+  {
+    label: "Nombre de personnes reçues pour Conjonctivite du nouveau-né",
+    value: "istConjonctiviteIst",
+  },
+  {
+    label: "Nombre de personnes reçues pour Condylomes (végétations vénériennes)",
+    value: "istCondylomeIst",
   },
   {
     label: "Nombre de personnes - Traitement Syndromique",
@@ -142,19 +152,26 @@ export default function TableRapportIst({
     } else {
       const newConverted = clientData.map((item) => ({
         ...item,
-        // consultationIst: item.counsellingAvantDepistage === true, // ⚡
+        // Couverture EXHAUSTIVE des 12 valeurs possibles d'istType pour que
+        // Σ(types) = nombre total de cas IST :
+        //   - Écoulement vaginal regroupe : ecoulementVaginal + cervicite +
+        //     brulureOuPrurit + malOdeurVaginal (approche syndromique OMS)
+        //   - Ulcération génitale regroupe : ulceration + autres (cas non
+        //     spécifiques regroupés selon la règle métier validée)
+        //   - Bubon, conjonctivite, condylome restent en lignes séparées
         istEcoulementUretralIst: item.istType === "ecoulementUretral",
         istDouleursTesticulairesIst: item.istType === "douleursTesticulaires",
-        istEcoulementVaginalIst: item.istType === "ecoulementVaginal",
+        istEcoulementVaginalIst:
+          item.istType === "ecoulementVaginal" ||
+          item.istType === "cervicite" ||
+          item.istType === "brulureOuPrurit" ||
+          item.istType === "malOdeurVaginal",
         istDouleursAbdominalesBassesIst: item.istType === "douleursAbdominales",
-        // Le formulaire IST sauvegarde "ulceration" et "bubon"
-        // (cf. TabTypeIst dans IstForm.tsx). Avant : on cherchait
-        // "ulcerationGenitale" / "bubonInguinal" → toujours 0.
-        // Règle métier : "Autres IST" est comptabilisé avec
-        // l'Ulcération génitale (cas non spécifiques regroupés).
         istUlcerationGenitaleIst:
           item.istType === "ulceration" || item.istType === "autres",
         istBubonInguinalIst: item.istType === "bubon",
+        istConjonctiviteIst: item.istType === "conjonctivite",
+        istCondylomeIst: item.istType === "condylome",
 
         istPecEtiologiqueCandidoseIst: item.istPecEtiologique === "candidose", // ⚡
         istPecEtiologiqueChancreMouIst: item.istPecEtiologique === "chancreMou", // ⚡
