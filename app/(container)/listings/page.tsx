@@ -68,6 +68,11 @@ import {
   getPlanningsSansFactureProduit,
   PlanningSansFactureItem,
 } from "@/lib/actions/planningSansFactureActions";
+import ListeVentesDirectes from "@/components/listings/ListeVentesDirectes";
+import {
+  getVentesDirectesListing,
+  VenteDirecteListingItem,
+} from "@/lib/actions/ventesDirectesListingActions";
 import ListeEchographiesSansCommission from "@/components/listings/ListeEchographiesSansCommission";
 import {
   getEchographiesSansCommission,
@@ -136,6 +141,10 @@ const tabListing = [
     label: "Clients planning sans facture produit contraceptif",
   },
   {
+    value: "ventesDirectes",
+    label: "Produits vendus en vente directe",
+  },
+  {
     value: "echoSansCommission",
     label: "Échographies sans commission attribuée",
   },
@@ -175,6 +184,9 @@ export default function Page() {
   >([]);
   const [planningsSansFactureProduit, setPlanningsSansFactureProduit] =
     useState<PlanningSansFactureItem[]>([]);
+  const [ventesDirectes, setVentesDirectes] = useState<
+    VenteDirecteListingItem[]
+  >([]);
   const [echographiesSansCommission, setEchographiesSansCommission] = useState<
     EchographieSansCommissionItem[]
   >([]);
@@ -356,6 +368,7 @@ export default function Page() {
         facturesSansPrestationData,
         echographiesSansCommissionData,
         planningsSansFactureData,
+        ventesDirectesData,
       ] = await Promise.all([
         fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
         getAllUserIncludedTabIdClinique(selectedIds),
@@ -368,6 +381,7 @@ export default function Page() {
         getClientsFacturesSansPrestation(selectedIds, dateDebutObj, dateFinObj),
         getEchographiesSansCommission(selectedIds, dateDebutObj, dateFinObj),
         getPlanningsSansFactureProduit(selectedIds, dateDebutObj, dateFinObj),
+        getVentesDirectesListing(selectedIds, dateDebutObj, dateFinObj),
       ]);
       setFactureProduitPf(factureProduitPfData);
       setTousFactures(tousFacturesData);
@@ -375,6 +389,7 @@ export default function Page() {
       setFacturesSansPrestation(facturesSansPrestationData);
       setEchographiesSansCommission(echographiesSansCommissionData);
       setPlanningsSansFactureProduit(planningsSansFactureData);
+      setVentesDirectes(ventesDirectesData);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -649,6 +664,9 @@ export default function Page() {
           <ListePlanningSansFactureProduit
             items={planningsSansFactureProduit}
           />
+        )}
+        {rapportClinique === "ventesDirectes" && (
+          <ListeVentesDirectes items={ventesDirectes} />
         )}
         {rapportClinique === "echoSansCommission" && (
           <ListeEchographiesSansCommission items={echographiesSansCommission} />
