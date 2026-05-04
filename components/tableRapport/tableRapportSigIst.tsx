@@ -171,7 +171,7 @@ export default function TableRapportSigIst({
       worksheet.getCell("A6").value = "Rapport SIG : IST";
       worksheet.getCell("A6").font = { bold: true };
 
-      // En-tête niveau 1 : "Indicateurs" | <âge> (colSpan 2) ... | Total
+      // En-tête niveau 1 : "Indicateurs" | <âge> (colSpan 2) ... | Total (colSpan 2)
       const headerRow1 = worksheet.getRow(8);
       headerRow1.getCell(1).value = "Indicateurs";
       ageRanges.forEach((r, i) => {
@@ -179,18 +179,21 @@ export default function TableRapportSigIst({
         headerRow1.getCell(startCol).value = ageLabel(r);
         worksheet.mergeCells(8, startCol, 8, startCol + 1);
       });
-      const totalCol = 2 + ageRanges.length * 2;
-      headerRow1.getCell(totalCol).value = "Total";
+      const totalColM = 2 + ageRanges.length * 2; // colonne M de Total
+      const totalColF = totalColM + 1; // colonne F de Total
+      headerRow1.getCell(totalColM).value = "Total";
       worksheet.mergeCells(8, 1, 9, 1); // Indicateurs sur 2 lignes
-      worksheet.mergeCells(8, totalCol, 9, totalCol); // Total sur 2 lignes
+      worksheet.mergeCells(8, totalColM, 8, totalColF); // Total sur 2 colonnes
 
-      // En-tête niveau 2 : M / F sous chaque âge
+      // En-tête niveau 2 : M / F sous chaque âge ET sous Total
       const headerRow2 = worksheet.getRow(9);
       ageRanges.forEach((_, i) => {
         const startCol = 2 + i * 2;
         headerRow2.getCell(startCol).value = "M";
         headerRow2.getCell(startCol + 1).value = "F";
       });
+      headerRow2.getCell(totalColM).value = "M";
+      headerRow2.getCell(totalColF).value = "F";
 
       [headerRow1, headerRow2].forEach((row) => {
         row.eachCell((cell) => {
@@ -203,17 +206,21 @@ export default function TableRapportSigIst({
       INDICATEURS_SIG_IST.forEach((indicateur) => {
         const row = worksheet.getRow(rowIdx);
         row.getCell(1).value = indicateur.label;
-        let total = 0;
+        let totalM = 0;
+        let totalF = 0;
         ageRanges.forEach((r, i) => {
           const m = countBySexe(indicateur.value, r, "Masculin");
           const f = countBySexe(indicateur.value, r, "Féminin");
           const startCol = 2 + i * 2;
           row.getCell(startCol).value = m;
           row.getCell(startCol + 1).value = f;
-          total += m + f;
+          totalM += m;
+          totalF += f;
         });
-        row.getCell(totalCol).value = total;
-        row.getCell(totalCol).font = { bold: true };
+        row.getCell(totalColM).value = totalM;
+        row.getCell(totalColM).font = { bold: true };
+        row.getCell(totalColF).value = totalF;
+        row.getCell(totalColF).font = { bold: true };
         rowIdx += 1;
       });
 
@@ -270,8 +277,8 @@ export default function TableRapportSigIst({
       );
       doc.text(`Clinique : ${clinic}`, pageWidth - 14, 24, { align: "right" });
 
-      // En-tête niveau 1 : Indicateurs | <âge> (colSpan 2 par tranche) | Total
-      // En-tête niveau 2 : M / F sous chaque tranche
+      // En-tête niveau 1 : Indicateurs | <âge> (colSpan 2) ... | Total (colSpan 2)
+      // En-tête niveau 2 : M / F sous chaque tranche d'âge ET sous Total
       const head = [
         [
           { content: "Indicateurs", rowSpan: 2 },
@@ -280,18 +287,35 @@ export default function TableRapportSigIst({
             colSpan: 2,
             styles: { halign: "center" as const },
           })),
-          { content: "Total", rowSpan: 2 },
+          {
+            content: "Total",
+            colSpan: 2,
+            styles: { halign: "center" as const },
+          },
         ],
-        ageRanges.flatMap(() => ["M", "F"]),
+        [...ageRanges.flatMap(() => ["M", "F"]), "M", "F"],
       ];
 
       const body = INDICATEURS_SIG_IST.map((indicateur) => {
-        const cells = ageRanges.flatMap((r) => [
+        const cellsByAge = ageRanges.flatMap((r) => [
           countBySexe(indicateur.value, r, "Masculin"),
           countBySexe(indicateur.value, r, "Féminin"),
         ]);
-        const total = cells.reduce((a, b) => a + b, 0);
-        return [indicateur.label, ...cells.map(String), total.toString()];
+        // Σ M sur toutes les tranches, Σ F sur toutes les tranches
+        const totalM = ageRanges.reduce(
+          (s, r) => s + countBySexe(indicateur.value, r, "Masculin"),
+          0,
+        );
+        const totalF = ageRanges.reduce(
+          (s, r) => s + countBySexe(indicateur.value, r, "Féminin"),
+          0,
+        );
+        return [
+          indicateur.label,
+          ...cellsByAge.map(String),
+          totalM.toString(),
+          totalF.toString(),
+        ];
       });
 
       autoTable(doc, {
@@ -341,7 +365,8 @@ export default function TableRapportSigIst({
       <h2 className="font-bold">Rapport SIG : IST</h2>
       <Table className="border">
         <TableHeader className="bg-slate-100">
-          {/* En-tête niveau 1 : une cellule fusionnée par tranche d'âge */}
+          {/* En-tête niveau 1 : une cellule fusionnée par tranche d'âge,
+              + une cellule "Total" fusionnée sur 2 colonnes (M / F) */}
           <TableRow>
             <TableHead rowSpan={2} className="font-semibold align-middle">
               Indicateurs
@@ -355,11 +380,14 @@ export default function TableRapportSigIst({
                 {ageLabel(r)}
               </TableHead>
             ))}
-            <TableHead rowSpan={2} className="font-semibold align-middle">
+            <TableHead
+              colSpan={2}
+              className="font-semibold text-center border border-gray-300"
+            >
               Total
             </TableHead>
           </TableRow>
-          {/* En-tête niveau 2 : M et F sous chaque tranche d'âge */}
+          {/* En-tête niveau 2 : M et F sous chaque tranche d'âge ET sous Total */}
           <TableRow className="bg-slate-200 text-center">
             {ageRanges.flatMap((r) => [
               <TableHead key={`m-${r.min}-${r.max}`} className="text-xs">
@@ -369,6 +397,8 @@ export default function TableRapportSigIst({
                 F
               </TableHead>,
             ])}
+            <TableHead className="text-xs">M</TableHead>
+            <TableHead className="text-xs">F</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -377,7 +407,8 @@ export default function TableRapportSigIst({
               m: countBySexe(indicateur.value, r, "Masculin"),
               f: countBySexe(indicateur.value, r, "Féminin"),
             }));
-            const total = cellsByAge.reduce((s, c) => s + c.m + c.f, 0);
+            const totalM = cellsByAge.reduce((s, c) => s + c.m, 0);
+            const totalF = cellsByAge.reduce((s, c) => s + c.f, 0);
             return (
               <TableRow key={String(indicateur.value)}>
                 <TableCell>{indicateur.label}</TableCell>
@@ -396,7 +427,10 @@ export default function TableRapportSigIst({
                   </TableCell>,
                 ])}
                 <TableCell className="text-center font-semibold">
-                  {total}
+                  {totalM}
+                </TableCell>
+                <TableCell className="text-center font-semibold">
+                  {totalF}
                 </TableCell>
               </TableRow>
             );
