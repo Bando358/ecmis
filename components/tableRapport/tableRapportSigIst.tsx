@@ -90,8 +90,12 @@ export default function TableRapportSigIst({
       conjonctiviteNouveauNe: item.istType === "conjonctivite",
       ecoulementUretralMasculin: item.istType === "ecoulementUretral",
       ecoulementVaginal: item.istType === "ecoulementVaginal",
+      // Règle métier : « Autres IST » est comptabilisé avec
+      // l'Ulcération génitale et/ou bubon (cas non spécifiques).
       ulcerationGenitaleBubon:
-        item.istType === "ulceration" || item.istType === "bubon",
+        item.istType === "ulceration" ||
+        item.istType === "bubon" ||
+        item.istType === "autres",
       douleursTesticulaires: item.istType === "douleursTesticulaires",
       douleursAbdominalesPelviennes: item.istType === "douleursAbdominales",
       condylomes: item.istType === "condylome",
@@ -157,24 +161,32 @@ export default function TableRapportSigIst({
       worksheet.getCell("A6").value = "Rapport SIG : IST";
       worksheet.getCell("A6").font = { bold: true };
 
+      // En-tête niveau 1 : "Indicateurs" | <âge> (colSpan 2) ... | Total
       const headerRow1 = worksheet.getRow(8);
       headerRow1.getCell(1).value = "Indicateurs";
-      headerRow1.getCell(2).value = "Masculin";
-      headerRow1.getCell(2 + ageRanges.length).value = "Féminin";
-      headerRow1.getCell(2 + ageRanges.length * 2).value = "Total";
-
-      const headerRow2 = worksheet.getRow(9);
       ageRanges.forEach((r, i) => {
-        headerRow2.getCell(2 + i).value = ageLabel(r);
-        headerRow2.getCell(2 + ageRanges.length + i).value = ageLabel(r);
+        const startCol = 2 + i * 2;
+        headerRow1.getCell(startCol).value = ageLabel(r);
+        worksheet.mergeCells(8, startCol, 8, startCol + 1);
       });
-      headerRow2.eachCell((cell) => {
-        cell.alignment = { horizontal: "center" };
-        cell.font = { bold: true };
+      const totalCol = 2 + ageRanges.length * 2;
+      headerRow1.getCell(totalCol).value = "Total";
+      worksheet.mergeCells(8, 1, 9, 1); // Indicateurs sur 2 lignes
+      worksheet.mergeCells(8, totalCol, 9, totalCol); // Total sur 2 lignes
+
+      // En-tête niveau 2 : M / F sous chaque âge
+      const headerRow2 = worksheet.getRow(9);
+      ageRanges.forEach((_, i) => {
+        const startCol = 2 + i * 2;
+        headerRow2.getCell(startCol).value = "M";
+        headerRow2.getCell(startCol + 1).value = "F";
       });
-      headerRow1.eachCell((cell) => {
-        cell.alignment = { horizontal: "center" };
-        cell.font = { bold: true };
+
+      [headerRow1, headerRow2].forEach((row) => {
+        row.eachCell((cell) => {
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+          cell.font = { bold: true };
+        });
       });
 
       let rowIdx = 10;
@@ -185,12 +197,13 @@ export default function TableRapportSigIst({
         ageRanges.forEach((r, i) => {
           const m = countBySexe(indicateur.value, r, "Masculin");
           const f = countBySexe(indicateur.value, r, "Féminin");
-          row.getCell(2 + i).value = m;
-          row.getCell(2 + ageRanges.length + i).value = f;
+          const startCol = 2 + i * 2;
+          row.getCell(startCol).value = m;
+          row.getCell(startCol + 1).value = f;
           total += m + f;
         });
-        row.getCell(2 + ageRanges.length * 2).value = total;
-        row.getCell(2 + ageRanges.length * 2).font = { bold: true };
+        row.getCell(totalCol).value = total;
+        row.getCell(totalCol).font = { bold: true };
         rowIdx += 1;
       });
 
@@ -247,32 +260,28 @@ export default function TableRapportSigIst({
       );
       doc.text(`Clinique : ${clinic}`, pageWidth - 14, 24, { align: "right" });
 
-      const ageHeaders = ageRanges.map(ageLabel);
+      // En-tête niveau 1 : Indicateurs | <âge> (colSpan 2 par tranche) | Total
+      // En-tête niveau 2 : M / F sous chaque tranche
       const head = [
         [
           { content: "Indicateurs", rowSpan: 2 },
-          { content: "Masculin", colSpan: ageRanges.length },
-          { content: "Féminin", colSpan: ageRanges.length },
+          ...ageRanges.map((r) => ({
+            content: ageLabel(r),
+            colSpan: 2,
+            styles: { halign: "center" as const },
+          })),
           { content: "Total", rowSpan: 2 },
         ],
-        [...ageHeaders, ...ageHeaders],
+        ageRanges.flatMap(() => ["M", "F"]),
       ];
 
       const body = INDICATEURS_SIG_IST.map((indicateur) => {
-        const masc = ageRanges.map((r) =>
+        const cells = ageRanges.flatMap((r) => [
           countBySexe(indicateur.value, r, "Masculin"),
-        );
-        const fem = ageRanges.map((r) =>
           countBySexe(indicateur.value, r, "Féminin"),
-        );
-        const total =
-          masc.reduce((a, b) => a + b, 0) + fem.reduce((a, b) => a + b, 0);
-        return [
-          indicateur.label,
-          ...masc.map(String),
-          ...fem.map(String),
-          total.toString(),
-        ];
+        ]);
+        const total = cells.reduce((a, b) => a + b, 0);
+        return [indicateur.label, ...cells.map(String), total.toString()];
       });
 
       autoTable(doc, {
@@ -322,64 +331,60 @@ export default function TableRapportSigIst({
       <h2 className="font-bold">Rapport SIG : IST</h2>
       <Table className="border">
         <TableHeader className="bg-slate-100">
+          {/* En-tête niveau 1 : une cellule fusionnée par tranche d'âge */}
           <TableRow>
-            <TableHead rowSpan={2} className="font-semibold">
+            <TableHead rowSpan={2} className="font-semibold align-middle">
               Indicateurs
             </TableHead>
-            <TableHead
-              colSpan={ageRanges.length}
-              className="font-semibold text-center border border-gray-300"
-            >
-              Masculin
-            </TableHead>
-            <TableHead
-              colSpan={ageRanges.length}
-              className="font-semibold text-center"
-            >
-              Féminin
-            </TableHead>
-            <TableHead rowSpan={2} className="font-semibold">
+            {ageRanges.map((r) => (
+              <TableHead
+                key={`age-${r.min}-${r.max}`}
+                colSpan={2}
+                className="font-semibold text-center border border-gray-300"
+              >
+                {ageLabel(r)}
+              </TableHead>
+            ))}
+            <TableHead rowSpan={2} className="font-semibold align-middle">
               Total
             </TableHead>
           </TableRow>
+          {/* En-tête niveau 2 : M et F sous chaque tranche d'âge */}
           <TableRow className="bg-slate-200 text-center">
-            {ageRanges.map((r) => (
-              <TableHead key={`m-${r.min}-${r.max}`}>{ageLabel(r)}</TableHead>
-            ))}
-            {ageRanges.map((r) => (
-              <TableHead key={`f-${r.min}-${r.max}`}>{ageLabel(r)}</TableHead>
-            ))}
+            {ageRanges.flatMap((r) => [
+              <TableHead key={`m-${r.min}-${r.max}`} className="text-xs">
+                M
+              </TableHead>,
+              <TableHead key={`f-${r.min}-${r.max}`} className="text-xs">
+                F
+              </TableHead>,
+            ])}
           </TableRow>
         </TableHeader>
         <TableBody>
           {INDICATEURS_SIG_IST.map((indicateur) => {
-            const masc = ageRanges.map((r) =>
-              countBySexe(indicateur.value, r, "Masculin"),
-            );
-            const fem = ageRanges.map((r) =>
-              countBySexe(indicateur.value, r, "Féminin"),
-            );
-            const total =
-              masc.reduce((a, b) => a + b, 0) + fem.reduce((a, b) => a + b, 0);
+            const cellsByAge = ageRanges.map((r) => ({
+              m: countBySexe(indicateur.value, r, "Masculin"),
+              f: countBySexe(indicateur.value, r, "Féminin"),
+            }));
+            const total = cellsByAge.reduce((s, c) => s + c.m + c.f, 0);
             return (
               <TableRow key={String(indicateur.value)}>
                 <TableCell>{indicateur.label}</TableCell>
-                {masc.map((v, i) => (
+                {cellsByAge.flatMap((c, i) => [
                   <TableCell
                     key={`m-${String(indicateur.value)}-${i}`}
                     className="text-center"
                   >
-                    {v}
-                  </TableCell>
-                ))}
-                {fem.map((v, i) => (
+                    {c.m}
+                  </TableCell>,
                   <TableCell
                     key={`f-${String(indicateur.value)}-${i}`}
                     className="text-center"
                   >
-                    {v}
-                  </TableCell>
-                ))}
+                    {c.f}
+                  </TableCell>,
+                ])}
                 <TableCell className="text-center font-semibold">
                   {total}
                 </TableCell>

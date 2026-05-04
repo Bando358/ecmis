@@ -150,7 +150,10 @@ export default function TableRapportIst({
         // Le formulaire IST sauvegarde "ulceration" et "bubon"
         // (cf. TabTypeIst dans IstForm.tsx). Avant : on cherchait
         // "ulcerationGenitale" / "bubonInguinal" → toujours 0.
-        istUlcerationGenitaleIst: item.istType === "ulceration",
+        // Règle métier : "Autres IST" est comptabilisé avec
+        // l'Ulcération génitale (cas non spécifiques regroupés).
+        istUlcerationGenitaleIst:
+          item.istType === "ulceration" || item.istType === "autres",
         istBubonInguinalIst: item.istType === "bubon",
 
         istPecEtiologiqueCandidoseIst: item.istPecEtiologique === "candidose", // ⚡
