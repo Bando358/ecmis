@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
     formats: ["image/webp", "image/avif"],
   },
 
+  // Les Server Actions des rapports renvoient parfois des payloads
+  // volumineux (listings clients sur plusieurs mois, factures détaillées,
+  // données labo/écho complètes). On augmente la limite par défaut
+  // (1 Mo → 10 Mo) pour éviter "Body exceeded 1 MB limit".
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
+
   // Security headers pour protéger contre les attaques courantes
   async headers() {
     return [

@@ -63,6 +63,11 @@ import {
   getClientsFacturesSansPrestation,
   ClientFactureSansPrestationItem,
 } from "@/lib/actions/facturesSansPrestationActions";
+import ListePlanningSansFactureProduit from "@/components/listings/ListePlanningSansFactureProduit";
+import {
+  getPlanningsSansFactureProduit,
+  PlanningSansFactureItem,
+} from "@/lib/actions/planningSansFactureActions";
 import ListeEchographiesSansCommission from "@/components/listings/ListeEchographiesSansCommission";
 import {
   getEchographiesSansCommission,
@@ -127,6 +132,10 @@ const tabListing = [
     label: "Clients facturés sans prestation enregistrée",
   },
   {
+    value: "planningSansFactureProduit",
+    label: "Clients planning sans facture produit contraceptif",
+  },
+  {
     value: "echoSansCommission",
     label: "Échographies sans commission attribuée",
   },
@@ -164,6 +173,8 @@ export default function Page() {
   const [facturesSansPrestation, setFacturesSansPrestation] = useState<
     ClientFactureSansPrestationItem[]
   >([]);
+  const [planningsSansFactureProduit, setPlanningsSansFactureProduit] =
+    useState<PlanningSansFactureItem[]>([]);
   const [echographiesSansCommission, setEchographiesSansCommission] = useState<
     EchographieSansCommissionItem[]
   >([]);
@@ -344,6 +355,7 @@ export default function Page() {
         ivaPositifAttenteData,
         facturesSansPrestationData,
         echographiesSansCommissionData,
+        planningsSansFactureData,
       ] = await Promise.all([
         fetchClientsDataLaboratoire(selectedIds, selectedActivites, dateDebutObj, dateFinObj),
         getAllUserIncludedTabIdClinique(selectedIds),
@@ -355,12 +367,14 @@ export default function Page() {
         getIvaPositifEnAttente(selectedIds),
         getClientsFacturesSansPrestation(selectedIds, dateDebutObj, dateFinObj),
         getEchographiesSansCommission(selectedIds, dateDebutObj, dateFinObj),
+        getPlanningsSansFactureProduit(selectedIds, dateDebutObj, dateFinObj),
       ]);
       setFactureProduitPf(factureProduitPfData);
       setTousFactures(tousFacturesData);
       setIvaPositifAttente(ivaPositifAttenteData);
       setFacturesSansPrestation(facturesSansPrestationData);
       setEchographiesSansCommission(echographiesSansCommissionData);
+      setPlanningsSansFactureProduit(planningsSansFactureData);
 
       if (rapportLaboratoire.length > 0) {
         setFactureLaboratoire(rapportLaboratoire[0].factureExamen);
@@ -630,6 +644,11 @@ export default function Page() {
         )}
         {rapportClinique === "facturesSansPrestation" && (
           <ListeFacturesSansPrestation items={facturesSansPrestation} />
+        )}
+        {rapportClinique === "planningSansFactureProduit" && (
+          <ListePlanningSansFactureProduit
+            items={planningsSansFactureProduit}
+          />
         )}
         {rapportClinique === "echoSansCommission" && (
           <ListeEchographiesSansCommission items={echographiesSansCommission} />

@@ -589,8 +589,12 @@ export default function TableRapportPf({
           microgynon: isPilule && (hasMicrogynon || !hasMicrolut),
           microlut: isPilule && hasMicrolut && !hasMicrogynon,
           injectable2mois: client.courtDuree === "noristerat" && filterFn(client),
-          // Depo / Sayana : si produit identifié, sinon depo-provera par défaut
-          depoProvera: isInjectable3 && (hasDepo || !hasSayana),
+          // Depo / Sayana : on ne compte que si le produit est effectivement
+          // facturé (pas de fallback "Depo-Provera par défaut"). Comme
+          // chaque cliente injectable prend 1 boîte, on doit avoir
+          // depoProvera + sayanaPress == nb clients courtDuree=injectable
+          // == nb unités vendues dans le rapport financier.
+          depoProvera: isInjectable3 && hasDepo,
           sayanaPress: isInjectable3 && hasSayana && !hasDepo,
           implanon: (!!client.implanon || hasNorlevo) && filterFn(client),
           jadelle: !!client.jadelle && filterFn(client),
