@@ -146,9 +146,12 @@ export default function TableRapportIst({
         istEcoulementUretralIst: item.istType === "ecoulementUretral",
         istDouleursTesticulairesIst: item.istType === "douleursTesticulaires",
         istEcoulementVaginalIst: item.istType === "ecoulementVaginal",
-        istDouleursAbdominalesBassesIst: item.istType === "douleursAbdominales", // ⚡
-        istUlcerationGenitaleIst: item.istType === "ulcerationGenitale", // ⚡
-        istBubonInguinalIst: item.istType === "bubonInguinal", // ⚡
+        istDouleursAbdominalesBassesIst: item.istType === "douleursAbdominales",
+        // Le formulaire IST sauvegarde "ulceration" et "bubon"
+        // (cf. TabTypeIst dans IstForm.tsx). Avant : on cherchait
+        // "ulcerationGenitale" / "bubonInguinal" → toujours 0.
+        istUlcerationGenitaleIst: item.istType === "ulceration",
+        istBubonInguinalIst: item.istType === "bubon",
 
         istPecEtiologiqueCandidoseIst: item.istPecEtiologique === "candidose", // ⚡
         istPecEtiologiqueChancreMouIst: item.istPecEtiologique === "chancreMou", // ⚡

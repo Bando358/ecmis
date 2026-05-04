@@ -73,6 +73,7 @@ import TableRapportEchographie from "@/components/tableRapport/tableRapportEchog
 import TableRapportPecVih from "@/components/tableRapport/tableRapportPecVih";
 import TableRapportSigMedecine from "@/components/tableRapport/tableRapportSigMedecine";
 import TableRapportSigObstetrique from "@/components/tableRapport/tableRapportSigObtetrique";
+import TableRapportSigIst from "@/components/tableRapport/tableRapportSigIst";
 import {
   getAllUserIncludedTabIdClinique,
   getAllUserTabIdClinique,
@@ -147,6 +148,7 @@ const tabRapport = [
   { value: "sigMedecine", label: "SIG : Médecine Générale" },
   { value: "sigObstetrique", label: "SIG : Obstétrique" },
   { value: "sigAccouchement", label: "SIG : Accouchement" },
+  { value: "sigIst", label: "SIG : IST" },
   { value: "validation", label: "Rapport de Validation" },
 ];
 
@@ -988,6 +990,19 @@ const AnalyseReportPlanning = () => {
               case "sigAccouchement":
                 return (
                   <TableRapportSigAccouchement clientData={clientAllData} />
+                );
+              case "sigIst":
+                return (
+                  <TableRapportSigIst
+                    ageRanges={ageRangesSig}
+                    clientData={clientAllData}
+                    dateDebut={watch("dateDebut")}
+                    dateFin={watch("dateFin")}
+                    clinic={getAllClinicNameByIds(
+                      cliniques,
+                      watch("idCliniques").map((item) => item.value),
+                    ).join(", ")}
+                  />
                 );
               case "validation":
                 return (

@@ -454,6 +454,31 @@ const CONFIGS: Record<string, ClientDataConfig> = {
       { label: "Complications", get: (c) => c.accouchementComplications || "" },
     ],
   },
+  sigIst: {
+    // Toutes les fiches IST où un type a été renseigné — même filtre que
+    // le rapport SIG : IST.
+    filter: (c) => !!c.istType,
+    columns: [
+      ...baseColumns,
+      { label: "Type IST", get: (c) => c.istType || "" },
+      { label: "Type client", get: (c) => c.istTypeClient || "" },
+      { label: "Type PEC", get: (c) => c.istTypePec || "" },
+      { label: "PEC étiologique", get: (c) => c.istPecEtiologique || "" },
+      { label: "Examen physique", get: (c) => yn(c.istExamenPhysique) },
+      {
+        label: "Counselling avant",
+        get: (c) => yn(c.istCounsellingAvantDepitage),
+      },
+      {
+        label: "Counselling après",
+        get: (c) => yn(c.istCounsellingApresDepitage),
+      },
+      {
+        label: "Counselling réduction risque",
+        get: (c) => yn(c.istCounselingReductionRisque),
+      },
+    ],
+  },
   // ----- Sous-sections du rapport "Validation" --------------------------------
   // Le rapport de validation est composé de 11 tableaux. Chaque sous-section
   // a son propre listing dérivé des configs ci-dessus.
@@ -1152,6 +1177,7 @@ function rapportTypeLabel(t: string): string {
     sigMedecine: "SIG : Médecine générale",
     sigObstetrique: "SIG : Obstétrique",
     sigAccouchement: "SIG : Accouchement",
+    sigIst: "SIG : IST",
     "validation:contraception": "Validation : Contraception",
     "validation:vih": "Validation : VIH (Dépistage + PEC)",
     "validation:saa": "Validation : SAA",
