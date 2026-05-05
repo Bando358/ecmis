@@ -235,6 +235,16 @@ export default function TableRapportSigPlanning({
   const [loading, setLoading] = useState(false);
   const [spinnerPdf, setSpinnerPdf] = useState(false);
 
+  // Pour éviter de relancer le fetch à chaque re-render (focus fenêtre,
+  // tab actif, etc.), on dérive des clés stables depuis le CONTENU des
+  // tableaux clientData et clinicIds, plutôt que de dépendre de leurs
+  // références (qui changent à chaque re-render du parent).
+  const clientDataKey = useMemo(
+    () => clientData.map((c) => c.idVisite).join(","),
+    [clientData],
+  );
+  const clinicIdsKey = useMemo(() => clinicIds.join(","), [clinicIds]);
+
   // Charger en parallèle : factures produit (pour le matching méthode),
   // statuts client (protege/PDV/abandon) et stock contraceptifs.
   useEffect(() => {
@@ -255,7 +265,8 @@ export default function TableRapportSigPlanning({
         setStockRows(stock);
       })
       .finally(() => setLoading(false));
-  }, [clientData, clinicIds, dateDebut, dateFin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientDataKey, clinicIdsKey, dateDebut, dateFin]);
 
   // Map idVisite → liste des noms de produits facturés
   const produitsByVisite = useMemo(() => {
@@ -267,6 +278,21 @@ export default function TableRapportSigPlanning({
     return map;
   }, [factureProduits]);
 
+  // Map code client → liste de TOUS les produits achetés sur la période
+  // (toutes visites confondues). Sert à associer un statut (protégée /
+  // PDV / abandon) à la méthode contraceptive détectée via les produits.
+  // Aligné sur la logique du rapport PF existant.
+  const produitsByCode = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const c of clientData) {
+      const arr = map.get(c.code) || [];
+      const fact = produitsByVisite.get(c.idVisite) || [];
+      arr.push(...fact.map((p) => p.toLowerCase()));
+      map.set(c.code, arr);
+    }
+    return map;
+  }, [clientData, produitsByVisite]);
+
   // Détecter la méthode pour chaque visite et indexer.
   const visiteMethode = useMemo(() => {
     const map = new Map<string, MethodeKey | null>();
@@ -276,6 +302,30 @@ export default function TableRapportSigPlanning({
     }
     return map;
   }, [clientData, produitsByVisite]);
+
+  // Déterminer la méthode d'un statusInfo (protégé/PDV/abandon/arret) en
+  // s'appuyant sur courtDuree + produits achetés sur la période. Reproduit
+  // exactement la logique de convertedData du rapport PF.
+  const detectStatusMethode = (s: ClientStatusInfo): MethodeKey | null => {
+    const produits = produitsByCode.get(s.code) || [];
+    const has = (kw: string) => produits.some((p) => p.includes(kw));
+    if (s.courtDuree === "pilule") {
+      if (has("microlut") && !has("microgynon")) return "piluleCop";
+      return "piluleCoc"; // fallback Microgynon
+    }
+    if (s.courtDuree === "noristerat") return "injectableIm2";
+    if (s.courtDuree === "injectable") {
+      if (has("sayana") && !has("depo")) return "injectableSc3";
+      return "injectableIm3"; // fallback Depo-Provera
+    }
+    if (s.implanon) return "implant3";
+    if (s.jadelle) return "implant5";
+    if (s.sterilet) return "diu";
+    if (s.courtDuree === "preservatif") return "condomMasculin";
+    if (s.courtDuree === "spermicide") return "spermicide";
+    if (s.courtDuree === "urgence") return "urgence";
+    return null;
+  };
 
   // ---------------- Tableau 30a — Contraception moderne ----------------
   // Compte par méthode :
@@ -296,11 +346,14 @@ export default function TableRapportSigPlanning({
 
   const rows30A: Row30A[] = useMemo(() => {
     return METHODES_30A.map((methode) => {
+      // Nouveau utilisateur = statut "nu" (champ dédié dans le Planning).
+      // Ancien utilisateur = statut "au".
+      // L'ancien rapport PF utilise EXACTEMENT cette logique.
       const nouvellesByAge = PF_AGE_RANGES.map((range) =>
         clientData.reduce((acc, c) => {
           if (c.age < range.min || c.age > range.max) return acc;
           if (visiteMethode.get(c.idVisite) !== methode.key) return acc;
-          if (c.motifVisitePf !== "premiere") return acc;
+          if (c.statut !== "nu") return acc;
           return acc + 1;
         }, 0),
       );
@@ -308,61 +361,28 @@ export default function TableRapportSigPlanning({
 
       const anciennes = clientData.reduce((acc, c) => {
         if (visiteMethode.get(c.idVisite) !== methode.key) return acc;
-        if (
-          c.motifVisitePf !== "reapprovisionnement" &&
-          c.motifVisitePf !== "controle" &&
-          c.motifVisitePf !== "changement"
-        )
-          return acc;
+        if (c.statut !== "au") return acc;
         return acc + 1;
       }, 0);
 
-      // Protégées / PDV / abandons / arrêts : on s'appuie sur statusInfo,
-      // qui donne par planning/code le statut courant. On filtre les
-      // statuts dont la méthode courante correspond.
-      const matchStatus = (s: ClientStatusInfo): boolean => {
-        const isPilule = s.courtDuree === "pilule";
-        const isInjectable = s.courtDuree === "injectable";
-        const isPreservatif = s.courtDuree === "preservatif";
-        switch (methode.key) {
-          case "piluleCoc":
-            return isPilule;
-          case "piluleCop":
-            return false; // distinction Microgynon/Microlut nécessite la facture, non disponible ici
-          case "injectableIm3":
-            return isInjectable; // idem
-          case "injectableSc3":
-          case "autoInjection3":
-            return false;
-          case "injectableIm2":
-            return s.courtDuree === "noristerat";
-          case "diu":
-            return !!s.sterilet;
-          case "diuPp":
-            return false;
-          case "implant5":
-            return !!s.jadelle;
-          case "implant3":
-            return !!s.implanon;
-          case "condomMasculin":
-            return isPreservatif;
-          case "condomFeminin":
-          case "spermicide":
-          case "urgence":
-            return s.courtDuree === methode.key.toLowerCase();
-        }
-      };
+      // Protégées / PDV / abandons / arrêts : on croise statusInfo avec
+      // les produits achetés (produitsByCode) pour distinguer Sayana de
+      // Depo, Microlut de Microgynon, etc. — exactement comme le fait le
+      // rapport PF existant via convertedData.
+      const matchStatusMethode = (s: ClientStatusInfo) =>
+        detectStatusMethode(s) === methode.key;
+
       const protegees = statusInfo.filter(
-        (s) => s.protege && matchStatus(s),
+        (s) => s.protege && matchStatusMethode(s),
       ).length;
       const pdv = statusInfo.filter(
-        (s) => s.perdueDeVue && matchStatus(s),
+        (s) => s.perdueDeVue && matchStatusMethode(s),
       ).length;
       const abandons = statusInfo.filter(
-        (s) => s.abandon && matchStatus(s),
+        (s) => s.abandon && matchStatusMethode(s),
       ).length;
       const arrets = statusInfo.filter(
-        (s) => s.arret && matchStatus(s),
+        (s) => s.arret && matchStatusMethode(s),
       ).length;
 
       return {
@@ -377,7 +397,8 @@ export default function TableRapportSigPlanning({
         arrets,
       };
     });
-  }, [clientData, visiteMethode, statusInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientData, visiteMethode, statusInfo, produitsByCode]);
 
   // ---------------- Tableau 30b — Autres indicateurs PF ----------------
   const rows30B = useMemo(
