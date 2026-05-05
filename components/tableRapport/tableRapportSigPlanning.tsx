@@ -72,42 +72,56 @@ const METHODES_30A: { key: MethodeKey; label: string }[] = [
   { key: "urgence", label: "Contraception d'urgence" },
 ];
 
-// Détermine la méthode utilisée par un client (à partir du planning + facture).
-// Une visite peut correspondre à exactement une méthode (priorité au plus
-// précis). Retourne null si la visite n'est pas une consultation PF avec
-// méthode prise.
+// Détermine la méthode utilisée par un client (à partir des produits
+// facturés sur la visite, complété par les champs du Planning).
+//
+// Logique : on s'aligne sur le rapport "Planification Familiale" existant
+// qui compte sur la base de FactureProduit. La présence d'un produit
+// contraceptif sur la visite est le signal le plus fiable (contre les cas
+// de renouvellement où la case "consultation" du Planning n'est pas
+// cochée mais où le produit est bien dispensé).
+//
+// Ordre de priorité :
+//   1. Détection par produit facturé (ex: "Sayana Press" → injectableSc3)
+//   2. Fallback sur les champs Planning (sterilet/jadelle/implanon
+//      en insertion/contrôle, courtDuree)
 const detectMethode = (
   c: ClientData,
   produits: string[],
 ): MethodeKey | null => {
-  if (!c.consultationPf) return null;
   const has = (kw: string) =>
     produits.some((p) => p.toLowerCase().includes(kw));
   const isPostPartum =
     c.typeContraception === "post_partum" ||
     c.typeContraception === "post_partum_immediat";
 
-  // Pilules
-  if (c.courtDuree === "pilule") {
-    if (has("microlut")) return "piluleCop";
-    return "piluleCoc"; // fallback Microgynon
-  }
-  // Injectable 2 mois
-  if (c.courtDuree === "noristerat") return "injectableIm2";
-  // Injectable 3 mois — distinguer Depo (IM) / Sayana (SC) via produit
-  if (c.courtDuree === "injectable") {
-    if (has("sayana")) return "injectableSc3";
-    return "injectableIm3"; // fallback Depo-Provera
-  }
-  // Implants
+  // 1) Détection par FACTURE PRODUIT — signal le plus fiable.
+  if (has("microlut")) return "piluleCop";
+  if (has("microgynon")) return "piluleCoc";
+  if (has("sayana")) return "injectableSc3";
+  if (has("depo")) return "injectableIm3";
+  if (has("noristerat")) return "injectableIm2";
+  if (has("jadelle")) return "implant5";
+  if (has("implanon")) return "implant3";
+  if (has("norlevo") || has("postinor")) return "urgence";
+  if (has("spermicide")) return "spermicide";
+  if (has("femidom") || has("feminin")) return "condomFeminin";
+  if (has("condom") || has("preservatif")) return "condomMasculin";
+
+  // 2) Fallback sur les fields Planning (insertions/contrôles d'implants
+  //    et stérilets ne génèrent pas systématiquement une FactureProduit).
   if (c.implanon === "insertion" || c.implanon === "controle")
     return "implant3";
   if (c.jadelle === "insertion" || c.jadelle === "controle")
     return "implant5";
-  // Stérilet — DIU vs DIU-PP
   if (c.sterilet === "insertion" || c.sterilet === "controle")
     return isPostPartum ? "diuPp" : "diu";
-  // Préservatif / Spermicide / Urgence
+
+  // 3) Fallback sur courtDuree (cas où ni produit identifié ni
+  //    insertion implant/DIU — usage générique de la méthode).
+  if (c.courtDuree === "pilule") return "piluleCoc"; // Microgynon par défaut
+  if (c.courtDuree === "noristerat") return "injectableIm2";
+  if (c.courtDuree === "injectable") return "injectableIm3"; // Depo par défaut
   if (c.courtDuree === "preservatif") return "condomMasculin";
   if (c.courtDuree === "spermicide") return "spermicide";
   if (c.courtDuree === "urgence") return "urgence";
