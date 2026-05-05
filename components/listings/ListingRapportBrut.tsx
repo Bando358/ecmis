@@ -479,6 +479,49 @@ const CONFIGS: Record<string, ClientDataConfig> = {
       },
     ],
   },
+  sigGyneco: {
+    // Visites avec une consultation Gynéco renseignée (même filtre que le rapport)
+    filter: (c) => c.consultationGyneco === true,
+    columns: [
+      ...baseColumns,
+      { label: "Motif gyneco", get: (c) => c.motifVisiteGyneco || "" },
+      { label: "Résultat IVA", get: (c) => c.resultatIva || "" },
+      {
+        label: "Eligible traitement IVA",
+        get: (c) => yn(c.eligibleTraitementIva),
+      },
+      {
+        label: "Type traitement IVA",
+        get: (c) => c.typeTraitementIva || "",
+      },
+      { label: "Résultat VIH", get: (c) => c.depistageVihResultat || "" },
+      { label: "Type client PEC VIH", get: (c) => c.pecVihTypeclient || "" },
+      {
+        label: "Counselling cancer sein",
+        get: (c) => yn(c.counsellingCancerSein),
+      },
+      {
+        label: "Résultat cancer sein",
+        get: (c) => c.resultatCancerSein || "",
+      },
+    ],
+  },
+  sigPlanning: {
+    // Visites avec consultation PF ou prise de méthode (idem rapport)
+    filter: (c) => c.consultationPf === true || c.methodePrise === true,
+    columns: [
+      ...baseColumns,
+      { label: "Motif PF", get: (c) => c.motifVisitePf || "" },
+      { label: "Type contraception", get: (c) => c.typeContraception || "" },
+      { label: "Court durée", get: (c) => c.courtDuree || "" },
+      { label: "Méthode prise", get: (c) => yn(c.methodePrise) },
+      { label: "Counselling PF", get: (c) => yn(c.counsellingPf) },
+      { label: "Implanon", get: (c) => c.implanon || "" },
+      { label: "Jadelle", get: (c) => c.jadelle || "" },
+      { label: "Stérilet", get: (c) => c.sterilet || "" },
+      { label: "RDV PF", get: (c) => fmtDate(c.rdvPf) },
+    ],
+  },
   // ----- Sous-sections du rapport "Validation" --------------------------------
   // Le rapport de validation est composé de 11 tableaux. Chaque sous-section
   // a son propre listing dérivé des configs ci-dessus.
@@ -1178,6 +1221,8 @@ function rapportTypeLabel(t: string): string {
     sigObstetrique: "SIG : Obstétrique",
     sigAccouchement: "SIG : Accouchement",
     sigIst: "SIG : IST",
+    sigGyneco: "SIG : Gynécologie",
+    sigPlanning: "SIG : Planification Familiale",
     "validation:contraception": "Validation : Contraception",
     "validation:vih": "Validation : VIH (Dépistage + PEC)",
     "validation:saa": "Validation : SAA",

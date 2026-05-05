@@ -74,6 +74,8 @@ import TableRapportPecVih from "@/components/tableRapport/tableRapportPecVih";
 import TableRapportSigMedecine from "@/components/tableRapport/tableRapportSigMedecine";
 import TableRapportSigObstetrique from "@/components/tableRapport/tableRapportSigObtetrique";
 import TableRapportSigIst from "@/components/tableRapport/tableRapportSigIst";
+import TableRapportSigGyneco from "@/components/tableRapport/tableRapportSigGyneco";
+import TableRapportSigPlanning from "@/components/tableRapport/tableRapportSigPlanning";
 import {
   getAllUserIncludedTabIdClinique,
   getAllUserTabIdClinique,
@@ -149,6 +151,8 @@ const tabRapport = [
   { value: "sigObstetrique", label: "SIG : Obstétrique" },
   { value: "sigAccouchement", label: "SIG : Accouchement" },
   { value: "sigIst", label: "SIG : IST" },
+  { value: "sigGyneco", label: "SIG : Gynécologie" },
+  { value: "sigPlanning", label: "SIG : Planification Familiale" },
   { value: "validation", label: "Rapport de Validation" },
 ];
 
@@ -996,6 +1000,33 @@ const AnalyseReportPlanning = () => {
                   <TableRapportSigIst
                     ageRanges={ageRangesSig}
                     clientData={clientAllData}
+                    dateDebut={watch("dateDebut")}
+                    dateFin={watch("dateFin")}
+                    clinic={getAllClinicNameByIds(
+                      cliniques,
+                      watch("idCliniques").map((item) => item.value),
+                    ).join(", ")}
+                  />
+                );
+              case "sigGyneco":
+                return (
+                  <TableRapportSigGyneco
+                    ageRanges={ageRangesSig}
+                    clientData={clientAllData}
+                    dateDebut={watch("dateDebut")}
+                    dateFin={watch("dateFin")}
+                    clinic={getAllClinicNameByIds(
+                      cliniques,
+                      watch("idCliniques").map((item) => item.value),
+                    ).join(", ")}
+                  />
+                );
+              case "sigPlanning":
+                return (
+                  <TableRapportSigPlanning
+                    ageRanges={ageRangesSig}
+                    clientData={clientAllData}
+                    clinicIds={watch("idCliniques").map((item) => item.value)}
                     dateDebut={watch("dateDebut")}
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(
