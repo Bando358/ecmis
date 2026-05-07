@@ -68,6 +68,10 @@ import {
   RecettesMois,
   getRecettesTroisDerniersMois,
 } from "@/lib/actions/recettesActions";
+import {
+  getSoinsInfirmierForReport,
+  type SoinsInfirmierForReport,
+} from "@/lib/actions/soinsInfirmierActions";
 import TableRapportLabo from "@/components/tableRapport/tableRapportLabo";
 import TableRapportEchographie from "@/components/tableRapport/tableRapportEchographie";
 import TableRapportPecVih from "@/components/tableRapport/tableRapportPecVih";
@@ -188,6 +192,10 @@ const AnalyseReportPlanning = () => {
   const [recettesTroisMois, setRecettesTroisMois] = useState<RecettesMois[]>(
     [],
   );
+  // Fiches Soins Infirmiers (alimente le tableau 2 du rapport SIG : Médecine)
+  const [soinsInfirmiers, setSoinsInfirmiers] = useState<
+    SoinsInfirmierForReport[]
+  >([]);
   // Bascule "vue rapport agrégé" / "listing brut pour vérification"
   const [showListing, setShowListing] = useState(false);
 
@@ -432,6 +440,14 @@ const AnalyseReportPlanning = () => {
       );
       setRecettesTroisMois(recettes);
 
+      // Soins Infirmiers (modèle dédié SoinsInfirmier) — pour le rapport SIG Médecine
+      const soinsInfirmierData = await getSoinsInfirmierForReport(
+        selectedIds,
+        dateDebutObj,
+        dateFinObj,
+      );
+      setSoinsInfirmiers(soinsInfirmierData);
+
       // Charger les prescripteurs manquants (users non associés à une clinique)
       const allKnownIds = new Set(allUsers.map((u: { id: string }) => u.id));
       const missingIds = [
@@ -487,8 +503,29 @@ const AnalyseReportPlanning = () => {
       setRapportClinique(rapport);
       setClients(newAllDataIdPrescripteur);
       setSpinner(false);
+      // Pour le rapport de Planification Familiale, on doit prendre en
+      // compte TOUS les clients ayant une fiche Planning, indépendamment
+      // de la case "consultation" qui peut ne pas être cochée pour les
+      // simples renouvellements / retraits / méthodes prises.
+      // Une fiche Planning est détectée via tout signal non-défaut :
+      // statut renseigné, méthode prise, counselling, court-durée, ou
+      // toute action sur implanon/jadelle/stérilet.
       setClientData(
-        newAllDataIdPrescripteur.filter((client) => client.consultationPf === true),
+        newAllDataIdPrescripteur.filter((client) => {
+          return (
+            client.consultationPf === true ||
+            client.methodePrise === true ||
+            client.counsellingPf === true ||
+            !!client.statut ||
+            !!client.courtDuree ||
+            !!client.implanon ||
+            !!client.jadelle ||
+            !!client.sterilet ||
+            client.retraitImplanon === true ||
+            client.retraitJadelle === true ||
+            client.retraitSterilet === true
+          );
+        }),
       );
     } catch (error) {
       console.error("Erreur lors de la récupération :", error);
@@ -979,6 +1016,7 @@ const AnalyseReportPlanning = () => {
                   <TableRapportSigMedecine
                     ageRanges={ageRangesSig}
                     clientData={clientAllData}
+                    soinsInfirmiers={soinsInfirmiers}
                     dateDebut={watch("dateDebut")}
                     dateFin={watch("dateFin")}
                     clinic={getAllClinicNameByIds(

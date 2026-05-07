@@ -94,6 +94,16 @@ export const MedecineCreateSchema = z.object({
   mdgIdClinique: IdSchema,
 }).passthrough();
 
+// ===== Soins Infirmiers =====
+export const SoinsInfirmierCreateSchema = z.object({
+  typeSoin: RequiredStringSchema,
+  observations: OptionalStringSchema,
+  idVisite: IdSchema,
+  idClient: IdSchema,
+  idClinique: IdSchema,
+  idUser: IdSchema,
+}).passthrough();
+
 // ===== Grossesse =====
 export const GrossesseCreateSchema = z.object({
   grossesseConsultation: z.boolean().default(true),

@@ -64,6 +64,23 @@ import {
   // CommissionTotal,
 } from "@/components/rapports";
 
+// ====================== LISTES IMPORTÉES DEPUIS LA PAGE LISTINGS ======================
+import ListeVentesDirectes from "@/components/listings/ListeVentesDirectes";
+import ListeTousFactures from "@/components/listings/ListeTousFactures";
+import ListeEchographiesSansCommission from "@/components/listings/ListeEchographiesSansCommission";
+import {
+  getVentesDirectesListing,
+  type VenteDirecteListingItem,
+} from "@/lib/actions/ventesDirectesListingActions";
+import {
+  getAllFacturesByClinique,
+  type FactureItem,
+} from "@/lib/actions/facturesListingActions";
+import {
+  getEchographiesSansCommission,
+  type EchographieSansCommissionItem,
+} from "@/lib/actions/echographiesSansCommissionActions";
+
 // ====================== INTERFACES ======================
 interface CliniqueOption {
   value: string;
@@ -161,6 +178,13 @@ const REPORT_TYPES: ReportTypeOption[] = [
     value: "commission_echographie_total",
     label: "Commission prescripteur - Total (Échographie)",
   },
+  // Listes importées depuis la page Listings
+  { value: "ventes_directes_listing", label: "Produits vendus en vente directe" },
+  { value: "tous_factures", label: "Tous les éléments facturés" },
+  {
+    value: "echo_sans_commission",
+    label: "Échographies sans commission attribuée",
+  },
 ];
 
 // react-select importé seulement côté client
@@ -223,6 +247,14 @@ export default function VentesPage() {
   >([]);
   const [allPrescripteurs, setAllPrescripteurs] = useState<Prescripteur[]>([]);
   const [totalVentesDirectes, setTotalVentesDirectes] = useState(0);
+
+  // États pour les listes importées depuis la page Listings
+  const [ventesDirectesListingItems, setVentesDirectesListingItems] = useState<
+    VenteDirecteListingItem[]
+  >([]);
+  const [tousFacturesItems, setTousFacturesItems] = useState<FactureItem[]>([]);
+  const [echographiesSansCommissionItems, setEchographiesSansCommissionItems] =
+    useState<EchographieSansCommissionItem[]>([]);
 
   const { data: session } = useSession();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -388,7 +420,10 @@ export default function VentesPage() {
         setFacturesProduits([]);
         setFacturesPrestations([]);
         setFacturesEchographies([]);
-      } else if (selectedReportType.value.includes("echographie")) {
+      } else if (
+        selectedReportType.value === "commission_echographie_detail" ||
+        selectedReportType.value === "commission_echographie_total"
+      ) {
         // Charger les commissions d'échographie
         const commissions = await getCommissionsEchographieByDateRange(
           startDate,
@@ -403,6 +438,49 @@ export default function VentesPage() {
         setFacturesProduits([]);
         setFacturesPrestations([]);
         setFacturesEchographies([]);
+      } else if (selectedReportType.value === "ventes_directes_listing") {
+        // Liste des produits vendus en vente directe
+        const data = await getVentesDirectesListing(
+          selectedIds,
+          startDate,
+          endDate,
+        );
+        setVentesDirectesListingItems(data);
+        // Réinitialiser les autres résultats
+        setFacturesExamens([]);
+        setFacturesProduits([]);
+        setFacturesPrestations([]);
+        setFacturesEchographies([]);
+        setCommissionsExamen([]);
+        setCommissionsEchographie([]);
+      } else if (selectedReportType.value === "tous_factures") {
+        // Tous les éléments facturés (produits + prestations + examens + échos)
+        const data = await getAllFacturesByClinique(
+          selectedIds,
+          startDate,
+          endDate,
+        );
+        setTousFacturesItems(data);
+        setFacturesExamens([]);
+        setFacturesProduits([]);
+        setFacturesPrestations([]);
+        setFacturesEchographies([]);
+        setCommissionsExamen([]);
+        setCommissionsEchographie([]);
+      } else if (selectedReportType.value === "echo_sans_commission") {
+        // Échographies sans commission attribuée
+        const data = await getEchographiesSansCommission(
+          selectedIds,
+          startDate,
+          endDate,
+        );
+        setEchographiesSansCommissionItems(data);
+        setFacturesExamens([]);
+        setFacturesProduits([]);
+        setFacturesPrestations([]);
+        setFacturesEchographies([]);
+        setCommissionsExamen([]);
+        setCommissionsEchographie([]);
       }
     } catch (err) {
       console.error("Erreur lors du chargement des données:", err);
@@ -2014,6 +2092,23 @@ export default function VentesPage() {
                   dateDebut={watch("dateDebut")}
                   dateFin={watch("dateFin")}
                   commissionsEchographieTotal={commissionsEchographieTotal}
+                />
+              )}
+
+              {/* ================== LISTE - PRODUITS VENDUS EN VENTE DIRECTE ================== */}
+              {selectedReportType.value === "ventes_directes_listing" && (
+                <ListeVentesDirectes items={ventesDirectesListingItems} />
+              )}
+
+              {/* ================== LISTE - TOUS LES ÉLÉMENTS FACTURÉS ================== */}
+              {selectedReportType.value === "tous_factures" && (
+                <ListeTousFactures items={tousFacturesItems} />
+              )}
+
+              {/* ================== LISTE - ÉCHOGRAPHIES SANS COMMISSION ================== */}
+              {selectedReportType.value === "echo_sans_commission" && (
+                <ListeEchographiesSansCommission
+                  items={echographiesSansCommissionItems}
                 />
               )}
 

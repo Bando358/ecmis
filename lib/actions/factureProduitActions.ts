@@ -53,6 +53,18 @@ export async function getAllFactureProduitByIdVisiteByData(data: ClientData[]) {
     where: { idVisite: { in: idVisiteList } },
   });
 }
+
+/**
+ * Variante lite : ne reçoit qu'une liste d'idVisite (pas l'objet client
+ * complet) pour éviter de saturer le payload de la Server Action quand
+ * la liste de clients est massive (rapport mensuel d'une grosse clinique).
+ */
+export async function getFactureProduitsByVisiteIds(idVisiteList: string[]) {
+  if (!Array.isArray(idVisiteList) || idVisiteList.length === 0) return [];
+  return await prisma.factureProduit.findMany({
+    where: { idVisite: { in: idVisiteList } },
+  });
+}
 // Suppression d'une FactureProduit
 export async function deleteFactureProduit(id: string) {
   await requirePermission(TableName.FACTURE_PRODUIT, "canDelete");

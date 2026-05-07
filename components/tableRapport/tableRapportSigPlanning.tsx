@@ -24,7 +24,7 @@ import {
   fetchClientsStatusProtege,
 } from "@/components/rapportPfActions";
 import { FactureProduit } from "@prisma/client";
-import { getAllFactureProduitByIdVisiteByData } from "@/lib/actions/factureProduitActions";
+import { getFactureProduitsByVisiteIds } from "@/lib/actions/factureProduitActions";
 
 // ----------------------------------------------------------------------------
 // Tranches d'âge spécifiques au tableau 30a
@@ -247,6 +247,8 @@ export default function TableRapportSigPlanning({
 
   // Charger en parallèle : factures produit (pour le matching méthode),
   // statuts client (protege/PDV/abandon) et stock contraceptifs.
+  // On envoie uniquement les idVisite à la server action (au lieu du tableau
+  // ClientData complet) pour éviter le payload "Body exceeded N MB limit".
   useEffect(() => {
     if (!clientData || clientData.length === 0) return;
     setLoading(true);
@@ -254,8 +256,9 @@ export default function TableRapportSigPlanning({
     const dFin = new Date(dateFin);
     dDebut.setHours(0, 0, 0, 0);
     dFin.setHours(23, 59, 59, 999);
+    const visiteIds = clientData.map((c) => c.idVisite);
     Promise.all([
-      getAllFactureProduitByIdVisiteByData(clientData),
+      getFactureProduitsByVisiteIds(visiteIds),
       fetchClientsStatusProtege(clinicIds, dDebut, dFin),
       getStockContraceptifs(clinicIds, dDebut, dFin),
     ])
@@ -263,6 +266,10 @@ export default function TableRapportSigPlanning({
         setFactureProduits(fp);
         setStatusInfo(status as ClientStatusInfo[]);
         setStockRows(stock);
+      })
+      .catch((e) => {
+        // Loguer pour faciliter le diagnostic si la fetch échoue.
+        console.error("SIG Planning : échec du chargement", e);
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import { Worksheet } from "exceljs";
 // import { tableExportWithSexe } from "../tableExportFonction";
 import { ClientData, clientDataProps } from "../rapportPfActions";
+import type { SoinsInfirmierForReport } from "@/lib/actions/soinsInfirmierActions";
 import {
   Table,
   TableBody,
@@ -91,6 +92,9 @@ type DateType = string | Date;
 interface TableRapportGynecoProps {
   ageRanges: AgeRange[];
   clientData: ClientData[];
+  /** Fiches Soins Infirmiers (modèle dédié) à fusionner dans le tableau 2.
+   * Optionnel pour rester rétro-compatible. */
+  soinsInfirmiers?: SoinsInfirmierForReport[];
   dateDebut: DateType;
   dateFin: DateType;
   clinic: string;
@@ -278,6 +282,7 @@ const tabSoinsInfirmier = [
 export default function TableRapportSigMedecine({
   ageRanges,
   clientData,
+  soinsInfirmiers,
   dateDebut,
   dateFin,
   clinic,
@@ -287,9 +292,40 @@ export default function TableRapportSigMedecine({
   const [spinnerPdf, setSpinnerPdf] = useState(false);
 
   useEffect(() => {
-    if (!clientData || clientData.length === 0) {
+    const hasClientData = clientData && clientData.length > 0;
+    if (!hasClientData && (!soinsInfirmiers || soinsInfirmiers.length === 0)) {
       setConverted([]);
-    } else {
+      return;
+    }
+    if (!hasClientData) {
+      // Aucune ClientData mais on a des Soins Infirmiers → ne convertir que ceux-ci.
+      const SOIN_TO_FIELD: Record<string, keyof convertedType> = {
+        pansements: "pansements",
+        injections: "injections",
+        perfusions: "perfusions",
+        autresSoins: "autresSoins",
+        circoncision: "petiteChirurgieCirconcisionMasculine",
+        suture: "petiteChirurgieSuturePlaieTraumatique",
+        incision: "petiteChirurgieIncisionAbces",
+        autresPetiteChirurgie: "autresPetiteChirurgie",
+      };
+      const soinsOnlyRows: convertedType[] = (soinsInfirmiers ?? []).map((s) => {
+        const base = {
+          id: s.id,
+          idVisite: s.idVisite,
+          age: s.age,
+          sexe: s.sexe,
+        } as unknown as convertedType;
+        const targetField = SOIN_TO_FIELD[s.typeSoin];
+        const flag: Partial<convertedType> = targetField
+          ? { [targetField]: true }
+          : {};
+        return { ...base, ...flag } as convertedType;
+      });
+      setConverted(soinsOnlyRows);
+      return;
+    }
+    {
       const newConverted = clientData.map((item) => ({
         ...item,
         // consultationIst: item.dateVisite === true, // ⚡
@@ -392,9 +428,55 @@ export default function TableRapportSigMedecine({
       const deduped = eliminerDoublonsConsultantsParMois(newConverted);
       if (deduped.length > 0) console.log("deduped ", deduped);
       if (deduped.length > 0) console.log("newConverted ", newConverted);
-      setConverted(deduped);
+
+      // Fusionner les fiches Soins Infirmiers (modèle dédié) en lignes
+      // additionnelles du tableau 2. Chaque enregistrement contribue
+      // uniquement à la colonne du typeSoin correspondant.
+      const SOIN_TO_FIELD: Record<string, keyof convertedType> = {
+        pansements: "pansements",
+        injections: "injections",
+        perfusions: "perfusions",
+        autresSoins: "autresSoins",
+        circoncision: "petiteChirurgieCirconcisionMasculine",
+        suture: "petiteChirurgieSuturePlaieTraumatique",
+        incision: "petiteChirurgieIncisionAbces",
+        autresPetiteChirurgie: "autresPetiteChirurgie",
+      };
+      const soinsRows: convertedType[] = (soinsInfirmiers ?? []).map((s) => {
+        const base = {
+          // Champs minimaux de ClientData utilisés par countClientBoolean
+          id: s.id,
+          idVisite: s.idVisite,
+          age: s.age,
+          sexe: s.sexe,
+        } as unknown as convertedType;
+        // Initialiser tous les flags à false par défaut
+        const allFalse: Partial<convertedType> = {
+          mdgConsultant: false,
+          mdgConsultation: false,
+          mdgMo: false,
+          mdgDuree: false,
+          mdgCasRefere: false,
+          mdgFichesContreReference: false,
+          pansements: false,
+          injections: false,
+          perfusions: false,
+          autresSoins: false,
+          petiteChirurgieCirconcisionMasculine: false,
+          petiteChirurgieSuturePlaieTraumatique: false,
+          petiteChirurgieIncisionAbces: false,
+          autresPetiteChirurgie: false,
+        };
+        const targetField = SOIN_TO_FIELD[s.typeSoin];
+        const flag: Partial<convertedType> = targetField
+          ? { [targetField]: true }
+          : {};
+        return { ...base, ...allFalse, ...flag } as convertedType;
+      });
+
+      setConverted([...deduped, ...soinsRows]);
     }
-  }, [clientData]);
+  }, [clientData, soinsInfirmiers]);
 
   // Garder mdgConsultant=true uniquement pour la première visite du même mdgIdClient dans un même mois
   function eliminerDoublonsConsultantsParMois(

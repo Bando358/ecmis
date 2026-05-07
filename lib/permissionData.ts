@@ -102,6 +102,13 @@ export const dataPermission = [
     canDelete: false,
   },
   {
+    table: TableName.SOINS_INFIRMIER,
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false,
+  },
+  {
     table: TableName.VBG,
     canCreate: false,
     canRead: false,
@@ -456,6 +463,7 @@ const tablesCliniquesFull: PermissionOverride[] = [
   { table: TableName.IST, ...crud },
   { table: TableName.INFERTILITE, ...crud },
   { table: TableName.MEDECINE, ...crud },
+  { table: TableName.SOINS_INFIRMIER, ...crud },
   { table: TableName.VBG, ...crud },
   { table: TableName.GROSSESSE, ...crud },
   { table: TableName.OBSTETRIQUE, ...crud },

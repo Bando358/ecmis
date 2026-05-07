@@ -3,6 +3,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowBigLeftDash,
+  Bandage,
   BriefcaseMedical,
   ClipboardList,
   HeartPulse,
@@ -34,6 +35,7 @@ import DepistageVihForm from "@/components/forms/DepistageVihForm";
 import IstForm from "@/components/forms/IstForm";
 import ReferenceForm from "@/components/forms/ReferenceForm";
 import VbgForm from "@/components/forms/VbgForm";
+import SoinsInfirmierForm from "@/components/forms/SoinsInfirmierForm";
 import VisiteConstanteTab from "@/components/forms/VisiteConstanteTab";
 import { ClipboardPlus } from "lucide-react";
 
@@ -102,6 +104,14 @@ const TABS_CONFIG = [
     accent: "#b91c1c",
     accentLight: "#fef2f2",
   },
+  {
+    value: "soins-infirmier",
+    label: "Soins Infirmiers",
+    shortLabel: "Soins",
+    icon: Bandage,
+    accent: "#0d9488",
+    accentLight: "#f0fdfa",
+  },
 ] as const;
 
 const FORM_COMPONENTS: Record<string, React.ComponentType<SharedFormProps>> = {
@@ -113,6 +123,7 @@ const FORM_COMPONENTS: Record<string, React.ComponentType<SharedFormProps>> = {
   ist: IstForm,
   reference: ReferenceForm,
   vbg: VbgForm,
+  "soins-infirmier": SoinsInfirmierForm,
 };
 
 export default function MdgPage({
@@ -272,7 +283,7 @@ export default function MdgPage({
           onValueChange={handleTabChange}
           className="gap-3 m-4"
         >
-          <TabsList className="sticky top-0 z-20 grid grid-cols-4 sm:grid-cols-8 h-auto gap-2 p-2.5 w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm backdrop-blur-sm">
+          <TabsList className="sticky top-0 z-20 grid grid-cols-3 sm:grid-cols-9 h-auto gap-2 p-2.5 w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm backdrop-blur-sm">
             {TABS_CONFIG.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.value;

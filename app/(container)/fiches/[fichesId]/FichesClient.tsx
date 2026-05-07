@@ -167,6 +167,13 @@ const Table17 = dynamic(
     })),
   { loading: TableLoader },
 );
+const Table18 = dynamic(
+  () =>
+    import("@/components/table/tableSoinsInfirmier").then((mod) => ({
+      default: mod.Table18,
+    })),
+  { loading: TableLoader },
+);
 
 // Types
 interface FicheLink {
@@ -293,6 +300,11 @@ const createCategories = (fichesId: string): Category[] => [
         tableComponent: Table16,
       },
       { label: "VBG", href: `/fiche-vbg/${fichesId}`, tableComponent: Table15 },
+      {
+        label: "Soins Infirmiers",
+        href: `/fiche-soins-infirmier/${fichesId}`,
+        tableComponent: Table18,
+      },
       { label: "Ordonnance", href: `/fiche-ordonnance/${fichesId}` },
     ],
   },
